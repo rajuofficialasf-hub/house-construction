@@ -15,7 +15,9 @@ test('update-by-serial mode updates matching serials and reports unknown ones as
     buffer: csv([['1', '2025', 'আপডেটেড নাম', ...geo], ['999', '2025', 'অজানা সিরিয়াল', ...geo]]),
   })
   await page.getByRole('button', { name: /টি সারি/ }).click()
-  await expect(page.getByText(/সফল|সম্পন্ন|আপডেট/).first()).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText('সফল: ১')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText('সিরিয়াল মিলেনি (আপডেট হয়নি): ১')).toBeVisible()
+  await expect(page.getByText('সিরিয়াল ৯৯৯: রেকর্ড নেই')).toBeVisible()
   await page.goto('/housing/admin/semi-pucca')
   await expect(page.getByRole('row', { name: /আপডেটেড নাম/ }).getByRole('cell', { name: '১', exact: true }).first()).toBeVisible()
   await expect(page.getByRole('row', { name: /অজানা সিরিয়াল/ })).toHaveCount(0)

@@ -24,7 +24,9 @@ test.describe('single record photos', () => {
     await expect(page).toHaveURL(/\/housing\/admin\/semi-pucca$/)
     await page.goto('/housing/admin/semi-pucca/1/edit')
     const after = await page.getByRole('img', { name: 'পূর্বের ঘরের ছবি (বর্তমানে সংরক্ষিত)' }).getAttribute('src')
+    // same storage path (overwrite), but a new cache-busting version after the upload
     expect(after?.split('?')[0]).toBe(before?.split('?')[0])
+    expect(after).not.toBe(before)
   })
 
   test('deleting a saved photo removes it from the record', async ({ page }) => {

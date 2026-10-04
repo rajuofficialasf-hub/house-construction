@@ -9,22 +9,24 @@ export async function statTotal(page: Page): Promise<number> {
   const region = page.getByRole('region', { name: 'পরিসংখ্যান' })
   const label = region.getByText('মোট উপকারভোগী', { exact: true })
   await expect(label).toBeVisible()
-  // সংখ্যা count-up অ্যানিমেশনে বাড়ে — স্থির হওয়া পর্যন্ত অপেক্ষা
   const value = label.locator('xpath=following-sibling::*[1]')
-  let prev = -1
-  for (let i = 0; i < 40; i++) {
+  // সংখ্যা count-up অ্যানিমেশনে বাড়ে, আর ডাটা আসার আগে ০ দেখায় — তাই একই মান টানা কয়েকবার (≈১ সেকেন্ড) থাকলে তবেই স্থির ধরা হয়
+  let prev = Number.NaN
+  let same = 0
+  for (let i = 0; i < 60; i++) {
     const n = bnInt(await value.textContent())
-    if (n === prev && !Number.isNaN(n)) return n
+    same = n === prev ? same + 1 : 0
+    if (same >= 6) return n
     prev = n
     await page.waitForTimeout(150)
   }
   return prev
 }
 
-/** তালিকা লোড হওয়া পর্যন্ত অপেক্ষা (অন্তত এক ডাটা সারি, অথবা খালি অবস্থা) */
+/** তালিকা লোড হওয়া পর্যন্ত অপেক্ষা (ডাটা সারি সহ টেবিল, অথবা খালি অবস্থার বার্তা) */
 export async function waitForList(page: Page) {
-  await expect(page.locator('table')).toBeVisible()
-  await expect.poll(async () => (await page.locator('table tbody tr').count()) >= 0).toBe(true)
+  // the list page renders a table when there are records, or a status notice when there are none
+  await expect(page.locator('table').or(page.locator('main [role=status]')).first()).toBeVisible()
 }
 
 /** এক কলামের সব সারির টেক্সট, এক ধাপে (রি-রেন্ডারের মাঝখানে সারি বদলালেও আটকে যায় না) */

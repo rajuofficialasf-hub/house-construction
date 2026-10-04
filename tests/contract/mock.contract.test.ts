@@ -15,4 +15,4 @@ function makeMock(): ContractHarness {
   }
 }
 
-runHousingApiContract('mock backend', makeMock, { writes: true })
+runHousingApiContract('mock backend', makeMock, { writes: true, seeded: true })

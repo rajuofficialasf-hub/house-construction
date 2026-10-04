@@ -7,8 +7,10 @@ import { defineConfig, devices } from '@playwright/test'
 //   mock — VITE_HOUSING_BACKEND=mock, in-memory backend, admin and write flows (e2e/mock).
 //   public-mock — the same read-only public specs as live (e2e/live), run against the mock backend. No credentials
 //          needed; it keeps the public specs honest while live credentials are unavailable.
-const LIVE_PORT = 5173
-const MOCK_PORT = 5174
+// Dedicated ports (not the ones `npm run dev` / `dev:mock` use) and no server reuse: a stray dev server on the same port
+// could otherwise answer for the wrong backend and make a run pass against the wrong data (or reach the live project).
+const LIVE_PORT = 5183
+const MOCK_PORT = 5184
 
 const hasLiveEnv =
   (!!process.env.VITE_SUPABASE_URL && !!process.env.VITE_SUPABASE_ANON_KEY) ||
@@ -51,7 +53,7 @@ export default defineConfig({
     {
       command: `npx vite --port ${MOCK_PORT} --strictPort`,
       url: `http://localhost:${MOCK_PORT}`,
-      reuseExistingServer: true,
+      reuseExistingServer: false,
       env: { VITE_HOUSING_BACKEND: 'mock' },
     },
     ...(hasLiveEnv
@@ -59,7 +61,7 @@ export default defineConfig({
           {
             command: `npx vite --port ${LIVE_PORT} --strictPort`,
             url: `http://localhost:${LIVE_PORT}`,
-            reuseExistingServer: true,
+            reuseExistingServer: false,
             env: { VITE_HOUSING_BACKEND: 'supabase' },
           },
         ]

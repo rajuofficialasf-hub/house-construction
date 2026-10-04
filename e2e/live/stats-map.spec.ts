@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from '../support/test'
 import { bnInts } from '../support/bn'
 import { appears, dataRows, statTotal, waitForList } from '../support/public'
 
@@ -6,8 +6,7 @@ test('the stat total equals the number of listed records (single page) and the m
   await page.goto('/housing/semi-pucca')
   await waitForList(page)
   const total = await statTotal(page)
-  const rows = await dataRows(page).count()
-  if (total <= 50) expect(rows).toBe(total)
+  if (total <= 50) await expect.poll(async () => dataRows(page).count()).toBe(total)
   const mapButton = page.getByRole('button', { name: /মানচিত্রে দেখুন/ })
   test.skip(!(await appears(mapButton)), 'no map when there is no data')
   const [upazilas, houses] = bnInts(await mapButton.textContent()).slice(-2)
@@ -32,6 +31,7 @@ test('both projects show their own stat card totals', async ({ page }) => {
   for (const path of ['/housing/semi-pucca', '/housing/tin']) {
     await page.goto(path)
     await waitForList(page)
-    expect(await statTotal(page)).toBeGreaterThanOrEqual(0)
+    const total = await statTotal(page)
+    if (total <= 50) await expect.poll(async () => dataRows(page).count()).toBe(total)
   }
 })

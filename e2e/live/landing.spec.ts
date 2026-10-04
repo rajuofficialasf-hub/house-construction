@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from '../support/test'
 
 test('the landing page shows both projects and links into each list', async ({ page }) => {
   await page.goto('/housing')

@@ -25,4 +25,6 @@ export interface ContractHarness {
 export interface ContractOptions {
   /** false হলে লেখা/এডমিন-নির্ভর টেস্ট চলে না */
   writes: boolean
+  /** true হলে ব্যাকএন্ডে ডাটা থাকার কথা: খালি ডাটায় পড়ার টেস্ট চুপচাপ পাস না করে ব্যর্থ হয় (লাইভ প্রজেক্ট ফাঁকা হলে skip চলে) */
+  seeded?: boolean
 }

@@ -1,6 +1,6 @@
 /**
  * অ্যাডাপ্টার ফ্যাক্টরি।
- * env ভ্যারিয়েবল VITE_HOUSING_BACKEND ('supabase' | 'rest') দেখে কোন অ্যাডাপ্টার চলবে তা ঠিক করে।
+ * env ভ্যারিয়েবল VITE_HOUSING_BACKEND ('supabase' | 'rest' | 'mock' — mock শুধু dev/test) দেখে কোন অ্যাডাপ্টার চলবে তা ঠিক করে।
  * UI কোড শুধু getHousingApi / getAuthProvider / getImageStorage ব্যবহার করবে।
  */
 import type { AuthProvider } from './interfaces/authProvider'
@@ -54,7 +54,8 @@ let cached: Backend | null = null
 function buildMockBackend(): Backend {
   const load = () => import('./mock').then((m) => m.getMockBackend())
   const housingApi = new Proxy({} as HousingApi, {
-    get: (_t, prop: string) => (...args: unknown[]) => load().then((b) => (b.housingApi as unknown as Record<string, (...a: unknown[]) => unknown>)[prop](...args)),
+    // 'then' undefined: কেউ প্রক্সিটাকে await করলে সেটি thenable মনে হয়ে ঝুলে যেত
+    get: (_t, prop: string) => prop === 'then' ? undefined : (...args: unknown[]) => load().then((b) => (b.housingApi as unknown as Record<string, (...a: unknown[]) => unknown>)[prop](...args)),
   })
   const authProvider: AuthProvider = {
     login: (email, password) => load().then((b) => b.authProvider.login(email, password)),

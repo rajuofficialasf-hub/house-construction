@@ -39,6 +39,11 @@ const sum = (o: Record<string, number>) => Object.values(o).reduce((a, b) => a +
  * নিয়ম: নির্দিষ্ট রেকর্ডের নাম/সংখ্যা ধরে নয়, শুধু সম্পর্ক ধরে যাচাই (পড়ার অংশ লাইভ ডাটাতেও চলে)।
  */
 export function runHousingApiContract(label: string, makeHarness: () => Promise<ContractHarness> | ContractHarness, opts: ContractOptions): void {
+  // seeded ব্যাকএন্ডে ডাটা না থাকলে এই টেস্টগুলো ব্যর্থ হয়; নইলে (যেমন লাইভ) নিঃশব্দে বাদ যায়
+  const hasData = (found: unknown): boolean => {
+    if (!found) expect(opts.seeded ?? false, 'this backend is expected to hold records').toBe(false)
+    return !!found
+  }
   describe(`${label}: read contract`, () => {
     let h: ContractHarness
     beforeEach(async () => {
@@ -67,6 +72,7 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
 
     test('pages do not overlap', async () => {
       const total = (await h.api.list({ page_size: 1 })).meta.total
+      if (!hasData(total > 0)) return
       if (total < 2) return
       const p1 = await h.api.list({ page: 1, page_size: 1 })
       const p2 = await h.api.list({ page: 2, page_size: 1 })
@@ -87,7 +93,7 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
 
     test('Covers AE3: a district filter keeps only that district and never grows the count', async () => {
       const first = (await h.api.list({ page_size: 1 })).data[0]
-      if (!first) return
+      if (!hasData(first)) return
       const all = await h.api.list({ page_size: 1 })
       const r = await h.api.list({ district: first.district, page_size: 100 })
       expect(r.data.length).toBeGreaterThan(0)
@@ -98,7 +104,7 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
 
     test('a year filter keeps only that year and matches the stats count', async () => {
       const first = (await h.api.list({ page_size: 1 })).data[0]
-      if (!first) return
+      if (!hasData(first)) return
       const r = await h.api.list({ year: first.year, page_size: 100 })
       expect(r.data.every((x) => x.year === first.year)).toBe(true)
       expect(r.meta.total).toBe((await h.api.stats()).by_year[String(first.year)])
@@ -106,7 +112,7 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
 
     test('search matches name, parent name or address, case-insensitively', async () => {
       const first = (await h.api.list({ page_size: 1 })).data[0]
-      if (!first) return
+      if (!hasData(first)) return
       const needle = first.name.slice(0, 3)
       const r = await h.api.list({ q: needle, page_size: 100 })
       expect(r.data.some((x) => x.id === first.id)).toBe(true)
@@ -132,9 +138,9 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
 
     test('getById and getBySerial return the same record as the list; unknown ones are NOT_FOUND', async () => {
       const first = (await h.api.list({ page_size: 1 })).data[0]
-      if (first) {
-        expect((await h.api.getById(first.id)).id).toBe(first.id)
-        expect((await h.api.getBySerial(first.project_type, first.serial_no)).id).toBe(first.id)
+      if (hasData(first)) {
+        expect((await h.api.getById(first!.id)).id).toBe(first!.id)
+        expect((await h.api.getBySerial(first!.project_type, first!.serial_no)).id).toBe(first!.id)
       }
       expect(await code(h.api.getById(MISSING_ID))).toBe('NOT_FOUND')
       expect(await code(h.api.getBySerial('tin', 2_000_000_000))).toBe('NOT_FOUND')
@@ -142,7 +148,7 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
 
     test('getBySerials returns the found records in serial order and silently omits missing ones', async () => {
       const rows = (await h.api.list({ project_type: 'semi_pucca', page_size: 100 })).data
-      if (!rows.length) return
+      if (!hasData(rows.length)) return
       const serials = rows.map((r) => r.serial_no)
       const got = await h.api.getBySerials('semi_pucca', [...serials].reverse().concat([2_000_000_000]))
       expect(got.map((r) => r.serial_no)).toEqual([...serials].sort((a, b) => a - b))
@@ -443,7 +449,12 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
         const moved = await h.api.changeSerial(rec.id, rec.serial_no + 20)
         await h.api.delete(rec.id)
         const log = (await h.api.listActivity({ record_id: rec.id })).data
-        expect(log.map((e) => e.action)).toEqual(['delete', 'serial_change', 'photo_update', 'update', 'create'])
+        // Which extra entries a serial change adds for its photos is backend-specific (Supabase logs the serial and the
+        // photo move separately), so pin only the ends and the presence of each write kind.
+        const actions = log.map((e) => e.action)
+        expect(actions[0]).toBe('delete')
+        expect(actions[actions.length - 1]).toBe('create')
+        for (const a of ['update', 'photo_update', 'serial_change']) expect(actions).toContain(a)
         const update = log.find((e) => e.action === 'update')!
         expect(update.details).toMatchObject({ changes: { address: { old: '', new: 'নতুন ঠিকানা' } } })
         expect(log.find((e) => e.action === 'serial_change')!.details).toMatchObject({ changes: { serial_no: { old: rec.serial_no, new: moved.serial_no } } })

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from '../support/test'
 import { columnTexts, dataRows, statTotal, waitForList } from '../support/public'
 
 // ক্রম | সাল | নাম | পিতা/স্বামী | বিভাগ | জেলা | উপজেলা | ঠিকানা | ছবি | ছবি | বিস্তারিত
@@ -61,7 +61,8 @@ test.describe('list filters (relationships only, no fixed data)', () => {
     await page.goto('/housing/semi-pucca')
     await waitForList(page)
     await page.getByRole('searchbox', { name: 'উপকারভোগীর নাম' }).fill('zzzz-no-such-name-zzzz')
-    await expect.poll(async () => dataRows(page).filter({ hasText: 'zzzz' }).count()).toBe(0)
+    await expect(page.locator('main [role=status]')).toBeVisible()
+    await expect(page.locator('table')).toHaveCount(0)
     await expect(page.getByRole('alert')).toHaveCount(0)
   })
 
