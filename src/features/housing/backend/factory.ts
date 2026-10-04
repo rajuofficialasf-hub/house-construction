@@ -14,13 +14,15 @@ import {
 import { getSupabase } from './supabase/client'
 import { createRestAuthProvider, createRestHousingApi, createRestImageStorage } from './rest'
 
-export type BackendKind = 'supabase' | 'rest'
+export type BackendKind = 'supabase' | 'rest' | 'mock'
 
 const DEFAULT_BACKEND: BackendKind = 'supabase'
 
 export function getBackendKind(): BackendKind {
   const raw = (import.meta.env.VITE_HOUSING_BACKEND ?? '').trim().toLowerCase()
   if (raw === 'supabase' || raw === 'rest') return raw
+  // 'mock' (ইন-মেমরি, টেস্টের জন্য) শুধু dev/test এ; প্রোডাকশন বিল্ডে উপেক্ষিত হয়ে ডিফল্টে ফেরে
+  if (raw === 'mock' && import.meta.env.DEV) return raw
   if (raw !== '' && import.meta.env.DEV) {
     console.warn(
       `[housing] VITE_HOUSING_BACKEND="${raw}" অচেনা; ডিফল্ট "${DEFAULT_BACKEND}" ব্যবহার হচ্ছে`,
@@ -45,8 +47,47 @@ interface Backend {
 
 let cached: Backend | null = null
 
+/**
+ * মক ব্যাকএন্ড lazy লোড হয় (dynamic import) — import.meta.env.DEV গার্ডের কারণে প্রোডাকশন বিল্ডে এই ফাংশন ও মক কোড বাদ পড়ে।
+ * UI সবসময় async মেথড ডাকে, তাই প্রথম কলে মডিউল লোড হওয়া পর্যন্ত অপেক্ষা যথেষ্ট।
+ */
+function buildMockBackend(): Backend {
+  const load = () => import('./mock').then((m) => m.getMockBackend())
+  const housingApi = new Proxy({} as HousingApi, {
+    get: (_t, prop: string) => (...args: unknown[]) => load().then((b) => (b.housingApi as unknown as Record<string, (...a: unknown[]) => unknown>)[prop](...args)),
+  })
+  const authProvider: AuthProvider = {
+    login: (email, password) => load().then((b) => b.authProvider.login(email, password)),
+    logout: () => load().then((b) => b.authProvider.logout()),
+    currentUser: () => load().then((b) => b.authProvider.currentUser()),
+    isAdmin: () => load().then((b) => b.authProvider.isAdmin()),
+    onAuthChange(callback) {
+      let off = () => {}
+      let cancelled = false
+      void load().then((b) => {
+        if (!cancelled) off = b.authProvider.onAuthChange(callback)
+      })
+      return () => {
+        cancelled = true
+        off()
+      }
+    },
+  }
+  const imageStorage: ImageStorage = {
+    upload: (file, target) => load().then((b) => b.imageStorage.upload(file, target)),
+    delete: (paths) => load().then((b) => b.imageStorage.delete(paths)),
+    move: (from, to) => load().then((b) => b.imageStorage.move(from, to)),
+    publicUrl: () => {
+      throw new Error('mock ImageStorage.publicUrl: সিঙ্ক্রোনাস কল সমর্থিত নয়')
+    },
+    pathFromUrl: () => null,
+  }
+  return { housingApi, authProvider, imageStorage }
+}
+
 function buildBackend(): Backend {
   const kind = getBackendKind()
+  if (kind === 'mock' && import.meta.env.DEV) return buildMockBackend()
   if (kind === 'rest') {
     const base = restBaseUrl()
     return {

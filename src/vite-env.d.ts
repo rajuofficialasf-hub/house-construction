@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  /** কোন অ্যাডাপ্টার চলবে: 'supabase' | 'rest' */
+  /** কোন অ্যাডাপ্টার চলবে: 'supabase' | 'rest' | 'mock' (mock: শুধু dev/test) */
   readonly VITE_HOUSING_BACKEND?: string
   readonly VITE_SUPABASE_URL?: string
   readonly VITE_SUPABASE_ANON_KEY?: string
