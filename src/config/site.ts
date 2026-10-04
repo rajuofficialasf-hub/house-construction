@@ -1,0 +1,3 @@
+/** সাইট-ব্যাপী স্থির তথ্য */
+export const SITE_NAME = 'আস-সুন্নাহ ফাউন্ডেশন' // ইংরেজি: i18n/en.ts এ অনুবাদ; ব্যবহারের সময় t(SITE_NAME)
+export const SITE_NAME_SHORT = 'ASF'

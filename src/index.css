@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+/*
+  ডিজাইন টোকেন (Tailwind v4: কনফিগ CSS-এই থাকে, আলাদা tailwind.config.js লাগে না)
+  - font-sans: 'Ubuntu Sans' (ল্যাটিন), ফলব্যাক 'Noto Sans Bengali' (বাংলা অক্ষর)
+  - brand: সবুজ প্যালেট (প্রাথমিক পছন্দ; ফাউন্ডেশনের ব্র্যান্ড কালার জানালে বদলানো হবে)
+*/
+@theme {
+  --font-sans: "Ubuntu Sans", "Noto Sans Bengali", ui-sans-serif, system-ui, sans-serif;
+
+  --color-brand-50: #f0f9f4;
+  --color-brand-100: #dcf2e4;
+  --color-brand-200: #bbe5cc;
+  --color-brand-300: #8bd1a9;
+  --color-brand-400: #57b681;
+  --color-brand-500: #319a62;
+  --color-brand-600: #227c4e;
+  --color-brand-700: #1d6340;
+  --color-brand-800: #1a4f35;
+  --color-brand-900: #16412d;
+  --color-brand-950: #0a2418;
+
+  --color-accent-400: #f5c451;
+  --color-accent-500: #e9ae2b;
+  --color-accent-600: #c98f17;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%; /* iOS ল্যান্ডস্কেপে লেখা নিজে বড় না হোক */
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+  body {
+    @apply bg-slate-50 text-slate-800 antialiased;
+  }
+  /* টাচ: ট্যাপে নীল ফ্ল্যাশ নয়, ডাবল-ট্যাপ জুম বিলম্ব নয় */
+  button,
+  a,
+  select,
+  input,
+  [role='button'] {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+}
+
+@utility container-page {
+  @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
+}
+
+/* অনুভূমিক স্ক্রল-সারি (পিল, কার্ড) — স্ক্রলবার লুকানো */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
