@@ -9,7 +9,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const SRC = path.join(ROOT, 'src')
 // এই ফাইল/ফোল্ডারে বাংলা লিটারেল UI লেখা নয় (ম্যাচিং ডেটা, ভূগোল, ব্যাকএন্ড)
-const IGNORE = [/[\\/]backend[\\/]/, /geoMatch\.ts$/, /bdGeo\.ts$/, /[\\/]i18n[\\/]en\.ts$/, /\.d\.ts$/]
+const IGNORE = [/[\\/]backend[\\/]/, /geoMatch\.ts$/, /bdGeo\.ts$/, /[\\/]i18n[\\/]en\.ts$/, /\.d\.ts$/, /\.test\.tsx?$/]
 // importColumns.ts এ শিরোনাম-ম্যাচিং alias গুলো (aliases: [...]) অনুবাদের দরকার নেই — নিচে বাদ দেওয়া হয়
 const BN = /[ঀ-৿]/
 

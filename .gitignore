@@ -35,3 +35,8 @@ photos/
 
 # ডেমো বিল্ডের জিপ
 dist.zip
+
+# Playwright
+playwright-report
+test-results
+blob-report
