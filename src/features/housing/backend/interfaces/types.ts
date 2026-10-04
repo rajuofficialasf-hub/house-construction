@@ -1,7 +1,7 @@
 /**
  * ঘর নির্মাণ প্রকল্পের ডোমেইন টাইপ।
  * ব্যাকএন্ড-নিরপেক্ষ: Supabase ও REST দুই অ্যাডাপ্টারই এই টাইপে ডাটা ফেরত দেয়।
- * ফিল্ডের নাম ডাটাবেস টেবিল `housing_beneficiaries` ও docs/API_CONTRACT.md এর সাথে হুবহু মেলে।
+ * ফিল্ডের নাম ডাটাবেস টেবিল `housing_beneficiaries` ও docs/api/API_CONTRACT.md এর সাথে হুবহু মেলে।
  */
 
 export type ProjectType = 'semi_pucca' | 'tin'

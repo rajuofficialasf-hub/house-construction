@@ -1,5 +1,5 @@
 /**
- * REST অ্যাডাপ্টার — নিজস্ব সার্ভারের সাথে docs/API_CONTRACT.md অনুযায়ী (পাথ: ./endpoints.ts, helper: ./http.ts)।
+ * REST অ্যাডাপ্টার — নিজস্ব সার্ভারের সাথে docs/api/API_CONTRACT.md অনুযায়ী (পাথ: ./endpoints.ts, helper: ./http.ts)।
  * AuthProvider: বাস্তবায়িত (ধাপ ১০)। HousingApi ও ImageStorage: কাঠামো, ধাপ ১৩ এ পূর্ণ হবে।
  */
 import type { HousingApi } from '../interfaces/housingApi'

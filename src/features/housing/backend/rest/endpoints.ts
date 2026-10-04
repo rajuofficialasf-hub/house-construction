@@ -1,5 +1,5 @@
 /**
- * REST endpoint পাথ — docs/API_CONTRACT.md এর সাথে হুবহু মিলে থাকতে হবে।
+ * REST endpoint পাথ — docs/api/API_CONTRACT.md এর সাথে হুবহু মিলে থাকতে হবে।
  * বেস URL (VITE_API_BASE_URL) এর সাপেক্ষে।
  */
 import type { PhotoKind, ProjectType } from '../interfaces/types'

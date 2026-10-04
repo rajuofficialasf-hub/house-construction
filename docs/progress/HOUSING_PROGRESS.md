@@ -59,7 +59,7 @@
 | পাথ অ্যালিয়াস | `@/` → `src/` (vite.config.ts + tsconfig.app.json) |
 | Node | v24 (ডেভ মেশিনে) |
 | ব্যাকএন্ড (টেস্টিং) | Supabase (এখনো যুক্ত হয়নি) |
-| ব্যাকএন্ড (প্রোডাকশন) | নিজস্ব সার্ভার, প্রযুক্তি অনির্ধারিত — `docs/API_CONTRACT.md` অনুযায়ী বানানো হবে |
+| ব্যাকএন্ড (প্রোডাকশন) | নিজস্ব সার্ভার, প্রযুক্তি অনির্ধারিত — `docs/api/API_CONTRACT.md` অনুযায়ী বানানো হবে |
 | ছবি স্টোরেজ | নিজস্ব স্টোরেজ (এখন: Supabase Storage; পরে: সার্ভারের স্টোরেজ) |
 
 ### ডিজাইন টোকেন (`src/index.css`)
@@ -191,8 +191,13 @@ supabase/
   sql/08_reset_test_data.sql    # seed মুছে কাউন্টার ০ — প্রকৃত ইম্পোর্টের আগে একবার (২০২৬-০৯-৩০)
   sql/09_activity_log.sql       # একটিভিটি লগ: টেবিল, রেকর্ড-ট্রিগার (old→new), housing_log_event() RPC, RLS (২০২৬-০৯-৩০)
 docs/
-  HOUSING_PROGRESS.md
-  API_CONTRACT.md
+  README.md                     # নথি সূচি
+  api/API_CONTRACT.md           # REST চুক্তি
+  progress/HOUSING_PROGRESS.md  # এই নথি
+  plans/                        # পরিকল্পনা (ce-plan)
+  diagrams/                     # Mermaid ডায়াগ্রাম
+  architecture/                 # আর্কিটেকচার ও মাইগ্রেশন নোট
+  testing/                      # টেস্ট নির্দেশিকা
 ```
 
 ### ডাটাবেস স্কিমা (ধাপ ২ এ চূড়ান্ত; SQL: `supabase/sql/`)
@@ -275,7 +280,7 @@ docs/
 - `src/config/site.ts`, `src/lib/banglaNumber.ts`
 - `src/pages/HomePage.tsx`, `src/pages/NotFoundPage.tsx`
 - `.env.example`, `README.md`
-- `docs/HOUSING_PROGRESS.md`, `docs/API_CONTRACT.md`
+- `docs/progress/HOUSING_PROGRESS.md`, `docs/api/API_CONTRACT.md`
 - গিট রিপোজিটরি `git init` করা হয়েছে (কোনো কমিট করা হয়নি)
 - মুছে ফেলা: টেমপ্লেটের `App.css`, `assets/` (লোগো/হিরো ছবি)
 
@@ -388,7 +393,7 @@ npm run dev
 - `backend/supabase/index.ts`, `backend/rest/index.ts`, `backend/factory.ts` — নতুন কাঠামো; supabase HousingApi ImageStorage নিয়ে তৈরি হয়
 - `utils/imagePath.ts` — variant (thumb), `extFromMime`, `photoSrc`
 - `.env.example` — ব্যাখ্যা যোগ (নতুন ভ্যারিয়েবল নেই)
-- `docs/API_CONTRACT.md` — সংস্করণ ০.২, পুরো পুনর্লিখন
+- `docs/api/API_CONTRACT.md` — সংস্করণ ০.২, পুরো পুনর্লিখন
 
 ### ২. নেওয়া গুরুত্বপূর্ণ সিদ্ধান্ত ও কারণ
 - **এডমিন = `housing_admins` টেবিলে থাকা ইউজার**, "লগইন করা যেকোনো ইউজার" নয়। Supabase এ ইমেইল সাইন-আপ ডিফল্টে খোলা থাকে; তা হলে যে কেউ নিজে অ্যাকাউন্ট খুলে লিখতে পারত। তালিকায় না থাকলে লগইন সফল হলেও অ্যাডাপ্টার সাথে সাথে signOut করে FORBIDDEN দেয়।
@@ -524,7 +529,7 @@ npm run dev
 - `backend/interfaces/types.ts` — `HousingStats.distinct {divisions, districts, upazilas}`; `HousingApiError.from(err)`
 - `backend/supabase/housingApi.ts` — `stats()` এ distinct মার্জ
 - `supabase/sql/04_rpc_stats.sql` — `housing_stats()` উত্তরে `distinct` অংশ (**আবার চালাতে হবে**)
-- `docs/API_CONTRACT.md` — ০.৩: stats উত্তরে `distinct`
+- `docs/api/API_CONTRACT.md` — ০.৩: stats উত্তরে `distinct`
 - `hooks/.gitkeep` মুছে ফেলা
 
 ### ২. নেওয়া গুরুত্বপূর্ণ সিদ্ধান্ত ও কারণ
@@ -686,7 +691,7 @@ npm run dev
 - `backend/factory.ts` — `getSupabase` (lazy) পাস করে
 - `supabase/sql/05_storage.sql` — মন্তব্যে নতুন পাথ নিয়ম (SQL অপরিবর্তিত)
 - `.env.example` — স্ক্রিপ্টের `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (মন্তব্য করা)
-- `docs/API_CONTRACT.md` — ০.৫
+- `docs/api/API_CONTRACT.md` — ০.৫
 
 ### ২. নেওয়া গুরুত্বপূর্ণ সিদ্ধান্ত ও কারণ
 - **একই অ্যাডাপ্টার কোড ব্রাউজার ও স্ক্রিপ্টে**: Supabase অ্যাডাপ্টারগুলো এখন `getClient` ফাংশন নেয়। ব্রাউজারে factory anon-key client দেয়; স্ক্রিপ্ট service_role client দেয় + `trustedServer: true` (ক্লায়েন্ট-সাইড assertAdmin বাদ — service_role এ সেশন নেই, RLS বাইপাস)। ফলে পাথ নিয়ম, ওভাররাইট, `photo_updated_at`, পুরনো-পাথ পরিষ্কার — সব এক জায়গায় (`uploadPhoto`)। পরে REST অ্যাডাপ্টার এলে স্ক্রিপ্টে শুধু ফ্যাক্টরি বদলালেই হবে।
@@ -871,7 +876,7 @@ Supabase Free tier storage ১ GB → সীমার কাছাকাছি; 
 - `components/HousingSubnav.tsx` — "এডমিন" লিঙ্ক বাদ (পাবলিক পেইজে এডমিন বাটন নেই)
 - `pages/HousingPhotoBulkPage.tsx` — হলুদ সতর্কতা ও সাব-নেভ বাদ (এখন গার্ডের ভেতরে)
 - `pages/HousingAdminPage.tsx` — ড্যাশবোর্ড লেআউট
-- `docs/API_CONTRACT.md` — ০.৬
+- `docs/api/API_CONTRACT.md` — ০.৬
 
 ### ২. নেওয়া গুরুত্বপূর্ণ সিদ্ধান্ত ও কারণ
 - **টেবিলের নাম `housing_admins`** (ব্যবহারকারী `admins` বলেছেন): ধাপ ২ থেকেই এই নাম; সাইটে ভবিষ্যতে অন্য সেকশন এলে নাম-সংঘর্ষ এড়াতে প্রিফিক্স রাখা হয়েছে। কাজ একই: এই টেবিলে সারি = এডমিন। `role` কলাম যোগ হয়েছে (এখন শুধু 'admin'; নতুন role এলে CHECK + পলিসি + `AdminRole` টাইপ বাড়াতে হবে)।
@@ -942,7 +947,7 @@ Supabase Free tier storage ১ GB → সীমার কাছাকাছি; 
 - `backend/rest/endpoints.ts`, `rest/index.ts` — নতুন endpoint ও stub
 - `hooks/useHousingList.ts` — `reloadToken` (ডিলেটের পর রিফ্রেশ)
 - `supabase/sql/02_serial.sql` — `housing_next_serial()`, `housing_change_serial()`, protect-ট্রিগারে সেশন-সেটিং
-- `docs/API_CONTRACT.md` — ০.৭
+- `docs/api/API_CONTRACT.md` — ০.৭
 
 ### ২. নেওয়া গুরুত্বপূর্ণ সিদ্ধান্ত ও কারণ
 - **ট্যাব = আলাদা URL** (`/housing/admin/semi-pucca`, `/housing/admin/tin`), `/housing/admin` redirect করে: ফিল্টার/পেইজ query string এ থাকে, ফর্ম থেকে ফিরে একই অবস্থা, লিঙ্ক শেয়ারযোগ্য।
@@ -995,7 +1000,7 @@ Supabase Free tier storage ১ GB → সীমার কাছাকাছি; 
 - `backend/interfaces/types.ts` — `BulkUpdateInput/Result`; `housingApi.ts` — `bulkUpdateBySerial()`; Supabase বাস্তবায়ন (২০০ করে RPC); REST stub + endpoint (PUT /api/housing/bulk)
 - `pages/HousingAdminRecordsPage.tsx` — "সিরিয়াল সহ এক্সপোর্ট (CSV)" ও "বাল্ক ইম্পোর্ট" বাটন
 - `routes.tsx`, `components/AdminShell.tsx` (মেনুতে "বাল্ক ইম্পোর্ট")
-- `docs/API_CONTRACT.md` — ০.৮
+- `docs/api/API_CONTRACT.md` — ০.৮
 
 ### ২. নেওয়া গুরুত্বপূর্ণ সিদ্ধান্ত ও কারণ
 - **SheetJS (xlsx) — সুপরিচিত, নির্ভরতাহীন; lazy import** যাতে পাবলিক পেইজের বান্ডল না বাড়ে। CSV হলে `file.text()` দিয়ে UTF-8 পড়ে BOM বাদ দিয়ে পার্স (SheetJS এর কোডপেজ অনুমানে বাংলা ভাঙার ঝুঁকি এড়াতে); xlsx সরাসরি ArrayBuffer। সব সেল টেক্সট হিসেবে (`raw:false`), তাই সাল/সিরিয়ালে বাংলা অঙ্ক বা "২০২৪" স্ট্রিং দুটোই চলে।
@@ -1277,13 +1282,13 @@ Supabase Free tier storage ১ GB → সীমার কাছাকাছি; 
 | ৪ | ছবি রাখার জায়গা (লোকাল ডিস্ক পাথ, S3-সামঞ্জস্য স্টোরেজ, অন্য) ও পাবলিক URL কীভাবে (যেমন `https://api.../photos/…`) | ImageStorage বাস্তবায়ন, পাথ নিয়ম `housing/{project}/{0001}/…webp` |
 | ৫ | ডোমেইন: ফ্রন্টএন্ড কোথায় হোস্ট হবে (একই সার্ভারে নাকি আলাদা) ও API এর URL | CORS origin, `VITE_API_BASE_URL`, কুকি না JWT (একই ডোমেইন হলে কুকি সহজ) |
 | ৬ | ডিপ্লয় অ্যাক্সেস: SSH আছে? প্রসেস ম্যানেজার (pm2/systemd/Docker)? CI আছে? | ডিপ্লয় নির্দেশিকা ও আপডেট পদ্ধতি |
-| ৭ | ব্যাকএন্ড কে লিখবে — আমি (Claude) নাকি সার্ভার-দল `docs/API_CONTRACT.md` দেখে? | দুটোই সম্ভব; কে লিখবে তার উপর ধাপের আকার নির্ভর করে |
+| ৭ | ব্যাকএন্ড কে লিখবে — আমি (Claude) নাকি সার্ভার-দল `docs/api/API_CONTRACT.md` দেখে? | দুটোই সম্ভব; কে লিখবে তার উপর ধাপের আকার নির্ভর করে |
 | ৮ | ব্যাকআপ নীতি: কোথায় (অন্য মেশিন/ক্লাউড), কত ঘন ঘন, কে দেখে | ব্যাকআপ স্ক্রিপ্ট/ক্রন |
 | ৯ | লগ ও মনিটরিং: কোথায় লগ রাখা হয়, কেউ দেখে কি | লগ কনফিগ |
 | ১০ | সার্ভারের সম্পদ (RAM/ডিস্ক) ও ছবির জন্য জায়গা (~১–২ GB লাগবে, ধাপ ৭ হিসাব) | সক্ষমতা |
 
 ### খ. ইতিমধ্যে প্রস্তুত (সার্ভার-নিরপেক্ষ)
-- `docs/API_CONTRACT.md` ০.৮ — সব endpoint, JSON, ভ্যালিডেশন, এরর, অনুমতি, ছবির পাথ, অথ (JWT/কুকি) — সার্ভার-দল এটি দেখে সরাসরি বানাতে পারে।
+- `docs/api/API_CONTRACT.md` ০.৮ — সব endpoint, JSON, ভ্যালিডেশন, এরর, অনুমতি, ছবির পাথ, অথ (JWT/কুকি) — সার্ভার-দল এটি দেখে সরাসরি বানাতে পারে।
 - ফ্রন্টএন্ড REST অ্যাডাপ্টার: `rest/http.ts` (fetch helper), `rest/authProvider.ts` (**পূর্ণ**), `rest/endpoints.ts` (সব পাথ); `rest/index.ts` এ HousingApi/ImageStorage stub — চুক্তি মেনে পূরণ করলেই `VITE_HOUSING_BACKEND=rest` দিয়ে UI অপরিবর্তিত চলবে।
 - পোর্টেবল SQL: `01_schema.sql`, `02_serial.sql` (ট্রিগার/RPC), `07_rpc_bulk.sql` — Postgres হলে সরাসরি।
 - মাইগ্রেশন স্ক্রিপ্ট `scripts/migrate-photos.mjs` অ্যাডাপ্টার-ভিত্তিক — REST অ্যাডাপ্টার এলে ফ্যাক্টরি বদলালেই চলবে।

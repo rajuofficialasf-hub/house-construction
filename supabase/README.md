@@ -14,4 +14,4 @@ Supabase Dashboard → **SQL Editor** এ ফাইলগুলো **এই ক�
 | (৮) | `sql/08_reset_test_data.sql` | ⚠ শুধু প্রকৃত ডাটা তোলার আগে একবার: seed মুছে কাউন্টার ০ | হ্যাঁ |
 | ৯ | `sql/09_activity_log.sql` | একটিভিটি লগ টেবিল, রেকর্ড-ট্রিগার (create/update/delete/photo/serial আগে→পরে), `housing_log_event()` RPC, RLS (এডমিন SELECT) | আংশিক (Postgres ট্রিগার; actor Supabase JWT থেকে) |
 
-পুরো ধাপে-ধাপে নির্দেশনা: `docs/HOUSING_PROGRESS.md` → ধাপ ২ → "আমাকে যা করতে হবে"।
+পুরো ধাপে-ধাপে নির্দেশনা: `docs/progress/HOUSING_PROGRESS.md` → ধাপ ২ → "আমাকে যা করতে হবে"।

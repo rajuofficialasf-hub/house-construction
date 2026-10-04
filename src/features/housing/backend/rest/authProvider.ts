@@ -1,5 +1,5 @@
 /**
- * REST AuthProvider — docs/API_CONTRACT.md §২ অনুযায়ী (POST /api/auth/login, POST /api/auth/logout, GET /api/auth/me)।
+ * REST AuthProvider — docs/api/API_CONTRACT.md §২ অনুযায়ী (POST /api/auth/login, POST /api/auth/logout, GET /api/auth/me)।
  * JWT মোড: login উত্তরের access_token localStorage এ; প্রতিটি অনুরোধে Bearer।
  * কুকি মোড: access_token আসে না; ব্রাউজার HttpOnly কুকি পাঠায় (credentials: 'include')।
  * onAuthChange: এই অ্যাডাপ্টারের login/logout এ ও অন্য ট্যাবের storage ইভেন্টে callback।

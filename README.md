@@ -11,6 +11,9 @@ npm run dev                       # http://localhost:5173
 npm run build                     # টাইপ-চেক + প্রোডাকশন বিল্ড (dist/)
 npm run preview                   # বিল্ড করা সাইট দেখা
 npm run lint
+npm test                          # unit + backend-contract টেস্ট
+npm run test:e2e:mock             # Playwright: এডমিন/লেখার ফ্লো (মক ব্যাকএন্ডে) + পাবলিক ফ্লো
+npm run test:e2e:live             # Playwright: লাইভ Supabase এ শুধু পড়ার ফ্লো (.env.local এ ক্রেডেনশিয়াল না থাকলে স্কিপ)
 npm run security-check            # anon key দিয়ে পড়া-খোলা/লেখা-বন্ধ যাচাই (ডাটাবেস সেটআপের পর)
 npm run migrate-photos -- --help  # ছবি মাইগ্রেশন স্ক্রিপ্ট (লোকাল, service_role .env এ)
 npm run build-map -- --in gadm41_BGD_3.json   # উপজেলা মানচিত্রের TopoJSON পুনর্নির্মাণ (GADM 4.1 level 3 থেকে)
@@ -29,6 +32,9 @@ npm run i18n-check                # বাংলা UI লেখা বনাম
 
 ## নথি
 
-- [docs/HOUSING_PROGRESS.md](docs/HOUSING_PROGRESS.md) — স্ট্যাক, স্কিমা, রুট, প্রতিটি ধাপের সিদ্ধান্ত, **ব্যবহার নির্দেশিকা**, ডাটাবেস সেটআপ চেকলিস্ট
-- [docs/API_CONTRACT.md](docs/API_CONTRACT.md) — নিজস্ব REST ব্যাকএন্ডের চুক্তি
+সব নথির সূচি: [docs/README.md](docs/README.md)
+
+- [docs/progress/HOUSING_PROGRESS.md](docs/progress/HOUSING_PROGRESS.md) — স্ট্যাক, স্কিমা, রুট, প্রতিটি ধাপের সিদ্ধান্ত, **ব্যবহার নির্দেশিকা**, ডাটাবেস সেটআপ চেকলিস্ট
+- [docs/api/API_CONTRACT.md](docs/api/API_CONTRACT.md) — নিজস্ব REST ব্যাকএন্ডের চুক্তি
+- [docs/testing/README.md](docs/testing/README.md) — টেস্ট চালানো, মক ব্যাকএন্ড, নতুন ব্যাকএন্ডে টেস্ট সরানোর ধাপ
 - [supabase/README.md](supabase/README.md) — SQL চালানোর ক্রম

@@ -1,5 +1,5 @@
 /**
- * REST অ্যাডাপ্টারের fetch helper — docs/API_CONTRACT.md এর নিয়মে:
+ * REST অ্যাডাপ্টারের fetch helper — docs/api/API_CONTRACT.md এর নিয়মে:
  * - JSON body/উত্তর; সফল উত্তর { data, meta? }; এরর { error: { code, message, details } } → HousingApiError
  * - অথ: JWT হলে Authorization: Bearer <token> (localStorage এ রাখা); কুকি সেশন হলে credentials: 'include'
  */
