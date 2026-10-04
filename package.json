@@ -15,7 +15,7 @@
     "i18n-check": "node scripts/i18n-check.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e:mock": "playwright test --project=mock",
+    "test:e2e:mock": "playwright test --project=mock --project=public-mock",
     "test:e2e:live": "node scripts/e2e-live.mjs",
     "test:all": "npm run i18n-check && npm run test && npm run test:e2e:mock"
   },

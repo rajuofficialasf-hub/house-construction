@@ -5,6 +5,8 @@ import { defineConfig, devices } from '@playwright/test'
 //   live — VITE_HOUSING_BACKEND=supabase, read-only public flows (e2e/live). Needs VITE_SUPABASE_URL and
 //          VITE_SUPABASE_ANON_KEY (in .env.local or the environment); otherwise the project is not registered.
 //   mock — VITE_HOUSING_BACKEND=mock, in-memory backend, admin and write flows (e2e/mock).
+//   public-mock — the same read-only public specs as live (e2e/live), run against the mock backend. No credentials
+//          needed; it keeps the public specs honest while live credentials are unavailable.
 const LIVE_PORT = 5173
 const MOCK_PORT = 5174
 
@@ -28,6 +30,11 @@ export default defineConfig({
     {
       name: 'mock',
       testDir: './e2e/mock',
+      use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${MOCK_PORT}` },
+    },
+    {
+      name: 'public-mock',
+      testDir: './e2e/live',
       use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${MOCK_PORT}` },
     },
     ...(hasLiveEnv
