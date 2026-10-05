@@ -92,6 +92,8 @@ src/
   index.css                     # Tailwind import + @theme টোকেন
   config/site.ts                # সাইটের নাম ইত্যাদি
   lib/banglaNumber.ts           # toBanglaNumber, formatBanglaNumber (ভাষা অনুযায়ী বাংলা/ইংরেজি অঙ্ক)
+  lib/money.ts                  # formatTaka (৳ ১,২৩,৪৫৬ / ৳123,456), parseBanglaNumber ("১০,০০০/-", "Tk 5,000"), MONEY_MAX (M-ধাপ ৫খ)
+  lib/fuzzyMatch.ts             # looseKey, levenshtein, nearDuplicates ("গাভী" ≈ "গাভি") — geoMatch ও ক্যাটাগরি (M-ধাপ ৫খ)
   i18n/                         # ভাষা টগল (২০২৬-০৯-৩০): key = বাংলা লেখা
     core.ts                     #   t(bn, vars) অনুবাদ, gn(নাম) ভৌগোলিক নাম, getLang()
     en.ts                       #   ইংরেজি অভিধান (বাংলা → English), সব UI লেখা
@@ -129,6 +131,14 @@ src/
       http.ts                   # restRequest(): JSON, Bearer token (localStorage 'housing_rest_token') / credentials include, এরর ম্যাপিং
       authProvider.ts           # REST AuthProvider (login/logout/me, listeners, cross-tab storage event) — ধাপ ১০
       index.ts                  # HousingApi/ProjectsApi/ImageStorage stub (ধাপ ১৩)
+  features/projects/fields/     # ফিল্ড-টাইপ রেজিস্ট্রি — ফর্ম/ইম্পোর্ট/টেবিল/CSV এর একটি উৎস (M-ধাপ ৫খ)
+    fieldValues.ts              # FieldDef, parse/format/toCsv/toInput প্রতিটি ধরনের (ডাটাবেসের housing_field_value এর নিয়মে), ত্রুটির বার্তা
+    fieldComponents.tsx         # Input (Text/LongText/Number/Category/Date/Phone) ও Cell (Text/LongText/Number/Money)
+    fieldTypes.ts               # FIELD_TYPE_SPECS = মানের নিয়ম + কম্পোনেন্ট; fieldSpec(type)
+    fieldStyles.ts              # FIELD_INPUT_CLASS (রেকর্ড-ফর্মের inputClass এর হুবহু)
+    systemFields.ts             # সাল, নাম, পিতা/স্বামী, বিভাগ, জেলা, উপজেলা, ইউনিয়ন, ঠিকানা — সীমা ও লেবেল
+    resolveFields.ts            # resolveFields(project) = সিস্টেম (core_fields অনুযায়ী) + কাস্টম; fieldValue(def, record, private)
+    index.ts
   features/projects/registry/   # প্রকল্প রেজিস্ট্রি — সব প্রকল্পের জন্য (M-ধাপ ৫ক)
     projectsStore.ts            # মডিউল-স্তরের তালিকা: স্ন্যাপশট asf_projects_v1 → ফলব্যাক → নেটওয়ার্ক; findProject, childrenOf, housingProjects, projectPath, refreshProjects
     useProjects.ts              # useRegistry / useProjects / useProject (useSyncExternalStore)
@@ -208,6 +218,7 @@ scripts/
   smoke.mjs                     # puppeteer-core + Chrome/Edge: ৩৬০–১২৮০px × বাংলা/ইংরেজি — ওভারফ্লো, console error, ভুল 404, ErrorBoundary, মানচিত্র-ট্যাপ, ব্যাকএন্ড-পথ; স্ক্রিনশট .smoke/ (npm run smoke; --legacy = পুরনো-ডাটাবেস মোড, নিজের dev সার্ভারে) (M-ধাপ ১, ৪)
   content-check.mjs             # anon হিসেবে প্রকল্প/ফিল্ড/ওভারভিউয়ের সারসংক্ষেপ + কোথায় ইংরেজি খালি; শুধু সতর্কবার্তা (npm run content-check) (M-ধাপ ৪)
   adapter-check.mts             # নকল ক্লায়েন্টে adapter-এর নিয়ম: ফলব্যাক, লেখার payload, whitelist, ছবি-মোড — ২৫টি পরীক্ষা (npm run adapter-check) (M-ধাপ ৪)
+  field-types-check.mjs         # টাকা, প্রতিটি ফিল্ড-ধরনের parse/format/CSV, fuzzy, resolveFields — ৭৭টি পরীক্ষা (npm run field-types-check) (M-ধাপ ৫খ)
 supabase/
   README.md                     # SQL চালানোর ক্রম
   sql/01_schema.sql             # টেবিল, constraint, ইনডেক্স, updated_at (পোর্টেবল)
@@ -1644,3 +1655,45 @@ M-ধাপ ২-এ এই মানগুলো `checks/10_verify.sql` এ ব�
 ### ৬. পরের ধাপে কী করতে হবে
 - **M-ধাপ ৫খ** — টাকা (`money.ts`), ফিল্ড-টাইপ রেজিস্ট্রি, fuzzy মিল ও `field-types-check`। প্রশ্ন ৯ (ইংরেজিতে টাকা কীভাবে দেখাবে) ওই ধাপে লাগবে — উত্তর না দিলে পরিকল্পনার ডিফল্ট।
 - পেস্ট করুন: `M-ধাপ ৫খ শুরু করো (পরিকল্পনা: docs/MULTI_PROJECT_PLAN.md)`
+
+## M-ধাপ ৫খ — টাকা, ফিল্ড-টাইপ রেজিস্ট্রি আর fuzzy মিল (২০২৬-১০-০৫) — ✅ সম্পন্ন (ডাটাবেসের কাজ নেই)
+
+### ১. কী তৈরি বা পরিবর্তন হয়েছে
+- **`src/lib/money.ts`:** `formatTaka()` — বাংলায় `৳ ১,২৩,৪৫৬`, ইংরেজিতে `৳123,456` (প্রশ্ন ৯-এর ডিফল্ট; লাখ/কোটি সংক্ষেপ নয়); `parseBanglaNumber()` — বাংলা/ইংরেজি অঙ্ক, যেকোনো কমা-রীতি, ফাঁকা, ৳/টাকা/Tk/Taka/BDT, শেষে /- বা /= গ্রহণ করে; খালি → null, সংখ্যা না হলে → NaN; `asciiDigits()`, `MONEY_MAX` (1e11, ডাটাবেসের সমান)।
+- **`src/lib/fuzzyMatch.ts`:** `looseKey(raw, { stripWords })`, `levenshtein()`, `nearDuplicates(values)` — ঢিলা key এক হলে সবসময়, দূরত্ব ১ হলে ছোটটি ≥ ৪ অক্ষরে, দূরত্ব ২ হলে ≥ ৮ অক্ষরে (যাতে "গরু"/"গরুর" ভুলে না মেলে)।
+- **`geoMatch.ts`** এখন এগুলোই ব্যবহার করে (নিজের looseKey/levenshtein মুছে); আচরণ হুবহু আগের (নিচে §৫)।
+- **ফিল্ড-টাইপ রেজিস্ট্রি** (`src/features/projects/fields/`) — সাতটি ধরনের (text, long_text, number, money, category, date, phone) প্রতিটির `parse` (কাঁচা লেখা → সংরক্ষণের মান; ডাটাবেসের `housing_field_value` এর নিয়মে: সীমা, NFC, ফাঁকা, ক্যাটাগরিতে একাধিক ফাঁকা → এক, টাকা পূর্ণসংখ্যা ০–1e11, সংখ্যা ≤ ২ দশমিক, min/max, ফোনে বাংলা অঙ্ক → ইংরেজি, তারিখ DD/MM/YYYY বা ISO → ISO), `format` (বর্তমান ভাষায়; সাল কমা ছাড়া), `toCsv` (ইংরেজি অঙ্ক, কমা নেই, ISO তারিখ — আবার ইম্পোর্টযোগ্য), `toInput`, `Input`, `Cell`; ত্রুটির বার্তা দুই ভাষায় (`fieldErrorMessage`)। `systemFields.ts` (৮টি সিস্টেম ফিল্ড, লেবেল এখনকার ফর্মের হুবহু), `resolveFields(project)` (core_fields অনুযায়ী লেবেল/চালু/আবশ্যক, ইউনিয়ন শুধু ইউনিয়ন-স্তরে, তারপর কাস্টম ফিল্ড; গোপন/আর্কাইভ অপশন), `fieldValue()`।
+- **`scripts/field-types-check.mjs`** (`npm run field-types-check`, tsx) — ৭৭টি পরীক্ষা।
+- `en.ts`: ফিল্ডের ১১টি ত্রুটি-বার্তা; `i18n-check`: `fuzzyMatch.ts` (মেলানোর ডাটা) বাদের তালিকায়।
+- UI তে কোনো বদল নেই — ফর্ম, ইম্পোর্ট, টেবিল, CSV রেজিস্ট্রিতে সরবে পরের ধাপগুলোতে (M-ধাপ ৮–১১)।
+
+### ২. গুরুত্বপূর্ণ সিদ্ধান্ত ও কারণ
+- **প্রশ্ন ৯-এর ডিফল্ট প্রয়োগ** (উত্তর আসেনি): পূর্ণসংখ্যা টাকা; বাংলায় `৳ ১,২৩,৪৫৬`, ইংরেজিতে `৳123,456`; লাখ/কোটি সংক্ষেপ নয়। পরিকল্পনা §১২-এ লেখা।
+- **টাকার সর্বোচ্চ সীমায় অসঙ্গতি (জানানো হলো, সিদ্ধান্ত আপনার):** পরিকল্পনা আর ডাটাবেসের বার্তায় "১০০০ কোটি" লেখা, কিন্তু ডাটাবেস যে সংখ্যা মানে (1e11 = ১০০,০০,০০,০০,০০০) তা আসলে **১০,০০০ কোটি**। ক্লায়েন্ট এখন ডাটাবেসের আসল সীমা (1e11) মানে, আর বার্তায় সঠিকভাবে "১০,০০০ কোটি" লেখে। দাতব্য অনুদানে বাস্তবে দুটোর কোনোটির কাছাকাছিও যায় না। আপনি ১০০০ কোটি চাইলে পরের কোনো SQL ধাপে ডাটাবেসের সীমা ও বার্তা আর এখানের `MONEY_MAX` একসাথে বদলানো হবে।
+- **format এর ভাষা** পরিকল্পনায় `format(value, def, lang)` লেখা; বাস্তবায়নে ভাষা আসে i18n মডিউল থেকে (t() ও সংখ্যার মতো একই উৎস, ভাষা বদলালে পুরো অ্যাপ remount হয়) — আলাদা প্যারামিটার লাগে না।
+- **ফাইল ভাগ** (`fieldValues.ts` React ছাড়া, `fieldComponents.tsx` শুধু কম্পোনেন্ট, `fieldTypes.ts` দুটো মেলায়) — চক্রাকার import এড়াতে ও fast-refresh এর lint নিয়মে; স্ক্রিপ্ট আর Node থেকেও মানের নিয়ম ব্যবহার করা যায়।
+- **ক্লায়েন্ট বেশি নমনীয়, সার্ভার কড়া:** ফর্ম/শীটের "১০,০০০/-" বা "15/03/2025" ক্লায়েন্ট পড়ে সংখ্যা/ISO বানিয়ে পাঠায়; সার্ভার শুধু সেই রূপ নেয় — তাই ভুল রূপ কখনো ডাটাবেসে যায় না।
+
+### ৩. পরিচিত সমস্যা ও বাকি কাজ
+- টাকার সর্বোচ্চ সীমার সিদ্ধান্ত (উপরে) — উত্তর না দিলে এখনকার মতো (1e11) থাকবে।
+- পরিকল্পনার "পুরনো নমুনা শীটের প্রিভিউ" — রিপোতে কোনো শীট নেই আর ইম্পোর্ট পেইজে এডমিন লগইন লাগে, তাই একই প্রিভিউ-কোড (`analyzeRows`) সরাসরি চালিয়ে পরীক্ষা করা হয়েছে (নিচে)। চাইলে নিজে একটি পুরনো শীট দিয়ে এডমিন → বাল্ক ইম্পোর্টে শুধু প্রিভিউ দেখতে পারেন (চালাবেন না)।
+
+### ৪. আমাকে (ব্যবহারকারীকে) যা করতে হবে
+1. কিছু চালাতে হবে না।
+2. (ঐচ্ছিক) টাকার সর্বোচ্চ সীমা: "১০০০ কোটি" না "১০,০০০ কোটি" — জানালে সেভাবে করা হবে।
+3. (ঐচ্ছিক) `npm run field-types-check` চালিয়ে ফলাফল দেখুন — "PASS 77, FAIL 0"।
+
+### ৫. কিভাবে টেস্ট করতে হবে
+| পরীক্ষা | ফল |
+|---|---|
+| গেট: `npx tsc -b`, `npm run lint` (০ সতর্কবার্তা), `npm run build`, `npm run i18n-check` (৪৩৮ = ৪৩৮) | ✅ |
+| `npm run field-types-check`: ৭৭/৭৭ — "১০,০০০/-" → 10000, "Tk 5,000" → 5000, "  গরু  " → "গরু" (NFC), "গাভী" ≈ "গাভি", "abc" → ত্রুটি; প্রতিটি ধরনের parse/format/toCsv/toInput, CSV round-trip, দুই ভাষার বার্তা, resolveFields, fieldValue | ✅ |
+| ক্লায়েন্ট বনাম ডাটাবেস (লোকাল Postgres, আসল `housing_field_value`): ৩৩টি মানে ৩২টি হুবহু; বাকি ১টি ইচ্ছাকৃত ("15/03/2025" ক্লায়েন্ট ISO বানায়, সার্ভার শুধু ISO নেয়) | ✅ |
+| `geoMatch` আগে বনাম পরে: দেশের সব বিভাগ/জেলা/উপজেলার নাম (বাংলা ও ইংরেজি) × ১৩ রকম ভুল বানান = ১৪,৭২০টি তুলনায় পার্থক্য ০ | ✅ |
+| ইম্পোর্টের প্রিভিউ-কোড (`analyzeRows` + `fillDown` + `guessMapping`) একটি এলোমেলো নমুনা শীটে (চট্রগ্রাম/মিরসরাই/Chattogram/উলিপূর/অচেনা উপজেলা): আগের ও নতুন কোডের ফল হুবহু এক | ✅ |
+| `npm run smoke` ৭৫/৭৫ ও `--legacy` ৭৫/৭৫; দুই মোডের ৭৪টি করে স্ক্রিনশট বেসলাইনের সাথে হুবহু | ✅ |
+| `npm run adapter-check` ২৫/২৫ | ✅ |
+
+### ৬. পরের ধাপে কী করতে হবে
+- **M-ধাপ ৬** — ডায়নামিক রাউটিং (রেজিস্ট্রি থেকে), `/admin` এ স্থানান্তর, পুরনো লিংকের রিডাইরেক্ট আর হেডারের "প্রকল্পসমূহ ▾" মেনু।
+- পেস্ট করুন: `M-ধাপ ৬ শুরু করো (পরিকল্পনা: docs/MULTI_PROJECT_PLAN.md)`

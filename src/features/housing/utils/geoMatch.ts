@@ -1,3 +1,4 @@
+import { levenshtein, looseKey as baseLooseKey } from '@/lib/fuzzyMatch'
 import type { GeoDistrict, GeoDivision, GeoUpazila } from '../data/bdGeo'
 import { BD_GEO } from '../data/bdGeo'
 import { findDistrict, findDivision, getDistricts, getUpazilas, nfc } from './geo'
@@ -20,42 +21,9 @@ export interface GeoMatch {
 
 const STRIP_WORDS = /(বিভাগ|জেলা|উপজেলা|থানা|division|district|upazila|upazilla|thana|dist\.?)/gi
 
-/** ঢিলা তুলনার key: বানান-ভিন্নতা মুছে ফেলা */
+/** ঢিলা তুলনার key: বানান-ভিন্নতা মুছে ফেলা (সাধারণ নিয়ম lib/fuzzyMatch.ts এ; এখানে বাড়তি — "জেলা", "উপজেলা" … শব্দ বাদ) */
 export function looseKey(raw: string): string {
-  let s = nfc(raw).toLowerCase().replace(STRIP_WORDS, '')
-  s = s
-    .replace(/[​-‍﻿]/g, '') // ZWSP/ZWNJ/ZWJ/BOM
-    .replace(/[\s.,\-_()/'"“”‘’।]+/g, '')
-    .replace(/ণ/g, 'ন')
-    .replace(/ী/g, 'ি')
-    .replace(/ূ/g, 'ু')
-    .replace(/ঈ/g, 'ই')
-    .replace(/ঊ/g, 'উ')
-    .replace(/[শষ]/g, 'স')
-    .replace(/ড়/g, 'র') // ড় → র
-    .replace(/ঢ়/g, 'ঢ') // ঢ় → ঢ
-    .replace(/য়/g, 'য') // য় → য
-    .replace(/ঙ্গ/g, 'ং')
-    .replace(/ৎ/g, 'ত')
-  return s
-}
-
-function levenshtein(a: string, b: string): number {
-  if (a === b) return 0
-  const m = a.length
-  const n = b.length
-  if (!m) return n
-  if (!n) return m
-  let prev = Array.from({ length: n + 1 }, (_, i) => i)
-  for (let i = 1; i <= m; i++) {
-    const cur = [i]
-    for (let j = 1; j <= n; j++) {
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1
-      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost)
-    }
-    prev = cur
-  }
-  return prev[n]
+  return baseLooseKey(raw, { stripWords: STRIP_WORDS })
 }
 
 interface Candidate {
