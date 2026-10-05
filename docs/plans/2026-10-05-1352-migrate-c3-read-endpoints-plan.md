@@ -205,7 +205,7 @@ From the roadmap and the C3 brief, not reopened here:
   - the response only has contract fields (`Object.keys` equals the §3.2 list)
 - **Done when:** `npm --prefix server test -- reads` is green.
 - **Depends on:** U1, U2
-- **Status:** todo
+- **Status:** done
 
 ### U4. Read routes, rate limit and contract v0.11
 - **Goal:** Mount the read router at `/api/v1/housing` with the route order, validation, rate limit and error mapping; update the contract in the same commit.
@@ -374,6 +374,6 @@ Finally, the Chrome check from U9.
 ## Progress
 - **Branch:** `migrate/c3-read-endpoints`
 - **Updated:** 2026-10-05 14:10
-- **Next:** U3, extend `insertRecord` in `server/test/support/db.ts`, then `server/test/db/reads.test.ts`
+- **Next:** U4, `server/test/http/housing-reads.test.ts` first, then `server/src/routes/v1/housing.ts`, the statement timeout in `db.ts`, contract v0.11
 - **Uncommitted:** none
 - **Notes:** `origin/main` had nothing new at start (no `supabase/sql` to port), so 0008 is free.

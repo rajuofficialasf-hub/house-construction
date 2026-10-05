@@ -32,6 +32,9 @@ export interface RecordInput {
   division?: string;
   district?: string;
   upazila?: string;
+  father_or_husband_name?: string;
+  address?: string;
+  created_at?: Date;
 }
 
 export interface InsertedRecord {
@@ -48,7 +51,10 @@ export async function insertRecord(sql: Sql | Tx, input: RecordInput = {}): Prom
     division: input.division ?? 'রংপুর',
     district: input.district ?? 'কুড়িগ্রাম',
     upazila: input.upazila ?? 'উলিপুর',
+    father_or_husband_name: input.father_or_husband_name ?? '',
+    address: input.address ?? '',
     ...(input.serial_no !== undefined && { serial_no: input.serial_no }),
+    ...(input.created_at && { created_at: input.created_at }),
   };
   const [inserted] = await sql<InsertedRecord[]>`
     insert into public.housing_beneficiaries ${sql(row)} returning id, serial_no`;
