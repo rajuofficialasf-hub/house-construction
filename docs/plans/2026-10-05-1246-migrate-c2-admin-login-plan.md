@@ -156,7 +156,7 @@ From the roadmap and the C2 brief (not reopened here): minimal admin login with 
   - `cli/admin.test.ts` (spawn `tsx src/cli/admin.ts` against the test DB, password on stdin): `create` exits 0 and the admin can log in through `login`; `--password x` → exit 1 "unknown option"; a 5-character password → exit 1 and no row; unknown command → exit 1 with usage.
 - **Done when:** tests pass, and `npm --prefix server run admin -- create --email dev@example.org` works against the compose DB followed by a curl login.
 - **Depends on:** U2, U3 (U4 for the "can log in" assertions)
-- **Status:** todo
+- **Status:** done
 
 ### U8. REST auth adapter in cookie mode
 - **Goal:** The frontend REST adapter logs in, checks and logs out through the cookie only, on `/api/v1`.
@@ -208,7 +208,7 @@ From the roadmap and the C2 brief (not reopened here): minimal admin login with 
 
 ## Progress
 - **Branch:** `migrate/c2-admin-login` (from `migrate/c1-server-db`)
-- **Updated:** 2026-10-05 13:10
-- **Next:** U7, write server/src/auth/admins.ts with tests, then the CLI in server/src/cli/admin.ts
+- **Updated:** 2026-10-05 13:12
+- **Next:** U8, remove the token path from src/features/housing/backend/rest/http.ts, test first in rest/authProvider.test.ts
 - **Uncommitted:** none
-- **Notes:** The local server/.env (gitignored) needs ALLOWED_ORIGINS and COOKIE_SECURE added by hand, like .env.example. U5: the cors package sends Allow-Credentials even to disallowed origins; harmless without Allow-Origin, and the test asserts only Allow-Origin. Cookie parsing is hand-written (no cookie dependency).
+- **Notes:** The local server/.env (gitignored) needs ALLOWED_ORIGINS and COOKIE_SECURE added by hand, like .env.example. U5: the cors package sends Allow-Credentials even to disallowed origins; harmless without Allow-Origin, and the test asserts only Allow-Origin. Cookie parsing is hand-written (no cookie dependency). U7: the hidden TTY prompt was checked by hand through a pseudo-terminal (not in the suite); in compose run the CLI with docker compose exec api npm run admin -- <command>.

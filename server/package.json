@@ -15,7 +15,8 @@
     "db:migrate": "dbmate --env DATABASE_MIGRATION_URL --migrations-dir db/migrations --no-dump-schema --wait up",
     "db:status": "dbmate --env DATABASE_MIGRATION_URL --migrations-dir db/migrations --no-dump-schema status",
     "db:rollback": "dbmate --env DATABASE_MIGRATION_URL --migrations-dir db/migrations --no-dump-schema rollback",
-    "db:seed": "tsx --env-file-if-exists=.env scripts/db-seed.ts"
+    "db:seed": "tsx --env-file-if-exists=.env scripts/db-seed.ts",
+    "admin": "tsx --env-file-if-exists=.env src/cli/admin.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.2.1",
