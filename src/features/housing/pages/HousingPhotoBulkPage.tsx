@@ -1,6 +1,7 @@
 import { gn, lt, t } from '@/i18n'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
+import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import { formatBanglaNumber, toBanglaNumber } from '@/lib/banglaNumber'
 import { getHousingApi } from '../../../backend/factory'
 import { HousingApiError, type HousingRecord, type PhotoKind, type ProjectType } from '../../../backend/interfaces/types'
@@ -39,14 +40,19 @@ interface Lookup {
 }
 
 /**
- * /housing/admin/photos — ছবি বাল্ক আপডেট।
+ * /admin/photos?project=<key> — ছবি বাল্ক আপডেট।
  * ফাইলনাম থেকে প্রকল্প/সিরিয়াল/ধরন → রেকর্ড মিলিয়ে প্রিভিউ → নিশ্চিত করলে ব্যাচে (২টি একসাথে) কম্প্রেস + আপলোড → রিপোর্ট।
  * RequireAdmin এর ভেতরে (লগইন ছাড়া পৌঁছানো যায় না); লেখার অনুমতি তবু ব্যাকএন্ডে যাচাই হয়।
  */
 export function HousingPhotoBulkPage() {
+  useDocumentTitle(t('ছবি বাল্ক আপডেট'))
   const projects = useProjects()
   const housingProjects = useHousingProjects()
-  const [defaultProject, setDefaultProject] = useState<ProjectType>('semi_pucca')
+  const [searchParams] = useSearchParams()
+  const [defaultProject, setDefaultProject] = useState<ProjectType>(() => {
+    const asked = searchParams.get('project')
+    return housingProjects.find((p) => p.key === asked)?.key ?? housingProjects[0]?.key ?? 'semi_pucca'
+  })
   const [items, setItems] = useState<UploadItem[]>([])
   const [lookup, setLookup] = useState<Lookup | null>(null)
   const [phase, setPhase] = useState<'select' | 'uploading' | 'done'>('select')
@@ -215,7 +221,7 @@ export function HousingPhotoBulkPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-sm text-slate-500">
-            <Link to="/housing/admin" className="hover:text-brand-700">
+            <Link to="/admin" className="hover:text-brand-700">
               {t('এডমিন')}
             </Link>{' '}
             / {t('ছবি বাল্ক আপডেট')}

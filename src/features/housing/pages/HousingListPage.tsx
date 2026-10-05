@@ -2,8 +2,8 @@ import { lt, t } from '@/i18n'
 import { useCallback, useMemo, useRef } from 'react'
 import { Outlet, useSearchParams } from 'react-router'
 import type { ListOutletContext } from './listContext'
-import { DEFAULT_PAGE_SIZE, type ListParams, type ProjectType } from '../../../backend/interfaces/types'
-import { useProject } from '@/features/projects/registry'
+import { DEFAULT_PAGE_SIZE, type ListParams, type Project } from '../../../backend/interfaces/types'
+import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import {
   applyFiltersToSearchParams,
   filtersEqual,
@@ -21,7 +21,8 @@ import { ErrorNotice } from '../components/ErrorNotice'
 import { useHousingList } from '../hooks/useHousingList'
 
 interface Props {
-  projectType: ProjectType
+  /** রেজিস্ট্রি থেকে (রাউট রেজিস্ট্রি-চালিত, M-ধাপ ৬) */
+  project: Project
 }
 
 function parsePage(raw: string | null): number {
@@ -31,13 +32,14 @@ function parsePage(raw: string | null): number {
 
 /**
  * শেয়ারড তালিকা পেইজ। /housing/semi-pucca ও /housing/tin দুটোই এই কম্পোনেন্ট ব্যবহার করে,
- * শুধু projectType prop আলাদা।
+ * শুধু project prop আলাদা (রাউট রেজিস্ট্রি থেকে তৈরি)।
  * উপরে পরিসংখ্যান কার্ড (ফিল্টার-নিরপেক্ষ), তারপর ফিল্টার, নিচে টেবিল + সার্ভার-সাইড পেজিনেশন।
  * ফিল্টার ও পেইজ URL query params এ (?year=&division=&district=&upazila=&q=&page=)।
  * child route /:serial (ভিউ মোড) <Outlet> দিয়ে এর উপরে মডাল হিসেবে রেন্ডার হয়।
  */
-export function HousingListPage({ projectType }: Props) {
-  const project = useProject(projectType)
+export function HousingListPage({ project }: Props) {
+  const projectType = project.key
+  useDocumentTitle(lt(project, 'name'))
   const [searchParams, setSearchParams] = useSearchParams()
   const page = parsePage(searchParams.get('page'))
   const filters = useMemo(() => filtersFromSearchParams(searchParams), [searchParams])
@@ -94,14 +96,14 @@ export function HousingListPage({ projectType }: Props) {
 
   // ভিউ মোড (child route /:serial) কে তালিকার ক্রম ও params দেওয়া হয়
   const outletContext = useMemo<ListOutletContext>(
-    () => ({ projectType, params, list, page }),
-    [projectType, params, list, page],
+    () => ({ project, projectType, params, list, page }),
+    [project, projectType, params, list, page],
   )
 
   return (
     <section className="container-page py-10 sm:py-14">
       <Outlet context={outletContext} />
-      <HousingSubnav />
+      <HousingSubnav group={project.parent_key} />
       <h1 className="mt-6 text-2xl font-bold text-slate-900 sm:text-3xl">{lt(project, 'name')}</h1>
       <p className="mt-2 text-slate-600">{lt(project, 'description')}</p>
 

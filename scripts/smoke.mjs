@@ -7,6 +7,8 @@
  *   - বৈধ URL এ "পেইজটি পাওয়া যায়নি" (404) বা লাল ত্রুটি-বক্স (ErrorBoundary) বা "লোড করা যায়নি" নেই
  *   - অবৈধ URL এ 404 পেইজ আসে
  *   - মানচিত্র খুলে অনেক জায়গায় ট্যাপ/ক্লিক করলে পেইজ ভাঙে না (২০২৬-১০-০১ এর বাগের রিগ্রেশন)
+ *   - বৈধ ডিপ লিংকে এক মুহূর্তের জন্যও 404 লেখা আসে না (M-ধাপ ৬: রেজিস্ট্রি-চালিত রাউট)
+ *   - পুরনো /housing/admin/* লিংক সঠিক নতুন ঠিকানায় যায় (slug → key; লগইন ছাড়া তাই শেষে /admin/login, ফেরার-পাথ যাচাই)
  * প্রতিটি পেইজের স্ক্রিনশট রাখে `.smoke/<label>/` এ (gitignored)।
  *
  * চালানো (আগে আরেকটি টার্মিনালে `npm run dev`):
@@ -119,25 +121,38 @@ async function firstSerial(projectType) {
   const key = process.env.VITE_SUPABASE_ANON_KEY ?? ''
   if (!url || !key) return null
   try {
-    const r = await fetch(`${url}/rest/v1/housing_beneficiaries?select=serial_no&project_type=eq.${projectType}&order=serial_no&limit=1`, {
+    const r = await fetch(`${url}/rest/v1/housing_beneficiaries?select=serial_no,year&project_type=eq.${projectType}&order=serial_no&limit=1`, {
       headers: { apikey: key, authorization: `Bearer ${key}` },
     })
     const rows = r.ok ? await r.json() : []
-    return rows[0]?.serial_no ?? null
+    return rows[0] ?? null
   } catch {
     return null
   }
 }
-const semiSerial = await firstSerial('semi_pucca')
+const semiFirst = await firstSerial('semi_pucca')
+const semiSerial = semiFirst?.serial_no ?? null
 
-/** @type {{name:string, path:string, expect:'ok'|'notfound', viewportOnly?:boolean, dialog?:boolean}[]} */
+/** @type {{name:string, path:string, expect:'ok'|'notfound', viewportOnly?:boolean, dialog?:boolean, expectPath?:string, expectFrom?:string, widths?:number[]}[]} */
 const PAGES = [
   { name: 'home', path: '/', expect: 'ok' },
   { name: 'housing', path: '/housing', expect: 'ok' },
+  { name: 'housing-slash', path: '/housing/', expect: 'ok' },
   { name: 'list-semi', path: '/housing/semi-pucca', expect: 'ok' },
   { name: 'list-tin', path: '/housing/tin', expect: 'ok' },
   ...(semiSerial ? [{ name: 'detail-semi', path: `/housing/semi-pucca/${semiSerial}`, expect: 'ok', viewportOnly: true, dialog: true }] : []),
-  { name: 'admin-login', path: '/housing/admin/login', expect: 'ok' },
+  ...(semiSerial ? [{ name: 'detail-semi-year', path: `/housing/semi-pucca/${semiSerial}?year=${semiFirst.year}`, expect: 'ok', viewportOnly: true, dialog: true }] : []),
+  { name: 'admin-login', path: '/admin/login', expect: 'ok', expectPath: '/admin/login' },
+  // পুরনো এডমিন লিংক (M-ধাপ ৬): লগইন ছাড়া শেষে লগইন পেইজ; ফেরার-পাথ (state.from) = সঠিক নতুন ঠিকানা
+  ...[
+    ['/housing/admin/login', '/admin/login', undefined],
+    ['/housing/admin', '/admin/login', '/admin'],
+    ['/housing/admin/semi-pucca', '/admin/login', '/admin/records/semi_pucca'],
+    ['/housing/admin/tin/3/edit?x=1', '/admin/login', '/admin/records/tin/3/edit?x=1'],
+    ['/housing/admin/semi-pucca/new', '/admin/login', '/admin/records/semi_pucca/new'],
+    ['/housing/admin/import', '/admin/login', '/admin/import'],
+    ['/admin/records/semi_pucca', '/admin/login', '/admin/records/semi_pucca'],
+  ].map(([from, to, back], i) => ({ name: `redirect-${i + 1}`, path: from, expect: 'ok', viewportOnly: true, expectPath: to, expectFrom: back, widths: [390, 1280] })),
   { name: 'not-found', path: '/smoke-check-no-such-page', expect: 'notfound' },
 ]
 
@@ -170,6 +185,14 @@ try {
           /* ignore */
         }
       }, lang)
+      // ডিপ লিংকে ক্ষণিকের 404 ধরা: DOM এ কখনো 404 লেখা এলে চিহ্ন রাখে
+      await page.evaluateOnNewDocument((texts) => {
+        const check = () => {
+          const s = document.body?.textContent ?? ''
+          if (texts.some((x) => s.includes(x))) window.__saw404 = true
+        }
+        new MutationObserver(check).observe(document, { subtree: true, childList: true, characterData: true })
+      }, NOT_FOUND_TEXT)
       let errors = []
       page.on('request', (r) => {
         const m = r.url().match(/\/rest\/v1\/((?:rpc\/)?[a-z_]+)/)
@@ -181,6 +204,7 @@ try {
       })
 
       for (const pg of PAGES) {
+        if (pg.widths && !pg.widths.includes(width)) continue
         errors = []
         const problems = []
         try {
@@ -262,6 +286,9 @@ async function inspect(page, pg) {
         loadError: le.find((t) => text.includes(t)) ?? null,
         dialog: !!document.querySelector('[role="dialog"]'),
         title: document.title,
+        path: location.pathname,
+        from: history.state?.usr?.from ?? null,
+        saw404: !!window.__saw404,
       }
     },
     NOT_FOUND_TEXT,
@@ -276,6 +303,10 @@ async function inspect(page, pg) {
   if (pg.expect === 'notfound' && !s.notFound) p.push('অবৈধ URL এ 404 পেইজ আসেনি')
   if (pg.expect === 'ok' && s.loadError) p.push(`ডাটা লোড ত্রুটি: "${s.loadError}"`)
   if (pg.dialog && !s.dialog) p.push('বিস্তারিত মডাল খোলেনি')
+  if (pg.expect === 'ok' && s.saw404) p.push('ক্ষণিকের জন্য 404 লেখা দেখা গেছে (ডিপ লিংক)')
+  if (pg.expectPath && s.path !== pg.expectPath) p.push(`ভুল ঠিকানা: ${s.path} (চাই ${pg.expectPath})`)
+  if (pg.expectPath && (s.from ?? undefined) !== pg.expectFrom) p.push(`লগইনের পরে ফেরার-পাথ ${s.from} (চাই ${pg.expectFrom})`)
+  if (!s.title || s.title === 'asf-website') p.push(`ট্যাবের শিরোনাম নেই: "${s.title}"`)
   return p
 }
 

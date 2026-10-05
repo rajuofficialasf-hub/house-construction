@@ -1,9 +1,11 @@
 import { t } from '@/i18n'
 import { Link } from 'react-router'
 import { SITE_NAME } from '@/config/site'
+import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import { FeaturedProjects } from '@/features/housing/components/FeaturedProjects'
 
 export function HomePage() {
+  useDocumentTitle() // শুধু সাইটের নাম
   return (
     <>
       <section className="bg-gradient-to-br from-brand-800 via-brand-700 to-brand-600 text-white">

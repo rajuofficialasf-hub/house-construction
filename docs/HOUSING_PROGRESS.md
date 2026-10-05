@@ -101,7 +101,9 @@ src/
     LanguageProvider.tsx        #   LanguageProvider (key={lang} remount, localStorage asf_lang, <html lang>), LanguageToggle (বাং | EN)
     index.ts                    #   barrel
   vite-env.d.ts                 # ImportMetaEnv টাইপ (VITE_* ভ্যারিয়েবল)
-  app/layout/                   # SiteLayout, SiteHeader (মোবাইল মেনুসহ), SiteFooter
+  app/layout/                   # SiteLayout, SiteHeader (মোবাইল মেনুসহ), SiteFooter, ProjectsMenu ("প্রকল্পসমূহ ▾", M-ধাপ ৬)
+  app/routes/                   # appRoutes (রেজিস্ট্রি থেকে প্রকল্পের রাউট + /admin/*), routeGuards (ConfigAwareNotFound, LegacyAdminRedirect, AdminIndexRedirect, RegistryAuthSync), ProjectFrame (DraftBanner) (M-ধাপ ৬)
+  lib/useDocumentTitle.ts       # ট্যাবের শিরোনাম "পেইজ — সাইট" (M-ধাপ ৬)
   components/ErrorBoundary.tsx   # রেন্ডার error হলে পেইজ সাদা না হয়ে বার্তা + আবার চেষ্টা/রিলোড (App ও মানচিত্রে)
   components/Toast.tsx          # সাইট-ব্যাপী টোস্ট প্রোভাইডার (App.tsx এ) (ধাপ ১১)
   components/useToast.ts        # useToast(): success/error/info
@@ -147,7 +149,6 @@ src/
     accents.ts                  # রঙের নির্দিষ্ট তালিকা (projects.accent): brand, teal, sky, indigo, amber, rose
     index.ts
   features/housing/             # ঘর নির্মাণ ফিচার (ধাপ ১ থেকে)
-    routes.tsx                  # /housing/* রুট এলিমেন্ট; App.tsx এ {housingRoutes} হিসেবে বসে
     (backend/ → src/backend/ এ সরানো হয়েছে, M-ধাপ ৪)
     components/
       HousingSubnav.tsx         # হাউজিং সেকশনের ভেতরের পিল-নেভিগেশন (variant light/dark)
@@ -164,7 +165,7 @@ src/
       HousingFilters.tsx        # ফিল্টার বার: সাল, বিভাগ→জেলা→উপজেলা (cascading), নাম খোঁজা (৫০০ms debounce), মুছুন (ধাপ ৬)
       ImageUploader.tsx         # পুনর্ব্যবহারযোগ্য ড্র্যাগ-ড্রপ আপলোডার + StatusPill + ProgressBar (ধাপ ৭; ধাপ ১১ এ ফর্মে)
       PhotoCompare.tsx          # আগে-পরে তুলনা: clip-path স্লাইডার / পাশাপাশি, সিঙ্ক জুম-প্যান (হুইল, ডাবল-ট্যাপ, পিঞ্চ), +/−/রিসেট/ফুলস্ক্রিন (ধাপ ৯)
-      RequireAdmin.tsx          # protected layout route: loading → লগইন যাচাই; এডমিন নয় → /housing/admin/login (state.from) (ধাপ ১০)
+      RequireAdmin.tsx          # protected layout route: loading → লগইন যাচাই; এডমিন নয় → /admin/login (state.from) (ধাপ ১০; M-ধাপ ৬)
       AdminShell.tsx            # এডমিন পেইজের উপরের বার: মেনু (সেমিপাকা/টিন রেকর্ড, ছবি বাল্ক), ইমেইল/নাম, লগআউট
       ConfirmDialog.tsx         # নিশ্চিতকরণ ডায়ালগ (danger/primary, busy, confirmDisabled) (ধাপ ১১)
       AdminRecordsTable.tsx     # এডমিন টেবিল: চেকবক্স, ক্রম, সিরিয়াল, …, এডিট/ডিলেট; md+ টেবিল / মোবাইল কার্ড
@@ -182,13 +183,13 @@ src/
       HousingListPage.tsx       # শেয়ারড; prop projectType: 'semi_pucca' | 'tin'
       HousingDetailPage.tsx     # /housing/<slug>/:serial — ভিউ মোড মডাল (Outlet child; আগের/পরের, কীবোর্ড, সোয়াইপ, লাইটবক্স)
       listContext.ts            # ListOutletContext: তালিকা → ডিটেইল এ params/list/page
-      HousingLoginPage.tsx      # /housing/admin/login — ইমেইল+পাসওয়ার্ড ফর্ম (AuthProvider.login), সাইন-আপ নেই (ধাপ ১০)
-      HousingAdminRecordsPage.tsx # /housing/admin/:slug — রেকর্ড ব্যবস্থাপনা (ট্যাব, ফিল্টার, টেবিল, বাল্ক ডিলেট) (ধাপ ১১)
-      HousingRecordFormPage.tsx # /housing/admin/:slug/new ও /:serial/edit — RecordForm wrapper (এডিটে সিরিয়াল ধরে লোড)
-      HousingImportPage.tsx     # /housing/admin/import — ৪-ধাপ উইজার্ড (ফাইল, ম্যাপিং, প্রিভিউ+geo ঠিক করা, চালানো) (ধাপ ১২)
-      HousingActivityPage.tsx   # /housing/admin/activity — একটিভিটি লগ: ফিল্টার, এন্ট্রি (কে/কখন/কী, old→new), পেজিনেশন (২০২৬-০৯-৩০)
+      HousingLoginPage.tsx      # /admin/login — ইমেইল+পাসওয়ার্ড ফর্ম (AuthProvider.login), সাইন-আপ নেই (ধাপ ১০)
+      HousingAdminRecordsPage.tsx # /admin/records/:key — রেকর্ড ব্যবস্থাপনা (ট্যাব, ফিল্টার, টেবিল, বাল্ক ডিলেট) (ধাপ ১১)
+      HousingRecordFormPage.tsx # /admin/records/:key/new ও /:serial/edit — RecordForm wrapper (এডিটে সিরিয়াল ধরে লোড)
+      HousingImportPage.tsx     # /admin/import?project= — ৪-ধাপ উইজার্ড (ফাইল, ম্যাপিং, প্রিভিউ+geo ঠিক করা, চালানো) (ধাপ ১২)
+      HousingActivityPage.tsx   # /admin/activity — একটিভিটি লগ: ফিল্টার, এন্ট্রি (কে/কখন/কী, old→new), পেজিনেশন (২০২৬-০৯-৩০)
       lazyPages.tsx             # ভিউ মোড ও এডমিন পেইজের React.lazy + <Lazy> Suspense wrapper (শেষ ধাপ)
-      HousingPhotoBulkPage.tsx  # /housing/admin/photos — ছবি বাল্ক আপডেট (ফাইলনাম → রেকর্ড মিলানো → প্রিভিউ → ব্যাচ আপলোড → রিপোর্ট)
+      HousingPhotoBulkPage.tsx  # /admin/photos?project= — ছবি বাল্ক আপডেট (ফাইলনাম → রেকর্ড মিলানো → প্রিভিউ → ব্যাচ আপলোড → রিপোর্ট)
     utils/
       housingProjects.ts        # রেজিস্ট্রি থেকে: useHousingProjects, useHousingProjectBySlug, adminPath, projectPath (M-ধাপ ৫ক-এ PROJECT_META এর জায়গায়)
       imagePath.ts              # photoPath(type, serial, kind, variant) → housing/{type}/{0001}/{kind}[_thumb].webp; padSerial; photoSrc(url, photo_updated_at)
@@ -298,17 +299,18 @@ docs/
 | `/housing/semi-pucca?year=&division=&district=&upazila=&q=&page=` | সেমিপাকা: স্ট্যাট কার্ড (ধাপ ৪) + ফিল্টার (ধাপ ৬) + **ইন্টারেক্টিভ উপজেলা মানচিত্র** (২০২৬-০৯-৩০, ভাঁজযোগ্য, lazy) + টেবিল/পেজিনেশন (ধাপ ৫) — HousingListPage projectType="semi_pucca" | না | ✅ |
 | `/housing/tin?…` | টিনের ঘর: একই কম্পোনেন্ট, projectType="tin" | না | ✅ |
 | `/housing/<slug>/:serial_no?…` | ভিউ মোড (ধাপ ৮): তালিকার উপরে full-screen মডাল; সব তথ্য + আগে-পরে তুলনা (ধাপ ৯); আগের/পরের (তালিকার ক্রমে, পেইজ পেরোয়), ← → Esc, সোয়াইপ; query string এ ফিল্টার/পেইজ বজায় | না | ✅ ধাপ ৮–৯ |
-| `/housing/admin/login` | এডমিন লগইন (ইমেইল + পাসওয়ার্ড); লগইন থাকলে `/housing/admin` এ | না | ✅ ধাপ ১০ |
-| `/housing/admin` | → `/housing/admin/semi-pucca` (redirect) | হ্যাঁ | ✅ ধাপ ১১ |
-| `/housing/admin/<slug>?…` | এডমিন রেকর্ড: প্রকল্প ট্যাব, ফিল্টার (সংখ্যা → সিরিয়াল খোঁজা), সিরিয়াল কলামসহ টেবিল, এডিট/ডিলেট, বাল্ক ডিলেট, "নতুন যোগ করুন" | হ্যাঁ | ✅ ধাপ ১১ |
-| `/housing/admin/<slug>/new` | নতুন রেকর্ড ফর্ম (সিরিয়াল স্বয়ংক্রিয়/হাতে, ভ্যালিডেশন, cascading, দুই ছবি) | হ্যাঁ | ✅ ধাপ ১১ |
-| `/housing/admin/<slug>/:serial/edit` | এডিট ফর্ম (প্রি-ফিল, সিরিয়াল লক + বিশেষ বদল, ছবি প্রতিস্থাপন/মোছা) | হ্যাঁ | ✅ ধাপ ১১ |
-| `/housing/admin/import` | বাল্ক ইম্পোর্ট উইজার্ড: xlsx/csv → কলাম ম্যাপিং → প্রিভিউ/ভ্যালিডেশন/ভৌগোলিক সংশোধন → ব্যাচে ইম্পোর্ট (নতুন / সিরিয়াল ধরে আপডেট) → সারসংক্ষেপ + ব্যর্থ CSV | হ্যাঁ | ✅ ধাপ ১২ |
-| `/housing/admin/activity?action=&project=&actor=&from=&to=&record=&page=` | একটিভিটি লগ: কে, কখন, কী বদলেছে (old→new); রেকর্ডভিত্তিক ইতিহাস | হ্যাঁ | ✅ (২০২৬-০৯-৩০) |
-| `/housing/admin/photos` | ছবি বাল্ক আপডেট (ড্র্যাগ-ড্রপ, ফাইলনাম মিলানো, প্রিভিউ, ব্যাচ আপলোড) | হ্যাঁ (RequireAdmin; লেখা ব্যাকএন্ডেও যাচাই) | ✅ ধাপ ৭ |
+| `/admin/login` | এডমিন লগইন (ইমেইল + পাসওয়ার্ড); লগইন থাকলে `/admin` এ; পরে ফেরার-পাথে | না | ✅ ধাপ ১০; M-ধাপ ৬-এ নতুন ঠিকানা |
+| `/admin` | → প্রথম প্রকল্পের রেকর্ড-তালিকা (ড্যাশবোর্ড আসবে M-ধাপ ৭-এ) | হ্যাঁ | ✅ M-ধাপ ৬ |
+| `/admin/records/<key>?…` | এডমিন রেকর্ড (key দিয়ে, যেমন `semi_pucca`): প্রকল্প ট্যাব (রেজিস্ট্রি থেকে), ফিল্টার (সংখ্যা → সিরিয়াল খোঁজা), সিরিয়াল কলাম, এডিট/ডিলেট, বাল্ক ডিলেট, CSV | হ্যাঁ | ✅ ধাপ ১১; M-ধাপ ৬ |
+| `/admin/records/<key>/new` | নতুন রেকর্ড ফর্ম | হ্যাঁ | ✅ |
+| `/admin/records/<key>/:serial/edit` | এডিট ফর্ম (প্রি-ফিল, সিরিয়াল লক + বিশেষ বদল, ছবি প্রতিস্থাপন/মোছা) | হ্যাঁ | ✅ |
+| `/admin/import?project=<key>` | বাল্ক ইম্পোর্ট উইজার্ড (প্রকল্প আগে থেকে বাছাই করা যায়) | হ্যাঁ | ✅ |
+| `/admin/photos?project=<key>` | ছবি বাল্ক আপডেট | হ্যাঁ | ✅ |
+| `/admin/activity?action=&project=&actor=&from=&to=&record=&page=` | একটিভিটি লগ | হ্যাঁ | ✅ |
+| `/housing/admin/*` (পুরনো) | নতুনে রিডাইরেক্ট: `/housing/admin` → `/admin`, `…/login` → `/admin/login`, `…/semi-pucca[/new\|/:serial/edit]` → `/admin/records/semi_pucca[/…]`, `…/import\|photos\|activity` → `/admin/…` (query সহ) | — | ✅ M-ধাপ ৬ |
 
 ### বর্তমানে চালু অ্যাডাপ্টার
-ফ্যাক্টরি (`features/housing/backend/factory.ts`) `VITE_HOUSING_BACKEND` পড়ে; অচেনা/খালি হলে ডিফল্ট `supabase`।
+ফ্যাক্টরি (`src/backend/factory.ts`, M-ধাপ ৪-এ সরানো) `VITE_HOUSING_BACKEND` পড়ে; অচেনা/খালি হলে ডিফল্ট `supabase`।
 - **supabase**: পূর্ণ বাস্তবায়ন (ধাপ ২) — HousingApi (list/getById/getBySerial/create/update/delete/bulkInsert/stats/years/filterOptions/uploadPhoto/deletePhoto), AuthProvider (email+password, শুধু `housing_admins` এ থাকা ইউজার), ImageStorage (bucket `housing-photos`)। প্রথম UI ব্যবহার: ধাপ ৪ এর স্ট্যাট কার্ড `stats()` ডাকে। Supabase প্রজেক্টের বিরুদ্ধে চালিয়ে যাচাই হয়নি (ব্যবহারকারীর প্রজেক্ট নেই); টাইপ-চেক ও বিল্ড পাস।
 - **rest**: `rest/http.ts` (fetch helper: JSON, Bearer/কুকি, এরর → HousingApiError) ও `rest/authProvider.ts` **বাস্তবায়িত** (ধাপ ১০); HousingApi/ImageStorage stub (ধাপ ১৩)। `rest/endpoints.ts` এ API_CONTRACT এর সব পাথ।
 
@@ -1697,3 +1699,50 @@ M-ধাপ ২-এ এই মানগুলো `checks/10_verify.sql` এ ব�
 ### ৬. পরের ধাপে কী করতে হবে
 - **M-ধাপ ৬** — ডায়নামিক রাউটিং (রেজিস্ট্রি থেকে), `/admin` এ স্থানান্তর, পুরনো লিংকের রিডাইরেক্ট আর হেডারের "প্রকল্পসমূহ ▾" মেনু।
 - পেস্ট করুন: `M-ধাপ ৬ শুরু করো (পরিকল্পনা: docs/MULTI_PROJECT_PLAN.md)`
+
+## M-ধাপ ৬ — ডায়নামিক রাউটিং, `/admin`-এ স্থানান্তর, পুরনো লিংকের রিডাইরেক্ট আর হেডার মেনু (২০২৬-১০-০৫) — ✅ সম্পন্ন (ডাটাবেসের কাজ নেই)
+
+### ১. কী তৈরি বা পরিবর্তন হয়েছে
+- **রাউট এখন রেজিস্ট্রি থেকে** (`src/app/routes/appRoutes.tsx`, `App.tsx`): গ্রুপ `/{slug}` = ল্যান্ডিং, উপ-প্রকল্প `/{group}/{slug}`, একক `/{slug}`, প্রতিটির child `:serial` (মডাল)। পেইজগুলো এখনো ঘর নির্মাণের (জেনেরিক তালিকা M-ধাপ ১৩, ল্যান্ডিং M-ধাপ ১৫)। `features/housing/routes.tsx` মুছে ফেলা।
+- **`ConfigAwareNotFound`** (`routeGuards.tsx`): রেজিস্ট্রি নেটওয়ার্কে মিলিয়ে নেওয়া শেষ না হলে 404 নয়, "লোড হচ্ছে…"।
+- **এডমিন `/admin`-এ**, URL এ key: `/admin/login`, `/admin` (আপাতত প্রথম প্রকল্পের রেকর্ডে — ড্যাশবোর্ড M-ধাপ ৭), `/admin/records/:key[/new | /:serial/edit]`, `/admin/import?project=`, `/admin/photos?project=`, `/admin/activity`। `RequireAdmin` এর `LOGIN_PATH` = `/admin/login`; লগইনের পর `/admin` (বা ফেরার-পাথ), লগআউটের পর `/`; লগইন পেইজ থেকে সাবনেভ বাদ। এডমিন মেনুর রেকর্ড-লিংক রেজিস্ট্রি থেকে (প্রকল্পের নাম)।
+- **`LegacyAdminRedirect`**: `/housing/admin/*` → `/admin/*` (slug → key, query/hash/ফেরার-পাথ সহ)।
+- **হেডার:** "ঘর নির্মাণ প্রকল্প" লিংকের বদলে **"প্রকল্পসমূহ ▾"** (`app/layout/ProjectsMenu.tsx`) — ডেস্কটপে ড্রপডাউন (বাইরে ক্লিক/Esc এ বন্ধ), মোবাইল মেনুতে শিরোনামসহ তালিকা; গ্রুপের নিচে উপ-প্রকল্প; খসড়া দেখায় না।
+- **ট্যাবের শিরোনাম** (`lib/useDocumentTitle.ts`): `প্রকল্প/পেইজের নাম — সাইটের নাম` — হোম, ল্যান্ডিং, তালিকা, লগইন, এডমিনের প্রতিটি পেইজ, 404। (`LanguageProvider` আর শিরোনাম বসায় না।)
+- **`DraftBanner`** (`ProjectFrame.tsx`): প্রকল্প পাবলিক না হলে হলুদ "খসড়া — শুধু এডমিন দেখছেন"। **`RegistryAuthSync`**: এডমিন লগইনে রেজিস্ট্রি খসড়াসহ, লগআউটে শুধু পাবলিক।
+- `listContext` এখন পুরো `project` বহন করে; `HousingListPage`, `HousingLandingPage`, `HousingSubnav`, `FeaturedProjects` প্রকল্প/গ্রুপ prop নেয় (যেকোনো গ্রুপে চলে)।
+- `smoke.mjs`: নতুন পাতা `/housing/`, `/housing/semi-pucca/1?year=2024`, `/admin/login`; ৭টি রিডাইরেক্ট পরীক্ষা (শেষ ঠিকানা + লগইনের পরে ফেরার-পাথ); প্রতিটি পাতায় "এক মুহূর্তের 404" ধরা; ট্যাবের শিরোনাম আছে কি না।
+- `en.ts`: খসড়া-ব্যানারের লেখা; অব্যবহৃত ৪টি key মুছে ফেলা।
+
+### ২. গুরুত্বপূর্ণ সিদ্ধান্ত ও কারণ
+- **`/admin` আপাতত রিডাইরেক্ট** — পরিকল্পনায় ড্যাশবোর্ড M-ধাপ ৭-এর কাজ; ততদিন আগের `/housing/admin` এর মতোই প্রথম প্রকল্পের রেকর্ডে।
+- **নতুন প্রকল্পের পাতাও ঘর নির্মাণের কম্পোনেন্টে** (M-ধাপ ১৩ পর্যন্ত) — এখন কোনো নতুন প্রকল্প নেই; M-ধাপ ৭-এ এডমিন খসড়া বানালে সেটি ঘর নির্মাণের ধাঁচে (আগে-পরে ছবির কলামসহ) দেখাবে, যা M-ধাপ ১৩-এ বদলাবে।
+- **এডমিন রেকর্ড/ফর্ম/ইম্পোর্ট/ছবি-বাল্ক এখনো শুধু ঘর নির্মাণের উপ-প্রকল্প নেয়** (অন্য key → 404) — জেনেরিক ফর্ম/ইম্পোর্ট M-ধাপ ১০–১২-এ।
+- **মডালে ট্যাবের শিরোনাম বদলায় না** (তালিকার প্রকল্পের নামই থাকে) — child-রাউটের effect আগে চলে বলে সহজ ও নির্ভরযোগ্য।
+- **মোবাইল মেনুতে ভাষা-টগল দুই জায়গায়** (বারে ও মেনুতে) — আগের মতোই, বদলানো হয়নি।
+
+### ৩. পরিচিত সমস্যা ও বাকি কাজ
+- এডমিন লগইন করে খসড়া ও এডমিন পাতাগুলো আমি পরীক্ষা করতে পারিনি (লগইন আমার নেই) — নিচে §৪-এ আপনার পরীক্ষা। খসড়া-ব্যানার আর "খসড়া মিলিয়ে নেওয়ার পর সরে যাওয়া" স্ন্যাপশটে নকল খসড়া দিয়ে পরীক্ষিত।
+- বুকমার্ক বা শেয়ার করা পুরনো এডমিন লিংক (`/housing/admin/…`) কাজ করবে (রিডাইরেক্ট), নতুন বুকমার্ক `/admin/…` দিয়ে করুন।
+
+### ৪. আমাকে (ব্যবহারকারীকে) যা করতে হবে
+1. চলমান `npm run dev` আবার চালু করুন (ফাইল সরানো হয়েছে)।
+2. ব্রাউজারে খুলুন (লগইন ছাড়া): `/housing`, `/housing/`, `/housing/semi-pucca/1?year=2024`, `/housing/tin` — আগের মতো দেখাবে; হেডারে "প্রকল্পসমূহ ▾" চাপলে ঘর নির্মাণ, সেমিপাকা, টিন।
+3. `/housing/admin/semi-pucca` খুলুন → লগইন পেইজে যাবে; লগইন করলে `/admin/records/semi_pucca` এ (পুরনো লিংকের রিডাইরেক্ট)।
+4. লগইনের পর এডমিন মেনু থেকে সেমিপাকা, টিন, বাল্ক ইম্পোর্ট, ছবি বাল্ক আপডেট, একটিভিটি লগ — সব খোলে কি না দেখুন (কিছু সংরক্ষণ করার দরকার নেই); "লগআউট" চাপলে হোমে ফেরে।
+5. ফোনে (বা ব্রাউজার ছোট করে) হেডার উপচে পড়ে কি না, মেনু (☰) এ "প্রকল্পসমূহ" অংশ দেখুন।
+
+### ৫. কিভাবে টেস্ট করতে হবে
+| পরীক্ষা | ফল |
+|---|---|
+| গেট: `npx tsc -b`, `npm run lint` (০), `npm run build`, `npm run i18n-check` | ✅ |
+| `npm run smoke` (নতুন dev সার্ভারে): PASS ১২৩/১২৩ — আগের সব পাতা + `/housing/` + `?year=` সহ বিস্তারিত + `/admin/login` + ৭টি রিডাইরেক্ট (`/housing/admin`, `…/login`, `…/semi-pucca`, `…/semi-pucca/new`, `…/tin/3/edit?x=1`, `…/import`, `/admin/records/semi_pucca`) — শেষ ঠিকানা ও ফেরার-পাথ সঠিক; কোনো পাতায় এক মুহূর্তের 404 নেই; ৩৬০/৭৬৮ সহ সব প্রস্থে ওভারফ্লো নেই; প্রতিটি পাতায় ট্যাবের শিরোনাম | ✅ |
+| `npm run smoke -- --legacy`: PASS ১২৩/১২৩ | ✅ |
+| স্ক্রিনশট বনাম বেসলাইন: ৬৪/৭৪ হুবহু (হেডারের বদল ছোট জায়গায়); ১০টি পার্থক্য সব লগইন পেইজের (সাবনেভ বাদ — পরিকল্পনা অনুযায়ী) | ✅ |
+| চোখে দেখা: ড্রপডাউন (১২৮০ বাংলা, ৭৬৮ ইংরেজি), মোবাইল মেনু (৩৬০); ট্যাবের শিরোনাম "সেমিপাকা ঘর নির্মাণ — আস-সুন্নাহ ফাউন্ডেশন" / "Semi-pucca House Construction — As-Sunnah Foundation" | ✅ |
+| খসড়া (নকল, স্ন্যাপশটে): পাতায় হলুদ ব্যানার; নেটওয়ার্কের তালিকা এলে খসড়া নেই → 404, স্ন্যাপশট থেকেও মুছে যায় | ✅ |
+| `adapter-check` ২৫/২৫, `field-types-check` ৭৭/৭৭ | ✅ |
+
+### ৬. পরের ধাপে কী করতে হবে
+- **M-ধাপ ৭** — এডমিন লেআউট (সাইডবার), ড্যাশবোর্ড, প্রকল্পের তালিকা, নতুন প্রকল্প উইজার্ড, প্রকল্প সেটিংস, প্রকাশের চেকলিস্ট। লাইভে পরীক্ষার জন্য এডমিন লগইন লাগবে (আপনি করবেন)।
+- পেস্ট করুন: `M-ধাপ ৭ শুরু করো (পরিকল্পনা: docs/MULTI_PROJECT_PLAN.md)`

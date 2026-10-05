@@ -1,6 +1,7 @@
 import { lt, t as tr } from '@/i18n'
 import { useCallback, useMemo, useState } from 'react'
 import { Link, NavLink, useParams, useSearchParams } from 'react-router'
+import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import { useToast } from '@/components/useToast'
 import { formatBanglaNumber, toBanglaNumber } from '@/lib/banglaNumber'
 import { getHousingApi } from '../../../backend/factory'
@@ -13,7 +14,7 @@ import { HousingFilters } from '../components/HousingFilters'
 import { Pagination } from '../components/Pagination'
 import { useHousingList } from '../hooks/useHousingList'
 import { applyFiltersToSearchParams, filtersEqual, filtersFromSearchParams, hasActiveFilters, type HousingFilters as Filters } from '../utils/filters'
-import { adminPath, useHousingProjectBySlug, useHousingProjects } from '../utils/housingProjects'
+import { adminPath, useHousingProjectByKey, useHousingProjects } from '../utils/housingProjects'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 
 const ascii = (s: string) => s.replace(/[০-৯]/g, (d) => String('০১২৩৪৫৬৭৮৯'.indexOf(d))).trim()
@@ -38,17 +39,18 @@ async function exportProjectCsv(projectType: ProjectType, onProgress: (done: num
 }
 
 /**
- * /housing/admin/:slug — এডমিন রেকর্ড ব্যবস্থাপনা: প্রকল্প ট্যাব, একই ফিল্টার (খোঁজার বক্সে সংখ্যা দিলে সিরিয়াল ধরে),
+ * /admin/records/:key — এডমিন রেকর্ড ব্যবস্থাপনা: প্রকল্প ট্যাব, একই ফিল্টার (খোঁজার বক্সে সংখ্যা দিলে সিরিয়াল ধরে),
  * সিরিয়াল কলামসহ টেবিল, এডিট/ডিলেট, একাধিক নির্বাচন করে বাল্ক ডিলেট, "নতুন যোগ করুন"।
  */
 export function HousingAdminRecordsPage() {
-  const { slug } = useParams()
-  const project = useHousingProjectBySlug(slug)
+  const { key } = useParams()
+  const project = useHousingProjectByKey(key)
   if (!project) return <NotFoundPage />
   return <RecordsManager key={project.key} project={project} />
 }
 
 function RecordsManager({ project }: { project: Project }) {
+  useDocumentTitle(tr('{title} — রেকর্ড', { title: lt(project, 'name') }))
   const projectType = project.key
   const tabs = useHousingProjects()
   const toast = useToast()
@@ -198,7 +200,7 @@ function RecordsManager({ project }: { project: Project }) {
           >
             {exporting ? tr('এক্সপোর্ট {status}', { status: exporting }) : tr('সিরিয়াল সহ এক্সপোর্ট (CSV)')}
           </button>
-          <Link to="/housing/admin/import" className="inline-flex h-10 items-center rounded-md border border-brand-600 px-4 text-sm font-medium text-brand-700 hover:bg-brand-50">
+          <Link to={`/admin/import?project=${encodeURIComponent(projectType)}`} className="inline-flex h-10 items-center rounded-md border border-brand-600 px-4 text-sm font-medium text-brand-700 hover:bg-brand-50">
             {tr('বাল্ক ইম্পোর্ট')}
           </Link>
           <Link

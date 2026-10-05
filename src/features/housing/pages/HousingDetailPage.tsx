@@ -7,7 +7,6 @@ import { HousingApiError, type HousingRecord } from '../../../backend/interfaces
 import { ErrorNotice } from '../components/ErrorNotice'
 import { PhotoCompare } from '../components/PhotoCompare'
 import { photoSrc } from '../utils/imagePath'
-import { useProject } from '@/features/projects/registry'
 import { projectPath } from '../utils/housingProjects'
 import type { ListOutletContext } from './listContext'
 
@@ -34,7 +33,7 @@ export function HousingDetailPage() {
   const location = useLocation()
   const serialNo = Number(serialParam)
   const validSerial = Number.isInteger(serialNo) && serialNo >= 1
-  const project = useProject(ctx.projectType)
+  const project = ctx.project
 
   // ---- বর্তমান পেইজে রেকর্ড আছে? ----
   const pageRecords = ctx.list.data?.data ?? NO_RECORDS

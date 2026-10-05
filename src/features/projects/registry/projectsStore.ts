@@ -57,10 +57,15 @@ function writeSnapshot(projects: Project[]) {
   }
 }
 
-/** প্রকাশিত এবং (থাকলে) গ্রুপও প্রকাশিত */
+/** প্রকাশিত এবং (থাকলে) গ্রুপও প্রকাশিত — ডাটাবেসের public_project_keys() এর সমান নিয়ম */
+export function isPublicProject(p: Project, projects: Project[] = state.projects): boolean {
+  if (!p.is_published) return false
+  if (!p.parent_key) return true
+  return projects.find((x) => x.key === p.parent_key)?.is_published ?? false
+}
+
 function publicOnly(projects: Project[]): Project[] {
-  const published = new Set(projects.filter((p) => p.is_published).map((p) => p.key))
-  return projects.filter((p) => p.is_published && (!p.parent_key || published.has(p.parent_key)))
+  return projects.filter((p) => isPublicProject(p, projects))
 }
 
 function initialState(): RegistryState {
@@ -148,6 +153,11 @@ export function findBySlug(slug: string | null | undefined, projects: Project[] 
 /** গ্রুপের উপ-প্রকল্প (sort_order ক্রমে) */
 export function childrenOf(groupKey: ProjectKey, projects: Project[] = state.projects): Project[] {
   return projects.filter((p) => p.parent_key === groupKey)
+}
+
+/** শীর্ষ-স্তরের প্রকল্প (গ্রুপ ও একক; উপ-প্রকল্প বাদ) — রাউট আর হেডার মেনুর জন্য */
+export function topLevelProjects(projects: Project[] = state.projects): Project[] {
+  return projects.filter((p) => !p.parent_key)
 }
 
 /** রেকর্ড রাখা যায় এমন প্রকল্প (গ্রুপ বাদ) */

@@ -1,6 +1,7 @@
 import { gn, lt, t } from '@/i18n'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
+import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import { formatBanglaNumber, toBanglaNumber } from '@/lib/banglaNumber'
 import { getHousingApi } from '../../../backend/factory'
 import {
@@ -56,10 +57,11 @@ const FIELD_LABEL: Record<string, string> = {
 type State = { status: 'loading'; data: Page<ActivityEntry> | null } | { status: 'ready'; data: Page<ActivityEntry> } | { status: 'error'; error: HousingApiError }
 
 /**
- * /housing/admin/activity — একটিভিটি লগ: কে, কখন, কী করেছে। ফিল্টার (ধরন, প্রকল্প, কে, তারিখ) URL এ; পেজিনেশন।
+ * /admin/activity — একটিভিটি লগ: কে, কখন, কী করেছে। ফিল্টার (ধরন, প্রকল্প, কে, তারিখ) URL এ; পেজিনেশন।
  * উৎস: ডাটাবেস ট্রিগার (রেকর্ড create/update/delete/photo/serial) + ক্লায়েন্ট-ইভেন্ট (login/logout/import_run/photo_bulk_run)।
  */
 export function HousingActivityPage() {
+  useDocumentTitle(t('একটিভিটি লগ'))
   const [sp, setSp] = useSearchParams()
   const projects = useProjects()
   const page = Math.max(1, Number(sp.get('page')) || 1)
@@ -206,7 +208,7 @@ function Entry({ e }: { e: ActivityEntry }) {
               </Link>
             )}
             {e.record_name && <span className="text-slate-600"> ({e.record_name})</span>}
-            <Link to={`/housing/admin/activity?record=${e.record_id}`} className="ml-2 text-xs text-slate-500 hover:text-brand-700 hover:underline">
+            <Link to={`/admin/activity?record=${e.record_id}`} className="ml-2 text-xs text-slate-500 hover:text-brand-700 hover:underline">
               {t('ইতিহাস')}
             </Link>
           </span>

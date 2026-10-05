@@ -1,20 +1,24 @@
-import { t } from '@/i18n'
+import { lt, t } from '@/i18n'
 import { useState, type ReactNode } from 'react'
 import { NavLink, useNavigate } from 'react-router'
 import { getAuthProvider, getHousingApi } from '../../../backend/factory'
 import { HousingApiError, type AuthUser } from '../../../backend/interfaces/types'
+import { adminPath, useHousingProjects } from '../utils/housingProjects'
 
-const ADMIN_LINKS = [
-  { to: '/housing/admin/semi-pucca', label: 'সেমিপাকা রেকর্ড', end: false },
-  { to: '/housing/admin/tin', label: 'টিন রেকর্ড', end: false },
-  { to: '/housing/admin/import', label: 'বাল্ক ইম্পোর্ট', end: false },
-  { to: '/housing/admin/photos', label: 'ছবি বাল্ক আপডেট', end: false },
-  { to: '/housing/admin/activity', label: 'একটিভিটি লগ', end: false },
+/** প্রকল্প-নিরপেক্ষ এডমিন কাজ (প্রকল্পের রেকর্ড-লিংক আসে রেজিস্ট্রি থেকে) — M-ধাপ ৭-এ সাইডবার-লেআউটে সরবে */
+const TOOL_LINKS = [
+  { to: '/admin/import', label: 'বাল্ক ইম্পোর্ট' },
+  { to: '/admin/photos', label: 'ছবি বাল্ক আপডেট' },
+  { to: '/admin/activity', label: 'একটিভিটি লগ' },
 ]
 
 /** এডমিন পেইজের উপরের বার: এডমিন মেনু, লগইন করা ইমেইল, লগআউট */
 export function AdminShell({ user, children }: { user: AuthUser; children: ReactNode }) {
   const navigate = useNavigate()
+  const links = [
+    ...useHousingProjects().map((p) => ({ to: adminPath(p.key), label: lt(p, 'name') })),
+    ...TOOL_LINKS.map((l) => ({ ...l, label: t(l.label) })),
+  ]
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -24,7 +28,7 @@ export function AdminShell({ user, children }: { user: AuthUser; children: React
     try {
       await getHousingApi().logActivity('logout')
       await getAuthProvider().logout()
-      navigate('/housing', { replace: true })
+      navigate('/', { replace: true })
     } catch (err) {
       setError(HousingApiError.from(err).message)
     } finally {
@@ -38,16 +42,15 @@ export function AdminShell({ user, children }: { user: AuthUser; children: React
         <div className="container-page flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
           <nav aria-label={t('এডমিন মেনু')} className="flex flex-wrap items-center gap-1">
             <span className="mr-2 rounded bg-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-900">{t('এডমিন')}</span>
-            {ADMIN_LINKS.map((l) => (
+            {links.map((l) => (
               <NavLink
                 key={l.to}
                 to={l.to}
-                end={l.end}
                 className={({ isActive }) =>
                   `rounded-md px-2.5 py-1 font-medium ${isActive ? 'bg-amber-200 text-amber-900' : 'text-amber-900/80 hover:bg-amber-100'}`
                 }
               >
-                {t(l.label)}
+                {l.label}
               </NavLink>
             ))}
           </nav>

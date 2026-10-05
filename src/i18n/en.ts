@@ -13,7 +13,7 @@ export const EN: Record<string, string> = {
     'Progress of our housing project and details of its beneficiaries — safe homes for helpless and distressed families.',
   'ঘর নির্মাণ প্রকল্প দেখুন': 'View the housing project',
   'হোম': 'Home',
-  'ঘর নির্মাণ প্রকল্প': 'Housing Project',
+  'খসড়া — শুধু এডমিন দেখছেন': 'Draft — only admins can see this',
   'প্রধান মেনু': 'Main menu',
   'মোবাইল মেনু': 'Mobile menu',
   'মেনু খুলুন': 'Open menu',
@@ -98,12 +98,8 @@ export const EN: Record<string, string> = {
   'সব প্রকল্প': 'All projects',
   'প্রকল্প': 'Project',
   // প্রকল্পের নাম ও বর্ণনা এখানে নেই — আসে ডাটাবেস (projects) থেকে, দেখানো হয় lt()/pick() দিয়ে (M-ধাপ ৫ক)
-  'সেমিপাকা রেকর্ড': 'Semi-pucca records',
-  'টিন রেকর্ড': 'Tin-shed records',
   'ঘরহীন ও অসহায় পরিবারের জন্য নিরাপদ বাসস্থান। সেমিপাকা ও টিনের ঘর নির্মাণ প্রকল্পের উপকারভোগীদের তথ্য ও আগে-পরের ছবি সবার জন্য উন্মুক্ত।':
     'Safe homes for homeless and helpless families. Beneficiary details and before/after photos of the semi-pucca and tin-shed housing projects are open to everyone.',
-  'ঘরহীন ও অসহায় পরিবারের জন্য নিরাপদ বাসস্থান। প্রতিটি ঘরের আগের ও বর্তমান অবস্থার ছবিসহ উপকারভোগীদের পূর্ণ তালিকা এখানে দেখা যায়। প্রকল্পটি চলমান।':
-    'Safe homes for homeless and helpless families. The full list of beneficiaries with before and current photos of every house is shown here. The project is ongoing.',
   'ঘর নির্মাণ প্রকল্প মেনু': 'Housing project menu',
   'আগের প্রকল্প': 'Previous project',
   'পরের প্রকল্প': 'Next project',

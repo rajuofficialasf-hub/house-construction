@@ -3,10 +3,10 @@ import { Navigate, Outlet, useLocation } from 'react-router'
 import { useAuth } from '../hooks/useAuth'
 import { AdminShell } from './AdminShell'
 
-export const LOGIN_PATH = '/housing/admin/login'
+export const LOGIN_PATH = '/admin/login'
 
 /**
- * Protected layout route: /housing/admin/* এর জন্য।
+ * Protected layout route: /admin/* এর জন্য (লগইন পেইজ বাদে)।
  * লগইন যাচাই চলাকালে হালকা লোডিং; এডমিন না হলে লগইন পেইজে পাঠায় (ফেরার পাথ state.from এ)।
  * এটি শুধু UI-স্তরের গার্ড; প্রকৃত অনুমতি ব্যাকএন্ড (RLS / সার্ভার) যাচাই করে।
  */

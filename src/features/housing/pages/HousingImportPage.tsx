@@ -1,6 +1,7 @@
 import { gn, lt, t } from '@/i18n'
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
+import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import { useToast } from '@/components/useToast'
 import { formatBanglaNumber, toBanglaNumber } from '@/lib/banglaNumber'
 import { getHousingApi } from '../../../backend/factory'
@@ -24,14 +25,19 @@ interface RunResult {
 }
 
 /**
- * /housing/admin/import — Google Sheet (xlsx/csv) থেকে বাল্ক ইম্পোর্ট, ৪ ধাপ:
+ * /admin/import?project=<key> — Google Sheet (xlsx/csv) থেকে বাল্ক ইম্পোর্ট, ৪ ধাপ:
  * ১) প্রকল্প, মোড, ফাইল → ২) কলাম ম্যাপিং (স্বয়ংক্রিয় অনুমান) → ৩) প্রিভিউ: ভ্যালিডেশন, ভৌগোলিক নাম ঠিক করা, ডুপ্লিকেট → ৪) ব্যাচে চালানো + সারসংক্ষেপ + ব্যর্থ CSV।
  */
 export function HousingImportPage() {
+  useDocumentTitle(t('বাল্ক ইম্পোর্ট'))
   const toast = useToast()
   const api = getHousingApi()
   const projects = useHousingProjects()
-  const [projectType, setProjectType] = useState<ProjectType>('semi_pucca')
+  const [searchParams] = useSearchParams()
+  const [projectType, setProjectType] = useState<ProjectType>(() => {
+    const asked = searchParams.get('project')
+    return projects.find((p) => p.key === asked)?.key ?? projects[0]?.key ?? 'semi_pucca'
+  })
   const projectSlug = projects.find((p) => p.key === projectType)?.slug ?? projectType
   const [mode, setMode] = useState<Mode>('insert')
   const [file, setFile] = useState<File | null>(null)

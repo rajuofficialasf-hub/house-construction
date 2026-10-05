@@ -2,12 +2,13 @@ import { lt, t } from '@/i18n'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { toBanglaNumber } from '@/lib/banglaNumber'
+import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { getHousingApi } from '../../../backend/factory'
 import { HousingApiError, type HousingRecord } from '../../../backend/interfaces/types'
 import { ErrorNotice } from '../components/ErrorNotice'
 import { RecordForm } from '../components/RecordForm'
-import { adminPath, useHousingProjectBySlug } from '../utils/housingProjects'
+import { adminPath, useHousingProjectByKey } from '../utils/housingProjects'
 
 interface Props {
   mode: 'new' | 'edit'
@@ -16,13 +17,14 @@ interface Props {
 type Loaded = { serial: number; status: 'ready'; record: HousingRecord } | { serial: number; status: 'error'; error: HousingApiError }
 
 /**
- * /housing/admin/:slug/new  এবং  /housing/admin/:slug/:serial/edit
+ * /admin/records/:key/new  এবং  /admin/records/:key/:serial/edit
  * এডিটে রেকর্ড সিরিয়াল ধরে লোড হয়ে ফর্মে আগে থেকে ভরা থাকে।
  */
 export function HousingRecordFormPage({ mode }: Props) {
-  const { slug, serial } = useParams()
+  useDocumentTitle(mode === 'new' ? t('নতুন রেকর্ড') : t('রেকর্ড সম্পাদনা'))
+  const { key, serial } = useParams()
   const navigate = useNavigate()
-  const project = useHousingProjectBySlug(slug)
+  const project = useHousingProjectByKey(key)
   const projectType = project?.key
   const serialNo = Number(serial)
   const [loaded, setLoaded] = useState<Loaded | null>(null)

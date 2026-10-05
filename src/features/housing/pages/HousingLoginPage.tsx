@@ -3,13 +3,13 @@ import { useState, type FormEvent } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
 import { getAuthProvider, getHousingApi } from '../../../backend/factory'
 import { HousingApiError } from '../../../backend/interfaces/types'
-import { HousingSubnav } from '../components/HousingSubnav'
+import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import { useAuth } from '../hooks/useAuth'
 
-const DEFAULT_AFTER_LOGIN = '/housing/admin'
+const DEFAULT_AFTER_LOGIN = '/admin'
 
 /**
- * /housing/admin/login — ইমেইল + পাসওয়ার্ড (AuthProvider.login)। সাইন-আপ/পাসওয়ার্ড-রিসেট লিঙ্ক নেই:
+ * /admin/login — ইমেইল + পাসওয়ার্ড (AuthProvider.login)। সাইন-আপ/পাসওয়ার্ড-রিসেট লিঙ্ক নেই:
  * নতুন এডমিন শুধু ব্যাকএন্ড থেকে যোগ হয়। আগে থেকে লগইন থাকলে সরাসরি এডমিনে পাঠায়।
  */
 export function HousingLoginPage() {
@@ -17,6 +17,7 @@ export function HousingLoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const from = (location.state as { from?: string } | null)?.from || DEFAULT_AFTER_LOGIN
+  useDocumentTitle(t('এডমিন লগইন'))
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -53,8 +54,7 @@ export function HousingLoginPage() {
 
   return (
     <section className="container-page py-10 sm:py-14">
-      <HousingSubnav />
-      <div className="mx-auto mt-10 max-w-md">
+      <div className="mx-auto mt-4 max-w-md">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <h1 className="text-2xl font-bold text-slate-900">{t('এডমিন লগইন')}</h1>
           <p className="mt-1 text-sm text-slate-500">{t('শুধু অনুমোদিত এডমিনদের জন্য। পাবলিক তালিকা দেখতে লগইন লাগে না।')}</p>

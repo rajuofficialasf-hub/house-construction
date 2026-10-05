@@ -1,14 +1,16 @@
 import { t } from '@/i18n'
 import { useRef } from 'react'
-import { useHousingProjects } from '../utils/housingProjects'
+import type { ProjectKey } from '../../../backend/interfaces/types'
+import { useGroupChildren } from '../utils/housingProjects'
 import { FeaturedProjectCard } from './FeaturedProjectCard'
 
 /**
  * হোম পেইজের "প্রকল্পসমূহ" সেকশন: প্রতিটি প্রকল্পের একটি কার্ড।
  * ডেস্কটপে পাশাপাশি; ছোট পর্দায় অনুভূমিক স্ক্রল-স্ন্যাপ ও দুই পাশে তীর বাটন (ক্যারোসেল-ধাঁচ)।
  */
-export function FeaturedProjects() {
-  const projects = useHousingProjects()
+/** groupKey: কোন গ্রুপের উপ-প্রকল্পের কার্ড (না দিলে ঘর নির্মাণ) */
+export function FeaturedProjects({ groupKey }: { groupKey?: ProjectKey }) {
+  const projects = useGroupChildren(groupKey)
   const scroller = useRef<HTMLDivElement>(null)
   const scrollBy = (dir: -1 | 1) => {
     const el = scroller.current

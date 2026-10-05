@@ -3,14 +3,16 @@
  * নাম/বর্ণনা দেখাতে lt(project, 'name') ব্যবহার করুন (t() নয়)।
  */
 import type { Project, ProjectKey } from '@/backend'
-import { findProject, housingProjects, useProjects } from '@/features/projects/registry'
+import { childrenOf, housingProjects, useProjects, HOUSING_GROUP_KEY } from '@/features/projects/registry'
 
 export { projectPath } from '@/features/projects/registry'
 
-/** এডমিনের রেকর্ড-পাতা: /housing/admin/{slug}[/{rest}] (M-ধাপ ৬-এ /admin এ সরবে) */
+/**
+ * এডমিনের রেকর্ড-পাতা: /admin/records/{key}[/{rest}] — এডমিন URL এ slug নয়, স্থায়ী key (পরিকল্পনা §৪.২;
+ * slug বদলালেও বুকমার্ক ভাঙে না, import/photos এর মতো স্থির শব্দের সাথে সংঘর্ষ নেই)।
+ */
 export function adminPath(key: ProjectKey, rest = ''): string {
-  const slug = findProject(key)?.slug ?? key.replace(/_/g, '-')
-  return `/housing/admin/${slug}${rest ? `/${rest}` : ''}`
+  return `/admin/records/${encodeURIComponent(key)}${rest ? `/${rest}` : ''}`
 }
 
 /** ঘর নির্মাণের উপ-প্রকল্পগুলো (সেমিপাকা, টিন …) — sort_order ক্রমে */
@@ -18,8 +20,13 @@ export function useHousingProjects(): Project[] {
   return housingProjects(useProjects())
 }
 
-/** URL-এর slug থেকে ঘর নির্মাণের উপ-প্রকল্প; না মিললে undefined (তখন পেইজ 404 দেখায়) */
-export function useHousingProjectBySlug(slug: string | undefined): Project | undefined {
+/** একটি গ্রুপের উপ-প্রকল্প (না দিলে ঘর নির্মাণ) — গ্রুপ ল্যান্ডিং, সাবনেভ */
+export function useGroupChildren(groupKey: ProjectKey = HOUSING_GROUP_KEY): Project[] {
+  return childrenOf(groupKey, useProjects())
+}
+
+/** এডমিন URL-এর key থেকে ঘর নির্মাণের উপ-প্রকল্প; না মিললে undefined (তখন পেইজ 404 দেখায়) */
+export function useHousingProjectByKey(key: string | undefined): Project | undefined {
   const list = useHousingProjects()
-  return slug ? list.find((p) => p.slug === slug) : undefined
+  return key ? list.find((p) => p.key === key) : undefined
 }
