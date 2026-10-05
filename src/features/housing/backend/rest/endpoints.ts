@@ -27,7 +27,7 @@ export const ENDPOINTS = {
     filterOptions: (query?: URLSearchParams) => withQuery(`${API}/housing/filter-options`, query), // GET ?project_type=
     nextSerial: (projectType: ProjectType) => `${API}/housing/next-serial?project_type=${projectType}`, // GET
     serial: (id: string) => `${API}/housing/${encodeURIComponent(id)}/serial`, // POST { serial_no } (সিরিয়াল বদল)
-    activity: () => `${API}/housing/activity`, // GET (এডমিন, ফিল্টার+পেজিনেশন) / POST { action, details, project_type } (ক্লায়েন্ট-ইভেন্ট)
+    activity: (query?: URLSearchParams) => withQuery(`${API}/housing/activity`, query), // GET (এডমিন, ফিল্টার+পেজিনেশন) / POST { action, details, project_type } (ক্লায়েন্ট-ইভেন্ট)
     bySerial: (projectType: ProjectType, serialNo: number) =>
       `${API}/housing/${projectType}/serial/${serialNo}`, // GET
     bySerials: (projectType: ProjectType, serialNos: number[]) =>

@@ -387,7 +387,7 @@ From the roadmap and the C4 brief, not reopened here:
   - the error body maps to `HousingApiError.code`
 - **Done when:** `npm test` (root) is green and `npm run build` passes.
 - **Depends on:** none (contract shapes); merge after U3–U5
-- **Status:** todo
+- **Status:** done
 
 ### U7. Contract runner with writes
 - **Goal:** The shared contract suite runs with `writes: true` against the real server, with only the C5 photo gaps.
@@ -488,7 +488,7 @@ Finally, the Chrome check from U9.
 ## Progress
 - **Branch:** `migrate/c4-write-endpoints` (from `migrate/c3-read-endpoints`, which is not yet merged into `dev-forhad`)
 - **Updated:** 2026-10-05 16:40
-- **Next:** U6: REST adapter writes in `src/features/housing/backend/rest/index.ts`
+- **Next:** U7: cookie-jar fetch and `writes: true` in `tests/contract/rest.contract.test.ts`
 - **Uncommitted:** none
 - **Notes:** `activityBody.details` uses `z.record(z.string(), z.unknown())`, not `z.json()`. The body is already JSON, and this avoids the `$defs` ref, so the OpenAPI entry needs no hand override. A custom zod check's `params.reason` becomes `details.reason` (`errors.ts`).
   U3 notes:
