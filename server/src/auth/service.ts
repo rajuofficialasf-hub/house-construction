@@ -3,7 +3,7 @@ import { hashPassword, needsUpgrade, verifyDummy, verifyPassword } from './passw
 import { createSession, deleteExpiredSessions } from './session.js';
 import type { AdminPrincipal, AuthDeps } from './types.js';
 
-export type LoginFailure = 'unknown' | 'bad_password' | 'disabled';
+type LoginFailure = 'unknown' | 'bad_password' | 'disabled';
 
 export type LoginResult =
   | { ok: true; admin: AdminPrincipal; token: string; expiresAt: Date }

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { z } from 'zod';
 import type { SessionCookie } from '../../auth/cookie.js';
+import { emailSchema, MAX_PASSWORD_LENGTH } from '../../auth/credentials.js';
 import { requireAdmin } from '../../auth/middleware.js';
 import { login, logout } from '../../auth/service.js';
 import type { AdminPrincipal, AuthDeps } from '../../auth/types.js';
@@ -10,8 +11,8 @@ import { AppError } from '../../errors.js';
 // Admin login, logout and current-admin routes (docs/api/API_CONTRACT.md §2).
 
 const loginBody = z.object({
-  email: z.string().trim().toLowerCase().max(254).pipe(z.email()),
-  password: z.string().min(1).max(200),
+  email: emailSchema,
+  password: z.string().min(1).max(MAX_PASSWORD_LENGTH),
 });
 
 // Per-IP throttle on failed logins (NE-SEC-04, AU-13). Ten, not fewer, because an office shares

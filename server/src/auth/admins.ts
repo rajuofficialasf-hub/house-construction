@@ -1,5 +1,5 @@
-import { z } from 'zod';
 import type { Sql, Tx } from '../db.js';
+import { emailSchema, MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from './credentials.js';
 import { hashPassword } from './password.js';
 import type { AdminPrincipal } from './types.js';
 
@@ -11,10 +11,6 @@ import type { AdminPrincipal } from './types.js';
 export class AdminCliError extends Error {
   override name = 'AdminCliError';
 }
-
-const emailSchema = z.string().trim().toLowerCase().max(254).pipe(z.email());
-export const MIN_PASSWORD_LENGTH = 12;
-const MAX_PASSWORD_LENGTH = 200;
 
 function parseEmail(email: string): string {
   const result = emailSchema.safeParse(email);

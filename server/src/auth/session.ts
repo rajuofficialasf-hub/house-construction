@@ -4,7 +4,7 @@ import type { AdminPrincipal, AuthDeps } from './types.js';
 
 // Admin sessions: an opaque random token in the cookie, its SHA-256 in housing_admin_sessions.
 
-export const IDLE_TIMEOUT_MS = 8 * 60 * 60 * 1000;
+const IDLE_TIMEOUT_MS = 8 * 60 * 60 * 1000;
 export const ABSOLUTE_TIMEOUT_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** The session id stored in the database for a cookie token. */

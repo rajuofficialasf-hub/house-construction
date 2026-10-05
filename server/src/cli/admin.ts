@@ -14,6 +14,10 @@ import { parseArgs } from 'node:util';
 import postgres from 'postgres';
 import { AdminCliError, createAdmin, listAdmins, setDisabled, setPassword } from '../auth/admins.js';
 
+const COMMANDS = ['create', 'set-password', 'disable', 'enable', 'list'] as const;
+type Command = (typeof COMMANDS)[number];
+const isCommand = (value: string | undefined): value is Command => COMMANDS.some((c) => c === value);
+
 const USAGE = `usage:
   admin create --email <email> [--name <name>]
   admin set-password --email <email>
@@ -69,8 +73,7 @@ async function run(args: string[]): Promise<void> {
     strict: true,
   });
   const [command, ...extra] = positionals;
-  const commands = ['create', 'set-password', 'disable', 'enable', 'list'];
-  if (!command || !commands.includes(command) || extra.length > 0) throw new AdminCliError(USAGE);
+  if (!isCommand(command) || extra.length > 0) throw new AdminCliError(USAGE);
 
   const url = process.env.DATABASE_MIGRATION_URL;
   if (!url) throw new AdminCliError('DATABASE_MIGRATION_URL is not set');
