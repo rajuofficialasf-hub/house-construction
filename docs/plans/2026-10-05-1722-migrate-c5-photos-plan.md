@@ -280,7 +280,7 @@ From the roadmap and the C5 brief, not reopened here:
   - A client that keeps sending after a 413 is cut off within the 10 s drain window (fake timers or a short injected timeout).
 - **Done when:** the tests pass, and `npm view` checks for the new packages are noted in the commit message.
 - **Depends on:** U2
-- **Status:** todo
+- **Status:** done
 
 ### U6. Photo upload and delete routes, record delete removes files
 - **Goal:** `POST` and `DELETE /housing/:id/photo` work as contract §4.10 and §4.11 say, and a record delete removes its files after commit.
@@ -418,6 +418,6 @@ From the roadmap and the C5 brief, not reopened here:
 ## Progress
 - **Branch:** `migrate/c5-photos`
 - **Updated:** 2026-10-05 18:05
-- **Next:** U5, check install scripts for `busboy` and `sharp`, then write `server/test/photos/process.test.ts`
+- **Next:** U6, write `server/test/support/storage.ts` (`testStorage`) and the photo route tests in `server/test/http/housing-photos.test.ts`
 - **Uncommitted:** none
-- **Notes:** The S3 client needs `throwOnRequestTimeout: true`; without it `requestTimeout` only logs a warning and the request hangs (the timeout test caught it). U1 also added `e2e/support/rest-env.ts` and the admin-rest API's storage env now, so `playwright.config.ts` keeps working with the new required config. A local `server/.env` (gitignored) needs `PUBLIC_API_URL`, `STORAGE_DRIVER` and `STORAGE_ROOT` added by hand. MinIO's images can't be pulled (Docker Hub repo gone, quay.io 401). The user chose no local S3: S3 tests run only with `TEST_S3_*`, in C6. Doc review 2026-10-05: kept tombstones + sweep; no activity row on a no-op photo delete; drain timeout 10 s and 2 concurrent decodes added.
+- **Notes:** U5 stream gotchas, all in `server/src/photos/process.ts` comments: never destroy busboy's file stream (busboy stalls; unpipe and resume instead); the NAS driver attaches to a body only after `mkdir`, so a body destroyed earlier needs its own error listener; a storage failure must not be read as an image error (pipe, not pipeline, from the encoder); busboy needs `defParamCharset: 'utf8'` or Bangla file names arrive as Latin-1. busboy refuses a raw control character in a file name (400 `malformed_multipart`). The S3 client needs `throwOnRequestTimeout: true`; without it `requestTimeout` only logs a warning and the request hangs (the timeout test caught it). U1 also added `e2e/support/rest-env.ts` and the admin-rest API's storage env now, so `playwright.config.ts` keeps working with the new required config. A local `server/.env` (gitignored) needs `PUBLIC_API_URL`, `STORAGE_DRIVER` and `STORAGE_ROOT` added by hand. MinIO's images can't be pulled (Docker Hub repo gone, quay.io 401). The user chose no local S3: S3 tests run only with `TEST_S3_*`, in C6. Doc review 2026-10-05: kept tombstones + sweep; no activity row on a no-op photo delete; drain timeout 10 s and 2 concurrent decodes added.
