@@ -226,7 +226,7 @@ From the roadmap and the C5 brief, not reopened here:
     - a symlinked `STORAGE_ROOT` still resolves correctly.
 - **Done when:** the NAS contract run passes and `createStorage({ STORAGE_DRIVER: 'nas', … })` returns the driver.
 - **Depends on:** U1
-- **Status:** todo
+- **Status:** done
 
 ### U3. S3 driver (temporary)
 - **Goal:** `STORAGE_DRIVER=s3` works against AWS S3 or R2 (or any S3-compatible service) through config, added as one file plus one registry line.
@@ -418,6 +418,6 @@ From the roadmap and the C5 brief, not reopened here:
 ## Progress
 - **Branch:** `migrate/c5-photos`
 - **Updated:** 2026-10-05 18:05
-- **Next:** U2, write `server/test/storage/storageContract.ts` and the NAS driver
+- **Next:** U3, check install scripts for `@aws-sdk/client-s3` and `@aws-sdk/lib-storage`, then write `drivers/s3.ts`
 - **Uncommitted:** none
 - **Notes:** U1 also added `e2e/support/rest-env.ts` and the admin-rest API's storage env now, so `playwright.config.ts` keeps working with the new required config. A local `server/.env` (gitignored) needs `PUBLIC_API_URL`, `STORAGE_DRIVER` and `STORAGE_ROOT` added by hand. MinIO's images can't be pulled (Docker Hub repo gone, quay.io 401). The user chose no local S3: S3 tests run only with `TEST_S3_*`, in C6. Doc review 2026-10-05: kept tombstones + sweep; no activity row on a no-op photo delete; drain timeout 10 s and 2 concurrent decodes added.
