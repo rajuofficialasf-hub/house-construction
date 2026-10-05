@@ -96,7 +96,7 @@ From the roadmap and the C2 brief (not reopened here): minimal admin login with 
 - **Tests:** hash then verify true; wrong password false; a fixed bcrypt hash made outside this code (e.g. `$2a$10$…` for `correct horse battery staple`, generated once with `htpasswd -bnBC 10` and pasted as a literal, `TS-11`) verifies true and `needsUpgrade` true; a fresh argon2id hash `needsUpgrade` false; an argon2id hash with `t=1` needs upgrade; garbage hash → false.
 - **Done when:** tests pass and `npm --prefix server ci` in the node:22 container installs with no build step.
 - **Depends on:** none
-- **Status:** todo
+- **Status:** done
 
 ### U4. Auth service: login, session lookup, logout
 - **Goal:** Plain functions that do the database work for login, `authenticate(tokenHash)` and logout, including activity rows.
@@ -208,7 +208,7 @@ From the roadmap and the C2 brief (not reopened here): minimal admin login with 
 
 ## Progress
 - **Branch:** `migrate/c2-admin-login` (from `migrate/c1-server-db`)
-- **Updated:** 2026-10-05 13:04
-- **Next:** U3, add @node-rs/argon2 and @node-rs/bcrypt after checking for install scripts
+- **Updated:** 2026-10-05 13:05
+- **Next:** U4, write server/test/auth/service.test.ts against the real test DB with an injected clock
 - **Uncommitted:** none
 - **Notes:** The local server/.env (gitignored) needs ALLOWED_ORIGINS and COOKIE_SECURE added by hand, like .env.example.
