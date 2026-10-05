@@ -71,7 +71,11 @@ function listQuery(params: ListParams): URLSearchParams {
  * একটিভিটি পেইজ দিনের শুরু/শেষ অফসেট ছাড়া পাঠায় (`2026-10-05T00:00:00`, ব্রাউজারের নিজের সময়ে);
  * সার্ভার শুধু অফসেটসহ ISO নেয়, তাই এখানে UTC তে বদলানো হয়।
  */
-const isoInstant = (value?: string) => (value ? new Date(value).toISOString() : undefined)
+function isoInstant(value?: string): string | undefined {
+  const time = value ? Date.parse(value) : NaN
+  // URL থেকে আসা অবৈধ তারিখ (যেমন হাতে লেখা ?from=2026-13-45) ফিল্টার ছাড়াই চলে, ভেঙে পড়ে না
+  return Number.isNaN(time) ? undefined : new Date(time).toISOString()
+}
 
 function activityQuery(params: ActivityListParams): URLSearchParams {
   return queryOf({

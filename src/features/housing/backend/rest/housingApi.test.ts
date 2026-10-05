@@ -236,6 +236,12 @@ describe('createRestHousingApi activity', () => {
     })
   })
 
+  it('leaves out a date that is not a real date instead of throwing', async () => {
+    const fetchMock = stubFetchInit(() => json(200, EMPTY_PAGE))
+    await createRestHousingApi(BASE).listActivity({ from: '2026-13-45T00:00:00', to: 'x' })
+    expect([...urlOf(fetchMock).searchParams.keys()]).toEqual(['page', 'page_size'])
+  })
+
   it('posts a client event', async () => {
     const fetchMock = stubFetchInit(() => json(201, { data: { id: 5 } }))
     await createRestHousingApi(BASE).logActivity('import_run', { rows: 3 }, 'tin')

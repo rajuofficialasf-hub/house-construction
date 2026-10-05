@@ -28,7 +28,7 @@ const KNOWN_GAPS = [
   'changeSerial carries photos to the new serial path',
   'uploadPhoto sets the serial-based urls and the timestamp; deletePhoto clears them and is idempotent',
   'an over-size photo is too large; an unknown record is not found',
-  // It uploads a photo; server/test/http/housing-activity.test.ts covers the log meanwhile.
+  // It uploads a photo; 'create, update and delete are logged newest first…' covers the log through the adapter meanwhile.
   'every write is logged with before and after values, newest first, and filterable',
 ]
 const ADMIN = { email: 'contract-admin@example.org', password: 'contract admin password' }

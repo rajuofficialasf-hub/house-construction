@@ -186,6 +186,7 @@ describe('who may write', () => {
     expect(await total()).toBe(0);
   });
 
+  // TODO: docs/plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md - C5 adds the photo routes; replace this then
   it('answers 404 for the photo routes with a session, until they exist', async () => {
     expect((await send('post', `/${MISSING_ID}/photo`, {})).status).toBe(404);
   });

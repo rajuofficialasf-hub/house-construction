@@ -485,6 +485,17 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
         expect(onlyCreates.data).toHaveLength(1)
       })
 
+      test('create, update and delete are logged newest first for the acting admin, and filter by action', async () => {
+        const rec = await h.api.create(input())
+        await h.api.update(rec.id, { address: 'নতুন ঠিকানা' })
+        await h.api.delete(rec.id)
+        const log = (await h.api.listActivity({ record_id: rec.id })).data
+        expect(log.map((e) => e.action)).toEqual(['delete', 'update', 'create'])
+        expect(log[1]!.details).toMatchObject({ changes: { address: { old: '', new: 'নতুন ঠিকানা' } } })
+        expect(log.every((e) => e.actor_email === h.admin!.email && e.record_id === rec.id)).toBe(true)
+        expect((await h.api.listActivity({ record_id: rec.id, action: 'update' })).data.map((e) => e.action)).toEqual(['update'])
+      })
+
       test('client events are recorded with the acting admin and without a record', async () => {
         await h.api.logActivity('import_run', { rows: 3 }, 'tin')
         const e = (await h.api.listActivity({ action: 'import_run' })).data[0]
