@@ -1,16 +1,15 @@
 /**
- * REST AuthProvider — docs/api/API_CONTRACT.md §২ অনুযায়ী (POST /api/auth/login, POST /api/auth/logout, GET /api/auth/me)।
- * JWT মোড: login উত্তরের access_token localStorage এ; প্রতিটি অনুরোধে Bearer।
- * কুকি মোড: access_token আসে না; ব্রাউজার HttpOnly কুকি পাঠায় (credentials: 'include')।
- * onAuthChange: এই অ্যাডাপ্টারের login/logout এ ও অন্য ট্যাবের storage ইভেন্টে callback।
+ * REST AuthProvider — docs/api/API_CONTRACT.md §২ অনুযায়ী (POST /api/v1/auth/login, POST /api/v1/auth/logout, GET /api/v1/auth/me)।
+ * সেশন শুধু সার্ভারের HttpOnly কুকিতে; ব্রাউজার নিজে পাঠায় (credentials: 'include'), JS টোকেন দেখে না (RE-SEC-03)।
+ * onAuthChange: এই অ্যাডাপ্টারের login/logout এ, আর অন্য ট্যাবের login/logout এ (BroadcastChannel) callback।
  */
 import type { AuthProvider } from '../interfaces/authProvider'
 import type { AuthUser } from '../interfaces/types'
 import { ENDPOINTS } from './endpoints'
-import { restRequest, setToken, TOKEN_KEY } from './http'
+import { restRequest } from './http'
 
 interface LoginResponse {
-  data: { access_token?: string; expires_at?: string; user: AuthUser }
+  data: { expires_at: string; user: AuthUser }
 }
 interface MeResponse {
   data: AuthUser
@@ -24,6 +23,17 @@ export function createRestAuthProvider(baseUrl: string): AuthProvider {
     cached = user
     for (const l of listeners) l(user)
   }
+
+  // কুকি সব ট্যাবে এক, তাই অন্য ট্যাবে login/logout হলে এখানে /me আবার জেনে নিই।
+  let channel: BroadcastChannel | null | undefined
+  const getChannel = () => {
+    if (channel === undefined) {
+      channel = typeof BroadcastChannel === 'function' ? new BroadcastChannel('housing-auth') : null
+      channel?.addEventListener('message', () => void fetchMe().then(emit))
+    }
+    return channel
+  }
+  const announce = () => getChannel()?.postMessage('changed')
 
   async function fetchMe(): Promise<AuthUser | null> {
     try {
@@ -40,10 +50,9 @@ export function createRestAuthProvider(baseUrl: string): AuthProvider {
     async login(email, password) {
       const res = await restRequest<LoginResponse>(baseUrl, ENDPOINTS.auth.login(), {
         body: { email: email.trim(), password },
-        auth: false,
       })
-      if (res.data.access_token) setToken(res.data.access_token)
       emit(res.data.user)
+      announce()
       return res.data.user
     },
 
@@ -51,8 +60,8 @@ export function createRestAuthProvider(baseUrl: string): AuthProvider {
       try {
         await restRequest<void>(baseUrl, ENDPOINTS.auth.logout(), { method: 'POST' })
       } finally {
-        setToken(null)
         emit(null)
+        announce()
       }
     },
 
@@ -68,13 +77,9 @@ export function createRestAuthProvider(baseUrl: string): AuthProvider {
 
     onAuthChange(callback) {
       listeners.add(callback)
-      const onStorage = (e: StorageEvent) => {
-        if (e.key === TOKEN_KEY) void fetchMe().then(emit)
-      }
-      window.addEventListener('storage', onStorage)
+      getChannel()
       return () => {
         listeners.delete(callback)
-        window.removeEventListener('storage', onStorage)
       }
     },
   }

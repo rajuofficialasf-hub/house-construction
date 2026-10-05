@@ -166,7 +166,7 @@ From the roadmap and the C2 brief (not reopened here): minimal admin login with 
 - **Tests:** login posts `{email (trimmed), password}` to `${base}/api/v1/auth/login` with `credentials: 'include'` and no `authorization` header, and resolves to the user; a 401 body → `HousingApiError` `UNAUTHENTICATED` with the server's message; 429 → `RATE_LIMITED`; `currentUser` on 401 → null; logout posts and emits null even if the request fails; a second provider instance on the same channel receives the login event.
 - **Done when:** root `npm test`, `npm run lint` and `npm run build` pass, and `npm run check:prod-bundle` still passes. `grep -rn housing_rest_token src` finds nothing.
 - **Depends on:** U6 (paths and shapes)
-- **Status:** todo
+- **Status:** done
 
 ### U9. Docs and live check
 - **Goal:** The contract and migration notes describe what C2 built, and the login works in a real browser.
@@ -208,7 +208,7 @@ From the roadmap and the C2 brief (not reopened here): minimal admin login with 
 
 ## Progress
 - **Branch:** `migrate/c2-admin-login` (from `migrate/c1-server-db`)
-- **Updated:** 2026-10-05 13:12
-- **Next:** U8, remove the token path from src/features/housing/backend/rest/http.ts, test first in rest/authProvider.test.ts
+- **Updated:** 2026-10-05 13:14
+- **Next:** U9, update docs/api/API_CONTRACT.md §0, §1.2, §2, §6, §7 and docs/architecture/migration-notes.md, then the live check
 - **Uncommitted:** none
-- **Notes:** The local server/.env (gitignored) needs ALLOWED_ORIGINS and COOKIE_SECURE added by hand, like .env.example. U5: the cors package sends Allow-Credentials even to disallowed origins; harmless without Allow-Origin, and the test asserts only Allow-Origin. Cookie parsing is hand-written (no cookie dependency). U7: the hidden TTY prompt was checked by hand through a pseudo-terminal (not in the suite); in compose run the CLI with docker compose exec api npm run admin -- <command>.
+- **Notes:** The local server/.env (gitignored) needs ALLOWED_ORIGINS and COOKIE_SECURE added by hand, like .env.example. U5: the cors package sends Allow-Credentials even to disallowed origins; harmless without Allow-Origin, and the test asserts only Allow-Origin. Cookie parsing is hand-written (no cookie dependency). U7: the hidden TTY prompt was checked by hand through a pseudo-terminal (not in the suite); in compose run the CLI with docker compose exec api npm run admin -- <command>. U8: HousingLoginPage already shows error.message for unknown codes, so it needed no change for RATE_LIMITED.

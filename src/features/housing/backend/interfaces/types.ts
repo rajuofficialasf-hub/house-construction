@@ -207,6 +207,7 @@ export type ApiErrorCode =
   | 'NOT_FOUND'
   | 'CONFLICT'
   | 'PAYLOAD_TOO_LARGE'
+  | 'RATE_LIMITED'
   | 'INTERNAL_ERROR'
   | 'NETWORK_ERROR'
   | 'CONFIG_ERROR'
