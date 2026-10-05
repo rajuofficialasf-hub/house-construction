@@ -14,10 +14,10 @@ The suite exists so that nothing is lost when the backend moves from Supabase to
 | `npm run test:e2e:live` | Playwright: the public read-only flows against the live Supabase project (`e2e/live/`). Skips cleanly without credentials | `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `.env.local` |
 | `npm run check:prod-bundle` | Builds with `VITE_HOUSING_BACKEND=mock` and fails if any mock backend code is in the production bundle | nothing |
 | `npm run test:all` | `i18n-check`, `npm test`, `check:prod-bundle`, `test:e2e:mock` | Chromium |
-| `npm --prefix server test` | Server tests (`server/src/**/*.test.ts`, `server/test/`): config, errors, health routes, and the ported SQL (serials, stats, bulk update, activity log, role privileges) on a real PostgreSQL. Rebuilds the `housing_test` database from the migrations first, checking that each down section undoes its up section | `docker compose up -d db` and Node 22 |
+| `npm --prefix server test` | Server tests (`server/src/**/*.test.ts`, `server/test/`): config, errors, routes, photo storage and the ported SQL (serials, stats, bulk update, activity log, role privileges) on a real PostgreSQL. Rebuilds the `housing_test` database from the migrations first, checking that each down section undoes its up section. Photos go to a NAS driver on a temp folder. The S3 driver's contract and smoke tests are skipped unless `TEST_S3_BUCKET` and `TEST_S3_REGION` (plus `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and, for R2, `TEST_S3_ENDPOINT`) point at a test bucket; there is no local S3 because MinIO no longer publishes images | `docker compose up -d db` and Node 22 |
 | `npm run test:contract:rest` | The full backend-contract suite, writes included, through the REST adapter against the Express app on `housing_test` | `docker compose up -d db` and Node 22 |
 | `npm run test:e2e:rest` | Playwright: the public flows (`e2e/live/`) against the compose API (`VITE_HOUSING_BACKEND=rest`, project `public-rest`) | `docker compose up -d db api` with the dev seed |
-| `npm run test:e2e:rest-admin` | Playwright: the admin flows (`e2e/mock/`, except the photo specs) against an API it starts on `housing_test` (project `admin-rest`) | `docker compose up -d db` and Node 22 |
+| `npm run test:e2e:rest-admin` | Playwright: the admin flows (`e2e/mock/`), photos included, against an API it starts on `housing_test` (project `admin-rest`), storing photos in `.storage/e2e` | `docker compose up -d db` and Node 22 |
 | `npm run dev:mock` | The app on the mock backend, for manual checks. Admin login: see `MOCK_ADMIN` in `src/features/housing/backend/mock/fixtures.ts` | nothing |
 
 ## Rules
@@ -35,17 +35,19 @@ The mock keeps its state across page reloads inside one browser context. `window
 
 ## Re-pointing the suite at the new backend
 
-1. The REST `HousingApi` (`src/features/housing/backend/rest/index.ts`) calls the Express server for reads, writes and the activity log. The server gets its photo routes in C5 of `docs/plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md`. Until then, the photo calls get 401 without a session and 404 with one.
+1. The REST `HousingApi` (`src/features/housing/backend/rest/index.ts`) calls the Express server for everything: reads, writes, photos and the activity log.
 2. `npm run test:contract:rest` runs the whole suite (`writes: true`) through the REST adapter against the real Express app (`createApp`) on the local `housing_test` database.
    - Before every test, the database is reset to `server/db/seed/dev.sql` plus one admin.
    - A cookie-jar fetch (`tests/contract/cookieJarFetch.ts`) keeps the session cookie and sends the site's `Origin`, as a browser does.
-   - The four photo tests are known gaps until C5.
+   - The REST runner passes `photoPaths: 'opaque'`: the server's photo URLs carry a file id, not the serial, so the serial-path checks run only on the mock and Supabase.
+   - Photos go to a NAS driver on a temp folder.
    - The two non-admin tests are skipped: the server has only admin accounts (contract §2).
    - Plain `npm test` skips this file.
 3. `npm run test:e2e:rest-admin` runs the admin specs (`e2e/mock/`) in the `admin-rest` Playwright project.
    - The project starts the API on `housing_test` (port 3002) and the UI with `VITE_HOUSING_BACKEND=rest` (port 5186).
    - Before each test, the auto fixture in `e2e/support/backend.ts` resets the database to the mock seed and the mock admin (`e2e/support/rest-data.ts`). On the mock project the fixture does nothing.
-   - The photo specs wait for C5. The non-admin login spec is skipped.
+   - The reset also stores small real WebP files for the seed records that have photos, in the same folder the API uses (`E2E_STORAGE_ROOT`, `e2e/support/rest-env.ts`). `scripts/e2e-rest-admin.mjs` empties that folder before each run.
+   - The non-admin login spec is skipped.
 4. `npm --prefix server test`, `npm run test:contract:rest` and `npm run test:e2e:rest-admin` all reset `housing_test`. Run them one after another, never at the same time.
 5. A failing test names the lost behavior. Do not edit a test to make it pass unless the contract itself changed.
 

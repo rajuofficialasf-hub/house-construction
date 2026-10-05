@@ -73,7 +73,7 @@ Each chunk is one session (plan, build, review, merge). Order matters; C3 and C5
 | **C2** | Admin login: admins/sessions tables, login/logout/me, rate limit, create-admin CLI, activity rows for login/logout, REST auth adapter in cookie mode | R3, R6, R7–R9 | C1 |
 | **C3** | Read endpoints + REST adapter reads + read contract tests against the server; CORS allowlist and OpenAPI spec | R1 (reads), R3, R14 | C1 |
 | **C4** | Write endpoints: create, update, delete, change serial, bulk insert, bulk update, activity log; REST adapter writes; write contract and mock e2e suites on `rest` | R1 (writes), R2, R4–R6 | C2, C3 |
-| **C5** | Photos: storage adapter with S3 and NAS drivers, `files` table, photo upload/delete/serve routes, EXIF strip, REST image adapter, driver copy script | R11, R12 | C2 |
+| **C5** (done: `docs/plans/2026-10-05-1722-migrate-c5-photos-plan.md`) | Photos: storage adapter with S3 and NAS drivers, `housing_files` table, photo upload/delete/serve routes, EXIF strip. The driver copy script moves to the NAS switch; the REST image adapter isn't needed (the server returns the URLs) | R11, R12 | C2 |
 | **C6** | CI, staging and production deploy (PM2 + nginx), backups and restore drill, uptime check | R2 (in CI) | C4, C5 |
 | **C7** | Data import and cutover: import script (records, serial counters, activity log, admins with password hashes, photos to S3), rehearsal on staging, cutover, rollback window | R10, R13, R16 | C6 |
 | **C8** | Remove Supabase after the rollback window: dependency, adapter, `supabase/` folder, migrate-photos script, docs | R17 | C7 + rollback window |

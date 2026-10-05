@@ -7,6 +7,8 @@ date: 2026-10-04
 
 # Pluggable Photo Storage (S3 and NAS) for the Housing API
 
+> **Status (2026-10-05):** U0–U6 and U9 were built in C5, `docs/plans/2026-10-05-1722-migrate-c5-photos-plan.md`, with these changes: the file row points at the record slot (`housing_files.record_id`, `kind`, `variant`) instead of four `*_file_id` columns on the record, and the `*_url` columns keep the public URL; replaced files are tombstoned (`deleted_at`) and removed after commit, with `files:sweep` instead of U8's orphan job; there is no local MinIO (its images are gone), so the S3 tests need a real bucket. U7 (copy script) waits for the NAS switch, and finding objects with no row needs a `list` operation that `NS-31` doesn't have.
+
 ## Goal
 The housing API can store and serve photos on S3 (including S3-compatible services like Cloudflare R2) or on the local NAS. Switching between them is an env change plus one copy-script run, and existing records and UI links keep working.
 
