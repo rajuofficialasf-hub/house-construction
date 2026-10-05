@@ -1,5 +1,8 @@
 import { z } from 'zod';
 import {
+  activityBody,
+  activityEntry,
+  activityQuery,
   bulkInsertBody,
   bulkInsertResult,
   bulkUpdateBody,
@@ -218,6 +221,28 @@ export function buildOpenApiDocument(): OpenApiDocument {
           responses: { 204: { description: 'Deleted' }, ...errors(400, 401, 403, 404, 500) },
         }),
       },
+      '/housing/activity': {
+        get: admin('The activity log, newest first', {
+          parameters: parameters(activityQuery, 'query', {
+            action: 'Exact action, e.g. update or import_run',
+            project_type: 'semi_pucca or tin',
+            record_id: 'Entries about one record',
+            actor_email: 'Case-insensitive part of the acting admin\'s email; %, _ and \\ match literally',
+            from: 'Entries at or after this time (ISO 8601 with an offset)',
+            to: 'Entries at or before this time (ISO 8601 with an offset)',
+            page: 'Page number from 1; default 1',
+            page_size: `Rows per page, 1-${MAX_PAGE_SIZE}; default ${DEFAULT_PAGE_SIZE}`,
+          }),
+          responses: { 200: ok('One page of entries and its totals', { type: 'array', items: ref('ActivityEntry') }, ref('PageMeta')), ...errors(400, 401, 500) },
+        }),
+        post: admin('Record a client event such as import_run; actions the server logs itself are refused', {
+          requestBody: body(activityBody),
+          responses: {
+            201: ok('The new entry\'s id', { type: 'object', required: ['id'], properties: { id: { type: 'integer' } } }),
+            ...errors(400, 401, 403, 500),
+          },
+        }),
+      },
       '/housing/bulk': {
         post: admin(`Import 1-${MAX_BULK_ROWS} rows in one transaction: all or nothing`, {
           requestBody: body(bulkInsertBody),
@@ -243,6 +268,7 @@ export function buildOpenApiDocument(): OpenApiDocument {
         HousingStats: jsonSchema(housingStats, 'output'),
         FilterOptions: jsonSchema(filterOptions, 'output'),
         NextSerial: jsonSchema(nextSerial, 'output'),
+        ActivityEntry: jsonSchema(activityEntry, 'output'),
         BulkInsertResult: jsonSchema(bulkInsertResult, 'output'),
         BulkUpdateResult: jsonSchema(bulkUpdateResult, 'output'),
         Error: jsonSchema(errorBody, 'output'),

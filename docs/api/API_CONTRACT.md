@@ -16,7 +16,7 @@
 - **Query প্যারামিটার:** অজানা প্যারাম উপেক্ষা করা হয়। একই প্যারাম দুবার দিলে (`?year=2023&year=2024`) `400`। পূর্ণসংখ্যা শুধু দশমিক অঙ্কে (`1e3`, `0x10`, `1.0`, ফাঁকা → `400`), সর্বোচ্চ 2147483647। টেক্সট ফিল্টার trim ও NFC করা হয়; ফাঁকা মান = না দেওয়া।
 - **Rate limit (পড়া):** `/api/housing` এর GET গুলোতে প্রতি IP মিনিটে ৩০০টি; তারপর `429 RATE_LIMITED`।
 - **OpenAPI:** `GET /api/openapi.json` — `/api/housing` এর সব রাউট, health ও এটি নিজের OpenAPI 3.1 বিবরণ, সার্ভারের zod স্কিমা থেকে তৈরি। লেখা ও একটিভিটি লগ `adminSession` (কুকি) দিয়ে এডমিন-শুধু হিসেবে চিহ্নিত। লগইন রাউট (`/api/auth/*`) এতে নেই।
-- **CORS:** দুটি তালিকা, দুটোই হুবহু মিলিয়ে (`*` কখনো নয়)। `ALLOWED_ORIGINS` (এই সাইট): সব রাউটে, credentials সহ। `PUBLIC_READ_ORIGINS` (অন্য অ্যাপ): শুধু `/api/housing` এর GET/HEAD ও `/api/openapi.json` এ, credentials ছাড়া; লেখা ও `/api/auth/*` এ কোনো CORS উত্তর নেই। একটি origin একটিই তালিকায় থাকতে পারে।
+- **CORS:** দুটি তালিকা, দুটোই হুবহু মিলিয়ে (`*` কখনো নয়)। `ALLOWED_ORIGINS` (এই সাইট): সব রাউটে, credentials সহ। `PUBLIC_READ_ORIGINS` (অন্য অ্যাপ): শুধু `/api/housing` এর GET/HEAD (`/api/housing/activity` বাদে) ও `/api/openapi.json` এ, credentials ছাড়া; লেখা ও `/api/auth/*` এ কোনো CORS উত্তর নেই। একটি origin একটিই তালিকায় থাকতে পারে।
 - **Origin যাচাই (CSRF):** POST/PUT/PATCH/DELETE অনুরোধে `Origin` হেডার না থাকলে বা তালিকায় না থাকলে `403 FORBIDDEN`। ব্রাউজার নিজেই হেডারটি পাঠায়; ব্রাউজার ছাড়া অন্য ক্লায়েন্টকে (যেমন কন্ট্রাক্ট টেস্ট) এটি দিতে হবে।
 - **Rate limit:** লগইনে প্রতি IP ১৫ মিনিটে ১০টি ব্যর্থ চেষ্টা; তারপর `429 RATE_LIMITED`, সঠিক পাসওয়ার্ড হলেও।
 
@@ -306,7 +306,7 @@ body: ৩.৩ এর ফিল্ডের যেকোনো উপসেট (�
 ### ৪.৯গ একটিভিটি লগ (এডমিন)
 সার্ভার **প্রতিটি লেখার কাজ নিজে লগ করবে** (create/update/delete/photo_update/serial_change), ক্লায়েন্টের উপর নির্ভর না করে — বদলানো ফিল্ডের আগে→পরে মানসহ। ক্লায়েন্ট শুধু ইভেন্ট পাঠায় (login/logout/import_run/photo_bulk_run)।
 
-**GET `/api/housing/activity`** — query: `action`, `project_type`, `record_id`, `actor_email` (আংশিক), `from`/`to` (ISO), `page`, `page_size` (≤100)। নতুন আগে।
+**GET `/api/housing/activity`** — শুধু এডমিন (সেশন না থাকলে `401`)। query: `action` (`^[a-z_]{1,40}$`), `project_type`, `record_id` (uuid), `actor_email` (আংশিক, বড়-ছোট হাতের অক্ষর উপেক্ষিত, `%`/`_` আক্ষরিক), `from`/`to` (ISO 8601, **অফসেট সহ**, যেমন `2026-10-01T00:00:00+06:00`; দুই প্রান্তই অন্তর্ভুক্ত), `page`, `page_size` (১–১০০, ডিফল্ট ৫০; পূর্ণসংখ্যার নিয়ম §১)। ভুল মান → `400`। নতুন আগে (`at` তারপর `id`, দুটোই উল্টো ক্রমে)। `id` JSON number।
 ```json
 { "data": [ {
     "id": 1024, "at": "2026-09-30T05:06:22Z",
@@ -318,7 +318,7 @@ body: ৩.৩ এর ফিল্ডের যেকোনো উপসেট (�
 ```
 `create`/`delete` এ `details` = রেকর্ডের সারসংক্ষেপ (year, division, district, upazila, address, had_*_photo)। লগ কখনো সম্পাদনা/মোছা যায় না (append-only)।
 
-**POST `/api/housing/activity`** — body `{ "action": "import_run", "project_type": "tin", "details": { "mode": "insert", "rows": 200, "inserted": 198, "failed": 2 } }` → `201 { "data": { "id": 1025 } }`। `action` `^[a-z_]{1,40}$`; actor সার্ভার JWT/সেশন থেকে নেয় (body তে নয়)।
+**POST `/api/housing/activity`** — body `{ "action": "import_run", "project_type": "tin", "details": { "mode": "insert", "rows": 200, "inserted": 198, "failed": 2 } }` → `201 { "data": { "id": 1025 } }`। `action` `^[a-z_]{1,40}$`; actor সার্ভার সেশন থেকে নেয় (body তে actor দিলে অজানা ফিল্ড হিসেবে `400`)। সার্ভার নিজে যেগুলো লগ করে (`login`, `logout`, `create`, `update`, `delete`, `photo_update`, `serial_change`) সেগুলো পাঠালে `400` (`reason: server_logged`), যাতে লগে দুবার না আসে; ফ্রন্টএন্ড `login`/`logout` পাঠায়ই না। `project_type` ঐচ্ছিক। `details` অবজেক্ট, JSON হিসেবে সর্বোচ্চ ৮ KB (`reason: too_big`)।
 
 ### ৪.১০ POST `/api/housing/:id/photo` — ছবি আপলোড/প্রতিস্থাপন (এডমিন)
 `multipart/form-data`:

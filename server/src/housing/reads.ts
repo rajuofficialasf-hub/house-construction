@@ -40,7 +40,7 @@ export interface Page<T> {
 }
 
 /** Escapes LIKE wildcards so `%`, `_` and `\` in a search match themselves. */
-const likePattern = (q: string) => `%${q.replace(/[\\%_]/g, '\\$&')}%`;
+export const likePattern = (q: string) => `%${q.replace(/[\\%_]/g, '\\$&')}%`;
 
 /** One page of records after filters and search, with the filtered total. */
 export async function listRecords(sql: Sql, query: ListQuery): Promise<Page<HousingRecord>> {

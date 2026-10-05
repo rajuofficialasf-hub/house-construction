@@ -2,7 +2,10 @@ import express, { Router, type Request } from 'express';
 import { requireAdmin } from '../../auth/middleware.js';
 import type { Actor, Sql } from '../../db.js';
 import { AppError } from '../../errors.js';
+import { listActivity, logEvent } from '../../housing/activity.js';
 import {
+  activityBody,
+  activityQuery,
   bulkInsertBody,
   bulkUpdateBody,
   changeSerialBody,
@@ -46,6 +49,14 @@ export function housingAdminRouter(sql: Sql): Router {
   // Deny by default (NE-SEC-03): every write under /housing needs an admin session, including
   // paths with no route yet, before any body is validated. Reads pass through to the read router.
   router.use((req, res, next) => (SAFE_METHODS.has(req.method) ? next() : requireAdmin(req, res, next)));
+
+  router.get('/activity', requireAdmin, async (req, res) => {
+    res.json(await listActivity(sql, activityQuery.parse(req.query)));
+  });
+
+  router.post('/activity', requireAdmin, async (req, res) => {
+    res.status(201).json({ data: { id: await logEvent(sql, actorOf(req), activityBody.parse(req.body)) } });
+  });
 
   // requireAdmin before the parser, so only an admin can make the server read 10 MB.
   router.post('/bulk', requireAdmin, bulkJson, async (req, res) => {

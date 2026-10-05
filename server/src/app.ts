@@ -35,9 +35,12 @@ export interface AppDeps {
 
 const READ_METHODS = new Set(['GET', 'HEAD']);
 
-/** Paths other apps may read: the housing reads and the API description. */
+/** Paths other apps may read: the housing reads (not the admin-only activity log) and the API description. */
 const isPublicReadPath = (path: string) =>
-  path === '/api/v1/housing' || path.startsWith('/api/v1/housing/') || path === '/api/v1/openapi.json';
+  path === '/api/v1/openapi.json' ||
+  ((path === '/api/v1/housing' || path.startsWith('/api/v1/housing/')) &&
+    // Express matches routes case-insensitively, so compare the same way.
+    !path.toLowerCase().startsWith('/api/v1/housing/activity'));
 
 /** A GET or HEAD, or the preflight of one. The cors package never checks the requested method itself. */
 const isReadRequest = (req: Request) =>

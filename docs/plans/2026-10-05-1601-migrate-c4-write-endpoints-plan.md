@@ -367,7 +367,7 @@ From the roadmap and the C4 brief, not reopened here:
   - **CORS:** a public-read origin gets no allow-origin on `GET /housing/activity` but still does on `GET /housing`.
 - **Done when:** `npm --prefix server test` is green.
 - **Depends on:** U3
-- **Status:** todo
+- **Status:** done
 
 ### U6. REST adapter writes
 - **Goal:** The REST `HousingApi` write, photo-call and activity methods call the endpoints.
@@ -488,7 +488,7 @@ Finally, the Chrome check from U9.
 ## Progress
 - **Branch:** `migrate/c4-write-endpoints` (from `migrate/c3-read-endpoints`, which is not yet merged into `dev-forhad`)
 - **Updated:** 2026-10-05 16:40
-- **Next:** U5: `server/src/housing/activity.ts` and the GET/POST `/activity` routes
+- **Next:** U6: REST adapter writes in `src/features/housing/backend/rest/index.ts`
 - **Uncommitted:** none
 - **Notes:** `activityBody.details` uses `z.record(z.string(), z.unknown())`, not `z.json()`. The body is already JSON, and this avoids the `$defs` ref, so the OpenAPI entry needs no hand override. A custom zod check's `params.reason` becomes `details.reason` (`errors.ts`).
   U3 notes:
