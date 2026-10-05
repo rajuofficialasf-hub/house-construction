@@ -38,9 +38,21 @@ describe('errorHandler', () => {
   it('hides unexpected errors behind a generic 500', async () => {
     const res = await request(appThrowing(new Error('secret detail'))).get('/boom');
     expect(res.status).toBe(500);
-    expect(res.body.error.code).toBe('INTERNAL_ERROR');
-    expect(JSON.stringify(res.body)).not.toContain('secret detail');
-    expect(JSON.stringify(res.body)).not.toContain('at ');
+    expect(res.body).toEqual({ error: { code: 'INTERNAL_ERROR', message: 'সার্ভারে সমস্যা হয়েছে' } });
+  });
+
+  it.each([
+    ['VALIDATION_ERROR', 400],
+    ['UNAUTHENTICATED', 401],
+    ['FORBIDDEN', 403],
+    ['NOT_FOUND', 404],
+    ['CONFLICT', 409],
+    ['PAYLOAD_TOO_LARGE', 413],
+    ['INTERNAL_ERROR', 500],
+  ] as const)('sends %s with status %i', async (code, status) => {
+    const res = await request(appThrowing(new AppError(code, 'x'))).get('/boom');
+    expect(res.status).toBe(status);
+    expect(res.body).toEqual({ error: { code, message: 'x' } });
   });
 
   it('returns 404 NOT_FOUND for an unknown route', async () => {

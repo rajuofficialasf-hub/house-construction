@@ -36,6 +36,11 @@ function start(): void {
         });
     });
     server.closeIdleConnections();
+    // A stuck request must not keep the process alive past the supervisor's patience.
+    setTimeout(() => {
+      logger.error('shutdown timed out; exiting');
+      process.exit(1);
+    }, 10_000).unref();
   };
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));

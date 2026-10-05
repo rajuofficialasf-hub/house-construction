@@ -173,3 +173,13 @@ Every later chunk (login, reads, writes, photos) needs a running server and the 
   - URLs need `?sslmode=disable` for dbmate against the local Docker database.
   - `dbmate` is a runtime dependency, because deploys run `db:migrate`.
   - The dev seed uses `on conflict do nothing`, so `db:seed` can run more than once.
+  - Review fixes:
+    - The serial guard now honors `housing.allow_serial_change` only inside a security definer function (`current_user <> session_user`), because any role can set that flag.
+    - Default privileges are revoked database-wide for `housing_owner` (a per-schema default can't remove the built-in PUBLIC EXECUTE).
+    - All 4xx body-parser errors map to 400 or 413.
+    - The error handler passes on when headers are already sent.
+    - Shutdown has a 10 s exit timer.
+    - The test DB must be named `*_test`.
+  - Left for later chunks:
+    - The actor in the log is trusted from the API (documented in 0002). Only `withActor()` may set it (C2, C4).
+    - An explicit `serial_no` raises the counter, so only the import path may send one (C4).

@@ -13,6 +13,8 @@
 -- ---------- বর্তমান actor ----------
 -- The API sets app.actor_id / app.actor_email for each write transaction (withActor() in
 -- server/src/db.ts). Without them (seeds, manual psql) the login role's name is recorded.
+-- The database can't verify these values: the log is only as trustworthy as the API process,
+-- which must set them only through withActor() from the authenticated admin.
 -- session_user, not current_user: inside security definer functions current_user is the owner.
 create or replace function public.housing_current_actor(out actor_id uuid, out actor_email text)
 language plpgsql
@@ -71,7 +73,9 @@ create trigger housing_beneficiaries_assign_serial
   before insert on public.housing_beneficiaries
   for each row execute function public.housing_assign_serial();
 
--- serial_no ও project_type অপরিবর্তনীয় — শুধু housing_change_serial() (নিচে) সেশন-সেটিং দিয়ে অনুমতি দেয়
+-- serial_no ও project_type অপরিবর্তনীয় — শুধু housing_change_serial() (নিচে) সেশন-সেটিং দিয়ে অনুমতি দেয়।
+-- Any role can set the session setting, so it is honored only inside a security definer function
+-- (current_user differs from session_user there); a direct UPDATE by housing_app is always refused.
 create or replace function public.housing_protect_serial()
 returns trigger
 language plpgsql
@@ -81,7 +85,7 @@ begin
     raise exception 'project_type পরিবর্তন করা যায় না' using errcode = '23514';
   end if;
   if new.serial_no is distinct from old.serial_no
-     and coalesce(current_setting('housing.allow_serial_change', true), '') <> 'on' then
+     and (coalesce(current_setting('housing.allow_serial_change', true), '') <> 'on' or current_user = session_user) then
     raise exception 'serial_no সরাসরি পরিবর্তন করা যায় না; housing_change_serial() ব্যবহার করুন' using errcode = '23514';
   end if;
   return new;

@@ -15,6 +15,9 @@ grant select on public.housing_serial_counters, public.housing_serial_changes,
   public.housing_activity_log to housing_app;
 
 revoke execute on all functions in schema public from public;
+-- Functions added by later migrations aren't executable by PUBLIC either. This must be set
+-- database-wide for the owner: a per-schema default can't remove PostgreSQL's built-in grant.
+alter default privileges revoke execute on functions from public;
 grant execute on function
   public.housing_next_serial(text),
   public.housing_change_serial(uuid, integer),
@@ -29,3 +32,4 @@ revoke all on public.housing_beneficiaries, public.housing_serial_counters,
   public.housing_serial_changes, public.housing_activity_log from housing_app;
 revoke execute on all functions in schema public from housing_app;
 revoke usage on schema public from housing_app;
+alter default privileges grant execute on functions to public;

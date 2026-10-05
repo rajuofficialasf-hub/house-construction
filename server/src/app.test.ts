@@ -59,6 +59,12 @@ describe('createApp', () => {
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 
+  it('answers an unsupported body encoding with 400, not 500', async () => {
+    const res = await request(app).post('/api/v1/healthz').set('content-type', 'application/json').set('content-encoding', 'foo').send('{}');
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
   it('sends security headers and hides the framework', async () => {
     const res = await request(app).get('/api/v1/healthz');
     expect(res.headers['x-content-type-options']).toBe('nosniff');

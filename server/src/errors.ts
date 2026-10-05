@@ -41,12 +41,16 @@ export const notFoundHandler: RequestHandler = (_req, _res, next) => {
   next(new AppError('NOT_FOUND', 'পাওয়া যায়নি'));
 };
 
-/** express.json() errors carry a `type`; only these two are the client's fault. */
+/**
+ * express.json() errors carry a `type` and a 4xx `status` when the client caused them (bad JSON,
+ * too large, unsupported encoding or charset, aborted upload). They are the client's fault, not a 500.
+ */
 function bodyParserError(err: unknown): AppError | undefined {
-  if (typeof err !== 'object' || err === null || !('type' in err)) return undefined;
-  if (err.type === 'entity.too.large') return new AppError('PAYLOAD_TOO_LARGE', 'অনুরোধটি অনেক বড়');
-  if (err.type === 'entity.parse.failed') return new AppError('VALIDATION_ERROR', 'অনুরোধের JSON সঠিক নয়', { reason: 'invalid_json' });
-  return undefined;
+  if (typeof err !== 'object' || err === null || !('type' in err) || !('status' in err)) return undefined;
+  if (typeof err.status !== 'number' || err.status < 400 || err.status >= 500) return undefined;
+  if (err.status === 413) return new AppError('PAYLOAD_TOO_LARGE', 'অনুরোধটি অনেক বড়');
+  const reason = err.type === 'entity.parse.failed' ? 'invalid_json' : String(err.type);
+  return new AppError('VALIDATION_ERROR', 'অনুরোধটি সঠিক নয়', { reason });
 }
 
 function toAppError(err: unknown): AppError | undefined {
@@ -65,7 +69,12 @@ function toAppError(err: unknown): AppError | undefined {
  * The single error middleware (NE-ERR-01). Known errors map to their contract status;
  * anything else is logged in full and answered with a generic 500, never the stack (NE-SEC-11).
  */
-export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
+export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
+  // Once a response has started, only Express can end it (it closes the connection).
+  if (res.headersSent) {
+    next(err);
+    return;
+  }
   const known = toAppError(err);
   if (!known) {
     req.log.error({ err }, 'unhandled error');
