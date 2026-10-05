@@ -14,6 +14,7 @@ The suite exists so that nothing is lost when the backend moves from Supabase to
 | `npm run test:e2e:live` | Playwright: the public read-only flows against the live Supabase project (`e2e/live/`). Skips cleanly without credentials | `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `.env.local` |
 | `npm run check:prod-bundle` | Builds with `VITE_HOUSING_BACKEND=mock` and fails if any mock backend code is in the production bundle | nothing |
 | `npm run test:all` | `i18n-check`, `npm test`, `check:prod-bundle`, `test:e2e:mock` | Chromium |
+| `npm --prefix server test` | Server tests (`server/src/**/*.test.ts`, `server/test/`): config, errors, health routes, and the ported SQL (serials, stats, bulk update, activity log, role privileges) on a real PostgreSQL. Rebuilds the `housing_test` database from the migrations first, checking that each down section undoes its up section | `docker compose up -d db` and Node 22 |
 | `npm run dev:mock` | The app on the mock backend, for manual checks. Admin login: see `MOCK_ADMIN` in `src/features/housing/backend/mock/fixtures.ts` | nothing |
 
 ## Rules

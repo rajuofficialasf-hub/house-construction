@@ -7,8 +7,8 @@ Source of truth for the target API: [../api/API_CONTRACT.md](../api/API_CONTRACT
 | Service | Used by | Replacement |
 |---|---|---|
 | Database plus auto REST (PostgREST) | `src/features/housing/backend/supabase/housingApi.ts` | Express routes plus SQL |
-| Auth (email and password) | `.../supabase/authProvider.ts` | Login endpoint, password hashing, JWT or cookie |
-| Storage (`housing-photos`) | `.../supabase/imageStorage.ts` | Photo endpoint, disk or S3 or MinIO |
+| Auth (email and password) | `.../supabase/authProvider.ts` | Admin login endpoint, argon2 hashes, HttpOnly cookie session (no auth-core) |
+| Storage (`housing-photos`) | `.../supabase/imageStorage.ts` | Storage adapter in `server/`: S3 driver first, NAS driver later; photos served through the API |
 
 Not used: Realtime, Edge Functions.
 
@@ -27,11 +27,30 @@ Not used: Realtime, Edge Functions.
 - Admin login and logout write activity-log rows.
 - `scripts/migrate-photos.mjs` uses the Supabase service key and needs a rewrite.
 
-## Open decisions
+## Decisions
 
-1. JWT or HttpOnly cookie sessions.
-2. CORS origins and login rate limiting.
-3. Photo storage location.
+Roadmap: [../plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md](../plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md).
+
+1. Sessions: an opaque session in an HttpOnly cookie, not JWT (chunk C2).
+2. CORS origins and login rate limiting: still open, settled in chunks C2 and C3.
+3. Photos: the storage adapter, S3 at cutover, NAS later ([../plans/2026-10-04-1607-feat-photo-storage-strategy-plan.md](../plans/2026-10-04-1607-feat-photo-storage-strategy-plan.md)).
+
+## Where each `supabase/sql` file went
+
+The server's migrations are in `server/db/migrations/` and run with `npm --prefix server run db:migrate` ([C1 plan](../plans/2026-10-05-1215-migrate-c1-server-skeleton-db-port-plan.md)).
+
+| `supabase/sql/` | `server/db/` | Changes |
+|---|---|---|
+| `01_schema.sql` | `migrations/0001_housing_schema.sql` | No `pgcrypto` extension |
+| `02_serial.sql` | `migrations/0002_serial.sql` | No grants or row-level security; admin check moved to the server; `changed_by` comes from `housing_current_actor()`, which is now defined here |
+| `03_rls.sql` | dropped | The server checks admin rights; admins and sessions arrive in C2 |
+| `04_rpc_stats.sql` | `migrations/0003_stats.sql` | No grants |
+| `05_storage.sql` | dropped | Photos move to the storage adapter (C5) |
+| `06_seed.sql` | `seed/dev.sql` | Dev only, through `npm --prefix server run db:seed`; safe to run again |
+| `07_rpc_bulk.sql` | `migrations/0004_bulk_update.sql` | No grants |
+| `08_reset_test_data.sql` | not ported | Tests reset with `resetTestData()` in `server/test/support/db.ts` |
+| `09_activity_log.sql` | `migrations/0005_activity_log.sql` | No row-level security or grants; admin check moved to the server; the actor comes from `app.actor_id` and `app.actor_email`, set per transaction by `withActor()` in `server/src/db.ts` |
+| none | `migrations/0006_app_role_grants.sql` | The runtime role `housing_app` writes only records and calls the functions; nothing is granted to `PUBLIC` |
 
 ## Working rules until cutover
 
@@ -49,7 +68,7 @@ Another developer keeps shipping features on the Supabase version while the new 
 2. Production stays on `VITE_HOUSING_BACKEND=supabase`. Only local and staging use `rest`.
 3. Merge `main` into the migration branch at least weekly, and whenever the other developer pushes.
 4. After each merge, check these paths:
-   - `supabase/sql/*`: port new or changed SQL into `server/db/migrations/`.
+   - `supabase/sql/*`: port each new `supabase/sql/NN_*.sql` as the next `server/db/migrations/NNNN_*.sql`, add a row to the table above, and grant `housing_app` what it needs. Never edit a migration that has already run on staging or production; add a new one.
    - `backend/supabase/*` and the shared backend types: add the matching endpoint and REST adapter method.
    - `docs/api/API_CONTRACT.md`: implement whatever changed.
 5. Run the contract and e2e suites against `rest`. A failure means a feature exists on Supabase but not yet on the new server.

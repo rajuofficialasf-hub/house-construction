@@ -138,7 +138,7 @@ Every later chunk (login, reads, writes, photos) needs a running server and the 
 - **Tests:** none (docs only). Check every path in the new text exists.
 - **Done when:** the docs match the code, and the roadmap's C1 row can be marked done.
 - **Depends on:** U3, U4
-- **Status:** todo
+- **Status:** done
 
 ## Verification
 - `docker compose up -d db`
@@ -161,7 +161,7 @@ Every later chunk (login, reads, writes, photos) needs a running server and the 
 ## Progress
 - **Branch:** `migrate/c1-server-db`
 - **Updated:** 2026-10-05 13:45
-- **Next:** U5, update `docs/architecture/migration-notes.md` with the supabase/sql → migrations map
+- **Next:** finish: run ae-test (full), ae-simplify, ae-review
 - **Uncommitted:** none
 - **Notes:** Local machine runs Node 26; code targets Node 22 (`ST-22`), so run server commands with `PATH=~/.nvm/versions/node/v22.20.0/bin:$PATH`. TypeScript pinned to ~6.0.2 to match the root (npm picked 7 by default). esbuild's postinstall (used by tsx/vitest) was checked and rebuilt; installs use `--ignore-scripts` (`ST-32`).
   - U3 deviations from the plan text:

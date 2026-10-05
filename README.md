@@ -27,7 +27,15 @@ npm run i18n-check                # বাংলা UI লেখা বনাম
 ```bash
 docker compose up -d db           # PostgreSQL 17, শুধু 127.0.0.1:5432 এ; ডাটাবেস housing (ডেভ) ও housing_test (টেস্ট)
 docker compose down -v            # ডাটাবেস সম্পূর্ণ মুছে নতুন করে শুরু
+cp server/.env.example server/.env
+npm --prefix server install
+npm --prefix server run db:migrate   # মাইগ্রেশন (server/db/migrations)
+npm --prefix server run db:seed      # ২০টি ডামি রেকর্ড (শুধু লোকাল ডাটাবেসে চলে)
+npm --prefix server run dev          # http://localhost:3001/api/v1/readyz
+npm --prefix server test             # সার্ভার টেস্ট (housing_test ডাটাবেসে)
 ```
+
+সার্ভারের জন্য Node 22 লাগে (`.nvmrc`)।
 
 ## রুট
 
