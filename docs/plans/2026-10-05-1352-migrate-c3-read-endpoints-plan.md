@@ -1,7 +1,7 @@
 ---
 title: C3 Read Endpoints
 type: migrate
-status: in-progress
+status: done
 source: plan
 date: 2026-10-05
 doc_review: 2026-10-05
@@ -371,10 +371,12 @@ Finally, the Chrome check from U9.
 - Code from abandoned attempts is removed
 - Contract is v0.11 and matches the server; `docs/architecture/migration-notes.md` records the CORS split
 
-## Progress
-- **Branch:** `migrate/c3-read-endpoints`
-- **Updated:** 2026-10-05 14:10
-- **Next:** finish: `ae-test` full, then simplify, review
-- **Uncommitted:** none
-- **Notes:** `origin/main` had nothing new at start (no `supabase/sql` to port), so 0008 is free. The REST adapter also cuts `q` to 100 characters (the server's limit), sorts serials before chunking so merged by-serials results stay in order (Supabase sorts per chunk only), and drops serials above int4. The shared contract suite's unauthenticated-write test now attaches `code()` to every call at once (`.map(code)`), because on REST the stub rejections were reported as unhandled.
-  - U9: `npm run test:e2e:rest` passed 17 and skipped 2 on the specs' own data guards, with no exclusions: the photo-compare spec needs a record with photos (C5), and the paging spec needs more than 50 records (the seed has 20). Chrome pass on 2026-10-05 against `VITE_HOUSING_BACKEND=rest docker compose up -d api web`: the list and a record detail rendered, every `/api/v1/housing…` request answered 200 (stats, years, list), and the console showed no errors. compose's `ALLOWED_ORIGINS` now also lists `http://localhost:5185` for the e2e dev server. `npm run db:seed` must run from the host; inside the api container the local-host guard refuses host `db`.
+## Notes for later chunks
+- C4: remove the REST runner's known gap (`tests/contract/rest.contract.test.ts`), switch it to `writes: true` with a test admin, and add the housing writes to `server/src/openapi.ts` marked admin-only; the drift test will fail until each new route has an entry.
+- C4: `createDb` sets a 5 s `statement_timeout` for every query. A bulk write that needs longer raises it with `set local statement_timeout` in its own transaction.
+- C4/C5: other apps' origins go in `PUBLIC_READ_ORIGINS`, never `ALLOWED_ORIGINS`; the credential-less list only reaches `/api/v1/housing…` GET/HEAD and `/api/v1/openapi.json`.
+- C6: the read limit (300 per IP per minute) is in memory and keys on `req.ip`, like the login limit; set `TRUST_PROXY` to the real hop count for both.
+- C7: check list and search timing at real volume; add a `pg_trgm` index if the list passes ~50 ms.
+- The REST adapter differs slightly from the Supabase one on purpose: it cuts `q` to 100 characters, drops serials above int4, and matches `%`, `_` and `\` in search literally (contract v0.11).
+- `npm --prefix server run db:seed` runs from the host; inside the api container the local-host guard refuses host `db`.
+- Review (2026-10-05): no P0–P2. Open P3: the repo has no `CLAUDE.md` `## Stack profile` (`ST-43`); it belongs with the roadmap's ST-03/ST-04 amendment task.
