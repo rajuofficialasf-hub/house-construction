@@ -1,5 +1,5 @@
 import { withActor, type Actor, type Sql } from '../db.js';
-import { likePattern, type Page } from './reads.js';
+import { likePattern, toPage, type Page } from './reads.js';
 import type { ActivityBody, ActivityQuery } from './schemas.js';
 
 // The admin activity log (docs/api/API_CONTRACT.md §4.9গ). Record writes are logged by the trigger
@@ -38,11 +38,7 @@ export async function listActivity(sql: Sql, query: ActivityQuery): Promise<Page
       limit ${query.page_size} offset ${(query.page - 1) * query.page_size}`,
     sql<{ total: number }[]>`select count(*)::int as total from public.housing_activity_log where ${where}`,
   ]);
-  const total = count?.total ?? 0;
-  return {
-    data: rows,
-    meta: { page: query.page, page_size: query.page_size, total, total_pages: Math.max(1, Math.ceil(total / query.page_size)) },
-  };
+  return toPage(rows, query, count?.total ?? 0);
 }
 
 /** Records a client event (an import run, a bulk photo run) for the admin; returns its id. */

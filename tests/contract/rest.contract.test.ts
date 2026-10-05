@@ -7,6 +7,7 @@ import { createApp } from '../../server/src/app.js'
 import { hashPassword } from '../../server/src/auth/password.js'
 import { createLogger } from '../../server/src/logger.js'
 import { appDb, insertAdmin, ownerDb, resetTestData } from '../../server/test/support/db.js'
+import { TEST_ORIGIN as SITE } from '../../server/test/support/session.js'
 import { createRestAuthProvider, createRestHousingApi } from '../../src/features/housing/backend/rest'
 import { runHousingApiContract } from './housingApiContract'
 import { cookieJarFetch } from './cookieJarFetch'
@@ -30,7 +31,6 @@ const KNOWN_GAPS = [
   // It uploads a photo; server/test/http/housing-activity.test.ts covers the log meanwhile.
   'every write is logged with before and after values, newest first, and filterable',
 ]
-const SITE = 'http://localhost:5173'
 const ADMIN = { email: 'contract-admin@example.org', password: 'contract admin password' }
 
 if (!enabled) {

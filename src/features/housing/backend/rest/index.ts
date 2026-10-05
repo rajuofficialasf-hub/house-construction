@@ -93,9 +93,10 @@ const projectQuery = (projectType?: ProjectType) =>
   new URLSearchParams(projectType ? { project_type: projectType } : {})
 
 export function createRestHousingApi(baseUrl: string): HousingApi {
-  const get = async <T>(path: string) => (await restRequest<{ data: T }>(baseUrl, path)).data
-  const send = async <T>(method: 'POST' | 'PUT', path: string, body: unknown) =>
-    (await restRequest<{ data: T }>(baseUrl, path, { method, body })).data
+  /** Calls the server and returns the `data` of its `{ data }` answer. */
+  const call = async <T>(path: string, opts?: Parameters<typeof restRequest>[2]) => (await restRequest<{ data: T }>(baseUrl, path, opts)).data
+  const get = <T>(path: string) => call<T>(path)
+  const send = <T>(method: 'POST' | 'PUT', path: string, body: unknown) => call<T>(path, { method, body })
 
   return {
     list: (params) => restRequest<Page<HousingRecord>>(baseUrl, ENDPOINTS.housing.list(listQuery(params))),
@@ -127,10 +128,9 @@ export function createRestHousingApi(baseUrl: string): HousingApi {
       form.append('kind', kind)
       form.append('photo', files.photo, 'photo.webp')
       form.append('thumb', files.thumb, 'thumb.webp')
-      return (await restRequest<{ data: HousingRecord }>(baseUrl, ENDPOINTS.housing.photo(id), { method: 'POST', formData: form })).data
+      return call<HousingRecord>(ENDPOINTS.housing.photo(id), { method: 'POST', formData: form })
     },
-    deletePhoto: async (id, kind) =>
-      (await restRequest<{ data: HousingRecord }>(baseUrl, ENDPOINTS.housing.photo(id, kind), { method: 'DELETE' })).data,
+    deletePhoto: (id, kind) => call<HousingRecord>(ENDPOINTS.housing.photo(id, kind), { method: 'DELETE' }),
     nextSerial: async (projectType) =>
       (await get<{ next_serial: number }>(ENDPOINTS.housing.nextSerial(projectType))).next_serial,
     changeSerial: (id, serialNo) => send<HousingRecord>('POST', ENDPOINTS.housing.serial(id), { serial_no: serialNo }),

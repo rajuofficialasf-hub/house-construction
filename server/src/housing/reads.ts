@@ -39,6 +39,14 @@ export interface Page<T> {
   meta: { page: number; page_size: number; total: number; total_pages: number };
 }
 
+/** A page of rows with the contract's meta; total_pages is at least 1, so an empty result still has a page. */
+export function toPage<T>(data: T[], query: { page: number; page_size: number }, total: number): Page<T> {
+  return {
+    data,
+    meta: { page: query.page, page_size: query.page_size, total, total_pages: Math.max(1, Math.ceil(total / query.page_size)) },
+  };
+}
+
 /** Escapes LIKE wildcards so `%`, `_` and `\` in a search match themselves. */
 export const likePattern = (q: string) => `%${q.replace(/[\\%_]/g, '\\$&')}%`;
 
@@ -70,11 +78,7 @@ export async function listRecords(sql: Sql, query: ListQuery): Promise<Page<Hous
       limit ${query.page_size} offset ${(query.page - 1) * query.page_size}`,
     sql<{ total: number }[]>`select count(*)::int as total from public.housing_beneficiaries where ${where}`,
   ]);
-  const total = count?.total ?? 0;
-  return {
-    data: rows,
-    meta: { page: query.page, page_size: query.page_size, total, total_pages: Math.max(1, Math.ceil(total / query.page_size)) },
-  };
+  return toPage(rows, query, count?.total ?? 0);
 }
 
 export async function getRecordById(sql: Sql, id: string): Promise<HousingRecord | null> {

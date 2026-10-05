@@ -76,7 +76,7 @@ const SERIAL_KEY = 'housing_beneficiaries_project_serial_key';
  * tables and key values, so it never reaches the client (NE-SEC-11). Anything unlisted, a missing
  * grant (42501) included, is our bug and stays a 500.
  */
-function postgresError(err: InstanceType<typeof postgres.PostgresError>): AppError | undefined {
+function postgresError(err: postgres.PostgresError): AppError | undefined {
   switch (err.code) {
     case '23505':
       // housing_change_serial raises its own 23505 with no constraint (0002_serial.sql).
