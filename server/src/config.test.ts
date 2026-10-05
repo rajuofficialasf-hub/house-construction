@@ -7,6 +7,8 @@ const valid = {
   LOG_LEVEL: 'warn',
   TRUST_PROXY: '2',
   DATABASE_URL: 'postgres://housing_app:pw@127.0.0.1:5432/housing',
+  ALLOWED_ORIGINS: 'https://housing.example.org,http://localhost:5173',
+  COOKIE_SECURE: 'false',
 };
 
 describe('loadConfig', () => {
@@ -17,11 +19,13 @@ describe('loadConfig', () => {
       LOG_LEVEL: 'warn',
       TRUST_PROXY: 2,
       DATABASE_URL: 'postgres://housing_app:pw@127.0.0.1:5432/housing',
+      ALLOWED_ORIGINS: ['https://housing.example.org', 'http://localhost:5173'],
+      COOKIE_SECURE: false,
     });
   });
 
   it('applies defaults for optional settings', () => {
-    const config = loadConfig({ DATABASE_URL: valid.DATABASE_URL });
+    const config = loadConfig({ DATABASE_URL: valid.DATABASE_URL, ALLOWED_ORIGINS: 'http://localhost:5173' });
     expect(config).toMatchObject({ NODE_ENV: 'development', PORT: 3001, LOG_LEVEL: 'info', TRUST_PROXY: 0 });
   });
 
@@ -43,5 +47,33 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ ...valid, PORT: 'x', DATABASE_URL: 'postgres://u:hunter2@h/db' })).toThrow(
       expect.objectContaining({ message: expect.not.stringContaining('hunter2') }),
     );
+  });
+
+  it('defaults COOKIE_SECURE to true, so a forgotten setting is the safe one', () => {
+    const { COOKIE_SECURE: _omit, ...env } = valid;
+    expect(loadConfig(env).COOKIE_SECURE).toBe(true);
+    expect(loadConfig({ ...valid, COOKIE_SECURE: 'true' }).COOKIE_SECURE).toBe(true);
+  });
+
+  it('rejects a COOKIE_SECURE that is not true or false', () => {
+    expect(() => loadConfig({ ...valid, COOKIE_SECURE: 'yes' })).toThrow(/COOKIE_SECURE/);
+  });
+
+  it('requires ALLOWED_ORIGINS', () => {
+    const { ALLOWED_ORIGINS: _omit, ...env } = valid;
+    expect(() => loadConfig(env)).toThrow(/ALLOWED_ORIGINS/);
+    expect(() => loadConfig({ ...valid, ALLOWED_ORIGINS: '' })).toThrow(/ALLOWED_ORIGINS/);
+  });
+
+  it.each(['https://housing.example.org/', 'https://housing.example.org/app', '*', 'housing.example.org'])(
+    'rejects %s as an allowed origin',
+    (origin) => {
+      expect(() => loadConfig({ ...valid, ALLOWED_ORIGINS: origin })).toThrow(/ALLOWED_ORIGINS/);
+    },
+  );
+
+  it('trims spaces around allowed origins', () => {
+    const config = loadConfig({ ...valid, ALLOWED_ORIGINS: ' https://a.example.org , https://b.example.org ' });
+    expect(config.ALLOWED_ORIGINS).toEqual(['https://a.example.org', 'https://b.example.org']);
   });
 });

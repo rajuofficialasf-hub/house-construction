@@ -40,6 +40,8 @@ services:
       PORT: 3001
       LOG_LEVEL: info
       TRUST_PROXY: 0
+      ALLOWED_ORIGINS: http://localhost:${WEB_PORT:-5173}
+      COOKIE_SECURE: "false"
       DATABASE_URL: postgres://housing_app:${HOUSING_APP_PASSWORD:-housing_app_local}@db:5432/housing?sslmode=disable
       DATABASE_MIGRATION_URL: postgres://housing_owner:${HOUSING_OWNER_PASSWORD:-housing_owner_local}@db:5432/housing?sslmode=disable
     ports:

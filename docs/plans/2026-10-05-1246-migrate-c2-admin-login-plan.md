@@ -76,7 +76,7 @@ From the roadmap and the C2 brief (not reopened here): minimal admin login with 
 - **Tests:** valid list of two origins parses; trailing slash, path, `*` and empty are rejected with the field named and the value not echoed; `COOKIE_SECURE` missing → true, `false` → false, `yes` → error.
 - **Done when:** config tests pass and `docker compose up api` still starts.
 - **Depends on:** none
-- **Status:** todo
+- **Status:** done
 
 ### U2. Migration 0007: admins and sessions
 - **Goal:** The two tables exist with the grants above, and rollback is clean.
@@ -208,7 +208,7 @@ From the roadmap and the C2 brief (not reopened here): minimal admin login with 
 
 ## Progress
 - **Branch:** `migrate/c2-admin-login` (from `migrate/c1-server-db`)
-- **Updated:** 2026-10-05 12:55
-- **Next:** U1, extend the zod config schema in `server/src/config.ts`
+- **Updated:** 2026-10-05 13:03
+- **Next:** U2, check origin/main for a new supabase/sql file before writing 0007_admin_auth.sql
 - **Uncommitted:** none
-- **Notes:** none yet
+- **Notes:** The local server/.env (gitignored) needs ALLOWED_ORIGINS and COOKIE_SECURE added by hand, like .env.example.
