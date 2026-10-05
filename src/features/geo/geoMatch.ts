@@ -1,7 +1,8 @@
 import { levenshtein, looseKey as baseLooseKey } from '@/lib/fuzzyMatch'
-import type { GeoDistrict, GeoDivision, GeoUpazila } from '../data/bdGeo'
-import { BD_GEO } from '../data/bdGeo'
+import type { GeoDistrict, GeoDivision, GeoUpazila } from './data/bdGeo'
+import { BD_GEO } from './data/bdGeo'
 import { findDistrict, findDivision, getDistricts, getUpazilas, nfc } from './geo'
+import { unionsOf, type UnionData } from './unions'
 
 /**
  * ইম্পোর্টে ভৌগোলিক নাম মেলানো: বাড়তি স্পেস/অদৃশ্য অক্ষর, বানানের সামান্য পার্থক্য (ণ/ন, ী/ি, শ/ষ/স, ড়/র …)
@@ -26,23 +27,40 @@ export function looseKey(raw: string): string {
   return baseLooseKey(raw, { stripWords: STRIP_WORDS })
 }
 
+/**
+ * ইউনিয়নের ঢিলা key: শুধু "ইউনিয়ন", "ইউপি", "union", "UP" বাদ (পরিকল্পনা §৫.১২)।
+ * "পৌরসভা" আর "ওয়ার্ড" বাদ যায় **না** — "মীরসরাই পৌরসভা" যেন ইউনিয়ন "মীরসরাই" এর সাথে না মেলে।
+ */
+const UNION_STRIP_WORDS = /(ইউনিয়ন|ইউপি|\bunion\b|\bup\b)/gi
+export function unionLooseKey(raw: string): string {
+  return baseLooseKey(raw, { stripWords: UNION_STRIP_WORDS })
+}
+
 interface Candidate {
   name: string
   en: string
 }
 
-function matchIn(raw: string, candidates: readonly Candidate[]): GeoMatch {
+/** ইংরেজি নামের তুলনা: বিভাগ/জেলা/উপজেলায় আগের মতোই (শুধু a-z); ইউনিয়নে "Union"/"UP" শব্দও বাদ */
+const asciiKey = (s: string) => s.toLowerCase().replace(/[^a-z]/g, '')
+const unionAsciiKey = (s: string) => unionLooseKey(s).replace(/[^a-z]/g, '')
+
+function matchIn(raw: string, candidates: readonly Candidate[], mode: 'geo' | 'union' = 'geo'): GeoMatch {
+  const keyOf = mode === 'union' ? unionLooseKey : looseKey
+  const enOf = mode === 'union' ? unionAsciiKey : asciiKey
+  /** পরামর্শের দূরত্বে প্রার্থীর ইংরেজি নাম — geo তে আগের হুবহু (ফাঁকাসহ ছোট হাতের) */
+  const enCand = mode === 'union' ? unionAsciiKey : (s: string) => s.toLowerCase()
   const exact = nfc(raw)
   if (!exact) return { match: null, corrected: false, suggestions: [] }
   const byExact = candidates.find((c) => c.name === exact)
   if (byExact) return { match: byExact.name, corrected: false, suggestions: [] }
-  const key = looseKey(raw)
-  const enKey = exact.toLowerCase().replace(/[^a-z]/g, '')
-  const byLoose = candidates.find((c) => looseKey(c.name) === key || (enKey && c.en.toLowerCase().replace(/[^a-z]/g, '') === enKey))
+  const key = keyOf(raw)
+  const enKey = enOf(exact)
+  const byLoose = candidates.find((c) => keyOf(c.name) === key || (enKey && enOf(c.en) === enKey))
   if (byLoose) return { match: byLoose.name, corrected: true, suggestions: [] }
   const limit = Math.max(2, Math.floor(key.length / 3))
   const scored = candidates
-    .map((c) => ({ name: c.name, d: Math.min(levenshtein(key, looseKey(c.name)), enKey ? levenshtein(enKey, c.en.toLowerCase()) : 99) }))
+    .map((c) => ({ name: c.name, d: Math.min(levenshtein(key, keyOf(c.name)), enKey ? levenshtein(enKey, enCand(c.en)) : 99) }))
     .filter((x) => x.d <= limit)
     .sort((a, b) => a.d - b.d || a.name.localeCompare(b.name, 'bn'))
     .slice(0, 5)
@@ -71,6 +89,21 @@ export function matchUpazila(raw: string, division: string | null, district: str
   return matchIn(raw, unique)
 }
 
+export interface UnionMatch extends GeoMatch {
+  /** এই উপজেলার ইউনিয়ন-তালিকা আছে কি না (৫টিতে নেই; তালিকা নামানো না থাকলেও false) */
+  listed: boolean
+}
+
+/**
+ * ইউনিয়ন: শুধু নির্বাচিত জেলা/উপজেলার তালিকায় (নাম দেশে একাধিকবার আছে)। না মিললেও লেখা গ্রহণযোগ্য —
+ * ডাকার জায়গা হলুদ সতর্কতা দেখায়, আটকায় না।
+ */
+export function matchUnion(raw: string, unions: UnionData | null, district: string | null, upazila: string | null): UnionMatch {
+  const list = unionsOf(unions, district, upazila)
+  const m = matchIn(raw, list.map(([name, en]) => ({ name, en })), 'union')
+  return { ...m, listed: list.length > 0 }
+}
+
 function divisionOf(district: string): string | null {
   const d = nfc(district)
   return BD_GEO.find((v) => v.districts.some((x) => x.name === d))?.name ?? null
@@ -84,10 +117,16 @@ export interface ResolvedGeo {
   corrected: GeoLevel[]
   /** না মেলা স্তর ও পরামর্শ */
   unresolved: { level: GeoLevel; raw: string; suggestions: string[] }[]
+  /**
+   * ৪র্থ স্তর — শুধু opts.union দিলে। value: তালিকায় মিললে তালিকার নাম, নইলে লেখাটিই (NFC); খালি হলে null।
+   * status: exact/corrected (তালিকায়), unlisted (তালিকা আছে কিন্তু নেই — সতর্কতা), no_list (উপজেলার তালিকা নেই
+   * বা তালিকা নামানো হয়নি), empty। কখনো ত্রুটি নয় (নিজে লেখা চলে)।
+   */
+  union?: { value: string | null; status: 'empty' | 'exact' | 'corrected' | 'unlisted' | 'no_list'; suggestions: string[] }
 }
 
 /**
- * তিন স্তর একসাথে সমাধান। জেলা মিললে কিন্তু বিভাগ না মিললে জেলা থেকে বিভাগ অনুমান হয়।
+ * তিন স্তর (আর opts.union দিলে ইউনিয়ন — ৪র্থ স্তর) একসাথে সমাধান। জেলা মিললে কিন্তু বিভাগ না মিললে জেলা থেকে বিভাগ অনুমান হয়।
  * fixes: ব্যবহারকারীর ম্যানুয়াল ম্যাপিং (key = geoFixKey()) — আগে প্রয়োগ হয়।
  */
 export function resolveGeo(
@@ -95,6 +134,7 @@ export function resolveGeo(
   rawDistrict: string,
   rawUpazila: string,
   fixes: Record<string, string> = {},
+  opts: { union?: string; unions?: UnionData | null } = {},
 ): ResolvedGeo {
   const corrected: GeoLevel[] = []
   const unresolved: ResolvedGeo['unresolved'] = []
@@ -158,7 +198,18 @@ export function resolveGeo(
     }
   }
 
-  return { division, district, upazila, corrected: [...new Set(corrected)], unresolved }
+  const result: ResolvedGeo = { division, district, upazila, corrected: [...new Set(corrected)], unresolved }
+  if (opts.union !== undefined) {
+    const raw = nfc(opts.union).replace(/s+/g, ' ')
+    if (!raw) result.union = { value: null, status: 'empty', suggestions: [] }
+    else {
+      const m = matchUnion(raw, opts.unions ?? null, district, upazila)
+      result.union = m.match
+        ? { value: m.match, status: m.corrected ? 'corrected' : 'exact', suggestions: [] }
+        : { value: raw, status: m.listed ? 'unlisted' : 'no_list', suggestions: m.suggestions }
+    }
+  }
+  return result
 }
 
 export function geoFixKey(level: GeoLevel, raw: string, parent: string): string {

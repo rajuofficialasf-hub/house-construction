@@ -1,4 +1,4 @@
-import { BD_GEO } from '@/features/housing/data/bdGeo'
+import { BD_GEO } from '@/features/geo/data/bdGeo'
 import { EN } from './en'
 
 /**

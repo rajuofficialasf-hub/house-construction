@@ -1,4 +1,4 @@
-import { nfc } from './geo'
+import { nfc } from '@/features/geo/geo'
 
 /** ইম্পোর্টে সিস্টেমের ফিল্ড (ক্রম = প্রিভিউ/এক্সপোর্টের কলাম ক্রম) */
 export const IMPORT_FIELDS = [

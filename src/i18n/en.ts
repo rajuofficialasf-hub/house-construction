@@ -755,4 +755,16 @@ Object.assign(EN, {
   'হোমের লেবেল (বাংলা, ঐচ্ছিক)': 'Home label (Bangla, optional)',
   '১ থেকে ২০০০ এর মধ্যে পূর্ণসংখ্যা': 'A whole number from 1 to 2000',
   '🔒 শুধু-এডমিন (গোপন) — পাবলিক সাইট, টেবিল, ফিল্টার, এক্সপোর্টের পাবলিক অংশে কখনো নয়': '🔒 Admin only (private) — never on the public site, table, filters or the public part of exports',
+
+  // ---------------------------------------------------------------- ইউনিয়নের কম্বোবক্স (M-ধাপ ৯)
+  '«{v}» এই উপজেলার ইউনিয়ন-তালিকায় নেই। বানান ঠিক থাকলে রেখে দিন (পৌরসভা বা নতুন ইউনিয়ন হতে পারে) — সংরক্ষণ আটকাবে না।':
+    '“{v}” is not in this upazila’s union list. If the spelling is right, keep it (it may be a municipality or a new union) — saving is not blocked.',
+  'আগে উপজেলা': 'Upazila first',
+  'ইউনিয়নের তালিকা আনা যায়নি — নিজে লিখুন।': 'Could not load the union list — type it yourself.',
+  'ইউনিয়নের তালিকা আসছে…': 'Loading the union list…',
+  'এই উপজেলার ইউনিয়ন-তালিকা নেই — নিজে লিখুন।': 'No union list for this upazila — type it yourself.',
+  'কাছাকাছি:': 'Close matches:',
+  'তালিকায় {n}টি ইউনিয়ন': '{n} unions in the list',
+  'বাছুন বা লিখুন': 'Select or type',
+  'লিখুন': 'Type',
 })

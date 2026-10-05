@@ -153,6 +153,16 @@ src/
     systemFields.ts             # সাল, নাম, পিতা/স্বামী, বিভাগ, জেলা, উপজেলা, ইউনিয়ন, ঠিকানা — সীমা ও লেবেল
     resolveFields.ts            # resolveFields(project) = সিস্টেম (core_fields অনুযায়ী) + কাস্টম; fieldValue(def, record, private)
     index.ts
+  features/geo/                 # ভূগোল — M-ধাপ ৯-এ features/housing থেকে সরানো (git mv); ঘর নির্মাণ ও সব প্রকল্পের
+    data/bdGeo.ts               # স্থির তালিকা: ৮ বিভাগ → ৬৪ জেলা → ৪৯৪ উপজেলা (বাংলা NFC + ইংরেজি নাম); উৎস ফাইলের মাথায়
+    data/bd-unions.json         # ইউনিয়ন: জেলা → উপজেলা → [[বাংলা, ইংরেজি]] — ৪,৫৩৭টি, ৪৮৯/৪৯৪ উপজেলা, ~৫৩ KB gzip; scripts/build-unions.mjs এর ফল (হাতে নয়)
+    data/unionOverrides.json    # ইউনিয়ন-তালিকায় হাতে সংশোধন (add/rename/remove) — build-unions মেশায়; এখন খালি
+    geo.ts                      # nfc(), getDivisions/getDistricts/getUpazilas, normalizeGeo, isValidGeo, divisionOfDistrict
+    geoMatch.ts                 # looseKey, matchDivision/District/Upazila (fuzzy), matchUnion, unionLooseKey, resolveGeo(fixes, {union, unions}) — ৪র্থ স্তর, candidatesFor
+    unions.ts                   # loadUnions() (lazy import, আলাদা chunk), useUnionData(), unionsOf, hasUnionList, gnUnion(জেলা, উপজেলা, ইউনিয়ন)
+    GeoSelect.tsx               # বিভাগ → জেলা → উপজেলা (→ ইউনিয়ন) — RecordForm এর হুবহু চেহারা; রেকর্ড-ফর্মে বসবে M-ধাপ ১০-এ
+    UnionCombobox.tsx           # ইউনিয়নের কম্বোবক্স: সাজেশন, নিজে লেখা, হলুদ সতর্কতা, "পৌরসভা" চিপ, ↑↓/Enter/Esc
+  dev/                          # শুধু dev সার্ভারে, বিল্ডে নেই: geo-demo.html + GeoDemo.tsx + geoDemoMain.tsx (/src/dev/geo-demo.html) (M-ধাপ ৯)
   features/projects/stats/statCards.ts  # cardValue/formatCardValue (project_stats → কার্ডের সংখ্যা), suggestCard (নিজে লেবেল), newCardId (M-ধাপ ৮)
   features/projects/registry/   # প্রকল্প রেজিস্ট্রি — সব প্রকল্পের জন্য (M-ধাপ ৫ক)
     projectsStore.ts            # মডিউল-স্তরের তালিকা: স্ন্যাপশট asf_projects_v1 → ফলব্যাক → নেটওয়ার্ক; findProject, childrenOf, housingProjects, projectPath, refreshProjects
@@ -213,16 +223,12 @@ src/
       importParse.ts            # parseSpreadsheet(file): xlsx/csv → {headers, rows} (SheetJS lazy, UTF-8 BOM) (ধাপ ১২)
       importColumns.ts          # IMPORT_FIELDS, FIELD_LABEL, REQUIRED_FIELDS, guessMapping(headers)
       importValidate.ts         # analyzeRows(): সিরিয়াল/সাল/নাম/geo ভ্যালিডেশন, ডুপ্লিকেট, unresolvedGeo
-      geoMatch.ts               # looseKey, matchDivision/District/Upazila (fuzzy), resolveGeo(fixes), candidatesFor
       csvExport.ts              # toCsv (BOM), downloadText
       mapData.ts                # loadMapData(): /geo/bd-upazilas.json (TopoJSON) → GeoJSON features + জেলা/বিভাগ/দেশ সীমানা mesh (cache); locationKey()
       districtColors.ts         # districtColors(counts) → জেলা → রঙ (মোট অনুযায়ী ক্রম, ১৪-রঙ প্যালেট + HSL fallback); withAlpha()
 public/geo/bd-upazilas.json     # ৫৪৫ উপজেলা/থানার সীমানা (GADM 4.1 level 3, ১২% সরলীকৃত TopoJSON, ~২৬০ KB), properties {id, dv, ds, up (বাংলা NFC), en}; scripts/build-map.mjs দিয়ে তৈরি
 scripts/build-map.mjs           # GADM json → বাংলা নাম মেলানো (fold + Levenshtein ≤2, alias, MANUAL override) → mapshaper simplify → TopoJSON; রিপোর্ট ছাপে (npm run build-map -- --in <gadm41_BGD_3.json>)
-      geo.ts                    # nfc(), getDivisions/getDistricts/getUpazilas, normalizeGeo, isValidGeo, divisionOfDistrict
       filters.ts                # HousingFilters টাইপ, URL ⇄ ফিল্টার, hasActiveFilters, filtersEqual
-    data/
-      bdGeo.ts                  # স্থির তালিকা: ৮ বিভাগ → ৬৪ জেলা → ৪৯৪ উপজেলা (বাংলা NFC + ইংরেজি নাম); উৎস ফাইলের মাথায়
 scripts/
   migrate-photos.mjs            # Node: CSV/ফোল্ডার → ডাউনলোড → sharp WebP → একই Supabase অ্যাডাপ্টার দিয়ে আপলোড (npm run migrate-photos)
   security-check.mjs            # anon key দিয়ে: পড়া খোলা, INSERT/UPDATE/DELETE/RPC/Storage-আপলোড বন্ধ — PASS/FAIL (npm run security-check)
@@ -233,6 +239,8 @@ scripts/
   content-check.mjs             # anon হিসেবে প্রকল্প/ফিল্ড/ওভারভিউয়ের সারসংক্ষেপ + কোথায় ইংরেজি খালি; শুধু সতর্কবার্তা (npm run content-check) (M-ধাপ ৪)
   adapter-check.mts             # নকল ক্লায়েন্টে adapter-এর নিয়ম: ফলব্যাক, লেখার payload, whitelist, ছবি-মোড — ২৫টি পরীক্ষা (npm run adapter-check) (M-ধাপ ৪)
   admin-ui-check.mjs            # এডমিন প্যানেলের UI, নকল এডমিন সেশনে; পড়া লাইভ (anon), সব লেখা আটকানো — ৩২টি পরীক্ষা (npm run admin-ui-check) (M-ধাপ ৭)
+  build-unions.mjs              # nuhil/bangladesh-geocode (পিন করা কমিট, sha256 যাচাই) → পরিষ্কার → bdGeo join → overrides → bd-unions.json (npm run build-unions [-- --check | --src DIR]) (M-ধাপ ৯)
+  geo-check.mjs                 # ইউনিয়নের ডাটা, মেলানো, gnUnion, কম্বোবক্স (ব্রাউজারে, dev ডেমো পাতা), বিল্ডের chunk (npm run geo-check) (M-ধাপ ৯)
   field-types-check.mjs         # টাকা, প্রতিটি ফিল্ড-ধরনের parse/format/CSV, fuzzy, resolveFields — ৭৭টি পরীক্ষা (npm run field-types-check) (M-ধাপ ৫খ)
 supabase/
   README.md                     # SQL চালানোর ক্রম
@@ -1890,5 +1898,56 @@ M-ধাপ ২-এ এই মানগুলো `checks/10_verify.sql` এ ব�
 | লাইভে আসল এডমিন লগইনে (আপনি, §৪) | ⏳ |
 
 ### ৬. পরের ধাপে কী করতে হবে
-- **M-ধাপ ৯** — ইউনিয়নের ডাটা আর ঠিকানা নির্বাচক (মূল বান্ডল না বাড়িয়ে)।
+- **M-ধাপ ৯** — ইউনিয়নের ডাটা আর ঠিকানা নির্বাচক (মূল বান্ডল না বাড়িয়ে)। ✅ নিচে।
 - পেস্ট করুন: `M-ধাপ ৯ শুরু করো (পরিকল্পনা: docs/MULTI_PROJECT_PLAN.md)`
+
+## M-ধাপ ৯ — ইউনিয়নের ডাটা আর ঠিকানা নির্বাচক (২০২৬-১০-০৫) — ✅ সম্পন্ন (ডাটাবেসের কাজ নেই)
+
+### ১. কী তৈরি বা পরিবর্তন হয়েছে
+- **ভূগোল নতুন জায়গায় (`git mv`):** `features/housing/data/bdGeo.ts` → `features/geo/data/bdGeo.ts`; `features/housing/utils/geo.ts` → `features/geo/geo.ts`; `features/housing/utils/geoMatch.ts` → `features/geo/geoMatch.ts`। ৯টি ফাইলের import বদল (`@/features/geo/…`), `scripts/build-map.mjs` সহ। কোড-আচরণ একই।
+- **`scripts/build-unions.mjs`** (`npm run build-unions`):
+  - উৎস: nuhil/bangladesh-geocode (MIT), পিন করা কমিট `5622f68` (২০২৩-০৩-১৭ — bdGeo.ts এর একই উৎস)। ফাইলগুলো নামিয়ে **sha256 মিলিয়ে** নেয় (উৎস বদলালে থামে); `--src DIR` দিলে নামায় না।
+  - পরিষ্কার: ৯০৮টি নাম NFC, ৪টির শুরুতে ফাঁকা, **১টিতে অদৃশ্য অক্ষর** (ব্রা‏হ্মন্দী — U+200F; পরিকল্পনায় ছিল না), ৩টি ডুপ্লিকেট জোড়া (চরফ্যাশন: আওয়াজপুর, বড়লেখা: তালিমপুর, তেতুলিয়া: ভজনপুর), ২টি ভাঙা ইংরেজি নাম (`1nomohadevpur` → Mahadevpur, `Maijchar9` → Maijchar)।
+  - bdGeo.ts এর সাথে join: ৪৯৪/৪৯৪ উপজেলা মেলে (না মিললে থামে); তারপর `unionOverrides.json` মেশায়।
+  - ফল: **৪,৫৩৭টি ইউনিয়ন, ৪৮৯/৪৯৪ উপজেলা**, ২০০ KB (৫২.৬ KB gzip), এক লাইনে এক উপজেলা (git diff পড়া যায়)। `--check`: ফাইলটি হালনাগাদ কি না।
+- **`features/geo/data/bd-unions.json`** আর **`unionOverrides.json`** (add/rename/remove — এখন খালি; শুধু নিশ্চিত সরকারি তালিকা থেকে)।
+- **`features/geo/unions.ts`:** `loadUnions()` (lazy `import()` — আলাদা chunk, একবারই নামে, ব্যর্থ হলে পরের বার আবার), `useUnionData(enabled)`, `unionsOf`, `hasUnionList`, **`gnUnion(জেলা, উপজেলা, ইউনিয়ন)`** — ইংরেজি মোডে তালিকার ইংরেজি নাম (পুরো পথ ধরে; একই নাম দেশে ৩২৪টি), "X পৌরসভা" → "X Municipality"।
+- **`geoMatch.ts` — ৪র্থ স্তর:** `matchUnion(raw, unions, জেলা, উপজেলা)` আর `unionLooseKey` — বাদ যায় শুধু "ইউনিয়ন", "ইউপি", "union", "UP"; **"পৌরসভা" ও "ওয়ার্ড" বাদ যায় না** ("মীরসরাই পৌরসভা" ইউনিয়ন "মীরসরাই" এর সাথে মেলে না)। `resolveGeo(…, fixes, { union, unions })` → `union: { value, status: exact | corrected | unlisted | no_list | empty, suggestions }` — কখনো ত্রুটি নয়। `union` না দিলে ফল আগের হুবহু।
+- **`GeoSelect.tsx`:** বিভাগ → জেলা → উপজেলা (→ ইউনিয়ন); উপরেরটা বদলালে নিচেরগুলো খালি; RecordForm এর ড্রপডাউনের হুবহু চেহারা ও id।
+- **`UnionCombobox.tsx`:** নির্বাচিত উপজেলার ইউনিয়ন সাজেশন (≥ ৪৪px); লিখলে ছোট হয়; ↑↓/Enter/Esc (Enter ফর্ম সাবমিট করে না); নিজে লেখা চলে; তালিকায় না থাকলে **হলুদ সতর্কতা** + "কাছাকাছি:" পরামর্শ (সংরক্ষণ আটকায় না); **"+ মীরসরাই পৌরসভা" চিপ**; "করেরহাট ইউনিয়ন" লিখে ঘর ছাড়লে তালিকার বানান "করেরহাট"; তালিকাহীন উপজেলায় "নিজে লিখুন"; ইংরেজি মোডে "Korerhat (করেরহাট)", ডাটায় সবসময় বাংলা।
+- **শুধু-dev ডেমো পাতা** `src/dev/geo-demo.html` (+ `GeoDemo.tsx`, `geoDemoMain.tsx`) — `npm run dev` চালিয়ে `http://localhost:5173/src/dev/geo-demo.html`। প্রোডাকশন বিল্ডে নেই।
+- `i18n-check` IGNORE: `features/geo/data/` (bdGeo, ইউনিয়নের JSON), `geo/unions.ts` ("পৌরসভা" ডাটার শব্দ), `src/dev/`। `en.ts`: +৯টি লেখা (৭১১ = ৭১১)।
+- নতুন পরীক্ষা `scripts/geo-check.mjs` (`npm run geo-check`)।
+
+### ২. গুরুত্বপূর্ণ সিদ্ধান্ত ও কারণ
+- **ইউনিয়নের ঘর এখনো কোনো আসল ফর্মে নেই** — পরিকল্পনা অনুযায়ী রেকর্ড-ফর্মে `GeoSelect` (ইউনিয়নসহ) বসবে M-ধাপ ১০-এ। ঘর নির্মাণের লাইভ ফর্মে এই ধাপে হাত দেওয়া হয়নি। তাই পরীক্ষার জন্য শুধু-dev ডেমো পাতা।
+- **"৪,৫৪০টি ইউনিয়ন" (পরিকল্পনার পরীক্ষা) = উৎসের সংখ্যা;** ৩টি ডুপ্লিকেট বাদে ফাইলে **৪,৫৩৭**। একইভাবে "দেশে একাধিকবার" নাম উৎসে ৩২৭, ডুপ্লিকেট বাদে ৩২৪।
+- **ফাইলের সাথে সাথে sha256:** স্ক্রিপ্ট ইন্টারনেট থেকে নামায়, তাই উৎস বদলে গেলে (বা অন্য কিছু এলে) চুপচাপ নতুন ডাটা না ঢুকে থেমে যায়।
+- **বিভাগ/জেলা/উপজেলার মেলানো হুবহু আগের মতো** — ইউনিয়নের জন্য আলাদা নিয়ম (`mode: 'union'`); পুরনো আর নতুন `resolveGeo` ২৭,৫০৯টি ইনপুটে মিলিয়ে দেখা, পার্থক্য ০।
+- **পৌরসভা লিখলেও হলুদ সতর্কতা** (পরিকল্পনার পরীক্ষা অনুযায়ী) — তালিকায় পৌরসভা নেই; লেখা থাকে, সংরক্ষণ আটকায় না।
+- **ইউনিয়ন ফিল্টারের অপশন** (ডাটাবেসের `stats.by_union` থেকে) পাবলিক পাতার কাজ — M-ধাপ ১৩।
+
+### ৩. পরিচিত সমস্যা ও বাকি কাজ
+- ৫টি উপজেলার (গুইমারা, নলডাঙ্গা, ঈদগাঁও, মধ্যনগর, ডাসার) ইউনিয়ন-তালিকা নেই — অনুমান করে বানানো হয়নি; সেখানে নিজে লিখতে হবে (প্রশ্ন ১৭)।
+- উৎসের কিছু বাংলা নামে উৎসের নিজস্ব বানান (যেমন "জি,এম, হাট", "আবদুল্লাহ"/Abdullahpur) — যেমন আছে রাখা; ভুল জানা থাকলে `unionOverrides.json` এ `rename` দিয়ে ঠিক করা যায়।
+- ইম্পোর্টে ইউনিয়নের কলাম M-ধাপ ১১-এ (`resolveGeo` এর ৪র্থ স্তর তৈরি)।
+
+### ৪. আমাকে (ব্যবহারকারীকে) যা করতে হবে
+1. **`npm run dev` বন্ধ করে আবার চালু করুন** (ফাইল সরানো হয়েছে — পুরনো সার্ভার 404 দিতে পারে)।
+2. (ঐচ্ছিক) দেখতে চাইলে: `http://localhost:5173/src/dev/geo-demo.html` → চট্টগ্রাম → চট্টগ্রাম → মীরসরাই → ইউনিয়নের ঘরে চাপুন (১৬টি নাম); "+ মীরসরাই পৌরসভা" চাপুন (হলুদ সতর্কতা); উপরে "EN" করে দেখুন।
+3. **প্রশ্ন ১৭:** গুইমারা, নলডাঙ্গা, ঈদগাঁও, মধ্যনগর, ডাসার — এই ৫টি উপজেলার ইউনিয়নের **নিশ্চিত** তালিকা (বাংলা ও ইংরেজি নাম) থাকলে দিন; আমি `unionOverrides.json` এ যোগ করব। না থাকলে কিছু করার নেই।
+
+### ৫. কিভাবে টেস্ট করতে হবে
+| পরীক্ষা | ফল |
+|---|---|
+| গেট: `npx tsc -b`, `npm run lint` (০), `npm run build`, `npm run i18n-check` (৭১১ = ৭১১) | ✅ |
+| `npm run build-unions`: উৎস ৪,৫৪০টি ইউনিয়ন / ৪৯৪টি উপজেলা → ফল **৪,৫৩৭টি ইউনিয়ন, ৪৮৯/৪৯৪ উপজেলা**; NFC নয় ৯০৮, ফাঁকা ৪, অদৃশ্য অক্ষর ১, ডুপ্লিকেট ৩, ইংরেজি ঠিক ২; তালিকাহীন ৫টি; ৫২.৬ KB gzip; `--check` ✓ | ✅ |
+| `npm run geo-check` ৫৫/৫৫ — ডাটা (সংখ্যা, join, NFC, ডুপ্লিকেট, **মীরসরাই ১৬টি**), মেলানো ("করেরহাট ইউনিয়ন/ইউপি/Union/UP" → করেরহাট; "মীরসরাই পৌরসভা"/"ওয়ার্ড" মেলে না; অন্য উপজেলার নাম মেলে না; `resolveGeo` এর ৪র্থ স্তর ও আগের আচরণ), `gnUnion` (Korerhat, Mirsharai Municipality, একই নাম ভিন্ন পথে ভিন্ন ইংরেজি), **ব্রাউজারে**: পাতা খোলায় ডাটা নামে না, মীরসরাইতে ১৬টি সাজেশন (≥ ৪৪px), লিখলে ছোট হয়, ↓+Enter, বানান-সংশোধন, **"মীরসরাই পৌরসভা" লেখা যায় + হলুদ সতর্কতা**, চিপ, "কাছাকাছি:" পরামর্শ, উপজেলা বদলালে খালি, গুইমারায় নিজে লেখা, **ইংরেজি মোডে ইংরেজি নাম** ("Korerhat (করেরহাট)", ডাটায় বাংলা), ৩৯০px এ ওভারফ্লো নেই, কোনো page error নেই; **বিল্ড**: প্রোডাকশন বিল্ডে ইউনিয়নের ডাটা নেই, **মূল বান্ডল বাড়েনি** (২৭২,৮০৭ বাইট — M-ধাপ ৮ এর হুবহু, hash-ও এক), ডেমোসহ বিল্ডে **ইউনিয়ন আলাদা chunk এ** (`bd-unions-*.js`, ৫২.৬ KB gzip), শুধু lazy `import()` দিয়ে | ✅ |
+| `geoMatch` আগে বনাম পরে (`git show HEAD` এর পুরনো ফাইল): দেশের সব বিভাগ/জেলা/উপজেলা × বানান-ভিন্নতা — ২৭,৫০৯টি ইনপুট, পার্থক্য ০ | ✅ |
+| `npm run smoke` ১২৩/১২৩ ও `--legacy` ১২৩/১২৩; স্ক্রিনশট আগের মতো (৬৪/৭৪ হুবহু, বাকি ১০টি লগইন পেইজ — M-ধাপ ৬-এর পরিকল্পিত বদল) | ✅ |
+| `admin-ui-check` ৫৪/৫৪, `security-check` ৩৭/৩৭, `field-types-check` ৯৩/৯৩, `adapter-check` ২৫/২৫, `content-check` ✓ | ✅ |
+| চোখে দেখা: ডেমো পাতা বাংলা/ইংরেজি/৩৯০px (`.smoke/geo-demo*.png`) | ✅ |
+
+### ৬. পরের ধাপে কী করতে হবে
+- **M-ধাপ ১০** — জেনেরিক রেকর্ড ফর্ম (`GeoSelect` ইউনিয়নসহ, টাকার ঘর, শুধু-এডমিন অংশ), এডমিন রেকর্ড তালিকা, ক্যাটাগরির বানান এক করা আর CSV এক্সপোর্ট।
+- পেস্ট করুন: `M-ধাপ ১০ শুরু করো (পরিকল্পনা: docs/MULTI_PROJECT_PLAN.md)`

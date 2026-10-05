@@ -1,4 +1,4 @@
-import { BD_GEO, type GeoDistrict, type GeoDivision, type GeoUpazila } from '../data/bdGeo'
+import { BD_GEO, type GeoDistrict, type GeoDivision, type GeoUpazila } from './data/bdGeo'
 
 /**
  * বাংলা টেক্সট তুলনার আগে Unicode NFC নরমালাইজেশন।

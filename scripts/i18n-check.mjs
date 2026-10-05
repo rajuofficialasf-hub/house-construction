@@ -10,7 +10,9 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const SRC = path.join(ROOT, 'src')
 // এই ফাইল/ফোল্ডারে বাংলা লিটারেল UI লেখা নয় (ম্যাচিং ডেটা, ভূগোল, ব্যাকএন্ড)
 // src/backend: ব্যাকএন্ড স্তর (M-ধাপ ৪-এ features/housing/backend থেকে সরানো); fallbackProjects.ts এর নাম ডাটাবেসের লেখা (pick() দিয়ে দেখানো হয়)
-const IGNORE = [/[\\/]src[\\/]backend[\\/]/, /geoMatch\.ts$/, /fuzzyMatch\.ts$/, /transliterate\.ts$/, /bdGeo\.ts$/, /[\\/]i18n[\\/]en\.ts$/, /\.d\.ts$/]
+// features/geo/data: bdGeo.ts, bd-unions.json, unionOverrides.json (ভূগোলের নাম — gn()/gnUnion() দিয়ে দেখানো);
+// geo/unions.ts: "পৌরসভা" ডাটার শব্দ; src/dev: শুধু dev সার্ভারের পরীক্ষার পাতা (বিল্ডে নেই) — M-ধাপ ৯
+const IGNORE = [/[\\/]src[\\/]backend[\\/]/, /[\\/]features[\\/]geo[\\/]data[\\/]/, /[\\/]geo[\\/]unions\.ts$/, /[\\/]src[\\/]dev[\\/]/, /geoMatch\.ts$/, /fuzzyMatch\.ts$/, /transliterate\.ts$/, /[\\/]i18n[\\/]en\.ts$/, /\.d\.ts$/]
 const BN = /[ঀ-৿]/
 
 function walk(dir, out = []) {

@@ -1,0 +1,6 @@
+{
+  "_doc": "ইউনিয়ন-তালিকায় হাতে সংশোধন (scripts/build-unions.mjs মেশায়, তারপর npm run build-unions)। জেলা ও উপজেলার নাম bdGeo.ts এর হুবহু। add: {district, upazila, bn, en} — শুধু নিশ্চিত সরকারি তালিকা থেকে, অনুমান করে নয়। rename: {district, upazila, from, bn?, en?}। remove: {district, upazila, bn}।",
+  "add": [],
+  "rename": [],
+  "remove": []
+}

@@ -5,7 +5,7 @@ import { toBanglaNumber } from '@/lib/banglaNumber'
 import type { ProjectType } from '../../../backend/interfaces/types'
 import { useHousingYears } from '../hooks/useHousingYears'
 import { EMPTY_FILTERS, hasActiveFilters, MAX_SEARCH_LENGTH, type HousingFilters as Filters } from '../utils/filters'
-import { getDistricts, getDivisions, getUpazilas } from '../utils/geo'
+import { getDistricts, getDivisions, getUpazilas } from '@/features/geo/geo'
 
 interface Props {
   projectType: ProjectType

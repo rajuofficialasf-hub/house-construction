@@ -10,7 +10,7 @@ import {
   type PhotoKind,
   type ProjectType,
 } from '../../../backend/interfaces/types'
-import { getDistricts, getDivisions, getUpazilas, isValidGeo, nfc } from '../utils/geo'
+import { getDistricts, getDivisions, getUpazilas, isValidGeo, nfc } from '@/features/geo/geo'
 import { processImage } from '../utils/imageProcessing'
 import { useProject } from '@/features/projects/registry'
 import { revokeUploadItems, type UploadItem } from '../utils/uploadItems'

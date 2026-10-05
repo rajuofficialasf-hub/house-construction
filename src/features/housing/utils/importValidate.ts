@@ -1,7 +1,7 @@
 import { t as tr } from '@/i18n'
 import type { ImportField } from './importColumns'
-import { nfc } from './geo'
-import { resolveGeo, type ResolvedGeo } from './geoMatch'
+import { nfc } from '@/features/geo/geo'
+import { resolveGeo, type ResolvedGeo } from '@/features/geo/geoMatch'
 
 export type Mapping = (ImportField | null)[]
 
