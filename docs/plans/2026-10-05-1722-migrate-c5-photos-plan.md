@@ -255,7 +255,7 @@ From the roadmap and the C5 brief, not reopened here:
   - `global-setup.ts`'s rollback check passes (no leftovers).
 - **Done when:** `npm --prefix server test` passes from an empty `housing_test`, and `db:rollback` then `db:migrate` work on the dev database.
 - **Depends on:** none (can run in parallel with U1–U3)
-- **Status:** todo
+- **Status:** done
 
 ### U5. Photo processing pipeline
 - **Goal:** A multipart request becomes two stripped, resized WebP files in storage, or a contract error with nothing left behind.
@@ -418,6 +418,6 @@ From the roadmap and the C5 brief, not reopened here:
 ## Progress
 - **Branch:** `migrate/c5-photos`
 - **Updated:** 2026-10-05 18:05
-- **Next:** U4, write `server/db/migrations/0009_housing_files.sql` and `server/test/db/files.test.ts`
+- **Next:** U5, check install scripts for `busboy` and `sharp`, then write `server/test/photos/process.test.ts`
 - **Uncommitted:** none
 - **Notes:** The S3 client needs `throwOnRequestTimeout: true`; without it `requestTimeout` only logs a warning and the request hangs (the timeout test caught it). U1 also added `e2e/support/rest-env.ts` and the admin-rest API's storage env now, so `playwright.config.ts` keeps working with the new required config. A local `server/.env` (gitignored) needs `PUBLIC_API_URL`, `STORAGE_DRIVER` and `STORAGE_ROOT` added by hand. MinIO's images can't be pulled (Docker Hub repo gone, quay.io 401). The user chose no local S3: S3 tests run only with `TEST_S3_*`, in C6. Doc review 2026-10-05: kept tombstones + sweep; no activity row on a no-op photo delete; drain timeout 10 s and 2 concurrent decodes added.

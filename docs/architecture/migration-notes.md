@@ -54,6 +54,7 @@ The server's migrations are in `server/db/migrations/` and run with `npm --prefi
 | `08_reset_test_data.sql` | not ported | Tests reset with `resetTestData()` in `server/test/support/db.ts` |
 | `09_activity_log.sql` | `migrations/0005_activity_log.sql` | No row-level security or grants; admin check moved to the server; the actor comes from `app.actor_id` and `app.actor_email`, set per transaction by `withActor()` in `server/src/db.ts` |
 | none | `migrations/0006_app_role_grants.sql` | The runtime role `housing_app` writes only records and calls the functions; nothing is granted to `PUBLIC` |
+| none (Supabase Storage objects) | `migrations/0009_housing_files.sql` | One row per stored photo file: UUID key, driver, record slot; `deleted_at` marks a file still to be removed from storage. `housing_app` gets select, insert, update and delete |
 
 ## Working rules until cutover
 

@@ -17,8 +17,8 @@ export function ownerDb(): Sql {
  * state of a fresh install. TRUNCATE doesn't fire row triggers, so nothing is logged.
  */
 export async function resetTestData(owner: Sql): Promise<void> {
-  await owner`truncate public.housing_activity_log, public.housing_serial_changes, public.housing_beneficiaries,
-    public.housing_admin_sessions, public.housing_admins restart identity`;
+  await owner`truncate public.housing_activity_log, public.housing_serial_changes, public.housing_files,
+    public.housing_beneficiaries, public.housing_admin_sessions, public.housing_admins restart identity`;
   await owner`update public.housing_serial_counters set last_serial = 0`;
 }
 
