@@ -315,7 +315,7 @@ From the roadmap and the C3 brief, not reopened here:
   - `byId` encodes the id
 - **Done when:** `npm test -- rest` is green and `npm run build` typechecks.
 - **Depends on:** U4 (the endpoint shapes)
-- **Status:** todo
+- **Status:** done
 
 ### U8. Contract suite against the real server
 - **Goal:** Run the shared contract read suite through the REST adapter against `createApp` on `housing_test`.
@@ -374,6 +374,6 @@ Finally, the Chrome check from U9.
 ## Progress
 - **Branch:** `migrate/c3-read-endpoints`
 - **Updated:** 2026-10-05 14:10
-- **Next:** U7, `src/features/housing/backend/rest/housingApi.test.ts` first, then the read methods in `rest/index.ts`
+- **Next:** U8, `tests/contract/rest.contract.test.ts` and `scripts/contract-rest.mjs`
 - **Uncommitted:** none
-- **Notes:** `origin/main` had nothing new at start (no `supabase/sql` to port), so 0008 is free.
+- **Notes:** `origin/main` had nothing new at start (no `supabase/sql` to port), so 0008 is free. The REST adapter also cuts `q` to 100 characters (the server's limit), sorts serials before chunking so merged by-serials results stay in order (Supabase sorts per chunk only), and drops serials above int4.

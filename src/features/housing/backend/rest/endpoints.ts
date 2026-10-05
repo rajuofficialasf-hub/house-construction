@@ -6,6 +6,12 @@ import type { PhotoKind, ProjectType } from '../interfaces/types'
 
 const API = '/api/v1'
 
+/** `?a=1&b=2`, অথবা কিছু না থাকলে ফাঁকা */
+const withQuery = (path: string, query?: URLSearchParams) => {
+  const qs = query?.toString()
+  return qs ? `${path}?${qs}` : path
+}
+
 export const ENDPOINTS = {
   auth: {
     login: () => `${API}/auth/login`, // POST
@@ -13,11 +19,12 @@ export const ENDPOINTS = {
     me: () => `${API}/auth/me`, // GET
   },
   housing: {
-    list: () => `${API}/housing`, // GET (query: project_type, year, division, district, upazila, q, page, page_size, sort, order)
+    list: (query?: URLSearchParams) => withQuery(`${API}/housing`, query), // GET (query: project_type, serial_no, year, division, district, upazila, q, page, page_size, sort, order)
     create: () => `${API}/housing`, // POST
     bulk: () => `${API}/housing/bulk`, // POST (নতুন যোগ) / PUT (সিরিয়াল ধরে আপডেট)
-    stats: () => `${API}/housing/stats`, // GET ?project_type=
-    years: () => `${API}/housing/years`, // GET ?project_type=
+    stats: (query?: URLSearchParams) => withQuery(`${API}/housing/stats`, query), // GET ?project_type=
+    years: (query?: URLSearchParams) => withQuery(`${API}/housing/years`, query), // GET ?project_type=
+    filterOptions: (query?: URLSearchParams) => withQuery(`${API}/housing/filter-options`, query), // GET ?project_type=
     nextSerial: (projectType: ProjectType) => `${API}/housing/next-serial?project_type=${projectType}`, // GET
     serial: (id: string) => `${API}/housing/${encodeURIComponent(id)}/serial`, // POST { serial_no } (সিরিয়াল বদল)
     activity: () => `${API}/housing/activity`, // GET (এডমিন, ফিল্টার+পেজিনেশন) / POST { action, details, project_type } (ক্লায়েন্ট-ইভেন্ট)
