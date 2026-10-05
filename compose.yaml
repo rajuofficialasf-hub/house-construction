@@ -1,0 +1,24 @@
+# Local development only. Starts the PostgreSQL 17 that the housing API (server/) uses.
+# The port is bound to 127.0.0.1 so the database is never reachable from the network (DB-ROLE-03).
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_local}
+      HOUSING_OWNER_PASSWORD: ${HOUSING_OWNER_PASSWORD:-housing_owner_local}
+      HOUSING_APP_PASSWORD: ${HOUSING_APP_PASSWORD:-housing_app_local}
+    ports:
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    volumes:
+      - housing-db:/var/lib/postgresql/data
+      - ./server/db/roles.sql:/housing/roles.sql:ro
+      - ./server/db/docker-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d housing"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  housing-db:

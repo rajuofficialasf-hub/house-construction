@@ -20,6 +20,15 @@ npm run build-map -- --in gadm41_BGD_3.json   # উপজেলা মানচ�
 npm run i18n-check                # বাংলা UI লেখা বনাম src/i18n/en.ts ইংরেজি অভিধান — অনুপস্থিত অনুবাদ খোঁজে
 ```
 
+## নতুন সার্ভার (মাইগ্রেশন চলছে, প্রোডাকশনে এখনো Supabase)
+
+`server/` এ Express + PostgreSQL সার্ভার তৈরি হচ্ছে ([রোডম্যাপ](docs/plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md))। লোকাল ডাটাবেস চালাতে Docker লাগে:
+
+```bash
+docker compose up -d db           # PostgreSQL 17, শুধু 127.0.0.1:5432 এ; ডাটাবেস housing (ডেভ) ও housing_test (টেস্ট)
+docker compose down -v            # ডাটাবেস সম্পূর্ণ মুছে নতুন করে শুরু
+```
+
 ## রুট
 
 | পাথ | কী |

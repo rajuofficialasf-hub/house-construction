@@ -66,7 +66,7 @@ Every later chunk (login, reads, writes, photos) needs a running server and the 
 - **Tests:** manual. `docker compose up -d db`, then `psql` as `housing_app` and as `housing_owner` into both databases. A connection from a non-loopback address is refused.
 - **Done when:** a fresh clone gets a healthy database with `docker compose up -d db`, and the README says how.
 - **Depends on:** none
-- **Status:** todo
+- **Status:** done
 
 ### U2. Server package skeleton
 - **Goal:** The `server/` app starts with validated config, logs JSON, serves health routes and returns contract-shaped errors.
@@ -161,6 +161,6 @@ Every later chunk (login, reads, writes, photos) needs a running server and the 
 ## Progress
 - **Branch:** `migrate/c1-server-db`
 - **Updated:** 2026-10-05 12:20
-- **Next:** U1, write `compose.yaml` and `server/db/roles.sql`
+- **Next:** U2, create `server/package.json` and `server/src/config.ts`
 - **Uncommitted:** none
 - **Notes:** Local machine runs Node 26; code targets Node 22 (`ST-22`), so run the final test pass under Node 22 via nvm.
