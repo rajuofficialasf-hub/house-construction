@@ -105,7 +105,7 @@ From the roadmap and the C3 brief, not reopened here:
   - The result is ordered by `serial_no`; missing serials are left out.
   - The REST adapter keeps Supabase's `HousingApi` behavior: it drops non-integer or <1 values, dedupes, returns `[]` with no request when nothing is left, and chunks by 100.
 - **Stats, years, next-serial.** These call the ported functions `housing_stats`, `housing_years` and `housing_next_serial` (0003, 0002), which `housing_app` may already execute (0006). `project_type` is optional for stats and years and required for next-serial; an invalid value is a 400. The stats jsonb is returned as postgres.js parses it; no object is built from DB keys in JS (`NE-SEC-09`).
-- **Filter options (R3).** A new contract §4.6, `GET /housing/filter-options?project_type=` returns `{data:{years, divisions, districts, upazilas}}`:
+- **Filter options (R3).** A new contract §4.5গ (§4.6 is taken by create), `GET /housing/filter-options?project_type=` returns `{data:{years, divisions, districts, upazilas}}`:
   - One SQL statement with four `array(select distinct …)` subqueries.
   - `years` newest first.
   - Text lists sorted in Node with one module-level `new Intl.Collator('bn')`, matching the Supabase adapter's `localeCompare(a, b, 'bn')`, so the dropdowns read the same on both backends.
@@ -219,12 +219,12 @@ From the roadmap and the C3 brief, not reopened here:
 - **Approach:** Same as `server/src/routes/v1/auth.ts`: a `Router()` factory taking `{ sql }`, `schema.parse(req.query)` in async handlers. Express 5 sends rejections to `errorHandler`, which already maps `ZodError` to `VALIDATION_ERROR` with `details.field`. HTTP tests follow `server/test/http/auth.test.ts`: a fresh `createApp` per test, supertest.
 
   Contract v0.11 changes:
-  - §1: unknown params ignored, repeated params give 400, integers are decimal digits only; `openapi.json`; the route order list gains `filter-options`. (The CORS wording is U5's.)
+  - §1: unknown params ignored, repeated params give 400, integers are decimal digits only; the read rate limit; the route order list gains `filter-options`. (The CORS wording is U5's; the `openapi.json` line is U6's.)
   - §4.1: the full sort order; literal `%`, `_` and `\` in `q`; empty `q` ignored; out-of-range page or page_size gives 400 (the adapter clamps).
   - §4.2: a non-uuid id gives 400.
   - §4.3a: `nos` rules.
   - §4.4 and §4.5: invalid `project_type` gives 400.
-  - New §4.6: filter-options.
+  - New §4.5গ: filter-options.
   - Bump the version line.
 - **Tests:**
   - each route's happy path, with the body parsed by the U1 response schema
@@ -240,7 +240,7 @@ From the roadmap and the C3 brief, not reopened here:
   - `show statement_timeout` on a default `createDb` connection is `5s`
 - **Done when:** `npm --prefix server test` is green and `curl localhost:3001/api/v1/housing?page_size=5` returns seeded data in compose.
 - **Depends on:** U3
-- **Status:** todo
+- **Status:** done
 
 ### U5. Public-read CORS
 - **Goal:** Add `PUBLIC_READ_ORIGINS` and the CORS options delegate described in Technical decisions.
@@ -374,6 +374,6 @@ Finally, the Chrome check from U9.
 ## Progress
 - **Branch:** `migrate/c3-read-endpoints`
 - **Updated:** 2026-10-05 14:10
-- **Next:** U4, `server/test/http/housing-reads.test.ts` first, then `server/src/routes/v1/housing.ts`, the statement timeout in `db.ts`, contract v0.11
+- **Next:** U5, config `PUBLIC_READ_ORIGINS` tests in `server/src/config.test.ts`, then the CORS delegate in `app.ts`
 - **Uncommitted:** none
 - **Notes:** `origin/main` had nothing new at start (no `supabase/sql` to port), so 0008 is free.

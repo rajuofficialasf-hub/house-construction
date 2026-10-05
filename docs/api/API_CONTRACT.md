@@ -1,7 +1,7 @@
 # ঘর নির্মাণ প্রকল্প — REST API চুক্তি (API_CONTRACT.md)
 
 > নিজস্ব সার্ভারের ডেভেলপারের জন্য। ফ্রন্টএন্ডের `rest` অ্যাডাপ্টার (`src/features/housing/backend/rest/`) ঠিক এই চুক্তি অনুযায়ী কল করবে।
-> সংস্করণ: ০.১০ — সর্বশেষ আপডেট: ২০২৬-১০-০৫
+> সংস্করণ: ০.১১ — সর্বশেষ আপডেট: ২০২৬-১০-০৫
 > সার্ভারের প্রযুক্তি (ভাষা/ফ্রেমওয়ার্ক/DB) অনির্ধারিত; এই চুক্তি প্রযুক্তি-নিরপেক্ষ। "TBD" অংশ এখনো চূড়ান্ত নয়।
 
 ---
@@ -12,7 +12,9 @@
 - **ফরম্যাট:** JSON, `Content-Type: application/json; charset=utf-8`। ছবি আপলোডে `multipart/form-data`।
 - **এনকোডিং:** UTF-8 (বাংলা টেক্সট)। সংখ্যা JSON number, তারিখ ISO 8601 UTC (`2026-09-29T10:15:00Z`)।
 - **অনুমতি:** পড়া (সব GET) সবার জন্য উন্মুক্ত, টোকেন লাগে না। লেখা (POST/PUT/DELETE) শুধু এডমিন। **অনুমতি সার্ভারে যাচাই হবে**; ফ্রন্টএন্ডের উপর ভরসা নয়।
-- **রাউট ক্রম:** `/api/housing/stats`, `/api/housing/years`, `/api/housing/bulk`, `/api/housing/:project_type/serial/:serial_no` অবশ্যই `/api/housing/:id` এর **আগে** ম্যাচ করতে হবে।
+- **রাউট ক্রম:** `/api/housing/stats`, `/api/housing/years`, `/api/housing/filter-options`, `/api/housing/next-serial`, `/api/housing/activity`, `/api/housing/bulk`, `/api/housing/:project_type/serial/:serial_no` অবশ্যই `/api/housing/:id` এর **আগে** ম্যাচ করতে হবে। `:id` uuid না হলে `400`, তাই ভুল ক্রমের রাউট চুপচাপ ভুল ডাটা দেয় না।
+- **Query প্যারামিটার:** অজানা প্যারাম উপেক্ষা করা হয়। একই প্যারাম দুবার দিলে (`?year=2023&year=2024`) `400`। পূর্ণসংখ্যা শুধু দশমিক অঙ্কে (`1e3`, `0x10`, `1.0`, ফাঁকা → `400`), সর্বোচ্চ 2147483647। টেক্সট ফিল্টার trim ও NFC করা হয়; ফাঁকা মান = না দেওয়া।
+- **Rate limit (পড়া):** `/api/housing` এর GET গুলোতে প্রতি IP মিনিটে ৩০০টি; তারপর `429 RATE_LIMITED`।
 - **CORS:** শুধু সার্ভার কনফিগের `ALLOWED_ORIGINS` তালিকার origin, হুবহু মিলিয়ে, credentials সহ (`*` কখনো নয়)।
 - **Origin যাচাই (CSRF):** POST/PUT/PATCH/DELETE অনুরোধে `Origin` হেডার না থাকলে বা তালিকায় না থাকলে `403 FORBIDDEN`। ব্রাউজার নিজেই হেডারটি পাঠায়; ব্রাউজার ছাড়া অন্য ক্লায়েন্টকে (যেমন কন্ট্রাক্ট টেস্ট) এটি দিতে হবে।
 - **Rate limit:** লগইনে প্রতি IP ১৫ মিনিটে ১০টি ব্যর্থ চেষ্টা; তারপর `429 RATE_LIMITED`, সঠিক পাসওয়ার্ড হলেও।
@@ -138,6 +140,7 @@
 | GET | `/api/housing/stats` | পাবলিক | `stats` |
 | GET | `/api/housing/years` | পাবলিক | `years` |
 | GET | `/api/housing/next-serial?project_type=` | পাবলিক | `nextSerial` |
+| GET | `/api/housing/filter-options?project_type=` | পাবলিক | `filterOptions` |
 | POST | `/api/housing/:id/serial` | এডমিন | `changeSerial` |
 | GET | `/api/housing/:project_type/serial/:serial_no` | পাবলিক | `getBySerial` |
 | GET | `/api/housing/:project_type/serials?nos=1,2,3` | পাবলিক | `getBySerials` |
@@ -158,16 +161,16 @@ Query প্যারামিটার (সব ঐচ্ছিক):
 | প্যারাম | টাইপ | নিয়ম |
 |---|---|---|
 | `project_type` | `semi_pucca` \| `tin` | না দিলে দুই প্রকল্পই |
-| `serial_no` | int ≥ 1 | ঠিক মিল (এডমিন খোঁজা); দিলে `q` উপেক্ষা করা যায় |
-| `year` | int | ঠিক মিল |
+| `serial_no` | int ≥ 1 | ঠিক মিল (এডমিন খোঁজা); `q` দিলে দুটোই প্রযোজ্য |
+| `year` | int ২০০০–২১০০ | ঠিক মিল |
 | `division`, `district`, `upazila` | string | ঠিক মিল (case-sensitive, বাংলা) |
-| `q` | string | `name`, `father_or_husband_name`, `address` এ আংশিক মিল (case-insensitive, `ILIKE '%q%'`); ≤ ১০০ অক্ষর |
+| `q` | string | `name`, `father_or_husband_name`, `address` এ আংশিক মিল (case-insensitive, `ILIKE '%q%'`); trim ও NFC করে ≤ ১০০ অক্ষর; ফাঁকা হলে খোঁজা হয় না। `%`, `_`, `\` আক্ষরিক অর্থে মেলে (wildcard নয়) |
 | `page` | int ≥ 1 | ডিফল্ট 1 |
 | `page_size` | int 1–100 | ডিফল্ট **50** |
-| `sort` | `serial_no` \| `year` \| `name` \| `created_at` | ডিফল্ট `serial_no`; দ্বিতীয় ক্রম সবসময় `serial_no asc` |
+| `sort` | `serial_no` \| `year` \| `name` \| `created_at` | ডিফল্ট `serial_no`; পরের ক্রম সবসময় `serial_no asc, project_type asc, id asc` (দুই প্রকল্পে একই সিরিয়াল থাকে, তাই পেইজ কখনো ওভারল্যাপ বা বাদ পড়ে না) |
 | `order` | `asc` \| `desc` | ডিফল্ট `asc` |
 
-অবৈধ মান → `400`।
+অবৈধ মান → `400` (যেমন `page_size=101` বা `0`; সার্ভার clamp করে না — ফ্রন্টএন্ড অ্যাডাপ্টার পাঠানোর আগে ১–১০০ এ সীমিত করে)। শেষ পেইজের পরের পেইজ → `data: []`, আসল `total` সহ।
 
 ```json
 // GET /api/housing?project_type=semi_pucca&division=রংপুর&page=1&page_size=50
@@ -179,16 +182,16 @@ Query প্যারামিটার (সব ঐচ্ছিক):
 `total` = ফিল্টারের পর মোট সারি (পেইজ নয়)। খালি হলে `data: []`, `total_pages: 1`।
 
 ### ৪.২ GET `/api/housing/:id`
-→ `{ "data": Beneficiary }`; নেই → `404`।
+`id` uuid না হলে `400`। → `{ "data": Beneficiary }`; নেই → `404`।
 
 ### ৪.৩ GET `/api/housing/:project_type/serial/:serial_no`
 `serial_no` int ≥ 1, `project_type` বৈধ না হলে `400`। → `{ "data": Beneficiary }`; নেই → `404`।
 
 ### ৪.৩ক GET `/api/housing/:project_type/serials?nos=1,2,3`
-একসাথে অনেক সিরিয়ালের রেকর্ড (ছবি বাল্ক আপডেটে ফাইলনাম মিলাতে)। `nos` কমা-বিভক্ত int, সর্বোচ্চ ১০০ (বেশি হলে `400`); ফ্রন্টএন্ড ১০০ করে ভাগ করে পাঠায়। উত্তর `{ "data": [Beneficiary, …] }` `serial_no` ক্রমে; যেগুলো নেই সেগুলো বাদ (এরর নয়)।
+একসাথে অনেক সিরিয়ালের রেকর্ড (ছবি বাল্ক আপডেটে ফাইলনাম মিলাতে)। `nos` কমা-বিভক্ত int ≥ 1, ১–১০০টি; ফাঁকা, অ-সংখ্যা, খালি অংশ (`1,,2`) বা ১০০ এর বেশি → `400`। পুনরাবৃত্তি চলে (একবারই আসে)। ফ্রন্টএন্ড অবৈধ মান বাদ দিয়ে ১০০ করে ভাগ করে পাঠায়। উত্তর `{ "data": [Beneficiary, …] }` `serial_no` ক্রমে; যেগুলো নেই সেগুলো বাদ (এরর নয়)।
 
 ### ৪.৪ GET `/api/housing/stats?project_type=`
-`project_type` না দিলে দুই প্রকল্প মিলিয়ে। সব সংখ্যা int।
+`project_type` না দিলে দুই প্রকল্প মিলিয়ে; অবৈধ হলে `400`। সব সংখ্যা int।
 ```json
 { "data": {
     "total": 1500,
@@ -209,13 +212,25 @@ Query প্যারামিটার (সব ঐচ্ছিক):
 ```json
 { "data": [2025, 2024, 2023] }
 ```
-নতুন থেকে পুরনো। ডাটা না থাকলে `[]`।
+নতুন থেকে পুরনো। ডাটা না থাকলে `[]`। অবৈধ `project_type` → `400`।
 
 ### ৪.৫ক GET `/api/housing/next-serial?project_type=`
 ```json
 { "data": { "project_type": "tin", "next_serial": 301 } }
 ```
-পরবর্তী স্বয়ংক্রিয় সিরিয়ালের **পূর্বাভাস** (কাউন্টার + ১); প্রকৃত বরাদ্দ POST এ atomic ভাবে হয় (একই সময়ে দুজন যোগ করলে একজন 302 পাবে)। `project_type` আবশ্যক।
+পরবর্তী স্বয়ংক্রিয় সিরিয়ালের **পূর্বাভাস** (কাউন্টার + ১); প্রকৃত বরাদ্দ POST এ atomic ভাবে হয় (একই সময়ে দুজন যোগ করলে একজন 302 পাবে)। `project_type` আবশ্যক; না দিলে বা অবৈধ হলে `400`।
+
+### ৪.৫গ GET `/api/housing/filter-options?project_type=`
+ফিল্টার ড্রপডাউনের জন্য ডাটাবেসে থাকা বছর ও স্থান। `project_type` ঐচ্ছিক; অবৈধ হলে `400`।
+```json
+{ "data": {
+    "years": [2025, 2024, 2023],
+    "divisions": ["খুলনা", "ঢাকা", "রংপুর"],
+    "districts": ["কুড়িগ্রাম", "গাজীপুর"],
+    "upazilas":  ["উলিপুর", "সদর"]
+} }
+```
+`years` নতুন থেকে পুরনো; বাকিগুলো distinct, বাংলা বর্ণানুক্রমে (`Intl.Collator('bn')`)। `upazilas` শুধু নাম (একই নাম একবার)। ডাটা না থাকলে সব `[]`।
 
 ### ৪.৫খ POST `/api/housing/:id/serial` — সিরিয়াল বদল (এডমিন, বিশেষ)
 ```json
@@ -342,6 +357,7 @@ body: ৩.৩ এর ফিল্ডের যেকোনো উপসেট (�
 | ২০২৬-০৯-২৯ | ০.৮ | `PUT /api/housing/bulk` — সিরিয়াল ধরে বাল্ক আপডেট (ইম্পোর্টের আপডেট মোড) |
 | ২০২৬-০৯-৩০ | ০.৯ | একটিভিটি লগ: `GET/POST /api/housing/activity`; সার্ভার-সাইড লগিং বাধ্যতামূলক; `stats.by_location` (মানচিত্র) |
 | ২০২৬-০৯-২৯ | ০.৮ (চূড়ান্ত পর্যালোচনা) | ফ্রন্টএন্ড ধাপ ০–১২ সম্পন্ন; এই চুক্তি ফ্রন্টএন্ডের REST অ্যাডাপ্টার (`rest/endpoints.ts`, `rest/http.ts`, `rest/authProvider.ts`) ও Supabase বাস্তবায়নের সাথে সঙ্গতিপূর্ণ। ধাপ ১৩ (সার্ভার) শুরুর আগে §৭ এর TBD গুলো ঠিক করতে হবে |
+| ২০২৬-১০-০৫ | ০.১১ | পড়ার নিয়ম চূড়ান্ত (নিজস্ব সার্ভার, C3): `GET /filter-options`; query নিয়ম (অজানা উপেক্ষা, পুনরাবৃত্তি `400`, শুধু দশমিক পূর্ণসংখ্যা); তালিকার পূর্ণ ক্রম; `q` তে `%`/`_` আক্ষরিক; পরিসীমার বাইরে `page_size` `400` (অ্যাডাপ্টার clamp করে); অ-uuid `id`, `nos`, `project_type` এর `400`; পড়ায় rate limit |
 | ২০২৬-১০-০৫ | ০.১০ | অথ চূড়ান্ত: HttpOnly কুকি সেশন (JWT ও `access_token` বাদ), মেয়াদ ৮ ঘণ্টা নিষ্ক্রিয়তা / ৭ দিন সর্বোচ্চ, লগআউট সবসময় `204`, এডমিন শুধু CLI দিয়ে; সব পাথ `/api/v1` এর নিচে; CORS তালিকা ও Origin যাচাই; লগইন rate limit ও `429 RATE_LIMITED` |
 
 ## ৭. খোলা প্রশ্ন (TBD)

@@ -3,12 +3,22 @@ import postgres from 'postgres';
 export type Sql = postgres.Sql;
 export type Tx = postgres.TransactionSql;
 
-/** Opens a connection pool. Create one per process and share it (DB-Q-06). */
-export function createDb(url: string): Sql {
+export interface DbOptions {
+  /** Longest a statement may run before Postgres cancels it. */
+  statementTimeoutMs?: number;
+}
+
+/**
+ * Opens a connection pool. Create one per process and share it (DB-Q-06). The statement timeout
+ * keeps a flood of slow public searches from holding every connection, which would also stall
+ * admin login. A cancelled query reaches the error handler as a generic 500.
+ */
+export function createDb(url: string, { statementTimeoutMs = 5000 }: DbOptions = {}): Sql {
   return postgres(url, {
     max: 10,
     connect_timeout: 5,
     idle_timeout: 30,
+    connection: { statement_timeout: statementTimeoutMs },
     onnotice: () => {},
   });
 }

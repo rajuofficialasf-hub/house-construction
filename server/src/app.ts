@@ -11,6 +11,7 @@ import { errorHandler, notFoundHandler } from './errors.js';
 import { originCheck } from './http/origin.js';
 import { authRouter } from './routes/v1/auth.js';
 import { healthRouter } from './routes/v1/health.js';
+import { housingReadRouter, type ReadRateLimit } from './routes/v1/housing.js';
 
 export interface AppDeps {
   sql: Sql;
@@ -23,10 +24,12 @@ export interface AppDeps {
   cookieSecure: boolean;
   /** The clock for session timeouts; tests pass their own. */
   now?: () => Date;
+  /** Per-IP cap on the public housing reads; tests pass a small one. */
+  readRateLimit?: ReadRateLimit;
 }
 
 /** Builds the Express app without listening, so tests run the real middleware chain. */
-export function createApp({ sql, logger, trustProxy, allowedOrigins, cookieSecure, now = () => new Date() }: AppDeps): Express {
+export function createApp({ sql, logger, trustProxy, allowedOrigins, cookieSecure, now = () => new Date(), readRateLimit }: AppDeps): Express {
   const cookie = sessionCookie(cookieSecure);
   const app = express();
   app.disable('x-powered-by');
@@ -52,6 +55,7 @@ export function createApp({ sql, logger, trustProxy, allowedOrigins, cookieSecur
 
   app.use('/api/v1', healthRouter(sql));
   app.use('/api/v1/auth', authRouter({ sql, now }, cookie));
+  app.use('/api/v1/housing', housingReadRouter(sql, readRateLimit));
 
   app.use(notFoundHandler);
   app.use(errorHandler);
