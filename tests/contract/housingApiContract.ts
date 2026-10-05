@@ -32,8 +32,10 @@ async function code(p: Promise<unknown>): Promise<string> {
   }
 }
 
-// ছবি সবসময় WebP হয়ে আসে (utils/photoSpec); Supabase Storage টাইপহীন ফাইল নেয় না
-const webp = (bytes: BlobPart) => new Blob([bytes], { type: 'image/webp' })
+// ছবি সবসময় WebP হয়ে আসে (utils/photoSpec); Supabase Storage টাইপহীন ফাইল নেয় না। নিজস্ব সার্ভার ছবি ডিকোড করে,
+// তাই আসল একটি ২×২ WebP; অতিরিক্ত অংশ দিলে তা পেছনে জোড়া হয় (বড় ফাইলের টেস্টে)।
+const TINY_WEBP = Uint8Array.from(atob('UklGRiQAAABXRUJQVlA4IBgAAABQAQCdASoCAAIAAUAmJaQABYwAAP6igAA='), (c) => c.charCodeAt(0))
+const webp = (...extra: BlobPart[]) => new Blob([TINY_WEBP, ...extra], { type: 'image/webp' })
 
 const sum = (o: Record<string, number>) => Object.values(o).reduce((a, b) => a + b, 0)
 
@@ -43,6 +45,7 @@ const sum = (o: Record<string, number>) => Object.values(o).reduce((a, b) => a +
  */
 export function runHousingApiContract(label: string, makeHarness: () => Promise<ContractHarness> | ContractHarness, opts: ContractOptions): void {
   const gaps = new Set(opts.knownGaps ?? [])
+  const serialPhotoPaths = (opts.photoPaths ?? 'serial') === 'serial'
   const matched = new Set<string>()
   const test = (name: string, fn: () => Promise<void>) => {
     if (!gaps.has(name)) return vitestTest(name, fn)
@@ -212,7 +215,7 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
       const before = (await h.api.list({ page_size: 1 })).meta.total
       const some = (await h.api.list({ page_size: 1 })).data[0]
       const id = some?.id ?? MISSING_ID
-      const files = { photo: webp('x'), thumb: webp('x') }
+      const files = { photo: webp(), thumb: webp() }
       // code() is attached to every call at once, so a backend that rejects them all leaves none unhandled
       const codes = [
         h.api.create(input()),
@@ -365,15 +368,21 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
         expect(await code(h.api.changeSerial(MISSING_ID, 5_000))).toBe('NOT_FOUND')
       })
 
-      test('changeSerial carries photos to the new serial path', async () => {
+      test("changeSerial keeps the record's photos", async () => {
         const rec = await h.api.create(input())
-        const withPhoto = await h.api.uploadPhoto(rec.id, 'prev', { photo: webp('p'), thumb: webp('t') })
+        const withPhoto = await h.api.uploadPhoto(rec.id, 'prev', { photo: webp(), thumb: webp() })
         const target = rec.serial_no + 30
         const moved = await h.api.changeSerial(rec.id, target)
-        const padded = String(target).padStart(4, '0')
-        expect(withPhoto.prev_photo_url).toContain(String(rec.serial_no).padStart(4, '0'))
-        expect(moved.prev_photo_url).toContain(`/${padded}/prev.webp`)
-        expect(moved.prev_thumb_url).toContain(`/${padded}/prev_thumb.webp`)
+        expect(moved.prev_photo_url).not.toBeNull()
+        expect(moved.prev_thumb_url).not.toBeNull()
+        if (serialPhotoPaths) {
+          const padded = String(target).padStart(4, '0')
+          expect(withPhoto.prev_photo_url).toContain(String(rec.serial_no).padStart(4, '0'))
+          expect(moved.prev_photo_url).toContain(`/${padded}/prev.webp`)
+          expect(moved.prev_thumb_url).toContain(`/${padded}/prev_thumb.webp`)
+        } else {
+          expect([moved.prev_photo_url, moved.prev_thumb_url]).toEqual([withPhoto.prev_photo_url, withPhoto.prev_thumb_url])
+        }
       })
     })
 
@@ -441,16 +450,26 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
       beforeEach(async () => {
         await loginAdmin()
       })
-      const files = () => ({ photo: webp('p'), thumb: webp('t') })
+      const files = () => ({ photo: webp(), thumb: webp() })
 
-      test('uploadPhoto sets the serial-based urls and the timestamp; deletePhoto clears them and is idempotent', async () => {
+      test('uploadPhoto sets the photo urls and the timestamp; deletePhoto clears them and is idempotent', async () => {
         const rec = await h.api.create(input())
         const up1 = await h.api.uploadPhoto(rec.id, 'current', files())
-        const padded = String(rec.serial_no).padStart(4, '0')
-        expect(up1.current_photo_url).toContain(`/${padded}/current.webp`)
-        expect(up1.current_thumb_url).toContain(`/${padded}/current_thumb.webp`)
+        expect(up1.current_photo_url).not.toBeNull()
+        expect(up1.current_thumb_url).not.toBeNull()
         expect(up1.photo_updated_at).not.toBeNull()
         expect(up1.prev_photo_url).toBeNull()
+        const up2 = await h.api.uploadPhoto(rec.id, 'current', files())
+        if (serialPhotoPaths) {
+          // একই পাথে ওভাররাইট; ব্রাউজারের ক্যাশ ভাঙে photo_updated_at (?v=)
+          const padded = String(rec.serial_no).padStart(4, '0')
+          expect(up1.current_photo_url).toContain(`/${padded}/current.webp`)
+          expect(up1.current_thumb_url).toContain(`/${padded}/current_thumb.webp`)
+          expect(up2.current_photo_url).toBe(up1.current_photo_url)
+        } else {
+          expect(up2.current_photo_url).not.toBe(up1.current_photo_url)
+          expect(up2.current_thumb_url).not.toBe(up1.current_thumb_url)
+        }
         const del = await h.api.deletePhoto(rec.id, 'current')
         expect([del.current_photo_url, del.current_thumb_url]).toEqual([null, null])
         expect((await h.api.deletePhoto(rec.id, 'current')).current_photo_url).toBeNull()
@@ -458,7 +477,7 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
 
       test('an over-size photo is too large; an unknown record is not found', async () => {
         const rec = await h.api.create(input())
-        const big = { photo: webp(new Uint8Array(6 * 1024 * 1024)), thumb: webp('t') }
+        const big = { photo: webp(new Uint8Array(6 * 1024 * 1024)), thumb: webp() }
         expect(await code(h.api.uploadPhoto(rec.id, 'prev', big))).toBe('PAYLOAD_TOO_LARGE')
         expect(await code(h.api.uploadPhoto(MISSING_ID, 'prev', files()))).toBe('NOT_FOUND')
       })

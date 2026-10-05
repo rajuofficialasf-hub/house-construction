@@ -75,8 +75,6 @@ export default defineConfig({
           {
             name: 'admin-rest',
             testDir: './e2e/mock',
-            // The server has no photo routes until C5 (docs/plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md).
-            testIgnore: ['photo-*.spec.ts'],
             use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${ADMIN_REST_PORT}` },
           },
         ]

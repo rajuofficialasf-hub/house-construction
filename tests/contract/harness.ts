@@ -37,4 +37,10 @@ export interface ContractOptions {
    * API_CONTRACT §২), তাই সেই দুই টেস্ট skip হয়; harness এ nonAdmin/forceNonAdminSession লাগে না। ডিফল্ট true।
    */
   nonAdminAccounts?: boolean
+  /**
+   * ছবির URL এর ধরন। 'serial' (ডিফল্ট; মক ও Supabase): URL এ সিরিয়াল-ভিত্তিক পাথ, একই পাথে ওভাররাইট, সিরিয়াল বদলে
+   * পাথ বদলায়। 'opaque' (নিজস্ব সার্ভার): URL এ সিরিয়াল নেই, প্রতিটি আপলোডে নতুন URL, সিরিয়াল বদলে URL অপরিবর্তিত
+   * (API_CONTRACT §৩.২)।
+   */
+  photoPaths?: 'serial' | 'opaque'
 }

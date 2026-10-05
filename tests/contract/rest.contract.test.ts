@@ -12,7 +12,7 @@ import { createRestAuthProvider, createRestHousingApi } from '../../src/features
 import { runHousingApiContract } from './housingApiContract'
 import { cookieJarFetch } from './cookieJarFetch'
 import type { ContractHarness } from './harness'
-import { testPhotoDeps } from '../../server/test/support/storage'
+import { TEST_PUBLIC_API_URL, testStorage } from '../../server/test/support/storage'
 
 // The full contract through the REST adapter against the real Express app on the local housing_test
 // database, reset to server/db/seed/dev.sql plus one admin before every test. The server/test/support
@@ -23,15 +23,6 @@ import { testPhotoDeps } from '../../server/test/support/storage'
 const enabled = process.env.REST_CONTRACT === '1'
 const seedFile = fileURLToPath(new URL('../../server/db/seed/dev.sql', import.meta.url))
 
-// The server has no photo routes until C5, so these photo tests fail for now.
-// TODO: docs/plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md - C5 adds the photo routes; remove these then
-const KNOWN_GAPS = [
-  'changeSerial carries photos to the new serial path',
-  'uploadPhoto sets the serial-based urls and the timestamp; deletePhoto clears them and is idempotent',
-  'an over-size photo is too large; an unknown record is not found',
-  // It uploads a photo; 'create, update and delete are logged newest first…' covers the log through the adapter meanwhile.
-  'every write is logged with before and after values, newest first, and filterable',
-]
 const ADMIN = { email: 'contract-admin@example.org', password: 'contract admin password' }
 
 if (!enabled) {
@@ -45,12 +36,16 @@ if (!enabled) {
   let baseUrl = ''
   let passwordHash = ''
   const jar = cookieJarFetch(SITE)
+  // Photos go to a NAS driver on a temp folder, removed after the run.
+  const photos = testStorage()
 
   beforeAll(async () => {
     vi.stubGlobal('fetch', jar.fetch)
     passwordHash = await hashPassword(ADMIN.password)
-    const app = createApp({ ...testPhotoDeps(),
+    const app = createApp({
       sql,
+      storage: photos.storage,
+      publicApiUrl: TEST_PUBLIC_API_URL,
       logger: createLogger('silent'),
       trustProxy: 0,
       allowedOrigins: [SITE],
@@ -67,6 +62,7 @@ if (!enabled) {
     vi.unstubAllGlobals()
     server?.close()
     await Promise.all([sql.end(), owner.end()])
+    await photos.cleanup()
   })
 
   async function makeRest(): Promise<ContractHarness> {
@@ -81,6 +77,6 @@ if (!enabled) {
     writes: true,
     seeded: true,
     nonAdminAccounts: false,
-    knownGaps: KNOWN_GAPS,
+    photoPaths: 'opaque',
   })
 }

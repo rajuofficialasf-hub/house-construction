@@ -3,9 +3,13 @@
 // Migrates housing_test first; each test resets it to the mock seed. Don't run this alongside the server
 // tests or `npm run test:contract:rest`: all three reset housing_test.
 import { spawnSync } from 'node:child_process'
+import { rmSync } from 'node:fs'
 import { migrateTestDb } from './lib/migrate-test-db.mjs'
 
 migrateTestDb('e2e:rest-admin')
+// Photos from earlier runs are unreferenced after the reset; start each run with an empty folder.
+// The path matches E2E_STORAGE_ROOT in e2e/support/rest-env.ts.
+rmSync(new URL('../.storage/e2e', import.meta.url), { recursive: true, force: true })
 
 const r = spawnSync('npx', ['playwright', 'test', '--project=admin-rest', ...process.argv.slice(2)], {
   stdio: 'inherit',

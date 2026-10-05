@@ -16,7 +16,7 @@ test.describe('single record photos', () => {
     await expect(row).toHaveAccessibleName(/বর্তমান \(ছবি নেই\)/)
   })
 
-  test('replacing an existing photo keeps the record on the same photo path', async ({ page }) => {
+  test('replacing an existing photo shows the new one', async ({ page }) => {
     await loginAsAdmin(page, '/housing/admin/semi-pucca/1/edit')
     const before = await page.getByRole('img', { name: 'পূর্বের ঘরের ছবি (বর্তমানে সংরক্ষিত)' }).getAttribute('src')
     await page.getByRole('group', { name: 'পূর্বের ঘরের ছবি' }).locator('input[type=file]').setInputFiles(png('new-before.png'))
@@ -24,8 +24,8 @@ test.describe('single record photos', () => {
     await expect(page).toHaveURL(/\/housing\/admin\/semi-pucca$/)
     await page.goto('/housing/admin/semi-pucca/1/edit')
     const after = await page.getByRole('img', { name: 'পূর্বের ঘরের ছবি (বর্তমানে সংরক্ষিত)' }).getAttribute('src')
-    // same storage path (overwrite), but a new cache-busting version after the upload
-    expect(after?.split('?')[0]).toBe(before?.split('?')[0])
+    // A new src: the mock overwrites in place with a new ?v=, the server gives the photo a new URL.
+    expect(after).toBeTruthy()
     expect(after).not.toBe(before)
   })
 

@@ -1,8 +1,7 @@
 /**
  * REST অ্যাডাপ্টার — নিজস্ব সার্ভারের সাথে docs/api/API_CONTRACT.md অনুযায়ী (পাথ: ./endpoints.ts, helper: ./http.ts)।
- * AuthProvider ও HousingApi সম্পূর্ণ। ছবির রাউট সার্ভারে আসবে
- * docs/plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md এর C5 এ; তার আগে uploadPhoto/deletePhoto
- * সার্ভার থেকে লগইন ছাড়া 401, লগইনসহ 404 পায়।
+ * AuthProvider ও HousingApi সম্পূর্ণ, ছবিসহ: uploadPhoto/deletePhoto সার্ভারের ছবির রাউট ডাকে, আর রেকর্ডের ছবির URL
+ * সার্ভারের দেওয়া (`/api/v1/photos/:id`), তাই এখানে কোনো পাথ বা URL গণনা নেই।
  */
 import type { HousingApi } from '../interfaces/housingApi'
 import type { ImageStorage } from '../interfaces/imageStorage'
@@ -151,8 +150,9 @@ export function createRestHousingApi(baseUrl: string): HousingApi {
 }
 
 /**
- * REST মোডে ছবি রাখা/মোছা HousingApi.uploadPhoto/deletePhoto এর endpoint দিয়ে হয়;
- * এই ইন্টারফেস শুধু URL গণনার জন্য থাকবে (publicUrl/pathFromUrl)।
+ * REST মোডে ImageStorage লাগে না: ছবি রাখা/মোছা HousingApi.uploadPhoto/deletePhoto দিয়ে, URL দেয় সার্ভার, আর UI
+ * কখনো getImageStorage ডাকে না। ইন্টারফেসটি Supabase অ্যাডাপ্টারের জন্য; Supabase সরানোর সময় (রোডম্যাপ C8,
+ * docs/plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md) এই স্টাবও যাবে।
  */
 export function createRestImageStorage(_baseUrl: string): ImageStorage {
   return {
