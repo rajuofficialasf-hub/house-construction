@@ -5,6 +5,7 @@ import { Transform, type Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import sharp from 'sharp';
 import { AppError } from '../errors.js';
+import { photoKind, type PhotoKind } from '../housing/schemas.js';
 import type { StorageDriver } from '../storage/index.js';
 import { imageGate, UnsupportedImageError } from './sniff.js';
 
@@ -18,8 +19,7 @@ import { imageGate, UnsupportedImageError } from './sniff.js';
  * Design: docs/plans/2026-10-05-1722-migrate-c5-photos-plan.md.
  */
 
-export const PHOTO_KINDS = ['prev', 'current'] as const;
-export type PhotoKind = (typeof PHOTO_KINDS)[number];
+export type { PhotoKind };
 export type PhotoVariant = 'photo' | 'thumb';
 
 export interface StoredPhotoFile {
@@ -257,10 +257,11 @@ export function createPhotoReceiver(options: PhotoReceiverOptions): (req: Incomi
         void Promise.allSettled([stored]).then(([result]) => {
           if (failure) return reject(failure);
           if (kind === undefined) return reject(invalid('required', 'kind'));
-          if (!(PHOTO_KINDS as readonly string[]).includes(kind)) return reject(invalid('invalid_enum_value', 'kind'));
+          const parsedKind = photoKind.safeParse(kind);
+          if (!parsedKind.success) return reject(invalid('invalid_enum_value', 'kind'));
           if (!photo) return reject(invalid('required', 'photo'));
           if (result!.status === 'rejected') return reject(result!.reason);
-          resolve({ kind: kind as PhotoKind, files: result!.value });
+          resolve({ kind: parsedKind.data, files: result!.value });
         });
       };
 

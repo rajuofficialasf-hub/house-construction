@@ -1,12 +1,11 @@
 import { Router } from 'express';
-import { rateLimit } from 'express-rate-limit';
 import { pipeline } from 'node:stream/promises';
 import type { Sql } from '../../db.js';
 import { AppError } from '../../errors.js';
 import { idParams } from '../../housing/schemas.js';
 import { findLiveFile } from '../../photos/serve.js';
 import { StorageNotFoundError, type StorageDriver } from '../../storage/index.js';
-import type { ReadRateLimit } from './housing.js';
+import { readRateLimiter, type ReadRateLimit } from './housing.js';
 
 // GET /api/v1/photos/:id: every photo the site shows comes through here, whichever driver holds
 // it, so the browser never sees a bucket URL or storage key (NS-10, NS-41; contract §5).
@@ -20,17 +19,7 @@ const notFound = () => new AppError('NOT_FOUND', 'ছবি পাওয়া �
 export function photosRouter(sql: Sql, storage: StorageDriver, photoRateLimit: ReadRateLimit = DEFAULT_PHOTO_RATE_LIMIT): Router {
   const router = Router();
 
-  router.use(
-    rateLimit({
-      ...photoRateLimit,
-      standardHeaders: 'draft-8',
-      legacyHeaders: false,
-      handler: (req, _res, next) => {
-        req.log.warn('photo reads rate-limited');
-        next(new AppError('RATE_LIMITED', 'অনেক বেশি অনুরোধ হয়েছে, কিছুক্ষণ পরে আবার চেষ্টা করুন'));
-      },
-    }),
-  );
+  router.use(readRateLimiter(photoRateLimit, 'photo reads rate-limited'));
 
   router.get('/:id', async (req, res) => {
     const { id } = idParams.parse(req.params);

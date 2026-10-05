@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import type { Sql } from '../../db.js';
 import { AppError } from '../../errors.js';
@@ -35,22 +35,25 @@ export interface ReadRateLimit {
 // memory, which is exact while the API runs as one process.
 export const DEFAULT_READ_RATE_LIMIT: ReadRateLimit = { windowMs: 60_000, limit: 300 };
 
+/** A per-IP limit on public reads that answers the contract's 429 and logs which reads hit it. */
+export function readRateLimiter(limits: ReadRateLimit, logMessage: string): RequestHandler {
+  return rateLimit({
+    ...limits,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    handler: (req, _res, next) => {
+      req.log.warn(logMessage);
+      next(new AppError('RATE_LIMITED', 'অনেক বেশি অনুরোধ হয়েছে, কিছুক্ষণ পরে আবার চেষ্টা করুন'));
+    },
+  });
+}
+
 const notFound = () => new AppError('NOT_FOUND', 'রেকর্ড পাওয়া যায়নি');
 
 export function housingReadRouter(sql: Sql, readRateLimit: ReadRateLimit = DEFAULT_READ_RATE_LIMIT): Router {
   const router = Router();
 
-  router.use(
-    rateLimit({
-      ...readRateLimit,
-      standardHeaders: 'draft-8',
-      legacyHeaders: false,
-      handler: (req, _res, next) => {
-        req.log.warn('housing reads rate-limited');
-        next(new AppError('RATE_LIMITED', 'অনেক বেশি অনুরোধ হয়েছে, কিছুক্ষণ পরে আবার চেষ্টা করুন'));
-      },
-    }),
-  );
+  router.use(readRateLimiter(readRateLimit, 'housing reads rate-limited'));
 
   router.get('/', async (req, res) => {
     res.json(await listRecords(sql, listQuery.parse(req.query)));

@@ -54,8 +54,13 @@ export type ListQuery = z.infer<typeof listQuery>;
 
 export const idParams = z.object({ id: z.uuid() });
 
+// The before and after photo of a record (contract §4.10).
+export const PHOTO_KINDS = ['prev', 'current'] as const;
+export const photoKind = z.enum(PHOTO_KINDS);
+export type PhotoKind = z.infer<typeof photoKind>;
+
 // A repeated ?kind= arrives as an array, which the enum refuses (contract §1).
-export const deletePhotoQuery = z.object({ kind: z.enum(['prev', 'current']) });
+export const deletePhotoQuery = z.object({ kind: photoKind });
 
 export const serialParams = z.object({
   project_type: projectType,
