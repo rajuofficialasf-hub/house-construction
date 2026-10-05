@@ -270,7 +270,7 @@ From the roadmap and the C3 brief, not reopened here:
   - `vary: Origin` is present on every branch, including the unknown-origin one
 - **Done when:** the tests are green, and compose starts with `PUBLIC_READ_ORIGINS` empty or set.
 - **Depends on:** U4
-- **Status:** todo
+- **Status:** done
 
 ### U6. OpenAPI spec
 - **Goal:** `GET /api/v1/openapi.json` serves the spec of the public routes, built from the U1 schemas, with a drift test.
@@ -374,6 +374,6 @@ Finally, the Chrome check from U9.
 ## Progress
 - **Branch:** `migrate/c3-read-endpoints`
 - **Updated:** 2026-10-05 14:10
-- **Next:** U5, config `PUBLIC_READ_ORIGINS` tests in `server/src/config.test.ts`, then the CORS delegate in `app.ts`
+- **Next:** U6, `server/test/http/openapi.test.ts` first, then `server/src/openapi.ts` and its route
 - **Uncommitted:** none
 - **Notes:** `origin/main` had nothing new at start (no `supabase/sql` to port), so 0008 is free.

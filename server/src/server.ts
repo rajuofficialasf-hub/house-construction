@@ -22,6 +22,7 @@ function start(): void {
     logger,
     trustProxy: config.TRUST_PROXY,
     allowedOrigins: config.ALLOWED_ORIGINS,
+    publicReadOrigins: config.PUBLIC_READ_ORIGINS,
     cookieSecure: config.COOKIE_SECURE,
   });
   const server = app.listen(config.PORT, () => logger.info({ port: config.PORT }, 'housing API listening'));

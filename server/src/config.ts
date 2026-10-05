@@ -20,11 +20,25 @@ const configSchema = z.object({
     .string()
     .transform((value) => value.split(','))
     .pipe(z.array(origin).min(1)),
+  // Comma-separated origins of other apps that may make uncredentialed GETs to the public reads
+  // (docs/api/API_CONTRACT.md §1). They never get the cookie or any write. Empty by default.
+  PUBLIC_READ_ORIGINS: z
+    .string()
+    .default('')
+    .transform((value) => (value.trim() === '' ? [] : value.split(',')))
+    .pipe(z.array(origin)),
   // Secure cookies everywhere except plain-http local development (NE-SEC-05).
   COOKIE_SECURE: z
     .enum(['true', 'false'])
     .default('true')
     .transform((value) => value === 'true'),
+}).superRefine((config, ctx) => {
+  // One role per origin, so nobody has to work out which list wins.
+  for (const value of config.PUBLIC_READ_ORIGINS) {
+    if (config.ALLOWED_ORIGINS.includes(value)) {
+      ctx.addIssue({ code: 'custom', path: ['PUBLIC_READ_ORIGINS'], message: `${value} is also in ALLOWED_ORIGINS` });
+    }
+  }
 });
 
 export type Config = z.infer<typeof configSchema>;

@@ -32,7 +32,7 @@ Not used: Realtime, Edge Functions.
 Roadmap: [../plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md](../plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md).
 
 1. Sessions: an opaque token in an HttpOnly cookie, not JWT. Only its SHA-256 is stored; timeouts are 8 hours idle and 7 days absolute. Settled in C2 ([../plans/2026-10-05-1246-migrate-c2-admin-login-plan.md](../plans/2026-10-05-1246-migrate-c2-admin-login-plan.md)).
-2. CORS and login rate limiting: the API answers only the origins in `ALLOWED_ORIGINS`, with credentials, and refuses state-changing requests from any other origin. Login is limited to 10 failures per IP per 15 minutes, counted in memory, which is exact only while the API runs as one process. Settled in C2; C3 adds the other apps' origins.
+2. CORS and login rate limiting: the API answers only the origins in `ALLOWED_ORIGINS`, with credentials, and refuses state-changing requests from any other origin. Login is limited to 10 failures per IP per 15 minutes, counted in memory, which is exact only while the API runs as one process. Settled in C2. C3 split CORS into two lists: other apps' origins go in `PUBLIC_READ_ORIGINS`, which gets credential-less CORS on the housing GETs and `openapi.json` only, and never passes the write Origin check. An origin may be on only one list. The public reads are limited to 300 requests per IP per minute, also in memory.
 3. Photos: the storage adapter, S3 at cutover, NAS later ([../plans/2026-10-04-1607-feat-photo-storage-strategy-plan.md](../plans/2026-10-04-1607-feat-photo-storage-strategy-plan.md)).
 
 ## Where each `supabase/sql` file went

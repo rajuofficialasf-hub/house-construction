@@ -47,6 +47,67 @@ describe('CORS', () => {
   });
 });
 
+describe('public-read CORS', () => {
+  const PARTNER = 'https://partner.example.org';
+  const withPartner = createApp({
+    sql,
+    logger: createLogger('silent'),
+    trustProxy: 0,
+    allowedOrigins: [SITE],
+    publicReadOrigins: [PARTNER],
+    cookieSecure: false,
+    now,
+  });
+  const preflight = (path: string, method: string, origin = PARTNER) =>
+    request(withPartner).options(path).set('origin', origin).set('access-control-request-method', method);
+
+  it('lets a public-read origin GET the housing reads without credentials', async () => {
+    const res = await request(withPartner).get('/api/v1/housing/years').set('origin', PARTNER);
+    expect(res.status).toBe(200);
+    expect(res.headers['access-control-allow-origin']).toBe(PARTNER);
+    expect(res.headers['access-control-allow-credentials']).toBeUndefined();
+    expect(res.headers.vary).toMatch(/Origin/);
+  });
+
+  it('answers its preflight for a GET', async () => {
+    const res = await preflight('/api/v1/housing', 'GET');
+    expect(res.status).toBe(204);
+    expect(res.headers['access-control-allow-origin']).toBe(PARTNER);
+    expect(res.headers['access-control-allow-methods']).toBe('GET,HEAD');
+  });
+
+  it.each([
+    ['a write preflight on housing', () => preflight('/api/v1/housing', 'POST')],
+    ['a delete preflight on a record', () => preflight('/api/v1/housing/00000000-0000-4000-8000-ffffffffffff', 'DELETE')],
+    ['a GET of the current admin', () => request(withPartner).get('/api/v1/auth/me').set('origin', PARTNER)],
+    ['a login preflight', () => preflight('/api/v1/auth/login', 'POST')],
+    ['a GET of the health check', () => request(withPartner).get('/api/v1/healthz').set('origin', PARTNER)],
+  ])('gives it no CORS grant for %s', async (_case, send) => {
+    const res = await send();
+    expect(res.headers['access-control-allow-origin']).toBeUndefined();
+    expect(res.headers.vary).toMatch(/Origin/);
+  });
+
+  it('still refuses its writes in the Origin check', async () => {
+    const res = await request(withPartner).post('/api/v1/auth/logout').set('origin', PARTNER);
+    expect(res.status).toBe(403);
+  });
+
+  it('keeps the credentialed grant for the site on reads and auth', async () => {
+    for (const path of ['/api/v1/housing/years', '/api/v1/auth/me']) {
+      const res = await request(withPartner).get(path).set('origin', SITE);
+      expect(res.headers['access-control-allow-origin']).toBe(SITE);
+      expect(res.headers['access-control-allow-credentials']).toBe('true');
+    }
+  });
+
+  it('gives an unknown origin nothing, with Vary set', async () => {
+    const res = await request(withPartner).get('/api/v1/housing/years').set('origin', OTHER);
+    expect(res.headers['access-control-allow-origin']).toBeUndefined();
+    expect(res.headers.vary).toMatch(/Origin/);
+  });
+});
+
 describe('Origin check', () => {
   it.each([
     ['no Origin', undefined],
