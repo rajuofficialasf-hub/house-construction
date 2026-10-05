@@ -14,7 +14,8 @@
     "test": "vitest run",
     "db:migrate": "dbmate --env DATABASE_MIGRATION_URL --migrations-dir db/migrations --no-dump-schema --wait up",
     "db:status": "dbmate --env DATABASE_MIGRATION_URL --migrations-dir db/migrations --no-dump-schema status",
-    "db:rollback": "dbmate --env DATABASE_MIGRATION_URL --migrations-dir db/migrations --no-dump-schema rollback"
+    "db:rollback": "dbmate --env DATABASE_MIGRATION_URL --migrations-dir db/migrations --no-dump-schema rollback",
+    "db:seed": "tsx --env-file-if-exists=.env scripts/db-seed.ts"
   },
   "dependencies": {
     "dbmate": "^2.36.0",

@@ -124,7 +124,7 @@ Every later chunk (login, reads, writes, photos) needs a running server and the 
   - after `resetTestData()`, counts are 0 and the next serial is 1.
 - **Done when:** `npm --prefix server run db:seed` loads the 20 records locally, and the U3 tests use `resetTestData()` between cases.
 - **Depends on:** U3
-- **Status:** todo
+- **Status:** done
 
 ### U5. Docs
 - **Goal:** The next chunk's session, and the other developer, can see what changed and how to keep the two schemas in sync.
@@ -160,8 +160,8 @@ Every later chunk (login, reads, writes, photos) needs a running server and the 
 
 ## Progress
 - **Branch:** `migrate/c1-server-db`
-- **Updated:** 2026-10-05 13:30
-- **Next:** U4, write `server/db/seed/dev.sql` from `supabase/sql/06_seed.sql` and the local-only `db:seed` script
+- **Updated:** 2026-10-05 13:45
+- **Next:** U5, update `docs/architecture/migration-notes.md` with the supabase/sql → migrations map
 - **Uncommitted:** none
 - **Notes:** Local machine runs Node 26; code targets Node 22 (`ST-22`), so run server commands with `PATH=~/.nvm/versions/node/v22.20.0/bin:$PATH`. TypeScript pinned to ~6.0.2 to match the root (npm picked 7 by default). esbuild's postinstall (used by tsx/vitest) was checked and rebuilt; installs use `--ignore-scripts` (`ST-32`).
   - U3 deviations from the plan text:
@@ -172,3 +172,4 @@ Every later chunk (login, reads, writes, photos) needs a running server and the 
   - The test suite rebuilds `housing_test` in `test/support/global-setup.ts`: up, roll back every migration, check that nothing is left, then up again.
   - URLs need `?sslmode=disable` for dbmate against the local Docker database.
   - `dbmate` is a runtime dependency, because deploys run `db:migrate`.
+  - The dev seed uses `on conflict do nothing`, so `db:seed` can run more than once.
