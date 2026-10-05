@@ -112,7 +112,7 @@ From the roadmap and the C2 brief (not reopened here): minimal admin login with 
   - Login deletes that admin's expired sessions but not another admin's.
 - **Done when:** service tests pass.
 - **Depends on:** U2, U3
-- **Status:** todo
+- **Status:** done
 
 ### U5. HTTP security middleware: CORS, Origin check, session, requireAdmin
 - **Goal:** Every `/api/v1` request has CORS and the Origin rule applied, plus `req.admin` when the cookie is valid.
@@ -208,7 +208,7 @@ From the roadmap and the C2 brief (not reopened here): minimal admin login with 
 
 ## Progress
 - **Branch:** `migrate/c2-admin-login` (from `migrate/c1-server-db`)
-- **Updated:** 2026-10-05 13:05
-- **Next:** U4, write server/test/auth/service.test.ts against the real test DB with an injected clock
+- **Updated:** 2026-10-05 13:07
+- **Next:** U5, add cors and cookie, then the Origin check and session middleware in server/src/app.ts
 - **Uncommitted:** none
 - **Notes:** The local server/.env (gitignored) needs ALLOWED_ORIGINS and COOKIE_SECURE added by hand, like .env.example.
