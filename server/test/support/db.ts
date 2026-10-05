@@ -17,7 +17,8 @@ export function ownerDb(): Sql {
  * state of a fresh install. TRUNCATE doesn't fire row triggers, so nothing is logged.
  */
 export async function resetTestData(owner: Sql): Promise<void> {
-  await owner`truncate public.housing_activity_log, public.housing_serial_changes, public.housing_beneficiaries restart identity`;
+  await owner`truncate public.housing_activity_log, public.housing_serial_changes, public.housing_beneficiaries,
+    public.housing_admin_sessions, public.housing_admins restart identity`;
   await owner`update public.housing_serial_counters set last_serial = 0`;
 }
 
@@ -51,6 +52,33 @@ export async function insertRecord(sql: Sql | Tx, input: RecordInput = {}): Prom
   };
   const [inserted] = await sql<InsertedRecord[]>`
     insert into public.housing_beneficiaries ${sql(row)} returning id, serial_no`;
+  if (!inserted) throw new Error('insert returned no row');
+  return inserted;
+}
+
+export interface AdminInput {
+  email?: string;
+  name?: string | null;
+  passwordHash?: string;
+  disabled?: boolean;
+}
+
+export interface InsertedAdmin {
+  id: string;
+  email: string;
+  name: string | null;
+}
+
+/** Inserts an admin as the owner, the way the admin CLI does. The default hash matches no password. */
+export async function insertAdmin(owner: Sql, input: AdminInput = {}): Promise<InsertedAdmin> {
+  const row = {
+    email: input.email ?? 'admin@example.org',
+    name: input.name === undefined ? 'এডমিন' : input.name,
+    password_hash: input.passwordHash ?? 'not-a-hash',
+    disabled_at: input.disabled ? new Date() : null,
+  };
+  const [inserted] = await owner<InsertedAdmin[]>`
+    insert into public.housing_admins ${owner(row)} returning id, email, name`;
   if (!inserted) throw new Error('insert returned no row');
   return inserted;
 }

@@ -86,7 +86,7 @@ From the roadmap and the C2 brief (not reopened here): minimal admin login with 
 - **Tests:** as `housing_app`: can select admins, can update `password_hash`, cannot insert/delete admins or update `email`/`disabled_at` (expect `42501`); full CRUD on sessions. `PUBLIC` has no privilege on either table. Upper-case email insert fails the check. Session with a 31-byte hash fails. Deleting an admin cascades its sessions. `global-setup` rollback loop still passes (it counts migration files).
 - **Done when:** `npm --prefix server test` passes, including the up/down round trip.
 - **Depends on:** none
-- **Status:** todo
+- **Status:** done
 
 ### U3. Password hashing
 - **Goal:** One module hashes with argon2id, verifies argon2id or bcrypt, and says when to upgrade.
@@ -208,7 +208,7 @@ From the roadmap and the C2 brief (not reopened here): minimal admin login with 
 
 ## Progress
 - **Branch:** `migrate/c2-admin-login` (from `migrate/c1-server-db`)
-- **Updated:** 2026-10-05 13:03
-- **Next:** U2, check origin/main for a new supabase/sql file before writing 0007_admin_auth.sql
+- **Updated:** 2026-10-05 13:04
+- **Next:** U3, add @node-rs/argon2 and @node-rs/bcrypt after checking for install scripts
 - **Uncommitted:** none
 - **Notes:** The local server/.env (gitignored) needs ALLOWED_ORIGINS and COOKIE_SECURE added by hand, like .env.example.

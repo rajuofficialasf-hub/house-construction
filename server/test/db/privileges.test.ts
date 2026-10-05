@@ -52,6 +52,16 @@ describe('runtime role housing_app', () => {
   });
 });
 
+describe('table privileges', () => {
+  it('grants no table to PUBLIC', async () => {
+    const rows = await owner`
+      select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public' and c.relkind in ('r', 'v', 'S')
+        and exists (select from aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) a where a.grantee = 0)`;
+    expect(rows).toEqual([]);
+  });
+});
+
 describe('function privileges', () => {
   const publicExecutable = (tx: Sql | Tx) => tx`
     select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
