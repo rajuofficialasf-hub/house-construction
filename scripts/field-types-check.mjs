@@ -183,5 +183,32 @@ const F = (k) => r1.find((f) => f.key === k)
 eq('fieldValue: সিস্টেম, কাস্টম, গোপন', [fieldValue(F('name'), rec), fieldValue(F('amount'), rec), fieldValue(F('phone'), rec, { phone: '01711987654' }), fieldValue(F('phone'), rec)], ['রহিমা', 25000, '01711987654', null])
 eq('কাস্টম ফিল্ডের min_value মানা হয় (টাকা ৫০০ < ১০০০)', P({ ...F('amount'), min_value: 1000 }, '৫০০'), 'ERR:min')
 
+// ---------------------------------------------------------------- এডমিন: ফিল্ডের key, টেবিলের কলাম, কার্ড (M-ধাপ ৮)
+section('ফিল্ডের key ও কলাম-গণনা (M-ধাপ ৮)')
+const { fieldKeyFrom, fieldKeyError, tableColumns, SENSITIVE_LABEL } = await import('../src/features/admin/projects/fieldRules.ts')
+const { transliterate } = await import('../src/lib/transliterate.ts')
+eq('লিপ্যন্তর: "উপকরণের নাম" → "upokoroner nam"', transliterate('উপকরণের নাম'), 'upokoroner nam')
+eq('শুধু বাংলা লেবেল → বৈধ key', fieldKeyFrom('', 'উপকরণের নাম', []), 'upokoroner_nam')
+eq('ইংরেজি লেবেল থাকলে সেখান থেকে: "Item name" → item_name', fieldKeyFrom('Item name', 'উপকরণের নাম', []), 'item_name')
+eq('ব্যবহৃত key হলে _2', fieldKeyFrom('Amount', '', ['amount']), 'amount_2')
+eq('সিস্টেমের নাম (name, prev_x) হলে সামনে f_', [fieldKeyFrom('Name', '', []), fieldKeyFrom('prev photo', '', [])], ['f_name', 'f_prev_photo'])
+eq('লেখা থেকে key না হলে field_<n>', fieldKeyFrom('', '!!!', ['a', 'b']), 'field_3')
+eq('যুক্তাক্ষর ও য়: "মোবাইল নম্বর" → mobail_nombor, "জাতীয় পরিচয়পত্র" বৈধ key', [fieldKeyFrom('', 'মোবাইল নম্বর', []), fieldKeyError(fieldKeyFrom('', 'জাতীয় পরিচয়পত্র', []), [])], ['mobail_nombor', null])
+eq('key এর ত্রুটি: সংরক্ষিত, ফরম্যাট, ডুপ্লিকেট', [!!fieldKeyError('year', []), !!fieldKeyError('1abc', []), !!fieldKeyError('amount', ['amount']), fieldKeyError('amount', [])], [true, true, true, null])
+eq('গোপন-তথ্যের লেবেল চেনা: মোবাইল, NID, জাতীয় পরিচয়, phone; "নাম" নয়', ['মোবাইল নম্বর', 'NID', 'জাতীয় পরিচয়পত্র নম্বর', 'Phone', 'নাম'].map((s) => SENSITIVE_LABEL.test(s)), [true, true, true, true, false])
+eq('টেবিলের কলাম: সেমিপাকা (ঠিকানা আলাদা, ইউনিয়নসহ) = ৮', tableColumns(semi).length, 8)
+const grantLike = { ...semi, display: { geo_columns: 'merged' }, fields: [pf('category', 'category', { show_in_table: true, sort_order: 10 }), pf('amount', 'money', { show_in_table: true, sort_order: 30 }), pf('item_name', 'text', { show_in_table: false, sort_order: 20 }), pf('phone', 'phone', { visibility: 'admin', show_in_table: true, sort_order: 40 })] }
+eq('অনুদান ধরন (ঠিকানা একসাথে): সাল, নাম, পিতা, ঠিকানা(ভূগোল), বিস্তারিত ঠিকানা, ক্যাটাগরি, টাকা = ৭ (গোপন ফিল্ড টেবিলে নয়)', tableColumns(grantLike).map((f) => f.key), ['year', 'name', 'father_or_husband_name', 'geo', 'address', 'category', 'amount'])
+
+section('পরিসংখ্যান কার্ড (M-ধাপ ৮)')
+const { cardValue, formatCardValue, suggestCard, newCardId } = await import('../src/features/projects/stats/statCards.ts')
+const st8 = { total: 12, distinct: { divisions: 2, districts: 3, upazilas: 5, unions: 7 }, fields: { amount: { type: 'money', sum: 375000, count: 12 }, category: { type: 'category', distinct: 4 } } }
+eq('কার্ডের মান: গণনা ১২, জেলা ৩, ইউনিয়ন ৭, মোট টাকা, মোট ক্যাটাগরি ৪', [cardValue({ kind: 'count' }, st8), cardValue({ kind: 'geo', level: 'district' }, st8), cardValue({ kind: 'geo', level: 'union' }, st8), cardValue({ kind: 'sum', field: 'amount' }, st8), cardValue({ kind: 'distinct', field: 'category' }, st8)], [12, 3, 7, 375000, 4])
+eq('ডাটা নেই এমন ফিল্ডে ০; স্ট্যাট না এলে null', [cardValue({ kind: 'sum', field: 'amount' }, { ...st8, fields: {} }), cardValue({ kind: 'count' }, null)], [0, null])
+eq('টাকা-কার্ড ৳ সহ: ৳ ৩,৭৫,০০০', formatCardValue({ kind: 'sum', format: 'money' }, 375000), '৳ ৩,৭৫,০০০')
+const sr8 = { ...semi, unit_bn: 'উপকারভোগী', unit_en: 'beneficiaries' }
+eq('প্রস্তাবিত লেবেল: গণনা, জেলা, টাকার যোগফল (৳ ফরম্যাট), ক্যাটাগরি', [suggestCard(sr8, 'count').label_bn, suggestCard(sr8, 'geo', { level: 'district' }).label_bn, suggestCard(sr8, 'sum', { field: pf('amount', 'money', { label_bn: 'টাকা' }) }).label_bn + '|' + suggestCard(sr8, 'sum', { field: pf('amount', 'money', { label_bn: 'টাকা' }) }).format, suggestCard(sr8, 'distinct', { field: pf('category', 'category', { label_bn: 'ক্যাটাগরি' }) }).label_bn], ['মোট উপকারভোগী', 'জেলা কভার', 'মোট টাকা|money', 'মোট ক্যাটাগরি'])
+eq('কার্ডের id অনন্য', newCardId([{ id: 'sum_amount' }], 'sum', 'amount'), 'sum_amount_2')
+
 console.log(`\nফল: PASS ${pass}, FAIL ${fail}`)
 process.exit(fail ? 1 : 0)

@@ -6,7 +6,8 @@
  *   - **সব লেখা এখানেই আটকানো** (প্রকল্প তৈরি/বদল/ক্রম — নকল উত্তর); অচেনা কোনো লেখা-অনুরোধ হলে 403 ও FAIL।
  *     লাইভ ডাটাবেসে কিছুই যায় না।
  * পরীক্ষা: ড্যাশবোর্ড, প্রকল্পের তালিকা ও অপ্রকাশের নিশ্চিতকরণ (বাতিল), উইজার্ড (slug নিয়ম, project_create এর ইনপুট),
- *          সেটিংস (গার্ড-ত্রুটি, CONFLICT), ফোনের ড্রয়ার (৪৪px)। স্ক্রিনশট .smoke/admin-*.png
+ *          সেটিংস (গার্ড-ত্রুটি, CONFLICT), ফিল্ড বিল্ডার ও পরিসংখ্যান কার্ড (M-ধাপ ৮; নকল project_field_usage = ৩২),
+ *          ফোনের ড্রয়ার (৪৪px)। স্ক্রিনশট .smoke/admin-*.png
  * চালানো (আগে অন্য টার্মিনালে npm run dev): npm run admin-ui-check  [-- --base http://localhost:5173]
  */
 import fs from 'node:fs'
@@ -50,6 +51,9 @@ const writes = [] // যা আটকানো হয়েছে
 const blocked = [] // অচেনা লেখা (থাকা উচিত নয়)
 let created = null // নকল project_create এর ফল (তালিকায় খসড়া হিসেবে যোগ হয়)
 let patchMode = 'ok' // 'ok' | 'guard' | 'conflict'
+const addedFields = [] // নকল POST project_fields এর ফল
+const usage = { category: 32 } // নকল project_field_usage: key → কতটি রেকর্ডে মান আছে
+const allFields = () => [...(created?.fields ?? []), ...addedFields]
 
 async function handle(req) {
   const url = req.url()
@@ -84,9 +88,10 @@ async function handle(req) {
       arr.push(created.project)
       text = JSON.stringify(arr)
     }
-    if (created && method === 'GET' && u.pathname === '/rest/v1/project_fields') {
+    if (method === 'GET' && u.pathname === '/rest/v1/project_fields') {
       const arr = JSON.parse(text)
-      arr.push(...created.fields)
+      const pk = u.searchParams.get('project_key')?.replace(/^eq\./, '')
+      arr.push(...allFields().filter((f) => !pk || f.project_key === pk))
       text = JSON.stringify(arr)
     }
     const h = {}
@@ -116,9 +121,36 @@ async function handle(req) {
         : respond(200, [])
     }
     const key = u.searchParams.get('key')?.replace(/^eq\./, '')
+    // নকল খসড়ার বদল মনে রাখা (পরিসংখ্যান-ট্যাবের সংরক্ষণের পর নতুন করে আনলে দেখা যায়)
+    if (created && key === created.project.key) Object.assign(created.project, body, { updated_at: new Date().toISOString() })
     return accept.includes('vnd.pgrst.object') ? respond(200, { key }) : respond(200, [{ key }])
   }
   if (u.pathname === '/rest/v1/rpc/projects_reorder') return respond(200, '3')
+  // ---- ফিল্ড বিল্ডার (M-ধাপ ৮): নকল ফিল্ড-অবস্থা (created.fields + addedFields), GET এ ফেরত আসে
+  if (u.pathname === '/rest/v1/rpc/project_field_usage') return respond(200, { count: usage[body.p_key] ?? 0, values: [] })
+  if (u.pathname === '/rest/v1/rpc/project_fields_reorder') {
+    body.p_ids.forEach((id, i) => { const f = allFields().find((x) => x.id === id); if (f) f.sort_order = (i + 1) * 10 })
+    return respond(200, 'null')
+  }
+  if (u.pathname === '/rest/v1/project_fields') {
+    const ts = new Date().toISOString()
+    const id = u.searchParams.get('id')?.replace(/^eq\./, '')
+    if (method === 'POST') {
+      const f = { id: `00000000-0000-0000-0000-0000000002${String(addedFields.length).padStart(2, '0')}`, options: [], is_active: true, created_at: ts, updated_at: ts, ...body }
+      addedFields.push(f)
+      return respond(201, f)
+    }
+    const f = allFields().find((x) => x.id === id)
+    if (!f) return respond(200, method === 'DELETE' ? [] : 'null')
+    if (method === 'PATCH') {
+      Object.assign(f, body, { updated_at: ts })
+      return respond(200, f)
+    }
+    if (method === 'DELETE') {
+      for (const arr of [created?.fields ?? [], addedFields]) { const i = arr.indexOf(f); if (i >= 0) arr.splice(i, 1) }
+      return respond(200, [{ id }])
+    }
+  }
   blocked.push(`${method} ${u.pathname}`)
   return respond(403, { code: '42501', message: 'test: blocked write' })
 }
@@ -276,6 +308,133 @@ async function typeInto(p, labelText, value) {
   await p.screenshot({ path: '.smoke/admin-settings-conflict.png', fullPage: true })
   ok('সেটিংসে কোনো page error নেই', p.errors.length === 0, p.errors.join(' | '))
   patchMode = 'ok'
+  await p.close()
+}
+
+// ---------------------------------------------------------------- F. ফিল্ড বিল্ডার (M-ধাপ ৮) — খসড়া demo
+const dlgText = (p) => p.evaluate(() => [...document.querySelectorAll('[role="dialog"]')].map((d) => d.innerText).join('\n'))
+/** ড্রয়ারের চেকবক্স (লেবেলের লেখা দিয়ে) */
+const box = (p, txt, click = false) =>
+  p.evaluate((x, c) => {
+    const l = [...document.querySelectorAll('[role="dialog"] label')].find((e) => e.textContent.includes(x))
+    const i = l?.querySelector('input')
+    if (i && c) i.click()
+    return i ? { disabled: i.disabled, checked: i.checked, text: l.textContent } : null
+  }, txt, click)
+/** ফিল্ডের সারিতে বোতাম চাপা (সারির লেবেল দিয়ে) */
+const rowClick = (p, label, btn) =>
+  p.evaluate((l, b) => {
+    const li = [...document.querySelectorAll('main li')].find((e) => e.querySelector('p')?.textContent.startsWith(l))
+    const el = li && [...li.querySelectorAll('button')].find((e) => e.textContent.trim() === b)
+    el?.click()
+    return !!el
+  }, label, btn)
+const inputByLabel = (p, lt) => p.evaluate((x) => { const l = [...document.querySelectorAll('label')].find((e) => e.textContent.replace('*', '').trim() === x); const el = l && document.getElementById(l.htmlFor); return el ? { value: el.value, disabled: el.disabled, id: el.id } : null }, lt)
+async function addField(p, labelBn, tableOn) {
+  await clickText(p, 'button', '+ ফিল্ড যোগ করুন')
+  await sleep(200)
+  await typeInto(p, 'লেবেল (বাংলা)', labelBn)
+  if (tableOn) await box(p, 'টেবিলে (ডেস্কটপ)', true)
+  const before = writes.length
+  await clickText(p, '[role="dialog"] button', 'ফিল্ড যোগ করুন')
+  await settle(p)
+  return writes.slice(before).find((w) => w.method === 'POST' && w.path === '/rest/v1/project_fields')
+}
+{
+  const p = await newPage()
+  await p.goto(BASE + '/admin/projects/demo', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  await clickText(p, '[role="tab"]', 'ফিল্ড')
+  await sleep(300)
+  const s0 = await text(p)
+  ok('ফিল্ড ট্যাব: আগে সিস্টেম ফিল্ড 🔒, তারপর টেমপ্লেটের ৩টি কাস্টম ফিল্ড', s0.includes('সিস্টেম ফিল্ড') && s0.indexOf('সিস্টেম ফিল্ড') < s0.indexOf('কাস্টম ফিল্ড') && ['উপকরণের ক্যাটাগরি', 'উপকরণের নাম/বিবরণ', 'টাকা'].every((x) => s0.includes(x)))
+  const statusSel = await p.evaluate(() => [...document.querySelectorAll('select[aria-label$=" — অবস্থা"]')].map((s) => `${s.getAttribute('aria-label')}:${[...s.options].map((o) => o.value).join('/')}`))
+  ok('সাল/নাম/বিভাগ-জেলা-উপজেলা স্থির আবশ্যক (বাছাই নেই); ইউনিয়নে "বন্ধ" নেই', statusSel.length === 3 && statusSel.some((x) => /ইউনিয়ন/.test(x) && x.endsWith(':required/optional')) && !statusSel.some((x) => /^(সাল|নাম|বিভাগ|জেলা|উপজেলা|অনুদানের সাল) —/.test(x)), statusSel.join(' | '))
+
+  // নতুন ফিল্ড: বাংলা লেবেল → key; গোপন-সতর্কতা; মোবাইল → শুধু-এডমিন
+  await clickText(p, 'button', '+ ফিল্ড যোগ করুন')
+  await sleep(200)
+  await typeInto(p, 'লেবেল (বাংলা)', 'উপকরণের নাম')
+  ok('শুধু বাংলা লেবেল "উপকরণের নাম" → key "upokoroner_nam" (বৈধ)', (await inputByLabel(p, 'key'))?.value === 'upokoroner_nam', (await inputByLabel(p, 'key'))?.value)
+  ok('ড্রয়ারে ফর্ম/টেবিল/মোবাইল-কার্ডের প্রিভিউ ও কলাম-গণনা', /কলাম: [০-৯]+\/৯/.test(await text(p)), (await text(p)).match(/কলাম: \S+/)?.[0])
+  await typeInto(p, 'লেবেল (বাংলা)', 'মোবাইল নম্বর')
+  ok('লেবেলে "মোবাইল" → লাল সতর্কতা "শুধু-এডমিন করুন"', (await dlgText(p)).includes('এটি গোপন তথ্য মনে হচ্ছে'))
+  await p.select(`[id="${(await inputByLabel(p, 'ধরন')).id}"]`, 'phone')
+  await sleep(150)
+  const vis = await p.evaluate(() => [...document.querySelectorAll('input[name="vis"]')].map((i) => `${i.checked ? 'x' : '-'}${i.disabled ? 'd' : ''}`).join(','))
+  const tbl = await box(p, 'টেবিলে (ডেস্কটপ)')
+  ok('ধরন "মোবাইল নম্বর" → শুধু-এডমিন বাধ্যতামূলক (পাবলিক বাছাই বন্ধ), টেবিলে দেখানো বন্ধ', vis === '-d,xd' && tbl?.disabled === true && (await dlgText(p)).includes('মোবাইল নম্বর সবসময় শুধু-এডমিন'), `${vis} table=${JSON.stringify(tbl?.disabled)}`)
+  const typeOpts = await p.evaluate((id) => [...document.getElementById(id).options].map((o) => o.textContent), (await inputByLabel(p, 'ধরন')).id)
+  ok('ধরনের তালিকায় "ক্যাটাগরি (শীটের লেখা থেকে)"', typeOpts.some((o) => o.includes('ক্যাটাগরি')), typeOpts.join(', '))
+  await clickText(p, '[role="dialog"] button', 'বাতিল')
+  await sleep(200)
+
+  // ৯-কলামের সীমা: অনুদান টেমপ্লেটে ৭ → দুটি টেবিল-ফিল্ড যোগে ৯ → তৃতীয়টিতে "টেবিলে" বন্ধ
+  const w1 = await addField(p, 'নোট', true)
+  ok('নতুন ফিল্ড সংরক্ষণ → project_fields এ POST (পাবলিক, টেবিলে, project_key=demo)', !!w1 && w1.body.project_key === 'demo' && w1.body.show_in_table === true && w1.body.visibility === 'public' && /^[a-z][a-z0-9_]*$/.test(w1.body.key), w1 && JSON.stringify(w1.body).slice(0, 160))
+  const w2 = await addField(p, 'মন্তব্য', true)
+  ok('দ্বিতীয় টেবিল-ফিল্ডও যোগ হয় (এখন ৯/৯ কলাম)', !!w2 && w2.body.show_in_table === true && (await text(p)).includes('মন্তব্য'))
+  await clickText(p, 'button', '+ ফিল্ড যোগ করুন')
+  await sleep(200)
+  const full = await box(p, 'টেবিলে (ডেস্কটপ)')
+  ok('১০ম টেবিল-কলাম চালু করা যায় না ("টেবিলে সর্বোচ্চ ৯টি কলাম — এখন ৯/৯")', full?.disabled === true && full.text.includes('টেবিলে সর্বোচ্চ ৯টি কলাম — এখন ৯/৯'), full?.text)
+  await clickText(p, '[role="dialog"] button', 'বাতিল')
+  await sleep(200)
+
+  // ডাটা থাকা ফিল্ড (নকল usage = ৩২): সম্পাদনায় key/ধরন বন্ধ; মোছায় আর্কাইভের পরামর্শ
+  await rowClick(p, 'উপকরণের ক্যাটাগরি', 'সম্পাদনা')
+  await settle(p)
+  const lockedKey = await inputByLabel(p, 'key')
+  const lockedType = await inputByLabel(p, 'ধরন')
+  ok('৩২টি রেকর্ডে মান আছে → ধরন ও key বদলানো যায় না', lockedKey?.disabled === true && lockedType?.disabled === true && (await dlgText(p)).includes('৩২টি রেকর্ডে মান আছে — key, ধরন ও পাবলিক/গোপন বদলানো যায় না'), `${lockedKey?.disabled} ${lockedType?.disabled}`)
+  await clickText(p, '[role="dialog"] button', 'বাতিল')
+  await sleep(200)
+  let before = writes.length
+  await rowClick(p, 'উপকরণের ক্যাটাগরি', 'মুছুন')
+  await settle(p)
+  ok('ডাটা থাকা ফিল্ড মুছতে চাইলে: "৩২টি রেকর্ডে মান আছে — মোছা যাবে না, আর্কাইভ করুন"', (await dlgText(p)).includes('৩২টি রেকর্ডে মান আছে — মোছা যাবে না, আর্কাইভ করুন'), (await dlgText(p)).slice(0, 120))
+  await clickText(p, '[role="dialog"] button', 'আর্কাইভ করুন')
+  await settle(p)
+  const arch = writes.slice(before).filter((w) => w.path === '/rest/v1/project_fields')
+  ok('"আর্কাইভ করুন" → শুধু is_active=false এর PATCH (DELETE নয়); সারিতে "আর্কাইভ" ব্যাজ', arch.length === 1 && arch[0].method === 'PATCH' && JSON.stringify(arch[0].body) === '{"is_active":false}' && (await text(p)).includes('ফেরত আনুন'), arch.map((w) => `${w.method} ${JSON.stringify(w.body)}`).join(' '))
+  before = writes.length
+  await rowClick(p, 'নোট', 'মুছুন')
+  await settle(p)
+  const dlg2 = await dlgText(p)
+  await clickText(p, '[role="dialog"] button', 'মুছুন')
+  await settle(p)
+  const del = writes.slice(before).find((w) => w.method === 'DELETE')
+  ok('ডাটা নেই এমন ফিল্ড: "মুছে ফেলবেন?" → DELETE', dlg2.includes('মুছে ফেলবেন?') && !!del && del.path === '/rest/v1/project_fields' && !(await text(p)).match(/^নোট/m), dlg2.slice(0, 80))
+  before = writes.length
+  await p.evaluate(() => [...document.querySelectorAll('main li button[aria-label="নিচে সরান"]')][0]?.click())
+  await settle(p)
+  const ro = writes.slice(before).find((w) => w.path === '/rest/v1/rpc/project_fields_reorder')
+  ok('↓ → project_fields_reorder (সব id, নতুন ক্রমে)', !!ro && ro.body.p_project === 'demo' && ro.body.p_ids.length === allFields().filter((f) => f.project_key === 'demo').length, ro && JSON.stringify(ro.body).slice(0, 120))
+  await p.screenshot({ path: '.smoke/admin-fields.png', fullPage: true })
+  ok('ফিল্ড ট্যাবে কোনো page error নেই', p.errors.length === 0, p.errors.join(' | '))
+
+  // ---------------------------------------------------------------- G. পরিসংখ্যান কার্ড বিল্ডার
+  await clickText(p, '[role="tab"]', 'পরিসংখ্যান')
+  await settle(p)
+  const s1 = await text(p)
+  const prev = s1.slice(s1.indexOf('প্রিভিউ (আসল সংখ্যা)'), s1.indexOf('প্রিভিউ (আসল সংখ্যা)') + 400)
+  ok('প্রিভিউতে "মোট টাকা" ও "মোট ক্যাটাগরি" কার্ড', prev.includes('মোট টাকা') && prev.includes('মোট ক্যাটাগরি') && prev.includes('মোট উপকারভোগী'), prev.replace(/\n/g, ' ').slice(0, 160))
+  ok('কার্ড-গণনা "মোট ৫/৮ · হোমে ৩/৩"', s1.includes('মোট ৫/৮ · হোমে ৩/৩'))
+  const homes = await p.evaluate(() => [...document.querySelectorAll('main li label')].filter((l) => l.textContent.includes('হোম পেইজের কার্ডে দেখান')).map((l) => { const i = l.querySelector('input'); return `${i.checked ? 'x' : '-'}${i.disabled ? 'd' : ''}` }).join(','))
+  ok('হোমে ৩টি থাকলে বাকি কার্ডের "হোমে দেখান" বন্ধ', homes === 'x,x,x,-d,-d', homes)
+  await p.evaluate(() => [...document.querySelectorAll('input[name="card-kind"]')].find((i) => i.closest('label').textContent.includes('যোগফল'))?.click())
+  await sleep(150)
+  await clickText(p, 'button', '+ কার্ড যোগ করুন')
+  await sleep(200)
+  const last = await p.evaluate(() => { const li = [...document.querySelectorAll('main li')].filter((l) => l.textContent.includes('হোম পেইজের কার্ডে দেখান')).pop(); return [...li.querySelectorAll('input:not([type])')].map((i) => i.value).join('|') })
+  ok('যোগফল-কার্ড (টাকা) → নিজে লেবেল "মোট টাকা" / "Total Amount"', /^মোট টাকা\|Total /i.test(last) && (await text(p)).includes('মোট ৬/৮ · হোমে ৩/৩'), last)
+  before = writes.length
+  await clickText(p, 'button', 'কার্ড সংরক্ষণ করুন')
+  await settle(p)
+  const sp = writes.slice(before).find((w) => w.method === 'PATCH' && w.path === '/rest/v1/projects')
+  ok('সংরক্ষণ → শুধু stat_cards এর PATCH (৬টি কার্ড, updated_at মেলানো)', !!sp && Object.keys(sp.body).join(',') === 'stat_cards' && sp.body.stat_cards.length === 6 && /updated_at=eq\./.test(decodeURIComponent(sp.search)), sp && JSON.stringify(sp.body).slice(0, 140))
+  await p.screenshot({ path: '.smoke/admin-stats.png', fullPage: true })
+  ok('পরিসংখ্যান ট্যাবে কোনো page error নেই', p.errors.length === 0, p.errors.join(' | '))
   await p.close()
 }
 

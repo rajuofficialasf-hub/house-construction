@@ -10,11 +10,13 @@ import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import { friendlyProjectError, photoNameExample, prefixError, slugError } from '../projects/projectRules'
 import { publishChecklist } from '../projects/publishChecklist'
 import { UnpublishDialog } from '../projects/UnpublishDialog'
+import { FieldsTab } from '../projects/tabs/FieldsTab'
+import { StatsTab } from '../projects/tabs/StatsTab'
 import { Badge } from '../ui/Badge'
 import { Field } from '../ui/Field'
 import { card, inputClass, primaryButton, secondaryButton, selectClass, textareaClass } from '../ui/styles'
 
-type Tab = 'general' | 'photos' | 'display'
+type Tab = 'general' | 'fields' | 'stats' | 'photos' | 'display'
 
 /** এই পাতায় বদলানো যায় এমন কলাম (ফিল্ড ও স্ট্যাট কার্ড M-ধাপ ৮-এ) */
 const EDITABLE = [
@@ -101,7 +103,8 @@ export function ProjectSettingsPage() {
   }
   if (!project || !form) return <NotFoundPage />
 
-  const tab: Tab = project.is_group ? 'general' : ((['general', 'photos', 'display'] as const).find((x) => x === sp.get('tab')) ?? 'general')
+  const allowed: readonly Tab[] = project.is_group ? ['general', 'stats'] : ['general', 'fields', 'stats', 'photos', 'display']
+  const tab: Tab = allowed.find((x) => x === sp.get('tab')) ?? 'general'
   const set = <K extends keyof Editable>(k: K, v: Editable[K]) => setForm((f) => (f ? { ...f, [k]: v } : f))
   const patch = diff(pickEditable(project), form)
   const dirty = Object.keys(patch).length > 0
@@ -171,13 +174,13 @@ export function ProjectSettingsPage() {
     else void setPublished(false)
   }
 
-  const tabs: { id: Tab; label: string }[] = project.is_group
-    ? [{ id: 'general', label: t('সাধারণ') }]
-    : [
-        { id: 'general', label: t('সাধারণ') },
-        { id: 'photos', label: t('ছবি') },
-        { id: 'display', label: t('প্রদর্শন') },
-      ]
+  const TAB_LABELS: Record<Tab, string> = { general: t('সাধারণ'), fields: t('ফিল্ড'), stats: t('পরিসংখ্যান'), photos: t('ছবি'), display: t('প্রদর্শন') }
+  const tabs = allowed.map((id) => ({ id, label: TAB_LABELS[id] }))
+  /** ফিল্ড/পরিসংখ্যান ট্যাব নিজে সংরক্ষণ করে — তার পরে সাইটের রেজিস্ট্রি ও এই পাতা নতুন করে */
+  const changed = async () => {
+    await refreshProjects({ includeDrafts: true })
+    await reload()
+  }
 
   return (
     <section className="px-4 py-8 sm:px-6">
@@ -269,6 +272,17 @@ export function ProjectSettingsPage() {
         ))}
       </div>
 
+      {tab === 'fields' && (
+        <div className="mt-5">
+          <FieldsTab key={project.updated_at + project.fields.length} project={project} blocked={dirty} onChanged={changed} />
+        </div>
+      )}
+      {tab === 'stats' && (
+        <div className="mt-5 max-w-5xl">
+          <StatsTab key={project.updated_at} project={project} stats={stats} blocked={dirty} onChanged={changed} />
+        </div>
+      )}
+      {tab !== 'fields' && tab !== 'stats' && (
       <form onSubmit={(e) => void save(e)} noValidate className="mt-5 max-w-3xl space-y-5">
         {tab === 'general' && (
           <>
@@ -474,6 +488,7 @@ export function ProjectSettingsPage() {
           {dirty && <span className="text-sm text-amber-800">{t('সংরক্ষণ হয়নি এমন পরিবর্তন আছে')}</span>}
         </div>
       </form>
+      )}
 
       {confirmUnpublish && (
         <UnpublishDialog project={project} projects={all} records={records} busy={busy} onCancel={() => setConfirmUnpublish(false)} onConfirm={() => void setPublished(false)} />
