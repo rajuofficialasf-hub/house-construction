@@ -176,7 +176,7 @@ From the roadmap and the C2 brief (not reopened here): minimal admin login with 
 - **Tests:** none new (docs); the live check above is recorded in the PR.
 - **Done when:** docs merged with the code, and the live check passes.
 - **Depends on:** U6, U7, U8
-- **Status:** todo
+- **Status:** done
 
 ## Verification
 - `docker compose up -d db`
@@ -208,7 +208,7 @@ From the roadmap and the C2 brief (not reopened here): minimal admin login with 
 
 ## Progress
 - **Branch:** `migrate/c2-admin-login` (from `migrate/c1-server-db`)
-- **Updated:** 2026-10-05 13:14
-- **Next:** U9, update docs/api/API_CONTRACT.md §0, §1.2, §2, §6, §7 and docs/architecture/migration-notes.md, then the live check
+- **Updated:** 2026-10-05 13:17
+- **Next:** finish: ae-test full, ae-simplify, ae-review
 - **Uncommitted:** none
-- **Notes:** The local server/.env (gitignored) needs ALLOWED_ORIGINS and COOKIE_SECURE added by hand, like .env.example. U5: the cors package sends Allow-Credentials even to disallowed origins; harmless without Allow-Origin, and the test asserts only Allow-Origin. Cookie parsing is hand-written (no cookie dependency). U7: the hidden TTY prompt was checked by hand through a pseudo-terminal (not in the suite); in compose run the CLI with docker compose exec api npm run admin -- <command>. U8: HousingLoginPage already shows error.message for unknown codes, so it needed no change for RATE_LIMITED.
+- **Notes:** The local server/.env (gitignored) needs ALLOWED_ORIGINS and COOKIE_SECURE added by hand, like .env.example. U5: the cors package sends Allow-Credentials even to disallowed origins; harmless without Allow-Origin, and the test asserts only Allow-Origin. Cookie parsing is hand-written (no cookie dependency). U7: the hidden TTY prompt was checked by hand through a pseudo-terminal (not in the suite); in compose run the CLI with docker compose exec api npm run admin -- <command>. U8: HousingLoginPage already shows error.message for unknown codes, so it needed no change for RATE_LIMITED. U9 live check (2026-10-05, Chrome, VITE_HOUSING_BACKEND=rest): wrong password shows the one message; login lands on the admin page with the name shown; the cookie is invisible to document.cookie and nothing is in localStorage; reload stays logged in; logout returns to the login page and /me is 401; activity log has login and logout for dev@example.org. The dev DB keeps that admin.

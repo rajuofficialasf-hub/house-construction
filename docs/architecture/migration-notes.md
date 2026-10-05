@@ -31,8 +31,8 @@ Not used: Realtime, Edge Functions.
 
 Roadmap: [../plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md](../plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md).
 
-1. Sessions: an opaque session in an HttpOnly cookie, not JWT (chunk C2).
-2. CORS origins and login rate limiting: still open, settled in chunks C2 and C3.
+1. Sessions: an opaque token in an HttpOnly cookie, not JWT. Only its SHA-256 is stored; timeouts are 8 hours idle and 7 days absolute. Settled in C2 ([../plans/2026-10-05-1246-migrate-c2-admin-login-plan.md](../plans/2026-10-05-1246-migrate-c2-admin-login-plan.md)).
+2. CORS and login rate limiting: the API answers only the origins in `ALLOWED_ORIGINS`, with credentials, and refuses state-changing requests from any other origin. Login is limited to 10 failures per IP per 15 minutes, counted in memory, which is exact only while the API runs as one process. Settled in C2; C3 adds the other apps' origins.
 3. Photos: the storage adapter, S3 at cutover, NAS later ([../plans/2026-10-04-1607-feat-photo-storage-strategy-plan.md](../plans/2026-10-04-1607-feat-photo-storage-strategy-plan.md)).
 
 ## Where each `supabase/sql` file went
@@ -43,7 +43,7 @@ The server's migrations are in `server/db/migrations/` and run with `npm --prefi
 |---|---|---|
 | `01_schema.sql` | `migrations/0001_housing_schema.sql` | No `pgcrypto` extension |
 | `02_serial.sql` | `migrations/0002_serial.sql` | No grants or row-level security; admin check moved to the server; `changed_by` comes from `housing_current_actor()`, which is now defined here |
-| `03_rls.sql` | dropped | The server checks admin rights; admins and sessions arrive in C2 |
+| `03_rls.sql` | `migrations/0007_admin_auth.sql` | `housing_admins` gets its own uuid id, email, name and password hash instead of pointing at `auth.users`; no row-level security, the server checks admin rights; sessions in `housing_admin_sessions` |
 | `04_rpc_stats.sql` | `migrations/0003_stats.sql` | No grants |
 | `05_storage.sql` | dropped | Photos move to the storage adapter (C5) |
 | `06_seed.sql` | `seed/dev.sql` | Dev only, through `npm --prefix server run db:seed`; safe to run again |
