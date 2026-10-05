@@ -69,6 +69,12 @@ describe('public-read CORS', () => {
     expect(res.headers.vary).toMatch(/Origin/);
   });
 
+  it('lets a public-read origin GET the OpenAPI document', async () => {
+    const res = await request(withPartner).get('/api/v1/openapi.json').set('origin', PARTNER);
+    expect(res.status).toBe(200);
+    expect(res.headers['access-control-allow-origin']).toBe(PARTNER);
+  });
+
   it('answers its preflight for a GET', async () => {
     const res = await preflight('/api/v1/housing', 'GET');
     expect(res.status).toBe(204);

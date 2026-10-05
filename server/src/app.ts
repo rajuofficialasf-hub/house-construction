@@ -9,9 +9,11 @@ import { sessionMiddleware } from './auth/middleware.js';
 import type { Sql } from './db.js';
 import { errorHandler, notFoundHandler } from './errors.js';
 import { originCheck } from './http/origin.js';
+import { buildOpenApiDocument } from './openapi.js';
 import { authRouter } from './routes/v1/auth.js';
 import { healthRouter } from './routes/v1/health.js';
 import { housingReadRouter, type ReadRateLimit } from './routes/v1/housing.js';
+import { openapiRouter } from './routes/v1/openapi.js';
 
 export interface AppDeps {
   sql: Sql;
@@ -100,6 +102,7 @@ export function createApp({
   app.use('/api/v1', sessionMiddleware({ sql, now }, cookie.name));
 
   app.use('/api/v1', healthRouter(sql));
+  app.use('/api/v1', openapiRouter(buildOpenApiDocument()));
   app.use('/api/v1/auth', authRouter({ sql, now }, cookie));
   app.use('/api/v1/housing', housingReadRouter(sql, readRateLimit));
 

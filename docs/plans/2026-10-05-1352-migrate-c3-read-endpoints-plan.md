@@ -285,7 +285,7 @@ From the roadmap and the C3 brief, not reopened here:
   - served without a session
 - **Done when:** `npm --prefix server test` is green and `curl localhost:3001/api/v1/openapi.json | jq .paths` lists every route.
 - **Depends on:** U4 (U5 for its CORS case)
-- **Status:** todo
+- **Status:** done
 
 ### U7. REST adapter reads
 - **Goal:** The REST adapter's read methods call the new endpoints, keeping `HousingApi` behavior the same as the Supabase adapter's.
@@ -374,6 +374,6 @@ Finally, the Chrome check from U9.
 ## Progress
 - **Branch:** `migrate/c3-read-endpoints`
 - **Updated:** 2026-10-05 14:10
-- **Next:** U6, `server/test/http/openapi.test.ts` first, then `server/src/openapi.ts` and its route
+- **Next:** U7, `src/features/housing/backend/rest/housingApi.test.ts` first, then the read methods in `rest/index.ts`
 - **Uncommitted:** none
 - **Notes:** `origin/main` had nothing new at start (no `supabase/sql` to port), so 0008 is free.
