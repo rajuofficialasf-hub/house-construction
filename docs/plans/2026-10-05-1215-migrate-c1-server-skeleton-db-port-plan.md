@@ -111,7 +111,7 @@ Every later chunk (login, reads, writes, photos) needs a running server and the 
   - As `housing_app`, these fail with insufficient privilege: `CREATE TABLE`, `ALTER TABLE housing_beneficiaries`, `UPDATE housing_activity_log`, `DELETE FROM housing_activity_log`, `UPDATE housing_serial_counters`.
 - **Done when:** all of the above pass, and `npm --prefix server run db:migrate` works on the Docker dev database.
 - **Depends on:** U1, U2
-- **Status:** todo
+- **Status:** done
 
 ### U4. Dev seed and test reset
 - **Goal:** Developers get example data locally, and tests get a clean database per test, with no way to hit a shared database.
@@ -160,7 +160,15 @@ Every later chunk (login, reads, writes, photos) needs a running server and the 
 
 ## Progress
 - **Branch:** `migrate/c1-server-db`
-- **Updated:** 2026-10-05 12:45
-- **Next:** U3, port `supabase/sql/01_schema.sql` to `server/db/migrations/0001_housing_schema.sql` and add dbmate
+- **Updated:** 2026-10-05 13:30
+- **Next:** U4, write `server/db/seed/dev.sql` from `supabase/sql/06_seed.sql` and the local-only `db:seed` script
 - **Uncommitted:** none
 - **Notes:** Local machine runs Node 26; code targets Node 22 (`ST-22`), so run server commands with `PATH=~/.nvm/versions/node/v22.20.0/bin:$PATH`. TypeScript pinned to ~6.0.2 to match the root (npm picked 7 by default). esbuild's postinstall (used by tsx/vitest) was checked and rebuilt; installs use `--ignore-scripts` (`ST-32`).
+  - U3 deviations from the plan text:
+    - No `server/db/schema.sql` dump, because `pg_dump` isn't installed on the host. Migrations run with `--no-dump-schema`.
+    - The bulk test asserts today's real behavior: unknown serials come back in `missing` and the other rows still update. Only a row without `serial_no` rolls back the batch. The plan's "one unknown serial rolls back" was wrong.
+    - `housing_current_actor()` lives in 0002 (`housing_change_serial` uses it first) and falls back to `session_user`, not `current_user`, because inside security definer functions `current_user` is the owner.
+  - `resetTestData()` and `insertRecord()` (U4's test helper) were written in U3, because the U3 tests needed them.
+  - The test suite rebuilds `housing_test` in `test/support/global-setup.ts`: up, roll back every migration, check that nothing is left, then up again.
+  - URLs need `?sslmode=disable` for dbmate against the local Docker database.
+  - `dbmate` is a runtime dependency, because deploys run `db:migrate`.
