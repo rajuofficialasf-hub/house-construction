@@ -33,6 +33,28 @@ Not used: Realtime, Edge Functions.
 2. CORS origins and login rate limiting.
 3. Photo storage location.
 
+## Working rules until cutover
+
+Another developer keeps shipping features on the Supabase version while the new stack is built. Both run side by side until the cutover day. New development rules for the new stack come after cutover.
+
+**For everyone working on the current (Supabase) version:**
+
+1. Call the backend only through the adapter. Only files in `src/features/housing/backend/supabase/` may import `@supabase/supabase-js`. Components, pages and hooks use the backend from `backend/factory.ts`.
+2. Add database changes as new numbered files in `supabase/sql/` (`10_...sql`, `11_...sql`). Do not edit files that have already run on the live project.
+3. When you add or change a data operation, update `docs/api/API_CONTRACT.md` in the same commit.
+
+**For the migration work:**
+
+1. Add, never remove. The new server goes in `server/`, and the REST adapter goes in `backend/rest/`. Do not delete or rewrite the Supabase adapter, `supabase/sql/` or the existing UI before cutover. Removing Supabase is the last step (own-stack plan U7, "after cutover").
+2. Production stays on `VITE_HOUSING_BACKEND=supabase`. Only local and staging use `rest`.
+3. Merge `main` into the migration branch at least weekly, and whenever the other developer pushes.
+4. After each merge, check these paths:
+   - `supabase/sql/*`: port new or changed SQL into `server/db/migrations/`.
+   - `backend/supabase/*` and the shared backend types: add the matching endpoint and REST adapter method.
+   - `docs/api/API_CONTRACT.md`: implement whatever changed.
+5. Run the contract and e2e suites against `rest`. A failure means a feature exists on Supabase but not yet on the new server.
+6. Merge migration work to `main` in small pieces. It is safe because production does not use it, and it keeps the branches close.
+
 ## Safety net
 
 Before migrating, run the test suite described in [../testing/README.md](../testing/README.md). It lists which behaviors are verified only on the mock backend and how to re-point the suite at the new server.
