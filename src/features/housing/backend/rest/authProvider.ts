@@ -57,12 +57,11 @@ export function createRestAuthProvider(baseUrl: string): AuthProvider {
     },
 
     async logout() {
-      try {
-        await restRequest<void>(baseUrl, ENDPOINTS.auth.logout(), { method: 'POST' })
-      } finally {
-        emit(null)
-        announce()
-      }
+      // সার্ভার সেশন শেষ না করা পর্যন্ত কুকি বৈধ থাকে, তাই অনুরোধ ব্যর্থ হলে "লগআউট" দেখানো যাবে না;
+      // এরর উপরে যায়, যাতে UI আবার চেষ্টা করতে বলে।
+      await restRequest<void>(baseUrl, ENDPOINTS.auth.logout(), { method: 'POST' })
+      emit(null)
+      announce()
     },
 
     async currentUser() {

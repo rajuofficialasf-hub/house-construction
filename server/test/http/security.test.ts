@@ -78,7 +78,7 @@ describe('Origin check', () => {
 
 describe('session middleware and requireAdmin', () => {
   const cookie = sessionCookie(false);
-  // A guarded route the way C3–C5 will add them; it exists only in this test.
+  // A guarded route the way later admin routes will use requireAdmin; it exists only in this test.
   const guarded = express()
     .use(sessionMiddleware({ sql, now }, cookie.name))
     .get('/guarded', requireAdmin, (req, res) => {

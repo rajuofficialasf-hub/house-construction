@@ -57,16 +57,32 @@ describe('createRestAuthProvider', () => {
     expect(await createRestAuthProvider(BASE).currentUser()).toBeNull()
   })
 
-  it('reports logged out after logout, even when the request fails', async () => {
-    stubFetch(() => {
-      throw new TypeError('offline')
-    })
+  it('reports logged out once the server has ended the session', async () => {
+    const fetchMock = stubFetch((url) => (url.endsWith('/logout') ? new Response(null, { status: 204 }) : json(200, { data: USER })))
     const auth = createRestAuthProvider(BASE)
+    expect(await auth.isAdmin()).toBe(true)
     const seen: (AuthUser | null)[] = []
     auth.onAuthChange((u) => seen.push(u))
-    await expect(auth.logout()).rejects.toMatchObject({ code: 'NETWORK_ERROR' })
+    await auth.logout()
+    expect(fetchMock.mock.calls.at(-1)![0]).toBe(`${BASE}/api/v1/auth/logout`)
     expect(seen).toEqual([null])
     expect(await auth.isAdmin()).toBe(false)
+  })
+
+  it('stays logged in when the logout request fails, since the cookie still works', async () => {
+    let offline = false
+    stubFetch(() => {
+      if (offline) throw new TypeError('offline')
+      return json(200, { data: USER })
+    })
+    const auth = createRestAuthProvider(BASE)
+    expect(await auth.currentUser()).toEqual(USER)
+    const seen: (AuthUser | null)[] = []
+    auth.onAuthChange((u) => seen.push(u))
+    offline = true
+    await expect(auth.logout()).rejects.toMatchObject({ code: 'NETWORK_ERROR' })
+    expect(seen).toEqual([])
+    expect(await auth.currentUser()).toEqual(USER)
   })
 
   it('tells other tabs about a login', async () => {

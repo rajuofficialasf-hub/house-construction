@@ -12,6 +12,7 @@ import { createInterface } from 'node:readline/promises';
 import { Writable } from 'node:stream';
 import { parseArgs } from 'node:util';
 import postgres from 'postgres';
+import { z } from 'zod';
 import { AdminCliError, createAdmin, listAdmins, setDisabled, setPassword } from '../auth/admins.js';
 
 const COMMANDS = ['create', 'set-password', 'disable', 'enable', 'list'] as const;
@@ -75,8 +76,10 @@ async function run(args: string[]): Promise<void> {
   const [command, ...extra] = positionals;
   if (!isCommand(command) || extra.length > 0) throw new AdminCliError(USAGE);
 
-  const url = process.env.DATABASE_MIGRATION_URL;
-  if (!url) throw new AdminCliError('DATABASE_MIGRATION_URL is not set');
+  // The CLI's only setting, parsed like the API's config (NE-CFG-01); the value is never echoed.
+  const env = z.object({ DATABASE_MIGRATION_URL: z.url({ protocol: /^postgres(ql)?$/ }) }).safeParse(process.env);
+  if (!env.success) throw new AdminCliError('DATABASE_MIGRATION_URL must be set to the owner role’s postgres URL');
+  const url = env.data.DATABASE_MIGRATION_URL;
   const sql = postgres(url, { max: 1, onnotice: () => {} });
   try {
     switch (command) {

@@ -205,6 +205,9 @@ From the roadmap and the C2 brief (not reopened here): minimal admin login with 
 - C3: add other apps' origins to `ALLOWED_ORIGINS`. That allowlist is credentialed today; if public reads need uncredentialed CORS for more origins, split the two lists.
 - C6: one API process (memory rate limit); set `COOKIE_SECURE=true` (default) and `TRUST_PROXY` to the real proxy count.
 - C7: import admins with `id = auth.users.id`, `email` lower-cased, `password_hash = auth.users.encrypted_password`. If the export isn't possible, run `admin set-password` for each at cutover.
+- C7: until an imported admin logs in once, their bcrypt check is faster than the argon2id dummy check, so login timing can tell their email apart from an unknown one. The 10-per-IP limit bounds it. Running `admin set-password` for each imported admin at cutover, or a bcrypt dummy, closes it. Also check that every imported email passes the login email rule and no password is over 200 characters, or that admin can't log in.
+- C6: the API must be reachable only through nginx (bind to loopback or a private network), with `TRUST_PROXY` equal to the real hop count. Otherwise a client can rotate `X-Forwarded-For` past the login limit.
+- REST adapter: `fetchMe` treats any error (network, 5xx) as logged out. This predates C2; fix it when the REST adapter becomes the production backend.
 
 ## Progress
 - **Branch:** `migrate/c2-admin-login` (from `migrate/c1-server-db`)

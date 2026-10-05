@@ -204,6 +204,14 @@ describe('POST /api/v1/auth/logout', () => {
     ]);
   });
 
+  it('refuses a logout from another origin and keeps the session', async () => {
+    const admin = await insertAdmin(owner, { passwordHash });
+    const cookie = sessionCookieFrom(await postLogin({ email: admin.email, password: PASSWORD }));
+    const res = await request(app).post('/api/v1/auth/logout').set('origin', 'https://evil.example').set('cookie', cookie);
+    expect(res.status).toBe(403);
+    expect((await request(app).get('/api/v1/auth/me').set('cookie', cookie)).status).toBe(200);
+  });
+
   it('answers 204 without a session, and logs nothing', async () => {
     const res = await request(app).post('/api/v1/auth/logout').set('origin', ORIGIN);
     expect(res.status).toBe(204);

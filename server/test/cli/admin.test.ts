@@ -57,6 +57,24 @@ describe('admin CLI', () => {
     expect(res.stderr).toMatch(/usage/i);
   });
 
+  it('sets a new password that replaces the old one', async () => {
+    await cli(['create', '--email', 'cli@example.org'], `${PASSWORD}\n`);
+    const res = await cli(['set-password', '--email', 'cli@example.org'], 'a different long passphrase\n');
+    expect(res.code).toBe(0);
+    const deps = { sql: app, now: () => new Date() };
+    expect((await login(deps, 'cli@example.org', PASSWORD)).ok).toBe(false);
+    expect((await login(deps, 'cli@example.org', 'a different long passphrase')).ok).toBe(true);
+  });
+
+  it('disables an admin and enables them again', async () => {
+    await cli(['create', '--email', 'cli@example.org'], `${PASSWORD}\n`);
+    const deps = { sql: app, now: () => new Date() };
+    expect((await cli(['disable', '--email', 'cli@example.org'])).code).toBe(0);
+    expect(await login(deps, 'cli@example.org', PASSWORD)).toEqual({ ok: false, reason: 'disabled' });
+    expect((await cli(['enable', '--email', 'cli@example.org'])).code).toBe(0);
+    expect((await login(deps, 'cli@example.org', PASSWORD)).ok).toBe(true);
+  });
+
   it('disables and lists admins', async () => {
     await cli(['create', '--email', 'cli@example.org'], `${PASSWORD}\n`);
     expect((await cli(['disable', '--email', 'cli@example.org'])).code).toBe(0);

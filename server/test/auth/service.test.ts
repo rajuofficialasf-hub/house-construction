@@ -1,11 +1,18 @@
 import { createHash } from 'node:crypto';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { hashPassword } from '../../src/auth/password.js';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { hashPassword, verifyDummy } from '../../src/auth/password.js';
+import type { Tx } from '../../src/db.js';
 import { login, logout } from '../../src/auth/service.js';
 import { authenticate } from '../../src/auth/session.js';
 import { appDb, insertAdmin, ownerDb, resetTestData } from '../support/db.js';
 
 // Login, session lookup and logout against the real test database, with a hand-moved clock.
+
+// The real dummy check, wrapped so tests can see that failed logins pay for one.
+vi.mock('../../src/auth/password.js', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../../src/auth/password.js')>();
+  return { ...real, verifyDummy: vi.fn(real.verifyDummy) };
+});
 
 const app = appDb();
 const owner = ownerDb();
@@ -23,6 +30,7 @@ beforeAll(async () => {
   argonHash = await hashPassword(PASSWORD);
 });
 beforeEach(async () => {
+  vi.mocked(verifyDummy).mockClear();
   clock = new Date('2026-10-05T08:00:00Z');
   await resetTestData(owner);
 });
@@ -36,6 +44,16 @@ async function sessions() {
 
 async function activity() {
   return owner`select actor_id, actor_email, action from public.housing_activity_log order by id`;
+}
+
+/** Resolves once some query on the test database is waiting for a lock. */
+async function waitForBlockedQuery(sql: Tx) {
+  for (let i = 0; i < 200; i++) {
+    const [row] = await sql`select count(*)::int as n from pg_locks where not granted`;
+    if ((row?.n as number) > 0) return;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error('no query blocked on a lock');
 }
 
 async function loggedIn(email = 'admin@example.org') {
@@ -80,6 +98,35 @@ describe('login', () => {
     expect(await activity()).toEqual([]);
   });
 
+  it('spends one password check on an unknown or disabled email, and none on a real admin', async () => {
+    await insertAdmin(owner, { passwordHash: argonHash });
+    await insertAdmin(owner, { email: 'off@example.org', passwordHash: argonHash, disabled: true });
+    await login(deps, 'nobody@example.org', PASSWORD);
+    await login(deps, 'off@example.org', PASSWORD);
+    expect(verifyDummy).toHaveBeenCalledTimes(2);
+    await login(deps, 'admin@example.org', 'wrong password');
+    await loggedIn();
+    expect(verifyDummy).toHaveBeenCalledTimes(2);
+  });
+
+  it('starts no session when the CLI replaces the password while the login is checking it', async () => {
+    const admin = await insertAdmin(owner, { passwordHash: argonHash });
+    const newHash = await hashPassword('a different long passphrase');
+    // The owner holds the admin row the way the CLI does, so the login's transaction waits on it.
+    const attempt = owner.begin(async (tx) => {
+      await tx`select 1 from public.housing_admins where id = ${admin.id} for update`;
+      const pending = login(deps, 'admin@example.org', PASSWORD);
+      await waitForBlockedQuery(tx);
+      await tx`update public.housing_admins set password_hash = ${newHash} where id = ${admin.id}`;
+      await tx`delete from public.housing_admin_sessions where admin_id = ${admin.id}`;
+      return [pending];
+    });
+    const [pending] = await attempt;
+    expect(await pending).toEqual({ ok: false, reason: 'changed' });
+    expect(await sessions()).toEqual([]);
+    expect(await owner`select password_hash from public.housing_admins`).toEqual([{ password_hash: newHash }]);
+  });
+
   it('replaces an imported bcrypt hash with argon2id at login', async () => {
     await insertAdmin(owner, { passwordHash: BCRYPT });
     await loggedIn();
@@ -101,6 +148,18 @@ describe('login', () => {
     const second = await loggedIn();
     expect(first.token).not.toBe(second.token);
     expect(await sessions()).toHaveLength(2);
+  });
+
+  it('clears out a session past its 7 days even if it was used recently', async () => {
+    const admin = await insertAdmin(owner, { passwordHash: argonHash });
+    const old = await loggedIn();
+    clock = new Date(clock.getTime() + 7 * DAY + 1000);
+    // Seen an hour ago, so only the absolute limit has passed.
+    await owner`update public.housing_admin_sessions set last_seen_at = ${new Date(clock.getTime() - HOUR)}`;
+    await loggedIn();
+    const rows = await sessions();
+    expect(rows.filter((r) => r.admin_id === admin.id)).toHaveLength(1);
+    expect(rows.map((r) => r.token_hash)).not.toContainEqual(sha256(old.token));
   });
 
   it('clears out that admin’s expired sessions, and no one else’s', async () => {
