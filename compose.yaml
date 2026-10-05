@@ -3,10 +3,13 @@
 #   docker compose up -d db  database only, for running the API or UI on the host
 # Every port is bound to 127.0.0.1 so nothing is reachable from the network (DB-ROLE-03).
 # The UI uses the mock backend by default; VITE_HOUSING_BACKEND=rest points it at the local API.
-# api and web run on the host's source with their own node_modules volumes; see scripts/docker-dev-entry.sh.
+# api and web run the host's source with their own node_modules volumes; see scripts/docker-dev-entry.sh.
+# Only the files each one needs are mounted, read-only: dependency code never sees .env files and
+# can't write to the checkout. init: true forwards stop signals so the API shuts down cleanly.
 x-node-dev: &node-dev
   image: node:22
-  entrypoint: ["sh", "/app/scripts/docker-dev-entry.sh"]
+  init: true
+  entrypoint: ["sh", "/entry.sh"]
 
 services:
   db:
@@ -31,7 +34,7 @@ services:
   api:
     <<: *node-dev
     working_dir: /app/server
-    command: ["sh", "-c", "npm run db:migrate && npm run dev"]
+    command: ["sh", "-c", "npm run db:migrate && exec npm run dev"]
     environment:
       NODE_ENV: development
       PORT: 3001
@@ -42,7 +45,13 @@ services:
     ports:
       - "127.0.0.1:${API_PORT:-3001}:3001"
     volumes:
-      - .:/app
+      - ./scripts/docker-dev-entry.sh:/entry.sh:ro
+      - ./server/package.json:/app/server/package.json:ro
+      - ./server/package-lock.json:/app/server/package-lock.json:ro
+      - ./server/tsconfig.json:/app/server/tsconfig.json:ro
+      - ./server/src:/app/server/src:ro
+      - ./server/db:/app/server/db:ro
+      - ./server/scripts:/app/server/scripts:ro
       - api-node-modules:/app/server/node_modules
     depends_on:
       db:
@@ -58,7 +67,16 @@ services:
     ports:
       - "127.0.0.1:${WEB_PORT:-5173}:5173"
     volumes:
-      - .:/app
+      - ./scripts/docker-dev-entry.sh:/entry.sh:ro
+      - ./package.json:/app/package.json:ro
+      - ./package-lock.json:/app/package-lock.json:ro
+      - ./index.html:/app/index.html:ro
+      - ./vite.config.ts:/app/vite.config.ts:ro
+      - ./tsconfig.json:/app/tsconfig.json:ro
+      - ./tsconfig.app.json:/app/tsconfig.app.json:ro
+      - ./tsconfig.node.json:/app/tsconfig.node.json:ro
+      - ./src:/app/src:ro
+      - ./public:/app/public:ro
       - web-node-modules:/app/node_modules
 
 volumes:

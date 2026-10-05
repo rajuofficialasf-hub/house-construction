@@ -31,7 +31,7 @@ docker compose up                 # UI http://localhost:5173 , API http://localh
 VITE_HOUSING_BACKEND=rest docker compose up   # UI কে লোকাল API তে চালাতে (REST অ্যাডাপ্টার C3/C4 এ তৈরি হবে; এখন ডিফল্ট mock)
 ```
 
-প্রথমবার কন্টেইনারে `npm ci` চলে বলে একটু সময় লাগে; package-lock বদলালে আবার চলে।
+প্রথমবার কন্টেইনারে `npm ci` চলে বলে একটু সময় লাগে; package-lock বদলালে আবার চলে। কন্টেইনার কোনো `.env` ফাইল পড়ে না এবং সোর্স শুধু পড়তে পারে; তাই এখানে Supabase মোড চলে না, সেটি হোস্টে `npm run dev` দিয়ে চালান।
 
 আলাদা করে হোস্টে চালাতে:
 
