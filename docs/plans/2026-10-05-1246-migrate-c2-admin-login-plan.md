@@ -1,7 +1,7 @@
 ---
 title: C2 Admin Login
 type: migrate
-status: in-progress
+status: done
 date: 2026-10-05
 ---
 
@@ -200,6 +200,7 @@ From the roadmap and the C2 brief (not reopened here): minimal admin login with 
 - Code from abandoned attempts is removed
 
 ## Notes for later chunks
+- Local dev: an existing `server/.env` needs `ALLOWED_ORIGINS` and `COOKIE_SECURE=false` added by hand (see `server/.env.example`). In compose, run the CLI with `docker compose exec api npm run admin -- <command>`.
 - C3/C4: put `requireAdmin` on every write route, and pass `req.admin` (never request input) to `withActor()`.
 - C4: `POST /api/v1/housing/activity` must not accept `login`/`logout` from the client, because the server already logs them and `HousingLoginPage`/`AdminShell` still call `logActivity` for both.
 - C3: add other apps' origins to `ALLOWED_ORIGINS`. That allowlist is credentialed today; if public reads need uncredentialed CORS for more origins, split the two lists.
@@ -208,10 +209,3 @@ From the roadmap and the C2 brief (not reopened here): minimal admin login with 
 - C7: until an imported admin logs in once, their bcrypt check is faster than the argon2id dummy check, so login timing can tell their email apart from an unknown one. The 10-per-IP limit bounds it. Running `admin set-password` for each imported admin at cutover, or a bcrypt dummy, closes it. Also check that every imported email passes the login email rule and no password is over 200 characters, or that admin can't log in.
 - C6: the API must be reachable only through nginx (bind to loopback or a private network), with `TRUST_PROXY` equal to the real hop count. Otherwise a client can rotate `X-Forwarded-For` past the login limit.
 - REST adapter: `fetchMe` treats any error (network, 5xx) as logged out. This predates C2; fix it when the REST adapter becomes the production backend.
-
-## Progress
-- **Branch:** `migrate/c2-admin-login` (from `migrate/c1-server-db`)
-- **Updated:** 2026-10-05 13:17
-- **Next:** finish: ae-test full, ae-simplify, ae-review
-- **Uncommitted:** none
-- **Notes:** The local server/.env (gitignored) needs ALLOWED_ORIGINS and COOKIE_SECURE added by hand, like .env.example. U5: the cors package sends Allow-Credentials even to disallowed origins; harmless without Allow-Origin, and the test asserts only Allow-Origin. Cookie parsing is hand-written (no cookie dependency). U7: the hidden TTY prompt was checked by hand through a pseudo-terminal (not in the suite); in compose run the CLI with docker compose exec api npm run admin -- <command>. U8: HousingLoginPage already shows error.message for unknown codes, so it needed no change for RATE_LIMITED. U9 live check (2026-10-05, Chrome, VITE_HOUSING_BACKEND=rest): wrong password shows the one message; login lands on the admin page with the name shown; the cookie is invisible to document.cookie and nothing is in localStorage; reload stays logged in; logout returns to the login page and /me is 401; activity log has login and logout for dev@example.org. The dev DB keeps that admin.
