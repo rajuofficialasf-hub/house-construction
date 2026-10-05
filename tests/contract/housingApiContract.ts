@@ -49,6 +49,9 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
     matched.add(name)
     return vitestTest.fails(`[known gap] ${name}`, fn)
   }
+  // যে ব্যাকএন্ডে অ-এডমিন অ্যাকাউন্টই নেই, সেখানে এই আচরণ প্রযোজ্য নয় (ContractOptions.nonAdminAccounts)
+  const nonAdminTest = (name: string, fn: () => Promise<void>) =>
+    opts.nonAdminAccounts === false ? vitestTest.skip(`${name} (no non-admin accounts on this backend)`, fn) : test(name, fn)
   if (gaps.size) {
     afterAll(() => {
       expect([...gaps].filter((g) => !matched.has(g)), 'knownGaps entries that match no test').toEqual([])
@@ -242,7 +245,7 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
         expect(await h.auth.currentUser()).toBeNull()
       })
 
-      test('Covers AE2: an account outside the admin list is forbidden and gets no session', async () => {
+      nonAdminTest('Covers AE2: an account outside the admin list is forbidden and gets no session', async () => {
         expect(await code(h.auth.login(h.nonAdmin!.email, h.nonAdmin!.password))).toBe('FORBIDDEN')
         expect(await h.auth.currentUser()).toBeNull()
         expect(await h.auth.isAdmin()).toBe(false)
@@ -262,7 +265,7 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
         expect(seen[0] === null ? seen.slice(1) : seen).toEqual([h.admin!.email, null])
       })
 
-      test('a logged-in non-admin is forbidden on writes and on the activity log', async () => {
+      nonAdminTest('a logged-in non-admin is forbidden on writes and on the activity log', async () => {
         await h.forceNonAdminSession!()
         const some = (await h.api.list({ page_size: 1 })).data[0]
         expect(await code(h.api.create(input()))).toBe('FORBIDDEN')

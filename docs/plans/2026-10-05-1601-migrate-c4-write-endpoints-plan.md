@@ -404,7 +404,7 @@ From the roadmap and the C4 brief, not reopened here:
   - `npm test` still passes the mock runner unchanged
 - **Done when:** `npm run test:contract:rest` and `npm test` are green.
 - **Depends on:** U3, U4, U5, U6
-- **Status:** todo
+- **Status:** done
 
 ### U8. Admin Playwright specs on rest
 - **Goal:** `e2e/mock` runs against the real server in a new `admin-rest` project with a per-test database reset.
@@ -488,7 +488,7 @@ Finally, the Chrome check from U9.
 ## Progress
 - **Branch:** `migrate/c4-write-endpoints` (from `migrate/c3-read-endpoints`, which is not yet merged into `dev-forhad`)
 - **Updated:** 2026-10-05 16:40
-- **Next:** U7: cookie-jar fetch and `writes: true` in `tests/contract/rest.contract.test.ts`
+- **Next:** U8: the `admin-rest` Playwright project, `e2e/support/backend.ts` and `rest-data.ts`
 - **Uncommitted:** none
 - **Notes:** `activityBody.details` uses `z.record(z.string(), z.unknown())`, not `z.json()`. The body is already JSON, and this avoids the `$defs` ref, so the OpenAPI entry needs no hand override. A custom zod check's `params.reason` becomes `details.reason` (`errors.ts`).
   U3 notes:
@@ -497,4 +497,5 @@ Finally, the Chrome check from U9.
   - `server/test/support/session.ts` (`loginAdmin`) is shared by the admin route tests.
   - `writes.ts` already has `bulkInsert` and `bulkUpdateBySerial`; U4 wires them up and tests them.
   U4 note: the "guard before parser" tests send a small malformed JSON body (401 without a session, 400 `invalid_json` with one), not 4 MB. A multi-MB upload that the server answers early sometimes resets the connection, which made the test flaky.
+  U7: `npm run test:contract:rest` gives 35 passed, 4 expected fail (the photo gaps), 2 skipped (non-admin). Node 22's fetch lets the test set `Origin`.
   `origin/main` was already in `dev-forhad` on 2026-10-05, with no new `supabase/sql` to port.

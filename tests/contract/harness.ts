@@ -32,4 +32,9 @@ export interface ContractOptions {
    * তালিকার প্রতিটি নাম কোনো টেস্টের সাথে মিলতে হবে, নইলে রান ব্যর্থ।
    */
   knownGaps?: readonly string[]
+  /**
+   * false হলে ব্যাকএন্ডে "লগইন করা কিন্তু এডমিন নয়" অ্যাকাউন্টই নেই (নিজস্ব সার্ভার: শুধু এডমিনরা অ্যাকাউন্ট পায়,
+   * API_CONTRACT §২), তাই সেই দুই টেস্ট skip হয়; harness এ nonAdmin/forceNonAdminSession লাগে না। ডিফল্ট true।
+   */
+  nonAdminAccounts?: boolean
 }
