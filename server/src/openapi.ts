@@ -3,8 +3,10 @@ import {
   errorBody,
   filterOptions,
   housingRecord,
+  DEFAULT_PAGE_SIZE,
   housingStats,
   idParams,
+  INT4_MAX,
   listQuery,
   MAX_PAGE_SIZE,
   MAX_SERIALS,
@@ -15,6 +17,8 @@ import {
   serialParams,
   serialsParams,
   serialsQuery,
+  YEAR_MAX,
+  YEAR_MIN,
 } from './housing/schemas.js';
 
 // The OpenAPI 3.1 description of the public /api/v1 routes, served at /api/v1/openapi.json for
@@ -24,7 +28,7 @@ import {
 
 type JsonSchema = Record<string, unknown>;
 
-export interface Parameter {
+interface Parameter {
   name: string;
   in: 'query' | 'path';
   required: boolean;
@@ -94,14 +98,14 @@ const PROJECT_TYPE_DOC = 'semi_pucca or tin; both when left out';
 
 const LIST_DOCS: Record<string, string> = {
   project_type: PROJECT_TYPE_DOC,
-  serial_no: 'Exact serial, 1-2147483647',
-  year: 'Exact year, 2000-2100',
+  serial_no: `Exact serial, 1-${INT4_MAX}`,
+  year: `Exact year, ${YEAR_MIN}-${YEAR_MAX}`,
   division: 'Exact match after trimming and NFC; blank means no filter',
   district: 'Exact match after trimming and NFC; blank means no filter',
   upazila: 'Exact match after trimming and NFC; blank means no filter',
   q: 'Case-insensitive substring of name, father_or_husband_name or address; %, _ and \\ match literally',
   page: 'Page number from 1; default 1',
-  page_size: `Rows per page, 1-${MAX_PAGE_SIZE}; default 50`,
+  page_size: `Rows per page, 1-${MAX_PAGE_SIZE}; default ${DEFAULT_PAGE_SIZE}`,
   sort: 'Sort field; default serial_no. Ties always break by serial_no, project_type, id',
   order: 'asc or desc; default asc',
 };

@@ -32,7 +32,6 @@ export interface AppDeps {
   readRateLimit?: ReadRateLimit;
 }
 
-/** Builds the Express app without listening, so tests run the real middleware chain. */
 const READ_METHODS = new Set(['GET', 'HEAD']);
 
 /** Paths other apps may read: the housing reads and the API description. */
@@ -62,6 +61,7 @@ function corsFor(allowedOrigins: readonly string[], publicReadOrigins: readonly 
   });
 }
 
+/** Builds the Express app without listening, so tests run the real middleware chain. */
 export function createApp({
   sql,
   logger,

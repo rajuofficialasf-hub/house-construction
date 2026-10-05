@@ -1,10 +1,8 @@
 import type { Sql } from '../db.js';
-import type { ListQuery } from './schemas.js';
+import type { ListQuery, ProjectType } from './schemas.js';
 
 // The public housing reads (docs/api/API_CONTRACT.md §4). Every function takes only the pool and
 // already-parsed input, never the request or the admin, so being logged in can't change a result.
-
-export type ProjectType = 'semi_pucca' | 'tin';
 
 export interface HousingRecord {
   id: string;

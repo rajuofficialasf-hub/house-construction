@@ -10,11 +10,15 @@ export const INT4_MAX = 2147483647;
 export const PROJECT_TYPES = ['semi_pucca', 'tin'] as const;
 export const SORT_FIELDS = ['serial_no', 'year', 'name', 'created_at'] as const;
 export const DEFAULT_PAGE_SIZE = 50;
+// The table's CHECK range for year (db/migrations/0001_housing_schema.sql).
+export const YEAR_MIN = 2000;
+export const YEAR_MAX = 2100;
 export const MAX_PAGE_SIZE = 100;
 export const MAX_SERIALS = 100;
 const MAX_TEXT = 100;
 
 export const projectType = z.enum(PROJECT_TYPES);
+export type ProjectType = z.infer<typeof projectType>;
 
 // Decimal digits only. z.coerce.number would also accept "", "1e3", "0x10" and "1.0".
 const digits = z.string().regex(/^[0-9]{1,10}$/, 'must be a whole number');
@@ -36,7 +40,7 @@ export const listQuery = z.object({
   project_type: projectType.optional(),
   serial_no: intParam(1, INT4_MAX).optional(),
   // The table only holds 2000-2100, so a year outside it is a mistake, not an empty filter.
-  year: intParam(2000, 2100).optional(),
+  year: intParam(YEAR_MIN, YEAR_MAX).optional(),
   division: textParam,
   district: textParam,
   upazila: textParam,
@@ -55,7 +59,7 @@ export const serialParams = z.object({
   serial_no: intParam(1, INT4_MAX),
 });
 
-export const serialsParams = z.object({ project_type: projectType });
+export const serialsParams = serialParams.pick({ project_type: true });
 
 // "1,2,3": one to 100 whole numbers. Returned deduped and ascending, the order the response uses.
 export const serialsQuery = z.object({
