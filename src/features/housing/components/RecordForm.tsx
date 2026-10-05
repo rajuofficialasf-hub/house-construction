@@ -1,4 +1,4 @@
-import { gn, t } from '@/i18n'
+import { gn, lt, t } from '@/i18n'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useToast } from '@/components/useToast'
 import { toBanglaNumber } from '@/lib/banglaNumber'
@@ -12,7 +12,7 @@ import {
 } from '../../../backend/interfaces/types'
 import { getDistricts, getDivisions, getUpazilas, isValidGeo, nfc } from '../utils/geo'
 import { processImage } from '../utils/imageProcessing'
-import { PROJECT_META } from '../utils/projectType'
+import { useProject } from '@/features/projects/registry'
 import { revokeUploadItems, type UploadItem } from '../utils/uploadItems'
 import { ConfirmDialog } from './ConfirmDialog'
 import { PhotoField } from './PhotoField'
@@ -100,7 +100,7 @@ function validate(v: Values, isEdit: boolean): Errors {
 export function RecordForm({ projectType, record, onSaved, onCancel }: Props) {
   const api = getHousingApi()
   const toast = useToast()
-  const meta = PROJECT_META[projectType]
+  const project = useProject(projectType)
 
   const [values, setValues] = useState<Values>(() => initial(record))
   const [errors, setErrors] = useState<Errors>({})
@@ -393,7 +393,7 @@ export function RecordForm({ projectType, record, onSaved, onCancel }: Props) {
       {/* ---------- বাটন ---------- */}
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={disabled} className="inline-flex h-11 items-center rounded-md bg-brand-700 px-6 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50">
-          {busy ?? (isEdit ? t('সংরক্ষণ করুন') : t('{title} — যোগ করুন', { title: t(meta.title) }))}
+          {busy ?? (isEdit ? t('সংরক্ষণ করুন') : t('{title} — যোগ করুন', { title: lt(project, 'name') }))}
         </button>
         <button type="button" onClick={onCancel} disabled={disabled} className="inline-flex h-11 items-center rounded-md border border-slate-300 bg-white px-5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
           {isEdit ? t('ফিরে যান') : t('বাতিল')}

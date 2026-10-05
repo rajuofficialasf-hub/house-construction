@@ -1,4 +1,4 @@
-import { gn, t } from '@/i18n'
+import { gn, lt, t } from '@/i18n'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { formatBanglaNumber, toBanglaNumber } from '@/lib/banglaNumber'
@@ -13,7 +13,8 @@ import {
 } from '../../../backend/interfaces/types'
 import { ErrorNotice } from '../components/ErrorNotice'
 import { Pagination } from '../components/Pagination'
-import { PROJECT_LIST, PROJECT_META } from '../utils/projectType'
+import { leafProjects, useProject, useProjects } from '@/features/projects/registry'
+import { adminPath } from '../utils/housingProjects'
 
 const ACTION_LABEL: Record<string, string> = {
   create: 'রেকর্ড যোগ',
@@ -60,6 +61,7 @@ type State = { status: 'loading'; data: Page<ActivityEntry> | null } | { status:
  */
 export function HousingActivityPage() {
   const [sp, setSp] = useSearchParams()
+  const projects = useProjects()
   const page = Math.max(1, Number(sp.get('page')) || 1)
   const params = useMemo<ActivityListParams>(
     () => ({
@@ -131,9 +133,9 @@ export function HousingActivityPage() {
         </select>
         <select className={sel} value={sp.get('project') ?? ''} onChange={(e) => setParam('project', e.target.value)} aria-label={t('প্রকল্প')}>
           <option value="">{t('সব প্রকল্প')}</option>
-          {PROJECT_LIST.map((p) => (
-            <option key={p.type} value={p.type}>
-              {t(p.title)}
+          {leafProjects(projects).map((p) => (
+            <option key={p.key} value={p.key}>
+              {lt(p, 'name')}
             </option>
           ))}
         </select>
@@ -181,7 +183,7 @@ export function HousingActivityPage() {
 }
 
 function Entry({ e }: { e: ActivityEntry }) {
-  const meta = e.project_type ? PROJECT_META[e.project_type] : null
+  const project = useProject(e.project_type)
   const changes = (e.details?.changes ?? null) as Record<string, { old: unknown; new: unknown }> | null
   return (
     <li className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
@@ -193,13 +195,13 @@ function Entry({ e }: { e: ActivityEntry }) {
         <span className="text-slate-700">
           <span className="font-medium">{e.actor_email === 'service_role' ? t('স্ক্রিপ্ট (service_role)') : (e.actor_email ?? t('অজানা'))}</span>
         </span>
-        {e.record_id && e.serial_no !== null && meta && (
+        {e.record_id && e.serial_no !== null && project && (
           <span className="text-slate-700">
-            → {t(meta.title)} · {t('সিরিয়াল')}{' '}
+            → {lt(project, 'name')} · {t('সিরিয়াল')}{' '}
             {e.action === 'delete' ? (
               <span className="font-semibold">{toBanglaNumber(e.serial_no)}</span>
             ) : (
-              <Link to={`/housing/admin/${meta.slug}/${e.serial_no}/edit`} className="font-semibold text-brand-700 hover:underline">
+              <Link to={adminPath(project.key, `${e.serial_no}/edit`)} className="font-semibold text-brand-700 hover:underline">
                 {toBanglaNumber(e.serial_no)}
               </Link>
             )}
@@ -209,7 +211,7 @@ function Entry({ e }: { e: ActivityEntry }) {
             </Link>
           </span>
         )}
-        {!e.record_id && meta && <span className="text-slate-600">· {t(meta.title)}</span>}
+        {!e.record_id && project && <span className="text-slate-600">· {lt(project, 'name')}</span>}
       </div>
       <Details e={e} changes={changes} />
     </li>

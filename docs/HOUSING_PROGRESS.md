@@ -129,6 +129,13 @@ src/
       http.ts                   # restRequest(): JSON, Bearer token (localStorage 'housing_rest_token') / credentials include, এরর ম্যাপিং
       authProvider.ts           # REST AuthProvider (login/logout/me, listeners, cross-tab storage event) — ধাপ ১০
       index.ts                  # HousingApi/ProjectsApi/ImageStorage stub (ধাপ ১৩)
+  features/projects/registry/   # প্রকল্প রেজিস্ট্রি — সব প্রকল্পের জন্য (M-ধাপ ৫ক)
+    projectsStore.ts            # মডিউল-স্তরের তালিকা: স্ন্যাপশট asf_projects_v1 → ফলব্যাক → নেটওয়ার্ক; findProject, childrenOf, housingProjects, projectPath, refreshProjects
+    useProjects.ts              # useRegistry / useProjects / useProject (useSyncExternalStore)
+    icons.ts, iconShapes.tsx    # আইকন-রেজিস্ট্রি (projects.icon এর key → SVG): বাড়ি, টিনের ঘর, গরু, ছাগল, দোকান, সেলাই মেশিন, টুলস, কয়েন, হাত-হৃদয়, মানুষ + fallback
+    ProjectIcon.tsx             # <ProjectIcon icon={project.icon} />
+    accents.ts                  # রঙের নির্দিষ্ট তালিকা (projects.accent): brand, teal, sky, indigo, amber, rose
+    index.ts
   features/housing/             # ঘর নির্মাণ ফিচার (ধাপ ১ থেকে)
     routes.tsx                  # /housing/* রুট এলিমেন্ট; App.tsx এ {housingRoutes} হিসেবে বসে
     (backend/ → src/backend/ এ সরানো হয়েছে, M-ধাপ ৪)
@@ -138,7 +145,6 @@ src/
       UpazilaMap.tsx            # SVG উপজেলা মানচিত্র (d3-geo + topojson-client): সংখ্যা অনুযায়ী সবুজ, সংখ্যার বাবল, টুলটিপ, ক্লিক, হুইল/পিঞ্চ জুম, প্যান, +/−/রিসেট, লেজেন্ড (২০২৬-০৯-৩০)
       UpazilaMapPanel.tsx       # তালিকা পেইজে ফিল্টারের উপরে; ডিফল্টে লুকানো — গ্রেডিয়েন্ট ব্যানার-বাটন "মানচিত্রে দেখুন" (উপজেলা/ঘর সংখ্যা); খুললে পতাকা-মানচিত্র; ক্লিক ↔ বিভাগ/জেলা/উপজেলা ফিল্টার
       FeaturedProjectCard.tsx   # "সফলতার গল্প"-স্টাইল কার্ড: প্রথম উপকারভোগীর ছবি, ৩টি পরিসংখ্যান টাইল (মোট ঘর / জেলা কভার / উপজেলা কভার — stats, count-up), "আরো দেখুন", সোনালি বারে নাম/ঠিকানা/প্রকল্প-সাল/সিরিয়াল
-      ProjectIcons.tsx          # SVG আইকন: সেমিপাকা / টিনের ঘর
       StatCards.tsx             # ৪টি পরিসংখ্যান কার্ড + skeleton + এরর (ধাপ ৪)
       HousingTable.tsx          # তালিকা: md+ টেবিল / মোবাইল কার্ড, থাম্বনেইল, লাইটবক্স, ভিউ বাটন (ধাপ ৫)
       Pagination.tsx            # আগের/পরের, পেইজ নম্বর (ellipsis), "মোট X টির মধ্যে Y–Z"
@@ -174,11 +180,11 @@ src/
       lazyPages.tsx             # ভিউ মোড ও এডমিন পেইজের React.lazy + <Lazy> Suspense wrapper (শেষ ধাপ)
       HousingPhotoBulkPage.tsx  # /housing/admin/photos — ছবি বাল্ক আপডেট (ফাইলনাম → রেকর্ড মিলানো → প্রিভিউ → ব্যাচ আপলোড → রিপোর্ট)
     utils/
-      projectType.ts            # PROJECT_META (title, slug, filePrefix), projectPath, projectFromSlug
+      housingProjects.ts        # রেজিস্ট্রি থেকে: useHousingProjects, useHousingProjectBySlug, adminPath, projectPath (M-ধাপ ৫ক-এ PROJECT_META এর জায়গায়)
       imagePath.ts              # photoPath(type, serial, kind, variant) → housing/{type}/{0001}/{kind}[_thumb].webp; padSerial; photoSrc(url, photo_updated_at)
       photoSpec.ts              # PHOTO_SPEC: maxWidth 1600, thumbWidth 400, quality 80, webp — ব্রাউজার ও স্ক্রিপ্ট দুটোতেই
       imageProcessing.ts        # processImage(file) → {photo, thumb} WebP (canvas, EXIF-সচেতন); formatBytes
-      photoFilename.ts          # parsePhotoFilename('semi_0001_prev.jpg') → {project_type, serial_no, kind}
+      photoFilename.ts          # parsePhotoFilename('semi_0001_prev.jpg', aliases) → {project_type, serial_no, kind}; buildProjectAliases(রেজিস্ট্রি)
       uploadItems.ts            # UploadItem টাইপ, createUploadItems/revokeUploadItems, STATUS_LABEL
       importParse.ts            # parseSpreadsheet(file): xlsx/csv → {headers, rows} (SheetJS lazy, UTF-8 BOM) (ধাপ ১২)
       importColumns.ts          # IMPORT_FIELDS, FIELD_LABEL, REQUIRED_FIELDS, guessMapping(headers)
@@ -1588,3 +1594,53 @@ M-ধাপ ২-এ এই মানগুলো `checks/10_verify.sql` এ ব�
 ### ৬. পরের ধাপে কী করতে হবে
 - **M-ধাপ ৫ক** — প্রকল্প রেজিস্ট্রি (`projectsStore`, স্ন্যাপশট, হুক), `pick()`/`lt()`, আইকন-রেজিস্ট্রি, `PROJECT_META` সরানো। চোখে কোনো পরিবর্তন দেখা যাবে না।
 - পেস্ট করুন: `M-ধাপ ৫ক শুরু করো (পরিকল্পনা: docs/MULTI_PROJECT_PLAN.md)`
+
+## M-ধাপ ৫ক — প্রকল্প রেজিস্ট্রি, `pick()`, আইকন আর পুরনো তালিকা সরানো (২০২৬-১০-০৫) — ✅ সম্পন্ন (ডাটাবেসের কাজ নেই)
+
+### ১. কী তৈরি বা পরিবর্তন হয়েছে
+- **প্রকল্প রেজিস্ট্রি** (`src/features/projects/registry/`):
+  - `projectsStore.ts` — মডিউল-স্তরের অবস্থা (ভাষা টগলের remount এ হারায় না)। প্রথম আঁকা সাথে সাথে: localStorage স্ন্যাপশট `asf_projects_v1`, না থাকলে কোডের ফলব্যাক (`src/backend/fallbackProjects.ts`); পেছনে `getProjectsApi().list()` দিয়ে মিলিয়ে নেয় (একসাথে একটিই কল)। ব্যর্থ হলে আগের তালিকাই থাকে। স্ন্যাপশটে **শুধু পাবলিক** প্রকল্প (খসড়া কখনো ব্রাউজারে জমা থাকে না), কখনো লেখায় ব্যবহার হয় না। `synced` (M-ধাপ ৬-এর 404-এর জন্য), `refreshProjects({ includeDrafts })` (এডমিন/সেভের পর, M-ধাপ ৭)।
+  - সহায়ক: `findProject`, `findBySlug`, `childrenOf`, `leafProjects`, `housingProjects`, `projectPath` (`/{group}/{slug}` বা `/{slug}`), `fallbackSlug`; হুক `useRegistry`, `useProjects`, `useProject`।
+  - **আইকন-রেজিস্ট্রি** (`icons.ts` + `iconShapes.tsx` + `ProjectIcon.tsx`, পুরনো `ProjectIcons.tsx` এর জায়গায়): house, tin-house, cow, goat, shop, sewing-machine, tools, coins, hands-heart, users + অচেনা key এর fallback; প্রতিটির বাংলা/ইংরেজি বাছাই-নাম (প্যানেলের ড্রপডাউনের জন্য)। ঘর নির্মাণের দুটি আইকন হুবহু আগের SVG।
+  - **রঙের তালিকা** (`accents.ts`): brand (সাইটের সবুজ — আগের ক্লাস হুবহু), teal, sky, indigo, amber, rose; `accentOf(key)`, অচেনা হলে brand।
+- **`src/i18n/core.ts`:** `pick(bn, en)` — ডাটাবেসের লেখা দেখানোর একমাত্র পথ (ইংরেজি মোডে en খালি না হলে en, নইলে বাংলা); `lt(obj, 'name')` = `pick(obj.name_bn, obj.name_en)`।
+- **`PROJECT_META` ও `PROJECT_LIST` সরানো** (`utils/projectType.ts` মুছে `utils/housingProjects.ts`): ১২টি ফাইলে `t(meta.title)`/`t(p.title)`/`t(meta.description)` এর বদলে `lt(project, …)` — হোমের কার্ড ও তালিকা, সাবনেভ, তালিকা ও বিস্তারিত পেইজ, এডমিন রেকর্ড/ফর্ম/ইম্পোর্ট/ছবি-বাল্ক/একটিভিটি, এডমিন টেবিল, রাউট। এডমিনের লিংক `adminPath(key, rest)` দিয়ে। স্থির রাউটের slug `fallbackSlug()` থেকে (রাউট রেজিস্ট্রি-চালিত হবে M-ধাপ ৬-এ)।
+- **ছবির ফাইলনাম:** `parsePhotoFilename(name, aliases)` — প্রিফিক্সের তালিকা `buildProjectAliases()` দিয়ে রেজিস্ট্রি থেকে (file_prefix, key, _ ছাড়া key → আগের semi/semi_pucca/semipucca/tin হুবহু)। ছবি-বাল্ক পেইজ রেজিস্ট্রি থেকে, `migrate-photos` কোডের ফলব্যাক থেকে। `photoPath` আগে থেকেই প্রকল্পের key (string) নেয় — পাথের নিয়ম অপরিবর্তিত, তাই বদল লাগেনি।
+- `types.ts`: অব্যবহৃত `PROJECT_TYPES` ও `HousingProjectKey` সরানো।
+- **`en.ts`:** প্রকল্পের নাম/বর্ণনার ৪টি key মুছে ফেলা (এখন ডাটাবেস থেকে)। EN অভিধান ৪৩১ → ৪২৭।
+- **`scripts/i18n-check.mjs`:** (ক) নতুন সতর্কবার্তা — `t(x.name_bn)`, `t(meta.title)`, `t(x.description)` এর মতো ডাটাবেসের লেখা t() দিয়ে দেখালে; (খ) দুই-ভাষার ডাটা-জোড়া (`label_bn: '…'`) অভিধানের লেখা হিসেবে গোনে না; (গ) `//` কমেন্টকে JSX লেখা ভাবার পুরনো ভুল সতর্কবার্তা বন্ধ; (ঘ) মৃত `stripAliasArrays` সরানো।
+- নথি: এই অংশ, ফোল্ডার কাঠামো, পরিকল্পনার অবস্থা ও §১২-এ দুটি ব্যাখ্যা।
+
+### ২. গুরুত্বপূর্ণ সিদ্ধান্ত ও কারণ
+- **`lt()` এর মানে** পরিকল্পনায় লেখা ছিল না — AI-এর ব্যাখ্যা: `_bn`/`_en` জোড়ার ছোট রূপ (`lt(project, 'name')`)। §১২-এ লেখা।
+- **প্রথম আঁকায় ফলব্যাক, লোডিং নয়** — তাই নেটওয়ার্ক ধীর বা বন্ধ হলেও ঘর নির্মাণের পেইজ সাথে সাথে আগের মতো আঁকা হয় (চোখে পার্থক্য নেই)।
+- **ঘর নির্মাণের পেইজ শুধু `housing` গ্রুপের উপ-প্রকল্প দেখায়** (`housingProjects`) — নতুন প্রকল্প (স্বাবলম্বী …) এলেও ঘর নির্মাণের ট্যাব/ড্রপডাউনে ঢুকবে না; তাদের নিজস্ব পেইজ আসবে M-ধাপ ৬/৮-এ। একটিভিটি পেইজের প্রকল্প-ফিল্টারে সব প্রকল্প (লগ সব প্রকল্পের)।
+- **এডমিন মেনুর দুটি লেবেল** ("সেমিপাকা রেকর্ড", "টিন রেকর্ড", `AdminShell.tsx`) এখনো স্থির — এডমিন পুরোটা `/admin` এ সরবে M-ধাপ ৬-এ, তখন রেজিস্ট্রি থেকে।
+- **আইকন ফাইল ভাগ** (`iconShapes.tsx` শুধু কম্পোনেন্ট, `icons.ts` শুধু তালিকা) — Vite fast-refresh এর lint নিয়মে (lint ০ সতর্কবার্তা)।
+
+### ৩. পরিচিত সমস্যা ও বাকি কাজ
+- **ভাষা টগলে তালিকা/স্ট্যাট আবার আসে** — রেজিস্ট্রির কোনো নতুন রিকোয়েস্ট যায় না (মাপা হয়েছে), কিন্তু তালিকা পেইজের `housing_beneficiaries`, `project_stats`, `housing_years` আগের মতোই আবার আসে, কারণ টগলে পুরো অ্যাপ remount হয় (এটি ভাষা-টগল তৈরির সময় থেকে; এই ধাপে বদলায়নি; dev-এ React StrictMode প্রতিটি দুবার দেখায়, প্রোডাকশনে একবার)। পরিকল্পনার "ভাষা টগলে কোনো নতুন রিকোয়েস্ট নয়" পুরোপুরি চাইলে ডাটা-হুকে ছোট ক্যাশ লাগবে — আপনি বললে M-ধাপ ৬ বা আলাদাভাবে করা যায়।
+- **চলমান `npm run dev` আবার চালু করুন:** এই ধাপে ফাইল সরানো/নাম বদলের পর অনেকক্ষণ ধরে চলা dev সার্ভার পুরনো ফাইল (`icons.tsx`) খুঁজছিল, তাই পেইজ সাদা দেখাচ্ছিল (৪০৪)। নতুন করে চালানো সার্ভারে সব ঠিক (নিচে)। কোডের সমস্যা নয়।
+- পরিকল্পনার "DevTools-এ Offline চালু করে রিফ্রেশ" পরীক্ষাটি এভাবে হয় না — Offline এ লোকাল dev সার্ভারও বন্ধ হয়ে যায়, পেইজই খোলে না। সঠিক উপায় নিচে §৪-এ (শুধু Supabase-এর ঠিকানা বন্ধ করা)।
+
+### ৪. আমাকে (ব্যবহারকারীকে) যা করতে হবে
+1. চলমান `npm run dev` বন্ধ করে (Ctrl+C) আবার চালু করুন।
+2. **ভাষা টগল:** `/housing`, `/housing/semi-pucca` আর হোম পেইজে বাং ↔ EN করে প্রকল্পের নামগুলো দেখুন — "সেমিপাকা ঘর নির্মাণ" ↔ "Semi-pucca House Construction", "টিনের ঘর নির্মাণ" ↔ "Tin-shed House Construction"।
+3. **স্ন্যাপশট (ঐচ্ছিক):** একবার `/housing` খুলুন। তারপর DevTools (F12) → Network ট্যাব → যেকোনো `supabase.co` রিকোয়েস্টে ডান-ক্লিক → "Block request domain" → পেইজ রিফ্রেশ। সাবনেভে প্রকল্পের নামগুলো আসবে (স্ন্যাপশট থেকে), সংখ্যা/তালিকার জায়গায় "লোড করা যায়নি" দেখাবে — এটাই প্রত্যাশিত। শেষে Network ট্যাবের "Request blocking" থেকে ব্লক তুলে দিন।
+4. ডাটাবেসে কিছু চালাতে হবে না।
+
+### ৫. কিভাবে টেস্ট করতে হবে
+| পরীক্ষা | ফল |
+|---|---|
+| গেট: `npx tsc -b`, `npm run lint` (০ সতর্কবার্তা), `npm run build`, `npm run i18n-check` (৪২৭ = ৪২৭, কোনো সতর্কবার্তা নেই) | ✅ |
+| `PROJECT_META` / `PROJECT_LIST` কোডে কোথাও নেই (grep; শুধু দুটি মন্তব্যে নাম আছে) | ✅ |
+| `npm run smoke` (নতুন dev সার্ভারে): PASS ৭৫/৭৫; রেজিস্ট্রি প্রতি পেইজ-লোডে একবার (`projects` ও `project_fields` ৬৫ বার করে), `project_stats` চলে, `housing_stats` নয় | ✅ |
+| `npm run smoke -- --legacy`: PASS ৭৫/৭৫ (রেজিস্ট্রি ফলব্যাক থেকে, `projects` এ কোনো কল নেই) | ✅ |
+| স্ক্রিনশট বনাম M-ধাপ ১-এর বেসলাইন: --legacy ৭৪/৭৪ হুবহু; সাধারণ মোডে ৭৩/৭৪ হুবহু — `en-390-map` এ মানচিত্রের ২০টি স্বয়ংক্রিয় ট্যাপের শেষটি পাশের উপজেলায় পড়েছিল (পরশুরাম বনাম মীরসরাই; লেআউট একই); ওই প্রস্থে দুবার আবার চালাতে দুবারই হুবহু | ✅ |
+| ব্রাউজার-পরীক্ষা (puppeteer): প্রথম লোডে স্ন্যাপশট লেখা (শুধু পাবলিক ৩টি); ভাষা টগলে রেজিস্ট্রির নতুন রিকোয়েস্ট ০; শিরোনাম ও সাবনেভ ডাটাবেসের name_en এ; Supabase বন্ধেও স্ন্যাপশট থেকে নাম; নতুন ব্রাউজার + Supabase বন্ধ → ফলব্যাক থেকে শিরোনাম — ৬/৬ | ✅ |
+| `npm run adapter-check` ২৫/২৫, `npm run content-check` (ইংরেজি খালি নেই), `migrate-photos --help` লোড হয় | ✅ |
+| মূল বান্ডেল ৮৬.৩ → ৮০.০ KB gzip (কোড শেয়ার্ড chunk এ সরেছে; হোম পেইজের মোট প্রথম-লোড JS ~১৮১ → ~১৭৭ KB) | ✅ |
+
+### ৬. পরের ধাপে কী করতে হবে
+- **M-ধাপ ৫খ** — টাকা (`money.ts`), ফিল্ড-টাইপ রেজিস্ট্রি, fuzzy মিল ও `field-types-check`। প্রশ্ন ৯ (ইংরেজিতে টাকা কীভাবে দেখাবে) ওই ধাপে লাগবে — উত্তর না দিলে পরিকল্পনার ডিফল্ট।
+- পেস্ট করুন: `M-ধাপ ৫খ শুরু করো (পরিকল্পনা: docs/MULTI_PROJECT_PLAN.md)`

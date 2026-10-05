@@ -1,17 +1,17 @@
-import { t, gn } from '@/i18n'
+import { t, gn, lt } from '@/i18n'
 import { Link } from 'react-router'
 import { formatBanglaNumber, toBanglaNumber } from '@/lib/banglaNumber'
-import type { HousingRecord } from '../../../backend/interfaces/types'
+import type { HousingRecord, Project } from '../../../backend/interfaces/types'
 import { useCountUp } from '../hooks/useCountUp'
 import { useFeaturedRecord } from '../hooks/useFeaturedRecord'
 import { useHousingStats } from '../hooks/useHousingStats'
 import { photoSrc } from '../utils/imagePath'
-import { projectPath, type ProjectMeta } from '../utils/projectType'
-import { ProjectIcon } from './ProjectIcons'
+import { ProjectIcon, accentOf } from '@/features/projects/registry'
+import { projectPath } from '../utils/housingProjects'
 import { SafeImage } from './SafeImage'
 
 interface Props {
-  project: ProjectMeta
+  project: Project
 }
 
 /**
@@ -21,10 +21,11 @@ interface Props {
  * ডাটা: প্রকল্পের প্রথম উপকারভোগী (সিরিয়াল ১)। ডাটা না থাকলে/এরর হলে শুধু প্রকল্পের বর্ণনা।
  */
 export function FeaturedProjectCard({ project }: Props) {
-  const state = useFeaturedRecord(project.type)
-  const stats = useHousingStats(project.type)
+  const state = useFeaturedRecord(project.key)
+  const stats = useHousingStats(project.key)
+  const title = lt(project, 'name')
   const record = state.status === 'ready' ? state.record : null
-  const listPath = projectPath(project.type)
+  const listPath = projectPath(project)
   const photo = record ? photoSrc(record.current_photo_url ?? record.prev_photo_url, record.photo_updated_at) : null
 
   return (
@@ -37,20 +38,20 @@ export function FeaturedProjectCard({ project }: Props) {
           ) : photo ? (
             <SafeImage
               src={photo}
-              alt={`${record!.name} — ${t(project.title)}`}
+              alt={`${record!.name} — ${title}`}
               className="aspect-square w-full rounded-xl object-cover sm:w-44"
               placeholderClassName="aspect-square w-full rounded-xl sm:w-44"
             />
           ) : (
-            <div className="flex aspect-square w-full items-center justify-center rounded-xl bg-brand-50 text-brand-700 sm:w-44" aria-hidden="true">
-              <ProjectIcon type={project.type} className="h-20 w-20" />
+            <div className={`flex aspect-square w-full items-center justify-center rounded-xl sm:w-44 ${accentOf(project.accent).soft}`} aria-hidden="true">
+              <ProjectIcon icon={project.icon} className="h-20 w-20" />
             </div>
           )}
         </div>
 
         {/* লেখা */}
         <div className="flex min-w-0 flex-1 flex-col">
-          <h3 className="text-lg font-bold text-slate-900">{t(project.title)}</h3>
+          <h3 className="text-lg font-bold text-slate-900">{title}</h3>
           <dl className="mt-3 grid flex-1 grid-cols-3 gap-2">
             <StatTile label={t('মোট ঘর নির্মাণ')} value={stats.status === 'ready' ? stats.data.total : null} loading={stats.status === 'loading'} accent />
             <StatTile label={t('মোট জেলা কভার')} value={stats.status === 'ready' ? stats.data.distinct.districts : null} loading={stats.status === 'loading'} />
@@ -60,7 +61,7 @@ export function FeaturedProjectCard({ project }: Props) {
             <Link
               to={listPath}
               className="inline-flex items-center gap-2 rounded-md border-2 border-brand-600 px-4 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-600 hover:text-white"
-              aria-label={`${t(project.title)} — ${t('আরো দেখুন')}`}
+              aria-label={`${title} — ${t('আরো দেখুন')}`}
             >
               {t('আরো দেখুন')}
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
@@ -94,7 +95,7 @@ function StatTile({ label, value, loading, accent = false }: { label: string; va
   )
 }
 
-function FeaturedBar({ record, project, loading }: { record: HousingRecord | null; project: ProjectMeta; loading: boolean }) {
+function FeaturedBar({ record, project, loading }: { record: HousingRecord | null; project: Project; loading: boolean }) {
   if (loading) {
     return (
       <div className="grid animate-pulse gap-3 bg-accent-500/90 px-5 py-4 sm:grid-cols-3 sm:px-6" aria-hidden="true">
@@ -107,7 +108,7 @@ function FeaturedBar({ record, project, loading }: { record: HousingRecord | nul
   if (!record) {
     return (
       <div className="bg-accent-500 px-5 py-4 text-sm font-medium text-brand-950 sm:px-6">
-        {t('{title} — উপকারভোগীদের তালিকা দেখতে "আরো দেখুন" চাপুন।', { title: t(project.title) })}
+        {t('{title} — উপকারভোগীদের তালিকা দেখতে "আরো দেখুন" চাপুন।', { title: lt(project, 'name') })}
       </div>
     )
   }
@@ -129,7 +130,7 @@ function FeaturedBar({ record, project, loading }: { record: HousingRecord | nul
       <div className="min-w-0 text-sm leading-snug">
         <dt className="sr-only">{t('প্রকল্প ও সিরিয়াল')}</dt>
         <dd className="truncate font-medium">
-          {t(project.title)} {toBanglaNumber(record.year)}
+          {lt(project, 'name')} {toBanglaNumber(record.year)}
         </dd>
         <dd>
           {t('সিরিয়াল নম্বর:')} <span className="font-semibold">{toBanglaNumber(record.serial_no)}</span>

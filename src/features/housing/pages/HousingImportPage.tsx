@@ -1,4 +1,4 @@
-import { gn, t } from '@/i18n'
+import { gn, lt, t } from '@/i18n'
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { useToast } from '@/components/useToast'
@@ -11,7 +11,7 @@ import { candidatesFor, geoFixKey } from '../utils/geoMatch'
 import { FIELD_LABEL, guessMapping, IMPORT_FIELDS, REQUIRED_FIELDS, type ImportField } from '../utils/importColumns'
 import { parseSpreadsheet, type ParsedSheet } from '../utils/importParse'
 import { analyzeRows, fillDown, type ImportAnalysis, type ImportRow, type Mapping } from '../utils/importValidate'
-import { PROJECT_LIST, PROJECT_META } from '../utils/projectType'
+import { adminPath, useHousingProjects } from '../utils/housingProjects'
 
 type Mode = 'insert' | 'update'
 const BATCH = 200
@@ -30,7 +30,9 @@ interface RunResult {
 export function HousingImportPage() {
   const toast = useToast()
   const api = getHousingApi()
+  const projects = useHousingProjects()
   const [projectType, setProjectType] = useState<ProjectType>('semi_pucca')
+  const projectSlug = projects.find((p) => p.key === projectType)?.slug ?? projectType
   const [mode, setMode] = useState<Mode>('insert')
   const [file, setFile] = useState<File | null>(null)
   const [sheet, setSheet] = useState<ParsedSheet | null>(null)
@@ -168,7 +170,7 @@ export function HousingImportPage() {
     if (!result) return
     const rows = result.failed.map((f) => [f.rowNo, f.serial ?? '', f.name, f.reason])
     const missingRows = result.missing.map((s) => ['', s, '', t('সিরিয়াল ধরে রেকর্ড পাওয়া যায়নি (আপডেট হয়নি)')])
-    downloadText(`import-failed-${PROJECT_META[projectType].slug}.csv`, toCsv([t('ফাইলের সারি'), t('সিরিয়াল'), t('নাম'), t('কারণ')], [...rows, ...missingRows]))
+    downloadText(`import-failed-${projectSlug}.csv`, toCsv([t('ফাইলের সারি'), t('সিরিয়াল'), t('নাম'), t('কারণ')], [...rows, ...missingRows]))
   }
 
   const previewRows = useMemo(() => {
@@ -180,7 +182,7 @@ export function HousingImportPage() {
   return (
     <section className="container-page py-8 sm:py-10">
       <p className="text-sm text-slate-500">
-        <Link to={`/housing/admin/${PROJECT_META[projectType].slug}`} className="hover:text-brand-700">
+        <Link to={adminPath(projectType)} className="hover:text-brand-700">
           {t('রেকর্ড')}
         </Link>{' '}
         / {t('বাল্ক ইম্পোর্ট')}
@@ -198,9 +200,9 @@ export function HousingImportPage() {
               {t('প্রকল্প')}
             </label>
             <select id="imp-project" className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm" value={projectType} onChange={(e) => setProjectType(e.target.value as ProjectType)} disabled={!!running}>
-              {PROJECT_LIST.map((p) => (
-                <option key={p.type} value={p.type}>
-                  {t(p.title)}
+              {projects.map((p) => (
+                <option key={p.key} value={p.key}>
+                  {lt(p, 'name')}
                 </option>
               ))}
             </select>

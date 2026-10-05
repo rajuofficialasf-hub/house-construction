@@ -1,12 +1,6 @@
-import { t } from '@/i18n'
+import { lt, t } from '@/i18n'
 import { NavLink } from 'react-router'
-import { PROJECT_LIST, projectPath } from '../utils/projectType'
-
-/** পাবলিক নেভিগেশন — এডমিন লিঙ্ক ইচ্ছাকৃতভাবে নেই (এডমিন সরাসরি /housing/admin এ যাবেন) */
-const LINKS = [
-  { to: '/housing', label: 'সব প্রকল্প', end: true },
-  ...PROJECT_LIST.map((p) => ({ to: projectPath(p.type), label: p.title, end: false })),
-]
+import { projectPath, useHousingProjects } from '../utils/housingProjects'
 
 interface Props {
   /** dark: গাঢ় (সবুজ) ব্যাকগ্রাউন্ডের উপর */
@@ -27,9 +21,14 @@ const STYLES = {
 /** হাউজিং সেকশনের ভেতরের নেভিগেশন (ল্যান্ডিং, দুই প্রকল্প) */
 export function HousingSubnav({ variant = 'light' }: Props) {
   const s = STYLES[variant]
+  // পাবলিক নেভিগেশন — এডমিন লিঙ্ক ইচ্ছাকৃতভাবে নেই (এডমিন সরাসরি /housing/admin এ যাবেন); প্রকল্প রেজিস্ট্রি থেকে
+  const links = [
+    { to: '/housing', label: t('সব প্রকল্প'), end: true },
+    ...useHousingProjects().map((p) => ({ to: projectPath(p), label: lt(p, 'name'), end: false })),
+  ]
   return (
     <nav aria-label={t('ঘর নির্মাণ প্রকল্প মেনু')} className="scrollbar-none -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
-      {LINKS.map((l) => (
+      {links.map((l) => (
         <NavLink
           key={l.to}
           to={l.to}
@@ -41,7 +40,7 @@ export function HousingSubnav({ variant = 'light' }: Props) {
             ].join(' ')
           }
         >
-          {t(l.label)}
+          {l.label}
         </NavLink>
       ))}
     </nav>

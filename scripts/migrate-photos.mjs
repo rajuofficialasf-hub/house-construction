@@ -36,7 +36,8 @@ import { createClient } from '@supabase/supabase-js'
 import sharp from 'sharp'
 import { createSupabaseHousingApi, createSupabaseImageStorage } from '../src/backend/supabase/index.ts'
 import { PHOTO_SPEC } from '../src/features/housing/utils/photoSpec.ts'
-import { parsePhotoFilename } from '../src/features/housing/utils/photoFilename.ts'
+import { buildProjectAliases, parsePhotoFilename } from '../src/features/housing/utils/photoFilename.ts'
+import { FALLBACK_PROJECTS } from '../src/backend/fallbackProjects.ts'
 
 // ---------------------------------------------------------------- args
 const args = parseArgs(process.argv.slice(2))
@@ -44,7 +45,10 @@ if (args.help || (!args.csv && !args['local-folder'] && !args['from-db'])) {
   printHelp()
   process.exit(args.help ? 0 : 1)
 }
-const PROJECT_TYPES = ['semi_pucca', 'tin']
+// এই স্ক্রিপ্ট শুধু ঘর নির্মাণের (সেমিপাকা, টিন) — প্রকল্প ও ফাইলনামের প্রিফিক্স কোডের ফলব্যাক রেজিস্ট্রি থেকে
+const HOUSING_LEAVES = FALLBACK_PROJECTS.filter((p) => p.parent_key === 'housing')
+const PROJECT_TYPES = HOUSING_LEAVES.map((p) => p.key)
+const PROJECT_ALIASES = buildProjectAliases(HOUSING_LEAVES)
 const project = args.project ?? null
 if (project && !PROJECT_TYPES.includes(project)) die(`--project অবশ্যই semi_pucca বা tin (পেয়েছি: ${project})`)
 const concurrency = Math.max(1, Number(args.concurrency ?? 4))
@@ -258,7 +262,7 @@ function jobsFromFolder(dir) {
   for (const name of fs.readdirSync(dir)) {
     const full = path.join(dir, name)
     if (!fs.statSync(full).isFile()) continue
-    const p = parsePhotoFilename(name)
+    const p = parsePhotoFilename(name, PROJECT_ALIASES)
     if (!p) {
       if (/\.(jpe?g|png|webp)$/i.test(name)) {
         unmatched++

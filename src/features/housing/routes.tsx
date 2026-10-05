@@ -12,7 +12,11 @@ import {
   LazyHousingRecordFormPage,
 } from './pages/lazyPages'
 import { RequireAdmin } from './components/RequireAdmin'
-import { PROJECT_META } from './utils/projectType'
+import { fallbackSlug } from '@/features/projects/registry'
+
+// স্থির রাউট (M-ধাপ ৬-এ রেজিস্ট্রি-চালিত হবে); প্রকাশিত প্রকল্পের slug ডাটাবেসে বদলানো যায় না, তাই নিরাপদ
+const SEMI = fallbackSlug('semi_pucca')
+const TIN = fallbackSlug('tin')
 
 /**
  * /housing/* রুটসমূহ। App.tsx এ <Routes> এর ভেতরে {housingRoutes} হিসেবে বসে।
@@ -26,15 +30,15 @@ export const housingRoutes = (
   <Route path="housing">
     <Route index element={<HousingLandingPage />} />
     {/* ভিউ মোড /:serial তালিকার child — মডাল তালিকার উপরে খোলে, ফিল্টার/পেইজ URL এ থাকে */}
-    <Route path={PROJECT_META.semi_pucca.slug} element={<HousingListPage projectType="semi_pucca" />}>
+    <Route path={SEMI} element={<HousingListPage projectType="semi_pucca" />}>
       <Route path=":serial" element={<Lazy><LazyHousingDetailPage /></Lazy>} />
     </Route>
-    <Route path={PROJECT_META.tin.slug} element={<HousingListPage projectType="tin" />}>
+    <Route path={TIN} element={<HousingListPage projectType="tin" />}>
       <Route path=":serial" element={<Lazy><LazyHousingDetailPage /></Lazy>} />
     </Route>
     <Route path="admin/login" element={<HousingLoginPage />} />
     <Route path="admin" element={<RequireAdmin />}>
-      <Route index element={<Navigate to={PROJECT_META.semi_pucca.slug} replace />} />
+      <Route index element={<Navigate to={SEMI} replace />} />
       <Route path="photos" element={<Lazy><LazyHousingPhotoBulkPage /></Lazy>} />
       <Route path="import" element={<Lazy><LazyHousingImportPage /></Lazy>} />
       <Route path="activity" element={<Lazy><LazyHousingActivityPage /></Lazy>} />

@@ -4,7 +4,7 @@ import { Link, useLocation } from 'react-router'
 import { toBanglaNumber } from '@/lib/banglaNumber'
 import type { HousingRecord, PhotoKind } from '../../../backend/interfaces/types'
 import { photoSrc } from '../utils/imagePath'
-import { projectPath } from '../utils/projectType'
+import { projectPath } from '../utils/housingProjects'
 import { Lightbox, type LightboxImage } from './Lightbox'
 import { SafeImage } from './SafeImage'
 

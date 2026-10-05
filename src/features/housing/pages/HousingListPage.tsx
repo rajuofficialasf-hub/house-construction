@@ -1,9 +1,9 @@
-import { t } from '@/i18n'
+import { lt, t } from '@/i18n'
 import { useCallback, useMemo, useRef } from 'react'
 import { Outlet, useSearchParams } from 'react-router'
 import type { ListOutletContext } from './listContext'
 import { DEFAULT_PAGE_SIZE, type ListParams, type ProjectType } from '../../../backend/interfaces/types'
-import { PROJECT_META } from '../utils/projectType'
+import { useProject } from '@/features/projects/registry'
 import {
   applyFiltersToSearchParams,
   filtersEqual,
@@ -37,7 +37,7 @@ function parsePage(raw: string | null): number {
  * child route /:serial (ভিউ মোড) <Outlet> দিয়ে এর উপরে মডাল হিসেবে রেন্ডার হয়।
  */
 export function HousingListPage({ projectType }: Props) {
-  const meta = PROJECT_META[projectType]
+  const project = useProject(projectType)
   const [searchParams, setSearchParams] = useSearchParams()
   const page = parsePage(searchParams.get('page'))
   const filters = useMemo(() => filtersFromSearchParams(searchParams), [searchParams])
@@ -102,8 +102,8 @@ export function HousingListPage({ projectType }: Props) {
     <section className="container-page py-10 sm:py-14">
       <Outlet context={outletContext} />
       <HousingSubnav />
-      <h1 className="mt-6 text-2xl font-bold text-slate-900 sm:text-3xl">{t(meta.title)}</h1>
-      <p className="mt-2 text-slate-600">{t(meta.description)}</p>
+      <h1 className="mt-6 text-2xl font-bold text-slate-900 sm:text-3xl">{lt(project, 'name')}</h1>
+      <p className="mt-2 text-slate-600">{lt(project, 'description')}</p>
 
       <div className="mt-8">
         <StatCards projectType={projectType} />

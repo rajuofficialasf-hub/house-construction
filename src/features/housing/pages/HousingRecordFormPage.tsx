@@ -1,4 +1,4 @@
-import { t } from '@/i18n'
+import { lt, t } from '@/i18n'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { toBanglaNumber } from '@/lib/banglaNumber'
@@ -7,7 +7,7 @@ import { getHousingApi } from '../../../backend/factory'
 import { HousingApiError, type HousingRecord } from '../../../backend/interfaces/types'
 import { ErrorNotice } from '../components/ErrorNotice'
 import { RecordForm } from '../components/RecordForm'
-import { PROJECT_META, projectFromSlug } from '../utils/projectType'
+import { adminPath, useHousingProjectBySlug } from '../utils/housingProjects'
 
 interface Props {
   mode: 'new' | 'edit'
@@ -22,7 +22,8 @@ type Loaded = { serial: number; status: 'ready'; record: HousingRecord } | { ser
 export function HousingRecordFormPage({ mode }: Props) {
   const { slug, serial } = useParams()
   const navigate = useNavigate()
-  const projectType = projectFromSlug(slug)
+  const project = useHousingProjectBySlug(slug)
+  const projectType = project?.key
   const serialNo = Number(serial)
   const [loaded, setLoaded] = useState<Loaded | null>(null)
 
@@ -39,16 +40,15 @@ export function HousingRecordFormPage({ mode }: Props) {
     }
   }, [needLoad, projectType, serialNo])
 
-  if (!projectType || (mode === 'edit' && !needLoad)) return <NotFoundPage />
-  const meta = PROJECT_META[projectType]
-  const listPath = `/housing/admin/${meta.slug}`
+  if (!project || !projectType || (mode === 'edit' && !needLoad)) return <NotFoundPage />
+  const listPath = adminPath(projectType)
   const current = loaded && loaded.serial === serialNo ? loaded : null
 
   return (
     <section className="container-page py-8 sm:py-10">
       <p className="text-sm text-slate-500">
         <Link to={listPath} className="hover:text-brand-700">
-          {t(meta.title)}
+          {lt(project, 'name')}
         </Link>{' '}
         / {mode === 'new' ? t('নতুন রেকর্ড') : t('সিরিয়াল {n} সম্পাদনা', { n: toBanglaNumber(serialNo) })}
       </p>

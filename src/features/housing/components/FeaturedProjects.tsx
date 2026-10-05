@@ -1,6 +1,6 @@
 import { t } from '@/i18n'
 import { useRef } from 'react'
-import { PROJECT_LIST } from '../utils/projectType'
+import { useHousingProjects } from '../utils/housingProjects'
 import { FeaturedProjectCard } from './FeaturedProjectCard'
 
 /**
@@ -8,6 +8,7 @@ import { FeaturedProjectCard } from './FeaturedProjectCard'
  * ডেস্কটপে পাশাপাশি; ছোট পর্দায় অনুভূমিক স্ক্রল-স্ন্যাপ ও দুই পাশে তীর বাটন (ক্যারোসেল-ধাঁচ)।
  */
 export function FeaturedProjects() {
+  const projects = useHousingProjects()
   const scroller = useRef<HTMLDivElement>(null)
   const scrollBy = (dir: -1 | 1) => {
     const el = scroller.current
@@ -31,8 +32,8 @@ export function FeaturedProjects() {
             ref={scroller}
             className="flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth pb-2 [scrollbar-width:none] lg:grid lg:grid-cols-2 lg:gap-8 lg:overflow-visible [&::-webkit-scrollbar]:hidden"
           >
-            {PROJECT_LIST.map((p) => (
-              <div key={p.type} className="w-[88%] shrink-0 snap-center sm:w-[80%] lg:w-auto">
+            {projects.map((p) => (
+              <div key={p.key} className="w-[88%] shrink-0 snap-center sm:w-[80%] lg:w-auto">
                 <FeaturedProjectCard project={p} />
               </div>
             ))}

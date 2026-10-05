@@ -60,3 +60,22 @@ export function gn(bnName: string | null | undefined): string {
   geoMap ??= buildGeoMap()
   return geoMap.get(bnName.normalize('NFC')) ?? bnName
 }
+
+// ---------------------------------------------------------------- ডাটাবেসের লেখা (পর্ব ২)
+/**
+ * ডাটাবেস থেকে আসা দুই-ভাষার লেখা (প্রকল্পের নাম/বর্ণনা, ফিল্ড ও স্ট্যাটের লেবেল, একক শব্দ) দেখানোর **একমাত্র** পথ।
+ * ইংরেজি মোডে `en` খালি না থাকলে `en`, নইলে বাংলা। t() নয় — এগুলো অভিধানে থাকে না (i18n-check সতর্ক করে)।
+ */
+export function pick(bn: string | null | undefined, en: string | null | undefined): string {
+  if (currentLang === 'en' && en && en.trim() !== '') return en
+  return bn ?? ''
+}
+
+/** `<base>_bn` / `<base>_en` জোড়া আছে এমন অবজেক্টের জন্য pick(): lt(project, 'name') = pick(project.name_bn, project.name_en) */
+export function lt<B extends string>(
+  obj: Partial<Record<`${B}_bn` | `${B}_en`, string | null>> | null | undefined,
+  base: B,
+): string {
+  if (!obj) return ''
+  return pick(obj[`${base}_bn`], obj[`${base}_en`])
+}

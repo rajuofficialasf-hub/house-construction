@@ -97,14 +97,9 @@ export const EN: Record<string, string> = {
   'প্রকল্পসমূহ': 'Projects',
   'সব প্রকল্প': 'All projects',
   'প্রকল্প': 'Project',
-  'সেমিপাকা ঘর নির্মাণ': 'Semi-pucca House Construction',
-  'টিনের ঘর নির্মাণ': 'Tin-shed House Construction',
+  // প্রকল্পের নাম ও বর্ণনা এখানে নেই — আসে ডাটাবেস (projects) থেকে, দেখানো হয় lt()/pick() দিয়ে (M-ধাপ ৫ক)
   'সেমিপাকা রেকর্ড': 'Semi-pucca records',
   'টিন রেকর্ড': 'Tin-shed records',
-  'ইটের দেয়াল ও টিনের ছাউনিতে টেকসই, নিরাপদ ঘর — দীর্ঘমেয়াদি বাসস্থানের সমাধান।':
-    'Durable, safe homes with brick walls and tin roofs — a long-term housing solution.',
-  'দ্রুত ও স্বল্প ব্যয়ে নির্মিত টিনের ঘর — জরুরি প্রয়োজনে মাথা গোঁজার ঠাঁই।':
-    'Quickly built, low-cost tin-shed homes — shelter for urgent needs.',
   'ঘরহীন ও অসহায় পরিবারের জন্য নিরাপদ বাসস্থান। সেমিপাকা ও টিনের ঘর নির্মাণ প্রকল্পের উপকারভোগীদের তথ্য ও আগে-পরের ছবি সবার জন্য উন্মুক্ত।':
     'Safe homes for homeless and helpless families. Beneficiary details and before/after photos of the semi-pucca and tin-shed housing projects are open to everyone.',
   'ঘরহীন ও অসহায় পরিবারের জন্য নিরাপদ বাসস্থান। প্রতিটি ঘরের আগের ও বর্তমান অবস্থার ছবিসহ উপকারভোগীদের পূর্ণ তালিকা এখানে দেখা যায়। প্রকল্পটি চলমান।':

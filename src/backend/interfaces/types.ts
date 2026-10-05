@@ -6,11 +6,8 @@
 
 /** প্রকল্পের স্থায়ী key (`projects.key`), যেমন 'semi_pucca', 'tin', 'self_reliance' — ডাটাবেস-চালিত, তাই string */
 export type ProjectKey = string
-/** পুরনো নাম (পর্ব ১) — নতুন কোডে ProjectKey */
+/** পুরনো নাম (পর্ব ১) — নতুন কোডে ProjectKey। প্রকল্পের তালিকা আসে রেজিস্ট্রি থেকে (src/features/projects/registry) */
 export type ProjectType = ProjectKey
-/** পর্ব ১-এর দুই ঘর নির্মাণ প্রকল্প (utils/projectType.ts এর PROJECT_META; M-ধাপ ৫ক-এ রেজিস্ট্রিতে সরবে) */
-export type HousingProjectKey = 'semi_pucca' | 'tin'
-export const PROJECT_TYPES: readonly HousingProjectKey[] = ['semi_pucca', 'tin'] as const
 
 // ---------------------------------------------------------------- প্রকল্প রেজিস্ট্রি (পর্ব ২; SQL ১০)
 export type PhotoMode = 'before_after' | 'after_only' | 'none'

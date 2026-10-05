@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { toBanglaNumber } from '@/lib/banglaNumber'
 import type { HousingRecord } from '../../../backend/interfaces/types'
 import { photoSrc } from '../utils/imagePath'
-import { PROJECT_META } from '../utils/projectType'
+import { adminPath } from '../utils/housingProjects'
 import { SafeImage } from './SafeImage'
 
 interface Props {
@@ -18,7 +18,7 @@ interface Props {
 }
 
 function adminEditPath(r: HousingRecord): string {
-  return `/housing/admin/${PROJECT_META[r.project_type].slug}/${r.serial_no}/edit`
+  return adminPath(r.project_type, `${r.serial_no}/edit`)
 }
 
 /**

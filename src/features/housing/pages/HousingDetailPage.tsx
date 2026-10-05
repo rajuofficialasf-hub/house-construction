@@ -1,4 +1,4 @@
-import { gn, t as tr } from '@/i18n'
+import { gn, lt, t as tr } from '@/i18n'
 import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent } from 'react'
 import { useLocation, useNavigate, useOutletContext, useParams } from 'react-router'
 import { formatBanglaNumber, toBanglaNumber } from '@/lib/banglaNumber'
@@ -7,7 +7,8 @@ import { HousingApiError, type HousingRecord } from '../../../backend/interfaces
 import { ErrorNotice } from '../components/ErrorNotice'
 import { PhotoCompare } from '../components/PhotoCompare'
 import { photoSrc } from '../utils/imagePath'
-import { PROJECT_META, projectPath } from '../utils/projectType'
+import { useProject } from '@/features/projects/registry'
+import { projectPath } from '../utils/housingProjects'
 import type { ListOutletContext } from './listContext'
 
 const NO_RECORDS: HousingRecord[] = []
@@ -33,7 +34,7 @@ export function HousingDetailPage() {
   const location = useLocation()
   const serialNo = Number(serialParam)
   const validSerial = Number.isInteger(serialNo) && serialNo >= 1
-  const meta = PROJECT_META[ctx.projectType]
+  const project = useProject(ctx.projectType)
 
   // ---- বর্তমান পেইজে রেকর্ড আছে? ----
   const pageRecords = ctx.list.data?.data ?? NO_RECORDS
@@ -200,7 +201,7 @@ export function HousingDetailPage() {
         {/* ---------- হেডার ---------- */}
         <header className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-2 pt-[max(0.5rem,env(safe-area-inset-top))] sm:pt-2">
           <div className="min-w-0">
-            <p className="text-xs font-medium text-brand-700">{tr(meta.title)}</p>
+            <p className="text-xs font-medium text-brand-700">{lt(project, 'name')}</p>
             <h2 id="detail-title" className="truncate text-base font-bold text-slate-900 sm:text-lg">
               {record ? record.name : loading ? tr('লোড হচ্ছে…') : tr('রেকর্ড')}
               {validSerial && (

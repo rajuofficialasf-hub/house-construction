@@ -1,4 +1,4 @@
-import { gn, t } from '@/i18n'
+import { gn, lt, t } from '@/i18n'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { formatBanglaNumber, toBanglaNumber } from '@/lib/banglaNumber'
@@ -10,8 +10,9 @@ import { ImageUploader, ProgressBar, StatusPill } from '../components/ImageUploa
 import { createUploadItems, revokeUploadItems, type UploadItem } from '../utils/uploadItems'
 import { formatBytes, processImage } from '../utils/imageProcessing'
 import { photoSrc } from '../utils/imagePath'
-import { parsePhotoFilename } from '../utils/photoFilename'
-import { PROJECT_LIST, PROJECT_META } from '../utils/projectType'
+import { findProject, useProjects } from '@/features/projects/registry'
+import { buildProjectAliases, parsePhotoFilename } from '../utils/photoFilename'
+import { useHousingProjects } from '../utils/housingProjects'
 
 const KIND_LABEL: Record<PhotoKind, string> = { prev: 'পূর্বের ঘর', current: 'বর্তমান ঘর' }
 const UPLOAD_CONCURRENCY = 2
@@ -43,6 +44,8 @@ interface Lookup {
  * RequireAdmin এর ভেতরে (লগইন ছাড়া পৌঁছানো যায় না); লেখার অনুমতি তবু ব্যাকএন্ডে যাচাই হয়।
  */
 export function HousingPhotoBulkPage() {
+  const projects = useProjects()
+  const housingProjects = useHousingProjects()
   const [defaultProject, setDefaultProject] = useState<ProjectType>('semi_pucca')
   const [items, setItems] = useState<UploadItem[]>([])
   const [lookup, setLookup] = useState<Lookup | null>(null)
@@ -79,15 +82,17 @@ export function HousingPhotoBulkPage() {
   }
 
   // ---- ফাইলনাম পার্স + রেকর্ড খোঁজা ----
+  // প্রিফিক্স (semi_…, tin_…) প্রকল্প-রেজিস্ট্রির ঘর নির্মাণ উপ-প্রকল্প থেকে
+  const aliases = useMemo(() => buildProjectAliases(housingProjects), [housingProjects])
   const parsed = useMemo<Parsed[]>(
     () =>
       items.map((item) => {
-        const p = parsePhotoFilename(item.file.name)
+        const p = parsePhotoFilename(item.file.name, aliases)
         return p
           ? { item, ok: true, project_type: p.project_type ?? defaultProject, serial_no: p.serial_no, photoKind: p.kind }
           : { item, ok: false }
       }),
-    [items, defaultProject],
+    [items, defaultProject, aliases],
   )
 
   const lookupKey = useMemo(() => {
@@ -236,9 +241,9 @@ export function HousingPhotoBulkPage() {
             disabled={phase !== 'select'}
             onChange={(e) => setDefaultProject(e.target.value as ProjectType)}
           >
-            {PROJECT_LIST.map((p) => (
-              <option key={p.type} value={p.type}>
-                {t(p.title)}
+            {housingProjects.map((p) => (
+              <option key={p.key} value={p.key}>
+                {lt(p, 'name')}
               </option>
             ))}
           </select>
@@ -292,7 +297,7 @@ export function HousingPhotoBulkPage() {
                         <span className="text-red-700">{t('ফাইলনাম বোঝা যায়নি')}</span>
                       ) : (
                         <>
-                          {t(PROJECT_META[match.project_type].title)}
+                          {lt(findProject(match.project_type, projects), 'name') || match.project_type}
                           <br />
                           <span className="text-slate-600">
                             {t('সিরিয়াল')} {toBanglaNumber(match.serial_no)} · {t(KIND_LABEL[match.photoKind])}

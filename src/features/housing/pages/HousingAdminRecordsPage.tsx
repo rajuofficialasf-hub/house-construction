@@ -1,10 +1,10 @@
-import { t as tr } from '@/i18n'
+import { lt, t as tr } from '@/i18n'
 import { useCallback, useMemo, useState } from 'react'
 import { Link, NavLink, useParams, useSearchParams } from 'react-router'
 import { useToast } from '@/components/useToast'
 import { formatBanglaNumber, toBanglaNumber } from '@/lib/banglaNumber'
 import { getHousingApi } from '../../../backend/factory'
-import { DEFAULT_PAGE_SIZE, HousingApiError, MAX_PAGE_SIZE, type HousingRecord, type ListParams, type ProjectType } from '../../../backend/interfaces/types'
+import { DEFAULT_PAGE_SIZE, HousingApiError, MAX_PAGE_SIZE, type HousingRecord, type ListParams, type Project, type ProjectType } from '../../../backend/interfaces/types'
 import { downloadText, toCsv } from '../utils/csvExport'
 import { AdminRecordsTable } from '../components/AdminRecordsTable'
 import { ConfirmDialog } from '../components/ConfirmDialog'
@@ -13,7 +13,7 @@ import { HousingFilters } from '../components/HousingFilters'
 import { Pagination } from '../components/Pagination'
 import { useHousingList } from '../hooks/useHousingList'
 import { applyFiltersToSearchParams, filtersEqual, filtersFromSearchParams, hasActiveFilters, type HousingFilters as Filters } from '../utils/filters'
-import { PROJECT_LIST, PROJECT_META, projectFromSlug } from '../utils/projectType'
+import { adminPath, useHousingProjectBySlug, useHousingProjects } from '../utils/housingProjects'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 
 const ascii = (s: string) => s.replace(/[০-৯]/g, (d) => String('০১২৩৪৫৬৭৮৯'.indexOf(d))).trim()
@@ -43,13 +43,14 @@ async function exportProjectCsv(projectType: ProjectType, onProgress: (done: num
  */
 export function HousingAdminRecordsPage() {
   const { slug } = useParams()
-  const projectType = projectFromSlug(slug)
-  if (!projectType) return <NotFoundPage />
-  return <RecordsManager key={projectType} projectType={projectType} />
+  const project = useHousingProjectBySlug(slug)
+  if (!project) return <NotFoundPage />
+  return <RecordsManager key={project.key} project={project} />
 }
 
-function RecordsManager({ projectType }: { projectType: NonNullable<ReturnType<typeof projectFromSlug>> }) {
-  const meta = PROJECT_META[projectType]
+function RecordsManager({ project }: { project: Project }) {
+  const projectType = project.key
+  const tabs = useHousingProjects()
   const toast = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
   const page = Math.max(1, Number(searchParams.get('page')) || 1)
@@ -163,7 +164,7 @@ function RecordsManager({ projectType }: { projectType: NonNullable<ReturnType<t
     setExporting(tr('প্রস্তুত হচ্ছে…'))
     try {
       const csv = await exportProjectCsv(projectType, (d, t) => setExporting(`${formatBanglaNumber(d)} / ${formatBanglaNumber(t)}`))
-      downloadText(`housing-${meta.slug}-${new Date().toISOString().slice(0, 10)}.csv`, csv)
+      downloadText(`housing-${project.slug}-${new Date().toISOString().slice(0, 10)}.csv`, csv)
       toast.success(tr('CSV ডাউনলোড শুরু হয়েছে'))
     } catch (err) {
       toast.error(tr('এক্সপোর্ট ব্যর্থ: {message}', { message: HousingApiError.from(err).message }))
@@ -177,13 +178,13 @@ function RecordsManager({ projectType }: { projectType: NonNullable<ReturnType<t
       {/* ---------- ট্যাব + যোগ ---------- */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <nav aria-label={tr('প্রকল্প')} className="inline-flex rounded-lg border border-slate-300 bg-white p-1">
-          {PROJECT_LIST.map((p) => (
+          {tabs.map((p) => (
             <NavLink
-              key={p.type}
-              to={`/housing/admin/${p.slug}`}
+              key={p.key}
+              to={adminPath(p.key)}
               className={({ isActive }) => `rounded-md px-4 py-1.5 text-sm font-medium ${isActive ? 'bg-brand-700 text-white' : 'text-slate-700 hover:bg-slate-100'}`}
             >
-              {tr(p.title)}
+              {lt(p, 'name')}
             </NavLink>
           ))}
         </nav>
@@ -201,7 +202,7 @@ function RecordsManager({ projectType }: { projectType: NonNullable<ReturnType<t
             {tr('বাল্ক ইম্পোর্ট')}
           </Link>
           <Link
-            to={`/housing/admin/${meta.slug}/new`}
+            to={adminPath(projectType, 'new')}
             className="inline-flex h-10 items-center gap-1.5 rounded-md bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-600"
           >
             <span aria-hidden="true">+</span> {tr('নতুন যোগ করুন')}
@@ -209,7 +210,7 @@ function RecordsManager({ projectType }: { projectType: NonNullable<ReturnType<t
         </div>
       </div>
 
-      <h1 className="mt-6 text-2xl font-bold text-slate-900">{tr('{title} — রেকর্ড', { title: tr(meta.title) })}</h1>
+      <h1 className="mt-6 text-2xl font-bold text-slate-900">{tr('{title} — রেকর্ড', { title: lt(project, 'name') })}</h1>
       <p className="mt-1 text-sm text-slate-500">{tr('খোঁজার বক্সে শুধু সংখ্যা লিখলে সিরিয়াল ধরে খুঁজবে; নাম লিখলে নামে।')}</p>
 
       <div className="mt-4">
