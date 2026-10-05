@@ -19,7 +19,7 @@ export interface ContractHarness {
   /** আছে কিন্তু এডমিন তালিকায় নেই (AE2) */
   nonAdmin?: Credentials
   /** লগইনের মাধ্যমে নয়, সরাসরি এমন সেশন বসানো যাতে "লগইন করা কিন্তু এডমিন নয়" লেখা-অনুমতি পরীক্ষা করা যায় (মক-সেতু) */
-  forceNonAdminSession?: () => void
+  forceNonAdminSession?: () => void | Promise<void>
 }
 
 export interface ContractOptions {
@@ -27,4 +27,9 @@ export interface ContractOptions {
   writes: boolean
   /** true হলে ব্যাকএন্ডে ডাটা থাকার কথা: খালি ডাটায় পড়ার টেস্ট চুপচাপ পাস না করে ব্যর্থ হয় (লাইভ প্রজেক্ট ফাঁকা হলে skip চলে) */
   seeded?: boolean
+  /**
+   * এই ব্যাকএন্ডে জানা ঘাটতি: নাম দেওয়া টেস্টগুলো test.fails হিসেবে চলে (ব্যর্থ হওয়াই প্রত্যাশিত; পাস করলে রান ব্যর্থ, তখন তালিকা থেকে সরান)।
+   * তালিকার প্রতিটি নাম কোনো টেস্টের সাথে মিলতে হবে, নইলে রান ব্যর্থ।
+   */
+  knownGaps?: readonly string[]
 }

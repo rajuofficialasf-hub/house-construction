@@ -10,4 +10,4 @@
 export { createSupabaseHousingApi, type SupabaseHousingApiOptions } from './housingApi'
 export { createSupabaseAuthProvider } from './authProvider'
 export { createSupabaseImageStorage } from './imageStorage'
-export { STORAGE_BUCKET, TABLE, type GetClient } from './client'
+export { STORAGE_BUCKET, TABLE, createStandaloneClient, type GetClient } from './client'

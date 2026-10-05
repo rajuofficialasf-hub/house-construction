@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from 'vitest'
+import { afterAll, beforeEach, describe, expect, test as vitestTest } from 'vitest'
 import { BD_GEO } from '../../src/features/housing/data/bdGeo'
 import { HousingApiError, type HousingRecord, type HousingRecordInput, type ProjectType } from '../../src/features/housing/backend/interfaces/types'
 import type { ContractHarness, ContractOptions } from './harness'
@@ -32,6 +32,9 @@ async function code(p: Promise<unknown>): Promise<string> {
   }
 }
 
+// ছবি সবসময় WebP হয়ে আসে (utils/photoSpec); Supabase Storage টাইপহীন ফাইল নেয় না
+const webp = (bytes: BlobPart) => new Blob([bytes], { type: 'image/webp' })
+
 const sum = (o: Record<string, number>) => Object.values(o).reduce((a, b) => a + b, 0)
 
 /**
@@ -39,6 +42,18 @@ const sum = (o: Record<string, number>) => Object.values(o).reduce((a, b) => a +
  * নিয়ম: নির্দিষ্ট রেকর্ডের নাম/সংখ্যা ধরে নয়, শুধু সম্পর্ক ধরে যাচাই (পড়ার অংশ লাইভ ডাটাতেও চলে)।
  */
 export function runHousingApiContract(label: string, makeHarness: () => Promise<ContractHarness> | ContractHarness, opts: ContractOptions): void {
+  const gaps = new Set(opts.knownGaps ?? [])
+  const matched = new Set<string>()
+  const test = (name: string, fn: () => Promise<void>) => {
+    if (!gaps.has(name)) return vitestTest(name, fn)
+    matched.add(name)
+    return vitestTest.fails(`[known gap] ${name}`, fn)
+  }
+  if (gaps.size) {
+    afterAll(() => {
+      expect([...gaps].filter((g) => !matched.has(g)), 'knownGaps entries that match no test').toEqual([])
+    })
+  }
   // seeded ব্যাকএন্ডে ডাটা না থাকলে এই টেস্টগুলো ব্যর্থ হয়; নইলে (যেমন লাইভ) নিঃশব্দে বাদ যায়
   const hasData = (found: unknown): boolean => {
     if (!found) expect(opts.seeded ?? false, 'this backend is expected to hold records').toBe(false)
@@ -194,7 +209,7 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
       const before = (await h.api.list({ page_size: 1 })).meta.total
       const some = (await h.api.list({ page_size: 1 })).data[0]
       const id = some?.id ?? MISSING_ID
-      const files = { photo: new Blob(['x']), thumb: new Blob(['x']) }
+      const files = { photo: webp('x'), thumb: webp('x') }
       const calls = [
         h.api.create(input()),
         h.api.update(id, { name: 'x' }),
@@ -242,11 +257,12 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
         await h.auth.logout()
         expect(await h.auth.currentUser()).toBeNull()
         off()
-        expect(seen).toEqual([h.admin!.email, null])
+        // Supabase announces the current (logged-out) state on subscribe; that first null is allowed, not required
+        expect(seen[0] === null ? seen.slice(1) : seen).toEqual([h.admin!.email, null])
       })
 
       test('a logged-in non-admin is forbidden on writes and on the activity log', async () => {
-        h.forceNonAdminSession!()
+        await h.forceNonAdminSession!()
         const some = (await h.api.list({ page_size: 1 })).data[0]
         expect(await code(h.api.create(input()))).toBe('FORBIDDEN')
         expect(await code(h.api.delete(some.id))).toBe('FORBIDDEN')
@@ -261,7 +277,7 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
 
       test('create without a serial takes the predicted next serial and returns clean defaults', async () => {
         const next = await h.api.nextSerial('tin')
-        const rec = await h.api.create(input({ name: '  নাম  ' }))
+        const rec = await h.api.create(input({ name: 'নাম' }))
         expect(rec.serial_no).toBe(next)
         expect(rec.name).toBe('নাম')
         expect(rec.father_or_husband_name).toBe('')
@@ -278,27 +294,28 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
         expect(await code(h.api.create(input({ serial_no: target })))).toBe('CONFLICT')
       })
 
-      test('create rejects an invalid project type, year, name and an over-long name', async () => {
-        const bads: Partial<HousingRecordInput>[] = [
-          { project_type: 'villa' as ProjectType },
-          { year: 1999 },
-          { year: 2101 },
-          { year: 2025.5 },
-          { name: '   ' },
-          { name: 'ক'.repeat(201) },
-          { division: '' },
-          { serial_no: 0 },
-        ]
-        for (const b of bads) expect(await code(h.api.create(input(b)))).toBe('VALIDATION_ERROR')
+      test('create rejects an invalid project type, a year outside 2000-2100 or not whole, and a blank name', async () => {
+        const bads: Partial<HousingRecordInput>[] = [{ project_type: 'villa' as ProjectType }, { year: 1999 }, { year: 2101 }, { year: 2025.5 }, { name: '   ' }]
+        for (const b of bads) expect(await code(h.api.create(input(b))), JSON.stringify(b)).toBe('VALIDATION_ERROR')
       })
 
-      test('text is NFC-normalized on write and found by search in either form', async () => {
-        const decomposed = `বাড়ি-${tag()}`
-        const composed = decomposed.replace('ড়', 'ড়')
-        const rec = await h.api.create(input({ name: decomposed }))
-        expect(rec.name).toBe(decomposed.normalize('NFC'))
-        const found = await h.api.list({ q: composed, page_size: 100 })
-        expect(found.data.some((r) => r.id === rec.id)).toBe(true)
+      test('create rejects an over-long name, an empty division and serial 0', async () => {
+        const bads: Partial<HousingRecordInput>[] = [{ name: 'ক'.repeat(201) }, { division: '' }, { serial_no: 0 }]
+        for (const b of bads) expect(await code(h.api.create(input(b))), JSON.stringify(b)).toBe('VALIDATION_ERROR')
+      })
+
+      test('text is trimmed and NFC-normalized on write and found by search in either form', async () => {
+        // ড় has two spellings: the single code point U+09DC and ড + nukta (U+09A1 U+09BC). U+09DC is a composition
+        // exclusion, so NFC turns it into the two-code-point form. Write the single code point; expect the NFC form back.
+        const raw = `বা\u09DCি-${tag()}`
+        const nfc = raw.normalize('NFC')
+        expect(nfc).not.toBe(raw)
+        const rec = await h.api.create(input({ name: `  ${raw}  ` }))
+        expect(rec.name).toBe(nfc)
+        for (const q of [raw, nfc]) {
+          const found = await h.api.list({ q, page_size: 100 })
+          expect(found.data.some((r) => r.id === rec.id), q).toBe(true)
+        }
       })
 
       test('update changes only the given fields; unknown ids are NOT_FOUND; serial and project type are protected', async () => {
@@ -346,7 +363,7 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
 
       test('changeSerial carries photos to the new serial path', async () => {
         const rec = await h.api.create(input())
-        const withPhoto = await h.api.uploadPhoto(rec.id, 'prev', { photo: new Blob(['p']), thumb: new Blob(['t']) })
+        const withPhoto = await h.api.uploadPhoto(rec.id, 'prev', { photo: webp('p'), thumb: webp('t') })
         const target = rec.serial_no + 30
         const moved = await h.api.changeSerial(rec.id, target)
         const padded = String(target).padStart(4, '0')
@@ -420,7 +437,7 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
       beforeEach(async () => {
         await loginAdmin()
       })
-      const files = () => ({ photo: new Blob(['p']), thumb: new Blob(['t']) })
+      const files = () => ({ photo: webp('p'), thumb: webp('t') })
 
       test('uploadPhoto sets the serial-based urls and the timestamp; deletePhoto clears them and is idempotent', async () => {
         const rec = await h.api.create(input())
@@ -437,7 +454,7 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
 
       test('an over-size photo is too large; an unknown record is not found', async () => {
         const rec = await h.api.create(input())
-        const big = { photo: new Blob([new Uint8Array(6 * 1024 * 1024)]), thumb: new Blob(['t']) }
+        const big = { photo: webp(new Uint8Array(6 * 1024 * 1024)), thumb: webp('t') }
         expect(await code(h.api.uploadPhoto(rec.id, 'prev', big))).toBe('PAYLOAD_TOO_LARGE')
         expect(await code(h.api.uploadPhoto(MISSING_ID, 'prev', files()))).toBe('NOT_FOUND')
       })

@@ -13,6 +13,14 @@ export type GetClient = () => SupabaseClient
 export const STORAGE_BUCKET = 'housing-photos'
 export const TABLE = 'housing_beneficiaries'
 
+/** সেশন সংরক্ষণ ছাড়া স্বতন্ত্র ক্লায়েন্ট (Node: চুক্তি-টেস্ট ও স্ক্রিপ্ট)। fetch দিলে প্রতিটি অনুরোধ তার মধ্য দিয়ে যায়। */
+export function createStandaloneClient(url: string, key: string, fetchImpl?: typeof fetch): SupabaseClient {
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    ...(fetchImpl ? { global: { fetch: fetchImpl } } : {}),
+  })
+}
+
 let client: SupabaseClient | null = null
 
 export function getSupabase(): SupabaseClient {
