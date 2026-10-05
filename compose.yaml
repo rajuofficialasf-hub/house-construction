@@ -1,5 +1,8 @@
-# Local development only. Starts the PostgreSQL 17 that the housing API (server/) uses.
-# The port is bound to 127.0.0.1 so the database is never reachable from the network (DB-ROLE-03).
+# Local development only.
+#   docker compose up        database + API (http://localhost:3001) + UI (http://localhost:5173)
+#   docker compose up -d db  database only, for running the API or UI on the host
+# Every port is bound to 127.0.0.1 so nothing is reachable from the network (DB-ROLE-03).
+# The UI uses the mock backend by default; VITE_HOUSING_BACKEND=rest points it at the local API.
 services:
   db:
     image: postgres:17
@@ -20,5 +23,44 @@ services:
       timeout: 3s
       retries: 30
 
+  api:
+    image: node:22
+    working_dir: /app/server
+    entrypoint: ["sh", "/app/scripts/docker-dev-entry.sh"]
+    command: ["sh", "-c", "npm run db:migrate && npm run dev"]
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      LOG_LEVEL: info
+      TRUST_PROXY: 0
+      DATABASE_URL: postgres://housing_app:${HOUSING_APP_PASSWORD:-housing_app_local}@db:5432/housing?sslmode=disable
+      DATABASE_MIGRATION_URL: postgres://housing_owner:${HOUSING_OWNER_PASSWORD:-housing_owner_local}@db:5432/housing?sslmode=disable
+    ports:
+      - "127.0.0.1:${API_PORT:-3001}:3001"
+    volumes:
+      - .:/app
+      - api-node-modules:/app/server/node_modules
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    image: node:22
+    working_dir: /app
+    entrypoint: ["sh", "/app/scripts/docker-dev-entry.sh"]
+    command: ["npx", "vite", "--host", "0.0.0.0", "--port", "5173", "--strictPort"]
+    environment:
+      VITE_HOUSING_BACKEND: ${VITE_HOUSING_BACKEND:-mock}
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3001}
+    ports:
+      - "127.0.0.1:${WEB_PORT:-5173}:5173"
+    volumes:
+      - .:/app
+      - web-node-modules:/app/node_modules
+    depends_on:
+      - api
+
 volumes:
   housing-db:
+  api-node-modules:
+  web-node-modules:

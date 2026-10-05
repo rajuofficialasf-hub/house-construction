@@ -22,11 +22,22 @@ npm run i18n-check                # বাংলা UI লেখা বনাম
 
 ## নতুন সার্ভার (মাইগ্রেশন চলছে, প্রোডাকশনে এখনো Supabase)
 
-`server/` এ Express + PostgreSQL সার্ভার তৈরি হচ্ছে ([রোডম্যাপ](docs/plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md))। লোকাল ডাটাবেস চালাতে Docker লাগে:
+`server/` এ Express + PostgreSQL সার্ভার তৈরি হচ্ছে ([রোডম্যাপ](docs/plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md))। Docker লাগে।
+
+এক কমান্ডে সব (ডাটাবেস + API + UI, ফাইল সেভ করলে নিজে রিলোড হয়):
 
 ```bash
-docker compose up -d db           # PostgreSQL 17, শুধু 127.0.0.1:5432 এ; ডাটাবেস housing (ডেভ) ও housing_test (টেস্ট)
-docker compose down -v            # ডাটাবেস সম্পূর্ণ মুছে নতুন করে শুরু
+docker compose up                 # UI http://localhost:5173 , API http://localhost:3001/api/v1/readyz
+VITE_HOUSING_BACKEND=rest docker compose up   # UI কে লোকাল API তে চালাতে (REST অ্যাডাপ্টার C3/C4 এ তৈরি হবে; এখন ডিফল্ট mock)
+```
+
+প্রথমবার কন্টেইনারে `npm ci` চলে বলে একটু সময় লাগে; package-lock বদলালে আবার চলে।
+
+আলাদা করে হোস্টে চালাতে:
+
+```bash
+docker compose up -d db           # শুধু PostgreSQL 17, 127.0.0.1:5432 এ; ডাটাবেস housing (ডেভ) ও housing_test (টেস্ট)
+docker compose down -v            # ডাটাবেস ও কন্টেইনারের node_modules মুছে নতুন করে শুরু
 cp server/.env.example server/.env
 npm --prefix server install
 npm --prefix server run db:migrate   # মাইগ্রেশন (server/db/migrations)
