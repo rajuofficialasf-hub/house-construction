@@ -37,13 +37,13 @@
 | ২১ | ✅ `04_rpc_stats.sql` আবার চালানো হয়েছে (২০২৬-০৯-৩০): `by_location` লাইভে আছে | মানচিত্র | `supabase/sql/04_rpc_stats.sql` |
 | ২২ | ✅ `08_reset_test_data.sql` চালানো হয়েছে; প্রকৃত ডাটা (সেমিপাকা ১০ সারি) ইম্পোর্ট, ৪টি ছবি স্ক্রিপ্টে উঠেছে (২০২৬-০৯-৩০) | ইম্পোর্ট | — |
 | ২৩ | ✅ (AI যাচাই ২০২৬-১০-০৫: লাইভে টেবিল ও `housing_log_event` আছে — `security-check`; বেসলাইনের সারি ২-এ নিশ্চিত হবে) `09_activity_log.sql`: একটিভিটি লগ টেবিল + ট্রিগার + RPC | একটিভিটি লগ | `supabase/sql/09_activity_log.sql` |
-| ২৩ক | **⚠ জরুরি: `09a_fix_photo_log.sql` চালান** (২০২৬-১০-০৫)। 09-এর লগ-ট্রিগারে বাগ: ছবি যোগ/বদল/মোছা হলে "malformed array literal" ত্রুটি, পুরো আপডেট বাতিল — অর্থাৎ 09 চালানোর পর থেকে এডমিন ফর্ম, ছবির বাল্ক আপলোড ও `migrate-photos` এ ছবি বসানো ব্যর্থ। ফাইলটি শুধু ফাংশনটি ঠিক করে, নিজে পরীক্ষা করে (রোলব্যাকসহ), শেষে "✅" দেখায় | M-ধাপ ১ | `supabase/sql/09a_fix_photo_log.sql` |
+| ২৩ক | ✅ (২০২৬-১০-০৫; 10_projects.sql এর পূর্বশর্ত পাস করায় নিশ্চিত) `09a_fix_photo_log.sql`। 09-এর লগ-ট্রিগারে বাগ: ছবি যোগ/বদল/মোছা হলে "malformed array literal" ত্রুটি, পুরো আপডেট বাতিল — অর্থাৎ 09 চালানোর পর থেকে এডমিন ফর্ম, ছবির বাল্ক আপলোড ও `migrate-photos` এ ছবি বসানো ব্যর্থ। ফাইলটি শুধু ফাংশনটি ঠিক করে, নিজে পরীক্ষা করে (রোলব্যাকসহ), শেষে "✅" দেখায় | M-ধাপ ১ | `supabase/sql/09a_fix_photo_log.sql` |
 | ২০ | ব্রাউজারে ম্যানুয়াল যাচাই তালিকা (শেষ ধাপ → §৫) মোবাইল/ট্যাবলেট/ডেস্কটপে | শেষ ধাপ | শেষ ধাপ → §৫ |
 | **পর্ব ২** | **বহু-প্রকল্প (docs/MULTI_PROJECT_PLAN.md, পরিশিষ্ট ক)** | | |
 | ২৪ | ✅ (২০২৬-১০-০৫ ০৪:৩১ UTC) `supabase/sql/checks/00_baseline.sql` চালানো হয়েছে; মানগুলো পর্ব ২ → M-ধাপ ১ → "বেসলাইন মান"-এ সংরক্ষিত | M-১ | পর্ব ২ → M-ধাপ ১ |
-| ২৫ | **ব্যাকআপ:** Table Editor থেকে `housing_beneficiaries` ও `housing_serial_counters` → Export CSV (কম্পিউটারে রাখুন); তারপর SQL Editor-এ `supabase/sql/backup/before_10.sql` → ৫টি সারি "✅ মিলেছে" | M-২ | পর্ব ২ → M-ধাপ ২ → §৪ |
-| ২৬ | `supabase/sql/10_projects.sql` চালানো (৮ সারি ✅), তারপর `supabase/sql/checks/10_verify.sql` (১৮ সারি — সব ✅) — দুটোর ফলাফল-টেবিল AI-কে পাঠানো | M-২ | পর্ব ২ → M-ধাপ ২ → §৪ |
-| ২৭ | `supabase/sql/10b_project_guards.sql` চালানো (৮ সারি ✅; মূল এডমিনের ইমেইল দেখুন), তারপর `supabase/sql/checks/10b_selftest.sql` (২১ সারি — শেষ সারি "২০ ✅ · ০ ❌"), তারপর `checks/rollback_rehearsal.sql` (৬ সারি ✅) — ফলাফল AI-কে পাঠানো | M-২ | পর্ব ২ → M-ধাপ ২ → §৪ |
+| ২৫ | ✅ (২০২৬-১০-০৫, ৫/৫ মিলেছে) **ব্যাকআপ:** Table Editor থেকে `housing_beneficiaries` ও `housing_serial_counters` → Export CSV (কম্পিউটারে রাখুন); তারপর SQL Editor-এ `supabase/sql/backup/before_10.sql` → ৫টি সারি "✅ মিলেছে" | M-২ | পর্ব ২ → M-ধাপ ২ → §৪ |
+| ২৬ | ✅ (২০২৬-১০-০৫; ১০: ৭/৭, verify: ১৮/১৮) `supabase/sql/10_projects.sql` চালানো (৮ সারি ✅), তারপর `supabase/sql/checks/10_verify.sql` (১৮ সারি — সব ✅) — দুটোর ফলাফল-টেবিল AI-কে পাঠানো | M-২ | পর্ব ২ → M-ধাপ ২ → §৪ |
+| ২৭ | 🟡 (২০২৬-১০-০৫; 10b ৭/৭, মূল এডমিন css@assunnahfoundation.org, selftest ২০/২০ ✅; **রোলব্যাক-মহড়ার ফল বাকি**) `supabase/sql/10b_project_guards.sql` চালানো (৮ সারি ✅; মূল এডমিনের ইমেইল দেখুন), তারপর `supabase/sql/checks/10b_selftest.sql` (২১ সারি — শেষ সারি "২০ ✅ · ০ ❌"), তারপর `checks/rollback_rehearsal.sql` (৬ সারি ✅) — ফলাফল AI-কে পাঠানো | M-২ | পর্ব ২ → M-ধাপ ২ → §৪ |
 | ২৮ | `backup/before_11.sql`, তারপর `11_project_rpcs.sql`, তারপর `checks/11_selftest.sql` | M-৩ | পরিকল্পনা §৬.৪ |
 | ২৯ | `backup/before_12.sql`, তারপর `12_activity_log_v2.sql`, তারপর `checks/12_selftest.sql` | M-৩ | পরিকল্পনা §৬.৪ |
 | ৩০ | `npm run security-check` (সব PASS) আর `checks/rollback_rehearsal.sql` (সব ✅) | M-৩, M-১৬ | পরিকল্পনা §৬.৬ |
@@ -1404,7 +1404,7 @@ M-ধাপ ২-এ এই মানগুলো `checks/10_verify.sql` এ ব�
 - **M-ধাপ ২** — SQL ১০ ও ১০b (প্রকল্প রেজিস্ট্রি, `union_name`/`extra`, গোপন ফিল্ডের টেবিল, যাচাই-ট্রিগার, গার্ড, RLS) + ব্যাকআপ/verify/selftest/rollback ফাইল। বেসলাইনের ফলাফল (সারি ২৪) আগে লাগবে।
 - পেস্ট করুন: `M-ধাপ ২ শুরু করো (পরিকল্পনা: docs/MULTI_PROJECT_PLAN.md)`
 
-## M-ধাপ ২ — SQL ১০ ও ১০b: প্রকল্প রেজিস্ট্রি, সম্প্রসারণ আর গার্ড (২০২৬-১০-০৫) — 🟡 ফাইল তৈরি ও লোকালে যাচাই, লাইভে চালানো বাকি
+## M-ধাপ ২ — SQL ১০ ও ১০b: প্রকল্প রেজিস্ট্রি, সম্প্রসারণ আর গার্ড (২০২৬-১০-০৫) — ✅ লাইভে চালানো ও যাচাই (শুধু রোলব্যাক-মহড়ার ফল বাকি)
 
 ### ১. কী তৈরি বা পরিবর্তন হয়েছে
 নতুন (সব `supabase/sql/` এর ভেতরে):
@@ -1454,9 +1454,10 @@ M-ধাপ ২-এ এই মানগুলো `checks/10_verify.sql` এ ব�
 | পরীক্ষা | ফল |
 |---|---|
 | লোকাল Postgres (PGlite): before_10 → 10 → verify → 10b → selftest → আবার চালানো → মহড়া → পুরনো অ্যাপের কাজ → রোলব্যাক → আবার প্রয়োগ | সব ✅ (উপরের §২) |
-| লাইভে (আপনি চালানোর পরে): verify ১৮ ✅, selftest ১৮ ✅, মহড়া ৬ ✅ | বাকি |
-| লাইভে (AI): `npm run security-check` (১৬ PASS), `npm run photo-check` (৮/৮), `npm run smoke -- --quick` | বাকি |
-| পুরনো সাইট হাতে: তালিকা, বিস্তারিত, ম্যাপ, স্ট্যাট কার্ড আগের মতো | বাকি |
+| লাইভে (ব্যবহারকারী, ২০২৬-১০-০৫): ব্যাকআপ ৫/৫, ১০ ৭/৭, verify ১৮/১৮, 10b ৭/৭, selftest ২০/২০ | ✅ |
+| লাইভে: রোলব্যাক-মহড়া ৬/৬ | বাকি |
+| লাইভে (AI): `security-check` PASS ১৬/১৬; `photo-check` ৮/৮; anon দিয়ে API: `projects` ৩টি (semi_pucca/tin `geo_depth = union`), রেকর্ডে `union_name`/`extra` খালি, `beneficiary_private` → permission denied | ✅ |
+| লাইভে (AI): `npm run smoke` PASS ৭৪/৭৪; ৭৪টি স্ক্রিনশট M-ধাপ ১-এর বেসলাইনের সাথে পিক্সেল-তুলনায় হুবহু (০.৫%-এর বেশি পার্থক্য একটিতেও নেই) | ✅ |
 
 ### ৬. পরের ধাপে কী করতে হবে
 - লাইভ ফলাফল পাওয়ার পর **M-ধাপ ৩** — SQL ১১ (`project_stats`, `projects_overview`, wrapper, বাল্ক v2, `housing_next_serial` v2, `project_create`, ক্রম বদল, ফিল্ডের ব্যবহার, ক্যাটাগরির বানান একীকরণ) ও ১২ (লগ v2) + security-check প্রায় ২৮টি পরীক্ষায়।
