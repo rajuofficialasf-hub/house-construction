@@ -19,3 +19,17 @@ function localUrl(name: keyof typeof DEFAULTS): string {
 
 export const testAppUrl = localUrl('TEST_DATABASE_URL');
 export const testOwnerUrl = localUrl('TEST_DATABASE_MIGRATION_URL');
+
+// TEMP: an S3 test bucket, only from the developer's own environment (never committed). Unset means the
+// S3 contract tests are skipped; credentials come from AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY.
+const s3Bucket = process.env.TEST_S3_BUCKET?.trim();
+const s3Region = process.env.TEST_S3_REGION?.trim();
+export const testS3 =
+  s3Bucket && s3Region
+    ? {
+        S3_BUCKET: s3Bucket,
+        S3_REGION: s3Region,
+        S3_ENDPOINT: process.env.TEST_S3_ENDPOINT?.trim() || undefined,
+        S3_FORCE_PATH_STYLE: process.env.TEST_S3_FORCE_PATH_STYLE === 'true',
+      }
+    : undefined;

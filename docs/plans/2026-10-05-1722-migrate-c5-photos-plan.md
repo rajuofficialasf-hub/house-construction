@@ -239,7 +239,7 @@ From the roadmap and the C5 brief, not reopened here:
   - without `TEST_S3_*` the contract run is skipped with a message naming the variables.
 - **Done when:** both driver runs pass, and the commit that adds S3 touches only `drivers/s3.ts`, one `index.ts` line, package files, `test/support/env.ts` and its tests (U1 already parses the `s3` config).
 - **Depends on:** U2
-- **Status:** todo
+- **Status:** done
 
 ### U4. `housing_files` migration
 - **Goal:** Each stored photo has a DB row tied to its record slot, and `housing_app` can use it.
@@ -418,6 +418,6 @@ From the roadmap and the C5 brief, not reopened here:
 ## Progress
 - **Branch:** `migrate/c5-photos`
 - **Updated:** 2026-10-05 18:05
-- **Next:** U3, check install scripts for `@aws-sdk/client-s3` and `@aws-sdk/lib-storage`, then write `drivers/s3.ts`
+- **Next:** U4, write `server/db/migrations/0009_housing_files.sql` and `server/test/db/files.test.ts`
 - **Uncommitted:** none
-- **Notes:** U1 also added `e2e/support/rest-env.ts` and the admin-rest API's storage env now, so `playwright.config.ts` keeps working with the new required config. A local `server/.env` (gitignored) needs `PUBLIC_API_URL`, `STORAGE_DRIVER` and `STORAGE_ROOT` added by hand. MinIO's images can't be pulled (Docker Hub repo gone, quay.io 401). The user chose no local S3: S3 tests run only with `TEST_S3_*`, in C6. Doc review 2026-10-05: kept tombstones + sweep; no activity row on a no-op photo delete; drain timeout 10 s and 2 concurrent decodes added.
+- **Notes:** The S3 client needs `throwOnRequestTimeout: true`; without it `requestTimeout` only logs a warning and the request hangs (the timeout test caught it). U1 also added `e2e/support/rest-env.ts` and the admin-rest API's storage env now, so `playwright.config.ts` keeps working with the new required config. A local `server/.env` (gitignored) needs `PUBLIC_API_URL`, `STORAGE_DRIVER` and `STORAGE_ROOT` added by hand. MinIO's images can't be pulled (Docker Hub repo gone, quay.io 401). The user chose no local S3: S3 tests run only with `TEST_S3_*`, in C6. Doc review 2026-10-05: kept tombstones + sweep; no activity row on a no-op photo delete; drain timeout 10 s and 2 concurrent decodes added.
