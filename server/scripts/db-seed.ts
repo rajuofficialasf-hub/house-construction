@@ -11,8 +11,8 @@ async function main(): Promise<void> {
   const sql = postgres(url, { max: 1, onnotice: () => {} });
   try {
     await sql.file(seedFile);
-    const counts = await sql`select project_type, count(*)::int as n from public.housing_beneficiaries group by project_type order by project_type`;
-    console.log(`seeded: ${counts.map((r) => `${r.project_type as string}=${r.n as number}`).join(', ')}`);
+    const counts = await sql<{ project_type: string; n: number }[]>`select project_type, count(*)::int as n from public.housing_beneficiaries group by project_type order by project_type`;
+    console.log(`seeded: ${counts.map((r) => `${r.project_type}=${r.n}`).join(', ')}`);
   } finally {
     await sql.end();
   }

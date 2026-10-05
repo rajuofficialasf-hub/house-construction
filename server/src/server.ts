@@ -1,20 +1,20 @@
 import { createApp } from './app.js';
-import { ConfigError, loadConfig } from './config.js';
+import { ConfigError, loadConfig, type Config } from './config.js';
 import { createDb } from './db.js';
 import { createLogger } from './logger.js';
 
-function start(): void {
-  let config;
+function loadConfigOrExit(): Config {
   try {
-    config = loadConfig();
+    return loadConfig();
   } catch (err) {
-    if (err instanceof ConfigError) {
-      console.error(err.message);
-      process.exit(1);
-    }
-    throw err;
+    if (!(err instanceof ConfigError)) throw err;
+    console.error(err.message);
+    process.exit(1);
   }
+}
 
+function start(): void {
+  const config = loadConfigOrExit();
   const logger = createLogger(config.LOG_LEVEL);
   const sql = createDb(config.DATABASE_URL);
   const app = createApp({ sql, logger, trustProxy: config.TRUST_PROXY });

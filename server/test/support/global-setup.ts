@@ -1,19 +1,20 @@
-import postgres from 'postgres';
+import { readdirSync } from 'node:fs';
+import { ownerDb } from './db.js';
 import { testOwnerUrl } from './env.js';
 import { dbmate } from './migrate.js';
 
-const MIGRATION_COUNT = 6;
+const migrationCount = readdirSync(new URL('../../db/migrations', import.meta.url)).filter((f) => f.endsWith('.sql')).length;
 
 // Rebuilds the test database from nothing before the suite: every migration must apply to an
 // empty database, and every down section must undo its up section.
 export default async function setup(): Promise<void> {
-  const sql = postgres(testOwnerUrl, { max: 1, onnotice: () => {} });
+  const sql = ownerDb();
   try {
     await sql`drop schema if exists public cascade`;
     await sql`create schema public`;
 
     await dbmate(testOwnerUrl, 'up');
-    for (let i = 0; i < MIGRATION_COUNT; i++) await dbmate(testOwnerUrl, 'rollback');
+    for (let i = 0; i < migrationCount; i++) await dbmate(testOwnerUrl, 'rollback');
     const left = await sql`
       select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
       where n.nspname = 'public' and c.relname like 'housing%'
