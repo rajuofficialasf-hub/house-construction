@@ -170,7 +170,7 @@ From the roadmap and the C3 brief, not reopened here:
 ### U2. Migration 0008: read indexes
 - **Goal:** Index `serial_no` and `created_at` for the list sorts.
 - **Requirements:** R1
-- **Files:** `server/db/migrations/0008_read_indexes.sql`, `server/test/db/schema.test.ts` (or the existing DB test that lists indexes and ACLs; add to it)
+- **Files:** `server/db/migrations/0008_read_indexes.sql`, `server/test/db/read-indexes.test.ts` (the ACL checks already live in `server/test/db/privileges.test.ts`)
 - **Approach:** Same up/down layout as `0005_activity_log.sql`. Down drops both indexes. Before writing it, check `origin/main` for a new `supabase/sql` file that would also claim 0008 (migration-notes rule). If one exists, port it first and renumber this one.
 - **Tests:**
   - both indexes exist after up
@@ -178,7 +178,7 @@ From the roadmap and the C3 brief, not reopened here:
   - `housing_app` still has no CREATE on `public` and nothing went to PUBLIC
 - **Done when:** `npm --prefix server test` is green, rebuilding `housing_test` from nothing.
 - **Depends on:** none
-- **Status:** todo
+- **Status:** done
 
 ### U3. Read service (SQL)
 - **Goal:** The read functions the routes call, with the SQL from Technical decisions.
@@ -374,6 +374,6 @@ Finally, the Chrome check from U9.
 ## Progress
 - **Branch:** `migrate/c3-read-endpoints`
 - **Updated:** 2026-10-05 14:10
-- **Next:** U2, write `0008_read_indexes.sql` and its index/ACL test
+- **Next:** U3, extend `insertRecord` in `server/test/support/db.ts`, then `server/test/db/reads.test.ts`
 - **Uncommitted:** none
 - **Notes:** `origin/main` had nothing new at start (no `supabase/sql` to port), so 0008 is free.
