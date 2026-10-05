@@ -16,7 +16,8 @@
     "db:status": "dbmate --env DATABASE_MIGRATION_URL --migrations-dir db/migrations --no-dump-schema status",
     "db:rollback": "dbmate --env DATABASE_MIGRATION_URL --migrations-dir db/migrations --no-dump-schema rollback",
     "db:seed": "tsx --env-file-if-exists=.env scripts/db-seed.ts",
-    "admin": "tsx --env-file-if-exists=.env src/cli/admin.ts"
+    "admin": "tsx --env-file-if-exists=.env src/cli/admin.ts",
+    "files:sweep": "tsx --env-file-if-exists=.env src/cli/files-sweep.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1146.0",
