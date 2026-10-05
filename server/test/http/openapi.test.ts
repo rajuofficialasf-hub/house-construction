@@ -8,6 +8,7 @@ import { healthRouter } from '../../src/routes/v1/health.js';
 import { housingAdminRouter } from '../../src/routes/v1/housing-admin.js';
 import { housingReadRouter } from '../../src/routes/v1/housing.js';
 import { openapiRouter } from '../../src/routes/v1/openapi.js';
+import { photosRouter } from '../../src/routes/v1/photos.js';
 import { appDb } from '../support/db.js';
 import { testPhotoDeps } from '../support/storage.js';
 
@@ -56,6 +57,7 @@ describe('GET /api/v1/openapi.json', () => {
       ...routesOf('', openapiRouter(document)),
       ...routesOf('/housing', housingAdminRouter({ sql, ...testPhotoDeps(), receivePhoto: () => Promise.reject(new Error('unused')) })),
       ...routesOf('/housing', housingReadRouter(sql)),
+      ...routesOf('/photos', photosRouter(sql, testPhotoDeps().storage)),
     ];
     expect(documentedRoutes().sort()).toEqual(mounted.sort());
   });

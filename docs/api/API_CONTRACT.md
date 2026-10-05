@@ -14,9 +14,9 @@
 - **অনুমতি:** পড়া (সব GET) সবার জন্য উন্মুক্ত, টোকেন লাগে না (ব্যতিক্রম: `GET /api/housing/activity` শুধু এডমিন)। লেখা (POST/PUT/DELETE) শুধু এডমিন। **অনুমতি সার্ভারে যাচাই হবে**; ফ্রন্টএন্ডের উপর ভরসা নয়। `/api/housing` এর নিচে GET/HEAD/OPTIONS ছাড়া যেকোনো অনুরোধ (এখনো রাউট নেই এমন পাথসহ) এডমিন সেশন ছাড়া ভ্যালিডেশনের আগেই `401 UNAUTHENTICATED`।
 - **রাউট ক্রম:** `/api/housing/stats`, `/api/housing/years`, `/api/housing/filter-options`, `/api/housing/next-serial`, `/api/housing/activity`, `/api/housing/bulk`, `/api/housing/:project_type/serial/:serial_no` অবশ্যই `/api/housing/:id` এর **আগে** ম্যাচ করতে হবে। `:id` uuid না হলে `400`, তাই ভুল ক্রমের রাউট চুপচাপ ভুল ডাটা দেয় না।
 - **Query প্যারামিটার:** অজানা প্যারাম উপেক্ষা করা হয়। একই প্যারাম দুবার দিলে (`?year=2023&year=2024`) `400`। পূর্ণসংখ্যা শুধু দশমিক অঙ্কে (`1e3`, `0x10`, `1.0`, ফাঁকা → `400`), সর্বোচ্চ 2147483647। টেক্সট ফিল্টার trim ও NFC করা হয়; ফাঁকা মান = না দেওয়া।
-- **Rate limit (পড়া):** `/api/housing` এর GET গুলোতে প্রতি IP মিনিটে ৩০০টি; তারপর `429 RATE_LIMITED`।
+- **Rate limit (পড়া):** `/api/housing` এর GET গুলোতে প্রতি IP মিনিটে ৩০০টি, ছবিতে (`/api/photos/:id`) আলাদা করে মিনিটে ১২০০টি; তারপর `429 RATE_LIMITED`।
 - **OpenAPI:** `GET /api/openapi.json` — `/api/housing` এর সব রাউট, health ও এটি নিজের OpenAPI 3.1 বিবরণ, সার্ভারের zod স্কিমা থেকে তৈরি। লেখা ও একটিভিটি লগ `adminSession` (কুকি) দিয়ে এডমিন-শুধু হিসেবে চিহ্নিত। লগইন রাউট (`/api/auth/*`) এতে নেই।
-- **CORS:** দুটি তালিকা, দুটোই হুবহু মিলিয়ে (`*` কখনো নয়)। `ALLOWED_ORIGINS` (এই সাইট): সব রাউটে, credentials সহ। `PUBLIC_READ_ORIGINS` (অন্য অ্যাপ): শুধু `/api/housing` এর GET/HEAD (`/api/housing/activity` বাদে) ও `/api/openapi.json` এ, credentials ছাড়া; লেখা ও `/api/auth/*` এ কোনো CORS উত্তর নেই। একটি origin একটিই তালিকায় থাকতে পারে।
+- **CORS:** দুটি তালিকা, দুটোই হুবহু মিলিয়ে (`*` কখনো নয়)। `ALLOWED_ORIGINS` (এই সাইট): সব রাউটে, credentials সহ। `PUBLIC_READ_ORIGINS` (অন্য অ্যাপ): শুধু `/api/housing` এর GET/HEAD (`/api/housing/activity` বাদে), `/api/photos/:id` ও `/api/openapi.json` এ, credentials ছাড়া; লেখা ও `/api/auth/*` এ কোনো CORS উত্তর নেই। একটি origin একটিই তালিকায় থাকতে পারে।
 - **Origin যাচাই (CSRF):** POST/PUT/PATCH/DELETE অনুরোধে `Origin` হেডার না থাকলে বা তালিকায় না থাকলে `403 FORBIDDEN`। ব্রাউজার নিজেই হেডারটি পাঠায়; ব্রাউজার ছাড়া অন্য ক্লায়েন্টকে (যেমন কন্ট্রাক্ট টেস্ট) এটি দিতে হবে।
 - **Rate limit:** লগইনে প্রতি IP ১৫ মিনিটে ১০টি ব্যর্থ চেষ্টা; তারপর `429 RATE_LIMITED`, সঠিক পাসওয়ার্ড হলেও।
 
@@ -159,6 +159,7 @@ body কঠোর: অজানা ফিল্ড থাকলে `400` (`reaso
 | POST | `/api/housing/activity` | এডমিন | `logActivity` |
 | POST | `/api/housing/:id/photo` | এডমিন | `uploadPhoto` |
 | DELETE | `/api/housing/:id/photo?kind=` | এডমিন | `deletePhoto` |
+| GET | `/api/photos/:id` | পাবলিক | (রেকর্ডের ছবির URL; নিজস্ব সার্ভার) |
 
 ### ৪.১ GET `/api/housing` — তালিকা (মোট সংখ্যাসহ)
 Query প্যারামিটার (সব ঐচ্ছিক):
@@ -344,9 +345,10 @@ body: ৩.৩ এর ফিল্ডের যেকোনো উপসেট (�
 ---
 
 ## ৫. ছবির স্টোরেজ (সার্ভার-সাইড নোট)
-- পাবলিক পড়া: ছবির URL টোকেন ছাড়া খোলা যাবে (স্ট্যাটিক ফাইল/CDN)।
+- পাবলিক পড়া: ছবির URL টোকেন ছাড়া খোলা যাবে।
 - লেখা শুধু উপরের endpoint দিয়ে; ক্লায়েন্ট সরাসরি স্টোরেজে লেখে না।
 - `Cache-Control: public, max-age=86400` বা বেশি চলবে, কারণ ফ্রন্টএন্ড `?v=` দিয়ে ক্যাশ ভাঙে।
+- **নিজস্ব সার্ভার: GET `/api/photos/:id`** (পাবলিক)। ফাইল থাকে স্টোরেজ ড্রাইভারে (`STORAGE_DRIVER`: NAS ফোল্ডার, বা অস্থায়ীভাবে প্রাইভেট S3 বাকেট); ব্রাউজার শুধু এই রাউট দেখে, বাকেটের URL বা স্টোরেজ কী কখনো নয়। উত্তর: `Content-Type: image/webp`, `Content-Length`, `Cache-Control: public, max-age=31536000, immutable` (একটি id এর ছবি কখনো বদলায় না), `X-Content-Type-Options: nosniff`, `Content-Disposition: inline`, `Cross-Origin-Resource-Policy: cross-origin` (অন্য origin এর `<img>` এ দেখানোর জন্য)। HEAD চলে। `:id` uuid না হলে `400`; অজানা id, বদলে দেওয়া বা মোছা রেকর্ডের ছবি → `404`। প্রতি IP মিনিটে ১২০০টি।
 
 ---
 
@@ -363,7 +365,7 @@ body: ৩.৩ এর ফিল্ডের যেকোনো উপসেট (�
 | ২০২৬-০৯-২৯ | ০.৮ | `PUT /api/housing/bulk` — সিরিয়াল ধরে বাল্ক আপডেট (ইম্পোর্টের আপডেট মোড) |
 | ২০২৬-০৯-৩০ | ০.৯ | একটিভিটি লগ: `GET/POST /api/housing/activity`; সার্ভার-সাইড লগিং বাধ্যতামূলক; `stats.by_location` (মানচিত্র) |
 | ২০২৬-০৯-২৯ | ০.৮ (চূড়ান্ত পর্যালোচনা) | ফ্রন্টএন্ড ধাপ ০–১২ সম্পন্ন; এই চুক্তি ফ্রন্টএন্ডের REST অ্যাডাপ্টার (`rest/endpoints.ts`, `rest/http.ts`, `rest/authProvider.ts`) ও Supabase বাস্তবায়নের সাথে সঙ্গতিপূর্ণ। ধাপ ১৩ (সার্ভার) শুরুর আগে §৭ এর TBD গুলো ঠিক করতে হবে |
-| ২০২৬-১০-০৫ | ০.১৩ | ছবি (নিজস্ব সার্ভার, C5): URL `{PUBLIC_API_URL}/api/v1/photos/{file id}`, প্রতি আপলোডে নতুন; কী `housing/{uuid}.webp` ও `housing_files` টেবিল; সিরিয়াল বদলে ফাইল বা URL বদলায় না; ডিলেটে ফাইল কমিটের পরে মোছে; আপলোডে JPEG/PNG/WebP বাইট দেখে, সবসময় নতুন WebP ও থাম্ব, মেটাডাটা বাদ, `thumb` উপেক্ষিত, `400` এর `reason` তালিকা; ছবি না থাকলে ছবি মোছায় লগ নেই |
+| ২০২৬-১০-০৫ | ০.১৩ | ছবি (নিজস্ব সার্ভার, C5): URL `{PUBLIC_API_URL}/api/v1/photos/{file id}`, প্রতি আপলোডে নতুন; কী `housing/{uuid}.webp` ও `housing_files` টেবিল; সিরিয়াল বদলে ফাইল বা URL বদলায় না; ডিলেটে ফাইল কমিটের পরে মোছে; আপলোডে JPEG/PNG/WebP বাইট দেখে, সবসময় নতুন WebP ও থাম্ব, মেটাডাটা বাদ, `thumb` উপেক্ষিত, `400` এর `reason` তালিকা; ছবি না থাকলে ছবি মোছায় লগ নেই; পাবলিক `GET /api/photos/:id` (হেডার, বছরব্যাপী ক্যাশ, `404`, মিনিটে ১২০০টি), এর CORS `PUBLIC_READ_ORIGINS` এও |
 | ২০২৬-১০-০৫ | ০.১২ | লেখার নিয়ম চূড়ান্ত (নিজস্ব সার্ভার, C4): `/api/housing` এর নিচে সব লেখা ভ্যালিডেশনের আগে এডমিন যাচাই (`401`); কঠোর body (অজানা ফিল্ড `400`); `details.row_index`; ফাঁকা update `400`; সিরিয়াল বদলে ছবির URL ও ডিলেটে ছবির ফাইল C5 পর্যন্ত অপরিবর্তিত; bulk: ভ্যালিডেশনের আগে ৫০০ সারির সীমা (`413`), ১০ MB body, বিদ্যমান সিরিয়ালে পুরো ব্যাচ `409`, বাল্ক আপডেটে ফাঁকা আবশ্যক টেক্সট অপরিবর্তিত; একটিভিটি: GET এর ফিল্টার নিয়ম (অফসেটসহ `from`/`to`), সংখ্যা `id`, POST এ সার্ভার-লগ করা action `400`, `details` ≤ ৮ KB, পাবলিক-রিড origin এর CORS নেই; OpenAPI তে লেখা এডমিন-শুধু হিসেবে |
 | ২০২৬-১০-০৫ | ০.১১ | পড়ার নিয়ম চূড়ান্ত (নিজস্ব সার্ভার, C3): `GET /filter-options`; query নিয়ম (অজানা উপেক্ষা, পুনরাবৃত্তি `400`, শুধু দশমিক পূর্ণসংখ্যা); তালিকার পূর্ণ ক্রম; `q` তে `%`/`_` আক্ষরিক; পরিসীমার বাইরে `page_size` `400` (অ্যাডাপ্টার clamp করে); অ-uuid `id`, `nos`, `project_type` এর `400`; পড়ায় rate limit; CORS দুই তালিকা (`PUBLIC_READ_ORIGINS`); `GET /openapi.json` |
 | ২০২৬-১০-০৫ | ০.১০ | অথ চূড়ান্ত: HttpOnly কুকি সেশন (JWT ও `access_token` বাদ), মেয়াদ ৮ ঘণ্টা নিষ্ক্রিয়তা / ৭ দিন সর্বোচ্চ, লগআউট সবসময় `204`, এডমিন শুধু CLI দিয়ে; সব পাথ `/api/v1` এর নিচে; CORS তালিকা ও Origin যাচাই; লগইন rate limit ও `429 RATE_LIMITED` |

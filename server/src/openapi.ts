@@ -280,6 +280,17 @@ export function buildOpenApiDocument(): OpenApiDocument {
           responses: { 200: ok('The record', ref('HousingRecord')), ...errors(400, 401, 403, 404, 500) },
         }),
       },
+      '/photos/{id}': {
+        get: {
+          summary: 'A photo or thumbnail, by the id in a record\'s *_photo_url or *_thumb_url; cacheable for a year',
+          tags: ['photos'],
+          parameters: idParam,
+          responses: {
+            200: { description: 'The image', content: { 'image/webp': { schema: { type: 'string', format: 'binary' } } } },
+            ...errors(400, 404, 429, 500),
+          },
+        },
+      },
       '/housing/{id}/serial': {
         post: admin('Move a record to another serial; the old serial is never reused', {
           parameters: idParam,

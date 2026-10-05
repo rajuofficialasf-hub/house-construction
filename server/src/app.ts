@@ -15,6 +15,7 @@ import { healthRouter } from './routes/v1/health.js';
 import { BULK_PATH, housingAdminRouter } from './routes/v1/housing-admin.js';
 import { housingReadRouter, type ReadRateLimit } from './routes/v1/housing.js';
 import { openapiRouter } from './routes/v1/openapi.js';
+import { photosRouter } from './routes/v1/photos.js';
 import { createPhotoReceiver, type PhotoReceiverOptions } from './photos/process.js';
 import type { StorageDriver } from './storage/index.js';
 
@@ -37,15 +38,18 @@ export interface AppDeps {
   storage: StorageDriver;
   /** The API's public base URL (PUBLIC_API_URL), for the photo URLs stored on records. */
   publicApiUrl: string;
+  /** Per-IP cap on the public photo route; tests pass a small one. */
+  photoRateLimit?: ReadRateLimit;
   /** Upload limits; tests pass small ones. */
   photoUpload?: Omit<PhotoReceiverOptions, 'storage'>;
 }
 
 const READ_METHODS = new Set(['GET', 'HEAD']);
 
-/** Paths other apps may read: the housing reads (not the admin-only activity log) and the API description. */
+/** Paths other apps may read: the housing reads (not the admin-only activity log), photos and the API description. */
 const isPublicReadPath = (path: string) =>
   path === '/api/v1/openapi.json' ||
+  path.startsWith('/api/v1/photos/') ||
   ((path === '/api/v1/housing' || path.startsWith('/api/v1/housing/')) &&
     // Express matches routes case-insensitively, so compare the same way.
     !path.toLowerCase().startsWith('/api/v1/housing/activity'));
@@ -86,6 +90,7 @@ export function createApp({
   storage,
   publicApiUrl,
   photoUpload,
+  photoRateLimit,
 }: AppDeps): Express {
   const cookie = sessionCookie(cookieSecure);
   const app = express();
@@ -126,6 +131,7 @@ export function createApp({
   const receivePhoto = createPhotoReceiver({ ...photoUpload, storage });
   app.use('/api/v1/housing', housingAdminRouter({ sql, storage, publicApiUrl, receivePhoto }));
   app.use('/api/v1/housing', housingReadRouter(sql, readRateLimit));
+  app.use('/api/v1/photos', photosRouter(sql, storage, photoRateLimit));
 
   app.use(notFoundHandler);
   app.use(errorHandler);
