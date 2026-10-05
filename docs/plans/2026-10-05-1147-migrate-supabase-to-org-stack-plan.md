@@ -69,7 +69,7 @@ Each chunk is one session (plan, build, review, merge). Order matters; C3 and C5
 
 | Chunk | What | Covers | Depends on |
 |---|---|---|---|
-| **C1** | Server skeleton + database port: `server/` package, config, errors, health, local Docker PG17, `supabase/sql` ported to migrations (RLS and storage SQL dropped, actor read from `app.*` settings), app and migration roles | R4 (schema level), R15 | none |
+| **C1** (done: `docs/plans/2026-10-05-1215-migrate-c1-server-skeleton-db-port-plan.md`) | Server skeleton + database port: `server/` package, config, errors, health, local Docker PG17, `supabase/sql` ported to migrations (RLS and storage SQL dropped, actor read from `app.*` settings), app and migration roles | R4 (schema level), R15 | none |
 | **C2** | Admin login: admins/sessions tables, login/logout/me, rate limit, create-admin CLI, activity rows for login/logout, REST auth adapter in cookie mode | R3, R6, R7–R9 | C1 |
 | **C3** | Read endpoints + REST adapter reads + read contract tests against the server; CORS allowlist and OpenAPI spec | R1 (reads), R3, R14 | C1 |
 | **C4** | Write endpoints: create, update, delete, change serial, bulk insert, bulk update, activity log; REST adapter writes; write contract and mock e2e suites on `rest` | R1 (writes), R2, R4–R6 | C2, C3 |

@@ -1,7 +1,7 @@
 ---
 title: C1 Server Skeleton and Database Port
 type: migrate
-status: in-progress
+status: done
 date: 2026-10-05
 ---
 
@@ -158,28 +158,13 @@ Every later chunk (login, reads, writes, photos) needs a running server and the 
 - `ae-review` has run, with no open P0 or P1
 - Code from abandoned attempts is removed
 
-## Progress
-- **Branch:** `migrate/c1-server-db`
-- **Updated:** 2026-10-05 13:45
-- **Next:** finish: run ae-test (full), ae-simplify, ae-review
-- **Uncommitted:** none
-- **Notes:** Local machine runs Node 26; code targets Node 22 (`ST-22`), so run server commands with `PATH=~/.nvm/versions/node/v22.20.0/bin:$PATH`. TypeScript pinned to ~6.0.2 to match the root (npm picked 7 by default). esbuild's postinstall (used by tsx/vitest) was checked and rebuilt; installs use `--ignore-scripts` (`ST-32`).
-  - U3 deviations from the plan text:
-    - No `server/db/schema.sql` dump, because `pg_dump` isn't installed on the host. Migrations run with `--no-dump-schema`.
-    - The bulk test asserts today's real behavior: unknown serials come back in `missing` and the other rows still update. Only a row without `serial_no` rolls back the batch. The plan's "one unknown serial rolls back" was wrong.
-    - `housing_current_actor()` lives in 0002 (`housing_change_serial` uses it first) and falls back to `session_user`, not `current_user`, because inside security definer functions `current_user` is the owner.
-  - `resetTestData()` and `insertRecord()` (U4's test helper) were written in U3, because the U3 tests needed them.
-  - The test suite rebuilds `housing_test` in `test/support/global-setup.ts`: up, roll back every migration, check that nothing is left, then up again.
-  - URLs need `?sslmode=disable` for dbmate against the local Docker database.
-  - `dbmate` is a runtime dependency, because deploys run `db:migrate`.
-  - The dev seed uses `on conflict do nothing`, so `db:seed` can run more than once.
-  - Review fixes:
-    - The serial guard now honors `housing.allow_serial_change` only inside a security definer function (`current_user <> session_user`), because any role can set that flag.
-    - Default privileges are revoked database-wide for `housing_owner` (a per-schema default can't remove the built-in PUBLIC EXECUTE).
-    - All 4xx body-parser errors map to 400 or 413.
-    - The error handler passes on when headers are already sent.
-    - Shutdown has a 10 s exit timer.
-    - The test DB must be named `*_test`.
-  - Left for later chunks:
-    - The actor in the log is trusted from the API (documented in 0002). Only `withActor()` may set it (C2, C4).
-    - An explicit `serial_no` raises the counter, so only the import path may send one (C4).
+
+## Notes for later chunks
+- Run server commands under Node 22 (`.nvmrc`). Local database URLs need `?sslmode=disable` for dbmate.
+- There is no `server/db/schema.sql` dump, because `pg_dump` isn't on the host and migrations run with `--no-dump-schema`.
+- The bulk update by serial reports unknown serials in `missing` and still updates the other rows. Only a row without `serial_no` rolls back the batch.
+- `housing_current_actor()` is defined in 0002 and falls back to `session_user`.
+- `housing.allow_serial_change` works only inside a security definer function.
+- The database can't verify the actor in the log. Only `withActor()` may set it, from the authenticated admin (C2, C4).
+- An explicit `serial_no` on insert raises the counter, so only the import path may send one (C4).
+- `supabase/sql/09_activity_log.sql` was edited in commit `83941f2`, before C1. Check that the live project runs the same version.
