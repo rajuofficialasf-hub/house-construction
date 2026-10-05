@@ -1,5 +1,5 @@
 import { t } from '@/i18n'
-import type { HousingApiError } from '../backend/interfaces/types'
+import type { HousingApiError } from '../../../backend/interfaces/types'
 
 interface Props {
   title: string

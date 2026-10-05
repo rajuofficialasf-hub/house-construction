@@ -1,6 +1,6 @@
 import { t } from '@/i18n'
 import { useEffect, useRef, useState } from 'react'
-import type { HousingRecord, PhotoKind } from '../backend/interfaces/types'
+import type { HousingRecord, PhotoKind } from '../../../backend/interfaces/types'
 import { photoSrc } from '../utils/imagePath'
 import { createUploadItems, revokeUploadItems, type UploadItem } from '../utils/uploadItems'
 import { ImageUploader } from './ImageUploader'

@@ -2,7 +2,7 @@ import { t } from '@/i18n'
 import { useCallback, useMemo, useRef } from 'react'
 import { Outlet, useSearchParams } from 'react-router'
 import type { ListOutletContext } from './listContext'
-import { DEFAULT_PAGE_SIZE, type ListParams, type ProjectType } from '../backend/interfaces/types'
+import { DEFAULT_PAGE_SIZE, type ListParams, type ProjectType } from '../../../backend/interfaces/types'
 import { PROJECT_META } from '../utils/projectType'
 import {
   applyFiltersToSearchParams,

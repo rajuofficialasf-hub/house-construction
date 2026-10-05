@@ -1,4 +1,4 @@
-import type { ListParams, ProjectType } from '../backend/interfaces/types'
+import type { ListParams, ProjectType } from '../../../backend/interfaces/types'
 import type { ListState } from '../hooks/useHousingList'
 
 /**

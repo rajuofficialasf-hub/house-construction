@@ -2,7 +2,7 @@ import { gn, t } from '@/i18n'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { formatBanglaNumber, toBanglaNumber } from '@/lib/banglaNumber'
-import { getHousingApi } from '../backend/factory'
+import { getHousingApi } from '../../../backend/factory'
 import {
   DEFAULT_PAGE_SIZE,
   HousingApiError,
@@ -10,7 +10,7 @@ import {
   type ActivityListParams,
   type Page,
   type ProjectType,
-} from '../backend/interfaces/types'
+} from '../../../backend/interfaces/types'
 import { ErrorNotice } from '../components/ErrorNotice'
 import { Pagination } from '../components/Pagination'
 import { PROJECT_LIST, PROJECT_META } from '../utils/projectType'

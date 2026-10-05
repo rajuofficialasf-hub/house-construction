@@ -34,7 +34,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { createClient } from '@supabase/supabase-js'
 import sharp from 'sharp'
-import { createSupabaseHousingApi, createSupabaseImageStorage } from '../src/features/housing/backend/supabase/index.ts'
+import { createSupabaseHousingApi, createSupabaseImageStorage } from '../src/backend/supabase/index.ts'
 import { PHOTO_SPEC } from '../src/features/housing/utils/photoSpec.ts'
 import { parsePhotoFilename } from '../src/features/housing/utils/photoFilename.ts'
 

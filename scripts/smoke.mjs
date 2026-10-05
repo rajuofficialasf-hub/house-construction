@@ -15,11 +15,16 @@
  *   npm run smoke -- --quick              দ্রুত: শুধু ৩৯০ ও ১২৮০, শুধু বাংলা
  *   npm run smoke -- --base http://10.11.115.50:5173   অন্য ঠিকানা
  *   npm run smoke -- --widths 390,768 --langs en
+ *   npm run smoke -- --legacy             পুরনো-ডাটাবেস মোড (M-ধাপ ৪): নিজেই আলাদা dev সার্ভার (পোর্ট ৫১৭৯) চালায়
+ *                                         VITE_SIMULATE_LEGACY_DB=1 দিয়ে — adapter ভাবে SQL ১০–১২ নেই → .smoke/legacy/
+ * প্রতিটি রানের শেষে "ব্যাকএন্ড-পথ" পরীক্ষা: সাধারণ মোডে project_stats চলে (housing_stats নয়);
+ * --legacy তে উল্টো — projects/project_stats/projects_overview এ কোনো কলই যায় না, housing_stats চলে।
  * ব্রাউজার খোঁজে: CHROME_PATH (env) → Chrome → Edge (Windows/macOS/Linux এর সাধারণ পাথ)।
  * শুধু পড়ে/দেখে — কোনো ফর্ম জমা দেয় না, লগইন করে না, ডাটাবেসে কিছু লেখে না।
  */
 import fs from 'node:fs'
 import path from 'node:path'
+import { spawn } from 'node:child_process'
 import puppeteer from 'puppeteer-core'
 
 // ---------------------------------------------------------------- আর্গুমেন্ট
@@ -30,8 +35,11 @@ const opt = (name, def) => {
   return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : def
 }
 const QUICK = flag('quick')
-const BASE = opt('base', 'http://localhost:5173').replace(/\/+$/, '')
-const LABEL = flag('baseline') ? 'baseline' : opt('label', 'latest')
+const LEGACY = flag('legacy')
+const LEGACY_PORT = 5179
+const OWN_SERVER = LEGACY && !opt('base', null)
+const BASE = opt('base', LEGACY ? `http://localhost:${LEGACY_PORT}` : 'http://localhost:5173').replace(/\/+$/, '')
+const LABEL = flag('baseline') ? 'baseline' : opt('label', LEGACY ? 'legacy' : 'latest')
 const WIDTHS = opt('widths', QUICK ? '390,1280' : '360,390,768,1024,1280').split(',').map(Number).filter(Boolean)
 const LANGS = opt('langs', QUICK ? 'bn' : 'bn,en').split(',').filter((l) => l === 'bn' || l === 'en')
 const MAP_WIDTHS = new Set([390, 1280])
@@ -67,13 +75,39 @@ if (!BROWSER) {
 }
 
 // ---------------------------------------------------------------- সার্ভার চালু আছে?
-try {
-  const ctl = new AbortController()
-  const t = setTimeout(() => ctl.abort(), 6000)
-  await fetch(BASE, { signal: ctl.signal })
-  clearTimeout(t)
-} catch {
-  console.error(`ত্রুটি: ${BASE} খোলা যাচ্ছে না। আগে আরেকটি টার্মিনালে \`npm run dev\` চালান, তারপর আবার \`npm run smoke\`।`)
+/** --legacy: নিজস্ব dev সার্ভার, পুরনো-ডাটাবেস সিমুলেশনসহ (শেষে বন্ধ হয়) */
+let server = null
+const stopServer = () => {
+  if (server && !server.killed) server.kill()
+}
+if (OWN_SERVER) {
+  server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--port', String(LEGACY_PORT), '--strictPort'], {
+    env: { ...process.env, VITE_SIMULATE_LEGACY_DB: '1' },
+    stdio: 'ignore',
+  })
+  process.on('exit', stopServer)
+}
+async function reachable(timeoutMs) {
+  const until = Date.now() + timeoutMs
+  do {
+    try {
+      const ctl = new AbortController()
+      const t = setTimeout(() => ctl.abort(), 3000)
+      await fetch(BASE, { signal: ctl.signal })
+      clearTimeout(t)
+      return true
+    } catch {
+      await new Promise((r) => setTimeout(r, 500))
+    }
+  } while (Date.now() < until)
+  return false
+}
+if (!(await reachable(OWN_SERVER ? 30000 : 6000))) {
+  console.error(
+    OWN_SERVER
+      ? `ত্রুটি: পুরনো-ডাটাবেস মোডের dev সার্ভার (পোর্ট ${LEGACY_PORT}) চালু হয়নি — পোর্টটি অন্য কিছু ব্যবহার করছে কি?`
+      : `ত্রুটি: ${BASE} খোলা যাচ্ছে না। আগে আরেকটি টার্মিনালে \`npm run dev\` চালান, তারপর আবার \`npm run smoke\`।`,
+  )
   process.exit(1)
 }
 
@@ -117,8 +151,10 @@ const browser = await puppeteer.launch({ executablePath: BROWSER, headless: true
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const results = []
 const started = Date.now()
+/** পেইজগুলো ডাটাবেসের কোন টেবিল/RPC ডেকেছে (Supabase REST পাথ → সংখ্যা) */
+const apiHits = new Map()
 
-console.log(`Smoke: ${BASE} · প্রস্থ ${WIDTHS.join('/')} · ভাষা ${LANGS.join('/')} · স্ক্রিনশট → ${path.relative(process.cwd(), OUT)}`)
+console.log(`Smoke${LEGACY ? ' (পুরনো-ডাটাবেস মোড)' : ''}: ${BASE} · প্রস্থ ${WIDTHS.join('/')} · ভাষা ${LANGS.join('/')} · স্ক্রিনশট → ${path.relative(process.cwd(), OUT)}`)
 console.log(`ব্রাউজার: ${BROWSER}${semiSerial ? '' : '\n(বিস্তারিত পেইজ বাদ — .env.local নেই বা কোনো রেকর্ড নেই)'}\n`)
 
 try {
@@ -135,6 +171,10 @@ try {
         }
       }, lang)
       let errors = []
+      page.on('request', (r) => {
+        const m = r.url().match(/\/rest\/v1\/((?:rpc\/)?[a-z_]+)/)
+        if (m) apiHits.set(m[1], (apiHits.get(m[1]) ?? 0) + 1)
+      })
       page.on('pageerror', (e) => errors.push(`page error: ${e.message}`))
       page.on('console', (m) => {
         if (m.type() === 'error') errors.push(`console: ${m.text().slice(0, 240)}`)
@@ -172,8 +212,10 @@ try {
       await page.close()
     }
   }
+  backendPathCheck()
 } finally {
   await browser.close()
+  stopServer()
 }
 
 // ---------------------------------------------------------------- রিপোর্ট
@@ -184,6 +226,23 @@ console.log(`স্ক্রিনশট ও report.json: ${path.relative(proces
 process.exit(failed.length ? 2 : 0)
 
 // ================================================================ সহায়ক
+/** কোন পথে ডাটা এসেছে তা প্রমাণ: সাধারণ মোডে নতুন RPC, --legacy তে শুধু পুরনোগুলো */
+function backendPathCheck() {
+  const n = (k) => apiHits.get(k) ?? 0
+  const p = []
+  const NEW = ['projects', 'project_fields', 'beneficiary_private', 'rpc/project_stats', 'rpc/projects_overview']
+  if (LEGACY) {
+    for (const k of NEW) if (n(k)) p.push(`পুরনো-ডাটাবেস মোডে "${k}" ডাকা হয়েছে (${n(k)} বার) — সিমুলেশন কাজ করছে না`)
+    if (!n('rpc/housing_stats')) p.push('পুরনো-ডাটাবেস মোডে housing_stats একবারও ডাকা হয়নি — স্ট্যাট কোথা থেকে এল?')
+  } else {
+    if (!n('rpc/project_stats')) p.push('project_stats একবারও ডাকা হয়নি (SQL ১১ চালানো না থাকলে এটাই স্বাভাবিক — তখন --legacy এর মতো চলে)')
+    if (n('rpc/housing_stats')) p.push(`housing_stats ডাকা হয়েছে (${n('rpc/housing_stats')} বার) — নতুন ডাটাবেসে ফলব্যাক চলছে কেন?`)
+  }
+  const summary = [...apiHits].sort().map(([k, v]) => `${k}×${v}`).join(', ')
+  console.log(`\nডাটাবেসে যাওয়া কল: ${summary || '—'}`)
+  record('all', 0, 'backend-path', p)
+}
+
 function record(lang, width, name, problems) {
   results.push({ lang, width, name, problems })
   console.log(`${problems.length ? 'FAIL' : 'PASS'}  ${lang} ${String(width).padStart(4)}  ${name}${problems.length ? '\n      - ' + problems.join('\n      - ') : ''}`)

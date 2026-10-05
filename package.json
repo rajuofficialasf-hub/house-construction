@@ -14,7 +14,9 @@
     "i18n-check": "node scripts/i18n-check.mjs",
     "photo-check": "node scripts/photo-check.mjs",
     "smoke": "node scripts/smoke.mjs",
-    "build-rehearsal": "node scripts/build-rehearsal.mjs"
+    "build-rehearsal": "node scripts/build-rehearsal.mjs",
+    "content-check": "node scripts/content-check.mjs",
+    "adapter-check": "tsx scripts/adapter-check.mts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",

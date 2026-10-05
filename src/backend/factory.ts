@@ -1,18 +1,20 @@
 /**
  * অ্যাডাপ্টার ফ্যাক্টরি।
  * env ভ্যারিয়েবল VITE_HOUSING_BACKEND ('supabase' | 'rest') দেখে কোন অ্যাডাপ্টার চলবে তা ঠিক করে।
- * UI কোড শুধু getHousingApi / getAuthProvider / getImageStorage ব্যবহার করবে।
+ * UI কোড শুধু getHousingApi / getProjectsApi / getAuthProvider / getImageStorage ব্যবহার করবে।
  */
 import type { AuthProvider } from './interfaces/authProvider'
 import type { HousingApi } from './interfaces/housingApi'
 import type { ImageStorage } from './interfaces/imageStorage'
+import type { ProjectsApi } from './interfaces/projectsApi'
 import {
   createSupabaseAuthProvider,
   createSupabaseHousingApi,
   createSupabaseImageStorage,
+  createSupabaseProjectsApi,
 } from './supabase'
 import { getSupabase } from './supabase/client'
-import { createRestAuthProvider, createRestHousingApi, createRestImageStorage } from './rest'
+import { createRestAuthProvider, createRestHousingApi, createRestImageStorage, createRestProjectsApi } from './rest'
 
 export type BackendKind = 'supabase' | 'rest'
 
@@ -39,6 +41,7 @@ function restBaseUrl(): string {
 
 interface Backend {
   housingApi: HousingApi
+  projectsApi: ProjectsApi
   authProvider: AuthProvider
   imageStorage: ImageStorage
 }
@@ -51,14 +54,18 @@ function buildBackend(): Backend {
     const base = restBaseUrl()
     return {
       housingApi: createRestHousingApi(base),
+      projectsApi: createRestProjectsApi(base),
       authProvider: createRestAuthProvider(base),
       imageStorage: createRestImageStorage(base),
     }
   }
   // lazy: env না থাকলে মেথড কলে CONFIG_ERROR, ইমপোর্ট/রেন্ডারে ক্র্যাশ নয়
   const imageStorage = createSupabaseImageStorage(getSupabase)
+  // একটিই ProjectsApi: রেকর্ডের adapter একই ক্যাশ ও পুরনো-ডাটাবেস অবস্থা ব্যবহার করে
+  const projectsApi = createSupabaseProjectsApi(getSupabase)
   return {
-    housingApi: createSupabaseHousingApi(getSupabase, imageStorage),
+    housingApi: createSupabaseHousingApi(getSupabase, imageStorage, { projects: projectsApi }),
+    projectsApi,
     authProvider: createSupabaseAuthProvider(getSupabase),
     imageStorage,
   }
@@ -71,6 +78,10 @@ function backend(): Backend {
 
 export function getHousingApi(): HousingApi {
   return backend().housingApi
+}
+
+export function getProjectsApi(): ProjectsApi {
+  return backend().projectsApi
 }
 
 export function getAuthProvider(): AuthProvider {

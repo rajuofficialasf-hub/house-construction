@@ -9,12 +9,13 @@ import type {
   FilterOptions,
   HousingRecord,
   HousingRecordInput,
+  ExtraValues,
   HousingRecordPatch,
-  HousingStats,
   ListParams,
   Page,
   PhotoFiles,
   PhotoKind,
+  ProjectStats,
   ProjectType,
 } from './types'
 
@@ -27,6 +28,10 @@ import type {
  *
  * ছবি: uploadPhoto ফাইল সংরক্ষণ (সিরিয়াল-ভিত্তিক পাথ, ওভাররাইট) + রেকর্ডের url কলাম + photo_updated_at
  * একসাথে হ্যান্ডেল করে, যাতে UI কে দুই ধাপ (storage → db) নিয়ে ভাবতে না হয়। ফাইল আগে থেকেই WebP (utils/imageProcessing.ts)।
+ * প্রকল্পের ছবি-মোড মানা হয়: শুধু-পরের-ছবি প্রকল্পে 'prev' আর ছবিহীন প্রকল্পে যেকোনো ছবি VALIDATION_ERROR (আপলোডের আগেই)।
+ *
+ * পর্ব ২: রেকর্ডে union_name ও extra (কাস্টম পাবলিক মান); গোপন মান আলাদা (getPrivate/setPrivate)।
+ * পুরনো ডাটাবেসেও চলে: union_name/extra লেখায় বাদ পড়ে, পড়ায় খালি বসে, stats আসে housing_stats থেকে।
  */
 export interface HousingApi {
   list(params: ListParams): Promise<Page<HousingRecord>>
@@ -40,7 +45,11 @@ export interface HousingApi {
   bulkInsert(input: BulkInsertInput): Promise<BulkInsertResult>
   /** (project_type, serial_no) মিললে আপডেট; না মিললে missing এ (এরর নয়)। এক কলে ≤ ৫০০ সারি */
   bulkUpdateBySerial(input: BulkUpdateInput): Promise<BulkUpdateResult>
-  stats(projectType?: ProjectType): Promise<HousingStats>
+  /**
+   * প্রকল্পের পরিসংখ্যান (গ্রুপ দিলে উপ-প্রকল্প মিলিয়ে)। projectType না দিলে 'housing' (পুরনো আচরণ: ঘর নির্মাণের সব)।
+   * light = true: হোম কার্ডের হালকা সংস্করণ (by_union ও ক্যাটাগরির by_value বাদ)।
+   */
+  stats(projectType?: ProjectType, opts?: { light?: boolean }): Promise<ProjectStats>
   years(projectType?: ProjectType): Promise<number[]>
   filterOptions(projectType?: ProjectType): Promise<FilterOptions>
   uploadPhoto(id: string, kind: PhotoKind, files: PhotoFiles): Promise<HousingRecord>
@@ -52,6 +61,10 @@ export interface HousingApi {
    * url কলাম আপডেট হয়; পুরনো সিরিয়াল পুনরায় ব্যবহার হয় না।
    */
   changeSerial(id: string, newSerialNo: number): Promise<HousingRecord>
+  /** গোপন ফিল্ডের মান (এডমিন): { phone: '017…' }; না থাকলে {} (পুরনো ডাটাবেসেও {}) */
+  getPrivate(id: string): Promise<ExtraValues>
+  /** গোপন মান পুরোটা বদলে রাখা (এডমিন); কোনো key বাদ দিলে সেটি মুছে যায়। পুরনো ডাটাবেসে CONFIG_ERROR */
+  setPrivate(id: string, data: ExtraValues): Promise<ExtraValues>
   /** একটিভিটি লগ (এডমিন): নতুন আগে, পেজিনেশন */
   listActivity(params: ActivityListParams): Promise<Page<ActivityEntry>>
   /** ক্লায়েন্ট-ইভেন্ট লগ (এডমিন): login/logout/import_run/photo_bulk_run …; ব্যর্থ হলে throw নয় (লগ UI ভাঙবে না) */

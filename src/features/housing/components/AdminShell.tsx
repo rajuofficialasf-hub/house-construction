@@ -1,8 +1,8 @@
 import { t } from '@/i18n'
 import { useState, type ReactNode } from 'react'
 import { NavLink, useNavigate } from 'react-router'
-import { getAuthProvider, getHousingApi } from '../backend/factory'
-import { HousingApiError, type AuthUser } from '../backend/interfaces/types'
+import { getAuthProvider, getHousingApi } from '../../../backend/factory'
+import { HousingApiError, type AuthUser } from '../../../backend/interfaces/types'
 
 const ADMIN_LINKS = [
   { to: '/housing/admin/semi-pucca', label: 'সেমিপাকা রেকর্ড', end: false },

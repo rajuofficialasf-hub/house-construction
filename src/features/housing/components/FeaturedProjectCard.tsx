@@ -1,7 +1,7 @@
 import { t, gn } from '@/i18n'
 import { Link } from 'react-router'
 import { formatBanglaNumber, toBanglaNumber } from '@/lib/banglaNumber'
-import type { HousingRecord } from '../backend/interfaces/types'
+import type { HousingRecord } from '../../../backend/interfaces/types'
 import { useCountUp } from '../hooks/useCountUp'
 import { useFeaturedRecord } from '../hooks/useFeaturedRecord'
 import { useHousingStats } from '../hooks/useHousingStats'

@@ -1,4 +1,4 @@
-import type { PhotoKind, ProjectType } from '../backend/interfaces/types'
+import type { PhotoKind, ProjectType } from '../../../backend/interfaces/types'
 
 export interface ParsedPhotoName {
   /** ফাইলনামে প্রকল্প না থাকলে null (তখন ড্রপডাউন/--project থেকে নিতে হবে) */

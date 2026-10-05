@@ -1,6 +1,6 @@
 import { t } from '@/i18n'
 import { formatBanglaNumber, toBanglaNumber } from '@/lib/banglaNumber'
-import type { PageMeta } from '../backend/interfaces/types'
+import type { PageMeta } from '../../../backend/interfaces/types'
 
 interface Props {
   meta: PageMeta

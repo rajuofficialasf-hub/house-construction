@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { getAuthProvider } from '../backend/factory'
-import type { AuthUser } from '../backend/interfaces/types'
+import { getAuthProvider } from '../../../backend/factory'
+import type { AuthUser } from '../../../backend/interfaces/types'
 
 export interface AuthState {
   status: 'loading' | 'ready'

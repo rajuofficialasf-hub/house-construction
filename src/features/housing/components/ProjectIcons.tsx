@@ -1,5 +1,5 @@
 import type { SVGProps } from 'react'
-import type { ProjectType } from '../backend/interfaces/types'
+import type { ProjectType } from '../../../backend/interfaces/types'
 
 type IconProps = SVGProps<SVGSVGElement>
 

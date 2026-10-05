@@ -104,30 +104,34 @@ src/
   components/Toast.tsx          # সাইট-ব্যাপী টোস্ট প্রোভাইডার (App.tsx এ) (ধাপ ১১)
   components/useToast.ts        # useToast(): success/error/info
   pages/                        # HomePage, NotFoundPage
+  backend/                      # ব্যাকএন্ড স্তর — সব প্রকল্পের জন্য (M-ধাপ ৪-এ features/housing/backend থেকে সরানো)
+    index.ts                    # বাইরে থেকে import করার এক দরজা
+    factory.ts                  # env (VITE_HOUSING_BACKEND) দেখে অ্যাডাপ্টার বাছে; getHousingApi/getProjectsApi/getAuthProvider/getImageStorage
+    fallbackProjects.ts         # projects টেবিল না থাকলে ঘর নির্মাণের ৩টি প্রকল্প (SQL ১০-এর seed এর হুবহু কপি) (M-ধাপ ৪)
+    interfaces/
+      types.ts                  # ProjectKey, Project, ProjectField, FieldType, PhotoMode, GeoDepth, StatCardDef, ProjectStats, ProjectOverview, HousingRecord (union_name, extra), ListParams (union_name, fields, sort), HousingApiError …
+      housingApi.ts             # HousingApi: রেকর্ড, stats (project_stats), গোপন মান (getPrivate/setPrivate), ছবি, লগ
+      projectsApi.ts            # ProjectsApi: রেজিস্ট্রি, ওভারভিউ, প্রকল্প/ফিল্ড তৈরি-বদল-ক্রম, ফিল্ডের ব্যবহার, ক্যাটাগরির বানান একীকরণ (M-ধাপ ৪)
+      authProvider.ts, imageStorage.ts, index.ts
+    supabase/                   # সব ফ্যাক্টরি `GetClient` (() => SupabaseClient) নেয় — ব্রাউজারে anon, স্ক্রিপ্টে service_role
+      client.ts                 # getSupabase() (env, anon key, lazy), GetClient টাইপ, TABLE, STORAGE_BUCKET
+      errors.ts                 # Supabase এরর → HousingApiError
+      session.ts                # assertAdmin(getClient), adminRole() (main_admin/admin; rpc housing_current_admin, cache)
+      legacy.ts                 # পুরনো ডাটাবেসে চলা: "নেই" এরর চেনা, মনে রাখা, withFallback(), VITE_SIMULATE_LEGACY_DB (M-ধাপ ৪)
+      stats.ts                  # project_stats, না থাকলে housing_stats → একই শেপ (M-ধাপ ৪)
+      housingApi.ts             # createSupabaseHousingApi(getClient, storage, {trustedServer?, projects?}) — ফিল্টার whitelist, লেখার payload নিয়ম, ছবি-মোড
+      projectsApi.ts            # createSupabaseProjectsApi(getClient, {trustedServer?}) — ৬০ সেকেন্ডের get-ক্যাশ (M-ধাপ ৪)
+      authProvider.ts           # createSupabaseAuthProvider(getClient)
+      imageStorage.ts           # createSupabaseImageStorage(getClient) — photoPath, upsert, webp
+      index.ts
+    rest/
+      endpoints.ts              # API_CONTRACT v1.0 এর পাথ (/api/projects/:key/…, /api/records/:id/…)
+      http.ts                   # restRequest(): JSON, Bearer token (localStorage 'housing_rest_token') / credentials include, এরর ম্যাপিং
+      authProvider.ts           # REST AuthProvider (login/logout/me, listeners, cross-tab storage event) — ধাপ ১০
+      index.ts                  # HousingApi/ProjectsApi/ImageStorage stub (ধাপ ১৩)
   features/housing/             # ঘর নির্মাণ ফিচার (ধাপ ১ থেকে)
     routes.tsx                  # /housing/* রুট এলিমেন্ট; App.tsx এ {housingRoutes} হিসেবে বসে
-    backend/
-      index.ts                  # ফিচারের বাইরে থেকে import করার এক দরজা
-      factory.ts                # env (VITE_HOUSING_BACKEND) দেখে অ্যাডাপ্টার বাছে; getHousingApi/getAuthProvider/getImageStorage
-      interfaces/
-        types.ts                # ProjectType, HousingRecord, ListParams, Page, ApiError, HousingApiError ইত্যাদি
-        housingApi.ts           # HousingApi ইন্টারফেস
-        authProvider.ts         # AuthProvider ইন্টারফেস
-        imageStorage.ts         # ImageStorage ইন্টারফেস
-        index.ts
-      supabase/                 # সব ফ্যাক্টরি `GetClient` (() => SupabaseClient) নেয় — ব্রাউজারে anon, স্ক্রিপ্টে service_role
-        client.ts               # getSupabase() (env, anon key, lazy), GetClient টাইপ, TABLE, STORAGE_BUCKET
-        errors.ts               # Supabase এরর → HousingApiError
-        session.ts              # assertAdmin(getClient), isAdminUser() (rpc is_housing_admin, cache)
-        housingApi.ts           # createSupabaseHousingApi(getClient, storage, {trustedServer?})
-        authProvider.ts         # createSupabaseAuthProvider(getClient)
-        imageStorage.ts         # createSupabaseImageStorage(getClient) — photoPath, upsert, webp
-        index.ts
-      rest/
-        endpoints.ts            # API_CONTRACT এর পাথ
-        http.ts                 # restRequest(): JSON, Bearer token (localStorage 'housing_rest_token') / credentials include, এরর ম্যাপিং
-        authProvider.ts         # REST AuthProvider (login/logout/me, listeners, cross-tab storage event) — ধাপ ১০
-        index.ts                # HousingApi/ImageStorage stub (ধাপ ১৩)
+    (backend/ → src/backend/ এ সরানো হয়েছে, M-ধাপ ৪)
     components/
       HousingSubnav.tsx         # হাউজিং সেকশনের ভেতরের পিল-নেভিগেশন (variant light/dark)
       FeaturedProjects.tsx      # হোম পেইজের "প্রকল্পসমূহ" সেকশন: প্রতি প্রকল্পে এক কার্ড, মোবাইলে স্ক্রল-স্ন্যাপ + তীর (২০২৬-০৯-৩০)
@@ -195,7 +199,9 @@ scripts/
   i18n-check.mjs                # src/ এর সব বাংলা UI লেখা বনাম en.ts — অনুপস্থিত/অব্যবহৃত key, t() ছাড়া JSX টেক্সট (npm run i18n-check)
   photo-check.mjs               # anon হিসেবে প্রতিটি রেকর্ডের ছবির URL (?v= সহ) এ HEAD — সব 200 কি না (npm run photo-check) (M-ধাপ ১)
   build-rehearsal.mjs           # রোলব্যাক ফাইলের BODY থেকে checks/rollback_rehearsal.sql তৈরি (npm run build-rehearsal) (M-ধাপ ২)
-  smoke.mjs                     # puppeteer-core + Chrome/Edge: ৩৬০–১২৮০px × বাংলা/ইংরেজি — ওভারফ্লো, console error, ভুল 404, ErrorBoundary, মানচিত্র-ট্যাপ; স্ক্রিনশট .smoke/ (npm run smoke) (M-ধাপ ১)
+  smoke.mjs                     # puppeteer-core + Chrome/Edge: ৩৬০–১২৮০px × বাংলা/ইংরেজি — ওভারফ্লো, console error, ভুল 404, ErrorBoundary, মানচিত্র-ট্যাপ, ব্যাকএন্ড-পথ; স্ক্রিনশট .smoke/ (npm run smoke; --legacy = পুরনো-ডাটাবেস মোড, নিজের dev সার্ভারে) (M-ধাপ ১, ৪)
+  content-check.mjs             # anon হিসেবে প্রকল্প/ফিল্ড/ওভারভিউয়ের সারসংক্ষেপ + কোথায় ইংরেজি খালি; শুধু সতর্কবার্তা (npm run content-check) (M-ধাপ ৪)
+  adapter-check.mts             # নকল ক্লায়েন্টে adapter-এর নিয়ম: ফলব্যাক, লেখার payload, whitelist, ছবি-মোড — ২৫টি পরীক্ষা (npm run adapter-check) (M-ধাপ ৪)
 supabase/
   README.md                     # SQL চালানোর ক্রম
   sql/01_schema.sql             # টেবিল, constraint, ইনডেক্স, updated_at (পোর্টেবল)
@@ -1348,7 +1354,7 @@ Supabase Free tier storage ১ GB → সীমার কাছাকাছি; 
 - `supabase/sql/checks/00_baseline.sql` — শুধু পড়ে; একটিই ফলাফল-টেবিল: 09 চালানো আছে কি না, প্রতি প্রকল্পে রেকর্ড সংখ্যা/সর্বোচ্চ সিরিয়াল/**ডাটা-ফিঙ্গারপ্রিন্ট** (পুরনো কলাম, UTC — মাইগ্রেশনের পরেও একই আসবে), ছবিওয়ালা রেকর্ড, কাউন্টার, লগের সংখ্যা ও সর্বোচ্চ id, সিরিয়াল-বদলের লগ, `housing_stats(null)` (total, md5, JSON), **স্কিমা-ফিঙ্গারপ্রিন্ট** (কলাম/constraint/পলিসি/ফাংশন/ট্রিগার), Storage ফাইল সংখ্যা।
 - `supabase/sql/09a_fix_photo_log.sql` — **পরিকল্পনার বাইরের জরুরি ফিক্স** (নিচে §২)।
 - `scripts/photo-check.mjs` (`npm run photo-check`) — anon হিসেবে সব ছবির URL (সাইটের মতো `?v=` সহ) এ HEAD; প্রকল্পভিত্তিক সারসংক্ষেপ।
-- `scripts/smoke.mjs` (`npm run smoke`) — ইনস্টল করা Chrome/Edge দিয়ে ৩৬০/৩৯০/৭৬৮/১০২৪/১২৮০px × বাংলা/ইংরেজি: হোম, `/housing`, সেমিপাকা ও টিন তালিকা, বিস্তারিত মডাল, এডমিন লগইন, একটি অবৈধ URL (404 আসা চাই); ফোন-প্রস্থে touch এমুলেশন; তালিকায় মানচিত্র খুলে ২০টি ট্যাপ/ক্লিক। পরীক্ষা: অনুভূমিক ওভারফ্লো, console/page error, ভুল 404, লাল ErrorBoundary, "লোড করা যায়নি", সাদা পেইজ। `--baseline` (`.smoke/baseline/`, পুরনোটি থাকলে `--force` লাগে), `--quick`, `--base`, `--widths`, `--langs`। (`--legacy` আসবে M-ধাপ ৪-এ।)
+- `scripts/smoke.mjs` (`npm run smoke`) — ইনস্টল করা Chrome/Edge দিয়ে ৩৬০/৩৯০/৭৬৮/১০২৪/১২৮০px × বাংলা/ইংরেজি: হোম, `/housing`, সেমিপাকা ও টিন তালিকা, বিস্তারিত মডাল, এডমিন লগইন, একটি অবৈধ URL (404 আসা চাই); ফোন-প্রস্থে touch এমুলেশন; তালিকায় মানচিত্র খুলে ২০টি ট্যাপ/ক্লিক। পরীক্ষা: অনুভূমিক ওভারফ্লো, console/page error, ভুল 404, লাল ErrorBoundary, "লোড করা যায়নি", সাদা পেইজ। `--baseline` (`.smoke/baseline/`, পুরনোটি থাকলে `--force` লাগে), `--quick`, `--base`, `--widths`, `--langs`। `--legacy` (M-ধাপ ৪): পুরনো-ডাটাবেস মোড।
 
 পরিবর্তিত:
 - `supabase/sql/06_seed.sql` → `supabase/sql/dev/06_seed.sql`, `08_reset_test_data.sql` → `dev/08_reset_test_data.sql` (`git mv`); দুটিতেই **গার্ড**: টেবিলে রেকর্ড থাকলে ফাইল নিজেই থেমে যায় (`raise exception`, ট্রানজেকশনসহ — কিছুই বদলায় না); ইচ্ছাকৃত হলে `set asf.confirm_seed/confirm_reset = 'YES'`।
@@ -1530,3 +1536,55 @@ M-ধাপ ২-এ এই মানগুলো `checks/10_verify.sql` এ ব�
 - লাইভ ফলাফল পাওয়ার পর **M-ধাপ ৪** — ফ্রন্টএন্ড অ্যাডাপ্টারে প্রকল্পের API (`projects`, `project_stats`, `projects_overview` …) ও API চুক্তি v1.0।
 - পেস্ট করুন: `M-ধাপ ৪ শুরু করো (পরিকল্পনা: docs/MULTI_PROJECT_PLAN.md)`
 
+## M-ধাপ ৪ — ব্যাকএন্ড স্তর: টাইপ, ProjectsApi, পুরনো-ডাটাবেস ফলব্যাক আর API_CONTRACT v1.0 (২০২৬-১০-০৫) — ✅ সম্পন্ন (ডাটাবেসের কাজ নেই)
+
+### ১. কী তৈরি বা পরিবর্তন হয়েছে
+- **জরুরি ফিক্স (আলাদা কমিট, M-ধাপ ২-এর ভুল):** 10b-র পর থেকে মূল এডমিনের ভূমিকা `main_admin`, কিন্তু `backend/supabase/session.ts` শুধু `'admin'` মানত — ফলে মূল এডমিন লগইন করলে "এই অ্যাকাউন্ট এডমিন তালিকায় নেই" আসত ও সাথে সাথে লগআউট হতো (ডাটাবেস ঠিক ছিল; শুধু ফ্রন্টএন্ডের যাচাই ভুল)। এখন দুই ভূমিকাই এডমিন (Supabase ও REST দুই অ্যাডাপ্টারে)। smoke লগইন করে না, তাই আগে ধরা পড়েনি।
+- **সরানো:** `src/features/housing/backend` → `src/backend` (১৮টি ফাইল `git mv`; ৩৬টি ফাইলের import পাথ codemod দিয়ে পুনর্গণনা; `scripts/migrate-photos.mjs` এর পাথ; `i18n-check` এর IGNORE এখন `src/backend/`)। Windows ফোল্ডারটি একবারে সরাতে দেয়নি (dev সার্ভার/এডিটর খোলা ছিল), তাই ফাইল ধরে সরানো — পুরনো জায়গায় একটি **খালি** `backend` ফোল্ডার থাকতে পারে (গিটে নেই, ক্ষতি নেই; চাইলে মুছে দিন)।
+- **টাইপ** (`src/backend/interfaces/types.ts`): `ProjectKey = string` (পুরনো `ProjectType` এখন এর alias; `HousingProjectKey` = 'semi_pucca' | 'tin'); নতুন `Project`, `ProjectField`, `FieldType` (+`FIELD_TYPES`), `PhotoMode`, `GeoDepth`, `GeoLevel`, `CoreFieldsConfig`, `StatCardDef`, `ProjectDisplay`, `ProjectStats` (HousingStats + by_project, by_union, fields, distinct.unions), `ProjectOverview`, `FieldUsage`, `BackendMode`, `ExtraValues`; `HousingRecord` এ `union_name` ও `extra`; ইনপুটে ঐচ্ছিক; `ListParams` এ `union_name`, `fields`, `sort` (`union_name`, `extra.<key>`); বাল্ক আপডেটে `_clear`; `FilterOptions.unions`; লগের নতুন action।
+- **ProjectsApi** (`interfaces/projectsApi.ts`, `supabase/projectsApi.ts`, REST stub, `getProjectsApi()`): backendMode, list (খসড়াসহ/ছাড়া), get (৬০ সেকেন্ডের ক্যাশ), overview, create (`project_create` — সবসময় খসড়া), update (`expectedUpdatedAt` → CONFLICT), delete, reorder, createField/updateField/deleteField/reorderFields, fieldUsage, renameFieldValue। লেখার আগে এডমিন যাচাই; মোছায় ০ সারি → "শুধু মূল এডমিন …"।
+- **HousingApi** (`supabase/housingApi.ts`):
+  - `stats(key, {light})` → `project_stats` (`supabase/stats.ts`); না দিলে 'housing' (পুরনো আচরণ)। উত্তর `ProjectStats` — পুরনো সব কী আছে, তাই এখনকার UI হুবহু চলে।
+  - তালিকায় ইউনিয়ন ফিল্টার; কাস্টম ফিল্টার `fields: { category: 'গরু' }` → `extra` contains — **শুধু পাবলিক, সক্রিয়, filterable ফিল্ডের key** (whitelist; বাকি নীরবে বাদ), মান NFC + ফাঁকা এক করে ≤ ১০০; টাকা/সংখ্যা ফিল্ডে number; সার্চে searchable কাস্টম ফিল্ড; `sort: 'extra.<key>'` শুধু পাবলিক ফিল্ডে।
+  - `getPrivate(id)` / `setPrivate(id, data)` (গোপন মান; এডমিন)।
+  - **লেখার payload নিয়ম:** `union_name` যায় শুধু ইউনিয়ন-স্তরের প্রকল্পে, `extra` শুধু কাস্টম ফিল্ড থাকলে; পুরনো ডাটাবেসে দুটোই সবসময় বাদ। ঘর নির্মাণের ফর্ম এগুলো পাঠায় না, তাই payload হুবহু আগের মতো।
+  - **ছবি-মোড:** শুধু-পরের-ছবি প্রকল্পে `prev`, ছবিহীন প্রকল্পে যেকোনো ছবি — আপলোডের **আগেই** VALIDATION_ERROR (ডাটাবেস-ট্রিগারও আটকায়, কিন্তু তখন ফাইল অনাথ থাকত)।
+  - পড়া প্রতিটি রেকর্ডে `union_name ?? ''`, `extra ?? {}` (পুরনো ডাটাবেসেও একই শেপ)।
+- **পুরনো-ডাটাবেস ফলব্যাক** (`supabase/legacy.ts`, `fallbackProjects.ts`): "টেবিল/ফাংশন/কলাম নেই" (PGRST205/42P01, PGRST202/42883, PGRST204/42703) প্রথমবার দেখে মনে রাখে, সেই সেশনে পুরনো পথে চলে — রেজিস্ট্রি = ফলব্যাকের ৩টি প্রকল্প, স্ট্যাট = `housing_stats` (গ্রুপ 'housing' → null) থেকে নতুন শেপ, ওভারভিউ = প্রতি প্রকল্পে একটি স্ট্যাট-কল (ঘর নির্মাণে ৩টি), গোপন মান {} , প্রকল্প/গোপন মান লেখা → CONFIG_ERROR (বাংলা বার্তা)। dev-এ `VITE_SIMULATE_LEGACY_DB=1` (`.env.example` এ মন্তব্যসহ) — প্রোডাকশন বিল্ডে কাজ করে না।
+- **REST:** `rest/endpoints.ts` v1.0 পাথে (`/api/projects/:key/…`, `/api/records/:id/…`, `/api/fields/:id`, `/api/activity`); stub গুলোর মন্তব্যে নতুন endpoint।
+- **`docs/API_CONTRACT.md` v1.0** — নতুন করে লেখা: প্রকল্প/ফিল্ড/স্ট্যাট/ওভারভিউ/গোপন মানের মডেল ও endpoint, ফিল্ডের ধরন ও যাচাই, খসড়া লুকানো, অপরিবর্তনীয় জিনিস ও গার্ড (সংরক্ষিত slug/key এর তালিকা সহ), লগের action, Supabase-নির্দিষ্ট অংশ, v০.৯ → v১.০ পাথের তালিকা, খোলা প্রশ্ন। প্রতিটি নিয়ম SQL ১০b/১১ থেকে মিলিয়ে লেখা।
+- **স্ক্রিপ্ট:** `smoke.mjs` এ `--legacy` (নিজেই পোর্ট ৫১৭৯ এ সিমুলেশনসহ dev সার্ভার চালায় ও বন্ধ করে) আর প্রতিটি রানে **"backend-path"** পরীক্ষা (পেইজগুলো ডাটাবেসের কোন টেবিল/RPC ডেকেছে); নতুন `content-check.mjs` (`npm run content-check`) আর `adapter-check.mts` (`npm run adapter-check`)।
+- UI কোডে কোনো বদল নেই (শুধু import পাথ)। মূল বান্ডেল ৮৬.৩ KB gzip (আগের মতো)।
+
+### ২. গুরুত্বপূর্ণ সিদ্ধান্ত ও কারণ
+- **stats() HousingApi তেই** (পরিকল্পনা §৫.১৪): একই কল পুরনো ও নতুন শেপ দুটোই মেটায়; ProjectsApi তে রেজিস্ট্রি, ওভারভিউ আর সেটিং।
+- **একটিই ProjectsApi:** factory একটি বানিয়ে HousingApi কে দেয়, যাতে প্রকল্পের ক্যাশ ও "পুরনো ডাটাবেস" অবস্থা এক থাকে। `migrate-photos` এর মতো স্ক্রিপ্টে না দিলে HousingApi নিজেই বানায়।
+- **"projects নেই" = নতুন কলামও নেই** — SQL ১০ একসাথে টেবিল ও কলাম আনে, তাই আলাদা করে কলাম পরীক্ষা করা হয় না (তালিকায় ইউনিয়ন-ফিল্টারে কলাম-নেই এরর এলে সেটিও ধরা হয়)।
+- **content-check কখনো ব্যর্থ হয় না** (পরিকল্পনা §৫.১৩) — শুধু সতর্কবার্তা।
+- **adapter-check** পরিকল্পনায় ছিল না, যোগ করা হয়েছে: smoke শুধু পড়া দেখে; লেখার নিয়ম আর আসল "নেই" এরর (সিমুলেশন নয়) পরীক্ষার আর কোনো উপায় ছিল না, আর লাইভ ডাটায় লিখে পরীক্ষা নিষেধ।
+
+### ৩. পরিচিত সমস্যা ও বাকি কাজ
+- UI এখনো নতুন ক্ষমতা ব্যবহার করে না (রেজিস্ট্রি, `pick()`, ইউনিয়ন, কাস্টম ফিল্ড) — M-ধাপ ৫ক থেকে।
+- তালিকা পেইজে এখনো ৩টি কল (list, stats, years) — বছর stats.by_year থেকে নেওয়া M-ধাপ ৫-এ।
+- পুরনো জায়গায় খালি `src/features/housing/backend` ফোল্ডার থাকতে পারে (উপরে)।
+
+### ৪. আমাকে (ব্যবহারকারীকে) যা করতে হবে
+1. **এডমিন লগইন যাচাই (জরুরি ফিক্সের জন্য):** `npm run dev` চালিয়ে `/housing/admin/login` এ আপনার মূল এডমিন অ্যাকাউন্টে লগইন করুন — এডমিন প্যানেল খোলা উচিত। (কোথাও deploy করা থাকলে নতুন build দিতে হবে।) কোনো রেকর্ড সংরক্ষণ করার দরকার নেই।
+2. `npm run content-check` চালিয়ে আউটপুট দেখুন — ৩টি প্রকল্প, হোম ওভারভিউ (মোট ১০, জেলা ১) আর "✓ সব … ইংরেজি আছে" আসার কথা।
+3. ডাটাবেসে কিছু চালাতে হবে না।
+
+### ৫. কিভাবে টেস্ট করতে হবে
+| পরীক্ষা | ফল |
+|---|---|
+| গেট: `npx tsc -b`, `npm run lint` (০ সতর্কবার্তা), `npm run build`, `npm run i18n-check` | ✅ |
+| UI থেকে সরাসরি Supabase নেই: `@supabase/supabase-js`, `backend/supabase`, `.rpc(`, `.storage.from`, `getSupabase` — `src/backend/` এর বাইরে কোথাও নেই (grep) | ✅ |
+| `npm run smoke` (লাইভ ডাটাবেস): PASS ৭৫/৭৫ — backend-path: `project_stats` ২২০ বার, `housing_stats` ০ বার | ✅ |
+| `npm run smoke -- --legacy`: PASS ৭৫/৭৫ — `projects`/`project_fields`/`project_stats`/`projects_overview` এ ০টি কল, `housing_stats` ২২০ বার; স্ট্যাট, বছর-ফিল্টার ও মানচিত্র চলে | ✅ |
+| দুই মোডের ৭৪টি করে স্ক্রিনশট M-ধাপ ১-এর বেসলাইনের সাথে পিক্সেল-তুলনায় হুবহু | ✅ |
+| `npm run adapter-check` ২৫/২৫: পুরনো DB (আসল PGRST205/PGRST202) — ফলব্যাক রেজিস্ট্রি, housing_stats, "নেই" মনে থাকা, ওভারভিউয়ের মোট দুবার না গোনা, লেখায় union_name/extra বাদ, পড়ায় খালি মান, CONFIG_ERROR, ফিল্টার উপেক্ষা; নতুন DB — project_stats(light), ইউনিয়ন-অপশন, whitelist (গোপন/অচেনা/ফিল্টার-বন্ধ key বাদ, মান স্বাভাবিক), searchable সার্চ, `extra->amount` সাজানো, গোপন ফিল্ডে সাজানো নিষেধ, payload নিয়ম (ঘর নির্মাণে হুবহু আগের মতো), prev ছবি আটকানো, ক্যাশ | ✅ |
+| `npm run content-check` (লাইভ, anon): ৩টি প্রকল্প, ওভারভিউ মোট ১০ · জেলা ১, ইংরেজি খালি নেই | ✅ |
+| `migrate-photos` এর নতুন import পাথ লোড হয় (tsx) | ✅ |
+
+### ৬. পরের ধাপে কী করতে হবে
+- **M-ধাপ ৫ক** — প্রকল্প রেজিস্ট্রি (`projectsStore`, স্ন্যাপশট, হুক), `pick()`/`lt()`, আইকন-রেজিস্ট্রি, `PROJECT_META` সরানো। চোখে কোনো পরিবর্তন দেখা যাবে না।
+- পেস্ট করুন: `M-ধাপ ৫ক শুরু করো (পরিকল্পনা: docs/MULTI_PROJECT_PLAN.md)`

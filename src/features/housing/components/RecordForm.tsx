@@ -2,14 +2,14 @@ import { gn, t } from '@/i18n'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useToast } from '@/components/useToast'
 import { toBanglaNumber } from '@/lib/banglaNumber'
-import { getHousingApi } from '../backend/factory'
+import { getHousingApi } from '../../../backend/factory'
 import {
   HousingApiError,
   type HousingRecord,
   type HousingRecordInput,
   type PhotoKind,
   type ProjectType,
-} from '../backend/interfaces/types'
+} from '../../../backend/interfaces/types'
 import { getDistricts, getDivisions, getUpazilas, isValidGeo, nfc } from '../utils/geo'
 import { processImage } from '../utils/imageProcessing'
 import { PROJECT_META } from '../utils/projectType'

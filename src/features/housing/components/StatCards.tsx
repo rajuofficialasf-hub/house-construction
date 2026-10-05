@@ -1,7 +1,7 @@
 import { t } from '@/i18n'
 import type { ReactNode } from 'react'
 import { formatBanglaNumber } from '@/lib/banglaNumber'
-import type { HousingStats, ProjectType } from '../backend/interfaces/types'
+import type { HousingStats, ProjectType } from '../../../backend/interfaces/types'
 import { useCountUp } from '../hooks/useCountUp'
 import { useHousingStats } from '../hooks/useHousingStats'
 import { ErrorNotice } from './ErrorNotice'

@@ -1,8 +1,8 @@
 import { t } from '@/i18n'
 import { useState, type FormEvent } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
-import { getAuthProvider, getHousingApi } from '../backend/factory'
-import { HousingApiError } from '../backend/interfaces/types'
+import { getAuthProvider, getHousingApi } from '../../../backend/factory'
+import { HousingApiError } from '../../../backend/interfaces/types'
 import { HousingSubnav } from '../components/HousingSubnav'
 import { useAuth } from '../hooks/useAuth'
 

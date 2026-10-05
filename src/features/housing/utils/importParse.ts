@@ -1,5 +1,5 @@
 import { t } from '@/i18n'
-import { HousingApiError } from '../backend/interfaces/types'
+import { HousingApiError } from '../../../backend/interfaces/types'
 
 export interface ParsedSheet {
   sheetName: string

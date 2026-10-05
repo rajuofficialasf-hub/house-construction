@@ -1,4 +1,4 @@
-import type { ProjectType } from '../backend/interfaces/types'
+import type { ProjectType } from '../../../backend/interfaces/types'
 
 export interface ProjectMeta {
   type: ProjectType

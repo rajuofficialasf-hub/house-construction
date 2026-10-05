@@ -7,7 +7,7 @@
 | **এই ফাইল** | `docs/MULTI_PROJECT_PLAN.md` — **আসল কপি** (M-ধাপ ১, ২০২৬-১০-০৫ থেকে)। ডেস্কটপের `ASF_MULTI_PROJECT_PLAN.md` এখন পুরনো হতে পারে। |
 | **মূল কপি** | M-ধাপ ১-এ এই ফাইলটি হুবহু কপি হবে `docs/MULTI_PROJECT_PLAN.md`-এ। **এরপর আসল কপি শুধু `docs/MULTI_PROJECT_PLAN.md`।** আপনার সিদ্ধান্ত (§১২) আর সব সংশোধন সেখানেই লেখা হবে। ডেস্কটপের কপিটি পরে পুরনো হয়ে যেতে পারে। |
 | **রিপো** | `D:\Charity Website\House Construction` (`main` @ `63583e2`) |
-| **অবস্থা** | M-ধাপ ১ ✅ · M-ধাপ ২ ✅ (২০২৬-১০-০৫, লাইভে চালানো ও যাচাই) · M-ধাপ ৩ ✅ (২০২৬-১০-০৫, লাইভে চালানো ও যাচাই)। পরের ধাপ: M-ধাপ ৪। অগ্রগতি: `docs/HOUSING_PROGRESS.md` → "পর্ব ২ — বহু-প্রকল্প"। |
+| **অবস্থা** | M-ধাপ ১ ✅ · M-ধাপ ২ ✅ (২০২৬-১০-০৫, লাইভে চালানো ও যাচাই) · M-ধাপ ৩ ✅ (২০২৬-১০-০৫, লাইভে চালানো ও যাচাই) · M-ধাপ ৪ ✅ (২০২৬-১০-০৫)। পরের ধাপ: M-ধাপ ৫ক। অগ্রগতি: `docs/HOUSING_PROGRESS.md` → "পর্ব ২ — বহু-প্রকল্প"। |
 
 ---
 
@@ -659,6 +659,7 @@ Supabase-এ এই নিয়মগুলো plpgsql ট্রিগার �
 | `npm run photo-check` (নতুন) | anon হিসেবে সব ছবির URL-এ HEAD রিকোয়েস্ট পাঠায়; সবগুলোকে 200 ফেরত দিতে হবে |
 | `npm run smoke` (নতুন; `puppeteer-core` আর ইনস্টল করা Chrome বা Edge) | প্রস্থ ৩৬০, ৩৯০, ৭৬৮, ১০২৪ ও ১২৮০ px; বাংলা ও ইংরেজি। দেখে যে অনুভূমিক ওভারফ্লো নেই, console বা page error নেই, বৈধ URL-এ 404 নেই। স্ক্রিনশট রাখে `.smoke/`-এ (gitignored)। `--legacy` দিলে পুরনো-ডাটাবেস মোডে চলে। |
 | `npm run content-check` (নতুন) | কোন প্রকল্প বা ফিল্ডে ইংরেজি খালি |
+| `npm run adapter-check` (নতুন, M-ধাপ ৪-এ যোগ) | নকল ক্লায়েন্টে adapter-এর নিয়ম: পুরনো-ডাটাবেস ফলব্যাক (আসল "নেই" এরর), লেখার payload, ফিল্টার whitelist, ছবি-মোড |
 | `npm run field-types-check` (নতুন) | টাকা পার্স আর ক্যাটাগরির লেখা স্বাভাবিক করা ঠিকমতো হয় কি না |
 | `supabase/sql/checks/*` | বেসলাইন, verify, selftest আর rollback rehearsal। প্রতিটি selftest তিন ভূমিকায় পরীক্ষা করে: anon (`set local role anon`), **আসল এডমিনের মতো** (`set local role authenticated` আর `request.jwt.claims`-এ `housing_admins` থেকে নেওয়া একজন এডমিনের `sub`), আর postgres। সব পরিবর্তন উল্টে যায় (ROLLBACK বা সাবট্রানজেকশন), আর শেষে একটিই ফলাফল-টেবিল আসে। |
 | গেট (প্রতিটি ধাপে) | `npx tsc -b`, `npm run lint` (০টি সতর্কবার্তা), `npm run build`, `npm run i18n-check` |

@@ -1,6 +1,6 @@
 import type { ImageStorage } from '../interfaces/imageStorage'
-import { photoPath } from '../../utils/imagePath'
-import { PHOTO_SPEC } from '../../utils/photoSpec'
+import { photoPath } from '../../features/housing/utils/imagePath'
+import { PHOTO_SPEC } from '../../features/housing/utils/photoSpec'
 import { STORAGE_BUCKET, type GetClient } from './client'
 import { mapSupabaseError } from './errors'
 

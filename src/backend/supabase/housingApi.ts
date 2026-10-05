@@ -1,26 +1,33 @@
 import type { HousingApi } from '../interfaces/housingApi'
 import type { ImageStorage } from '../interfaces/imageStorage'
+import type { ProjectsApi } from '../interfaces/projectsApi'
 import {
   DEFAULT_PAGE_SIZE,
   HousingApiError,
   MAX_PAGE_SIZE,
   type ActivityEntry,
   type BulkInsertResult,
+  type ExtraValues,
   type FilterOptions,
   type HousingRecord,
-  type HousingStats,
   type ListParams,
   type Page,
   type PhotoKind,
+  type Project,
+  type ProjectField,
   type ProjectType,
 } from '../interfaces/types'
-import { photoPath } from '../../utils/imagePath'
+import { photoPath } from '../../features/housing/utils/imagePath'
 import { TABLE, type GetClient } from './client'
 import { mapSupabaseError } from './errors'
+import { isKnownMissing, isMissingError, legacyWriteError, markMissing } from './legacy'
+import { createSupabaseProjectsApi } from './projectsApi'
 import { assertAdmin } from './session'
+import { LEGACY_GROUP_KEY, fetchProjectStats } from './stats'
 
 const BULK_CHUNK = 200
 const IN_CHUNK = 100
+const PRIVATE_TABLE = 'beneficiary_private'
 
 export interface SupabaseHousingApiOptions {
   /**
@@ -28,6 +35,8 @@ export interface SupabaseHousingApiOptions {
    * বিশ্বস্ত সার্ভার/স্ক্রিপ্টে (scripts/migrate-photos.mjs)। ব্রাউজারে কখনো true নয়।
    */
   trustedServer?: boolean
+  /** প্রকল্পের সেটিং (ফিল্টার whitelist, লেখার payload, ছবি-মোড) — না দিলে একই ক্লায়েন্টে নিজে তৈরি করে */
+  projects?: ProjectsApi
 }
 
 /** বাংলা তুলনার জন্য NFC (ড়/ঢ়/য় এর দুই রূপ এক করা) + trim */
@@ -40,23 +49,32 @@ function sanitizeSearch(q: string): string {
   return nfc(q).replace(/[,()%\\]/g, ' ').replace(/\s+/g, ' ').trim()
 }
 
-function pageOf(data: HousingRecord[], page: number, pageSize: number, total: number): Page<HousingRecord> {
+/** কাস্টম ফিল্ডের ফিল্টার-মান: NFC, একাধিক ফাঁকা → এক, ≤ ১০০ অক্ষর (ক্যাটাগরির সার্ভার-নিয়মের সমান) */
+function sanitizeValue(v: string): string {
+  return nfc(v).replace(/\s+/g, ' ').slice(0, 100)
+}
+
+/** পুরনো ডাটাবেসের সারিতে নতুন কলাম থাকে না — খালি মান বসানো, যাতে UI সবসময় একই শেপ পায় */
+function normalizeRecord(row: unknown): HousingRecord {
+  const r = row as HousingRecord
+  return { ...r, union_name: r.union_name ?? '', extra: r.extra ?? {} }
+}
+
+function pageOf<T>(data: T[], page: number, pageSize: number, total: number): Page<T> {
   return {
     data,
     meta: { page, page_size: pageSize, total, total_pages: Math.max(1, Math.ceil(total / pageSize)) },
   }
 }
 
-function emptyStats(): HousingStats {
-  return {
-    total: 0,
-    by_year: {},
-    by_division: {},
-    by_district: {},
-    by_upazila: {},
-    distinct: { divisions: 0, districts: 0, upazilas: 0 },
-    by_location: {},
-  }
+const publicFields = (p: Project | null): ProjectField[] =>
+  (p?.fields ?? []).filter((f) => f.visibility === 'public' && f.is_active)
+
+/** লেখার payload এ যে কী-গুলো পুরনো ডাটাবেসে বা প্রকল্প ব্যবহার না করলে বাদ পড়ে */
+interface NewColumns {
+  union_name?: string
+  extra?: ExtraValues
+  _clear?: string[]
 }
 
 export function createSupabaseHousingApi(
@@ -65,15 +83,63 @@ export function createSupabaseHousingApi(
   options: SupabaseHousingApiOptions = {},
 ): HousingApi {
   const table = () => getClient().from(TABLE)
+  const projects = options.projects ?? createSupabaseProjectsApi(getClient, { trustedServer: options.trustedServer })
   const guard = async () => {
     if (!options.trustedServer) await assertAdmin(getClient)
+  }
+
+  /** প্রকল্পের সেটিং; না পেলে (গ্রুপ-key, অচেনা, খসড়া ও anon) null — তখন কোনো নিয়ম চাপানো হয় না */
+  async function projectOf(key: ProjectType | undefined): Promise<Project | null> {
+    if (!key) return null
+    try {
+      return await projects.get(key)
+    } catch (err) {
+      if (HousingApiError.is(err) && err.code === 'NOT_FOUND') return null
+      throw err
+    }
+  }
+
+  /**
+   * লেখার payload এর নিয়ম (পরিকল্পনা §৫.১৪): union_name শুধু ইউনিয়ন-স্তরের প্রকল্পে, extra শুধু কাস্টম ফিল্ড থাকলে;
+   * পুরনো ডাটাবেসে (কলামই নেই) দুটোই সবসময় বাদ — তাই ঘর নির্মাণে লেখা আগের মতোই চলে।
+   */
+  async function shapeWrite<T extends NewColumns>(row: T, projectKey: ProjectType | undefined): Promise<T> {
+    if (row.union_name === undefined && row.extra === undefined && row._clear === undefined) return row
+    const project = await projectOf(projectKey) // এর ভেতরেই পুরনো ডাটাবেস চেনা হয়
+    const out = { ...row }
+    if (isKnownMissing('projects')) {
+      delete out.union_name
+      delete out.extra
+      if (out._clear) out._clear = out._clear.filter((k) => k !== 'union_name' && !k.startsWith('extra.'))
+      return out
+    }
+    if (project) {
+      if (project.geo_depth !== 'union') delete out.union_name
+      if (publicFields(project).length === 0) delete out.extra
+    }
+    if (out.union_name !== undefined) out.union_name = nfc(out.union_name)
+    return out
   }
 
   async function fetchOne(build: (q: ReturnType<typeof table>) => PromiseLike<{ data: unknown; error: unknown }>) {
     const { data, error } = await build(table())
     if (error) throw mapSupabaseError(error)
     if (!data) throw new HousingApiError('NOT_FOUND', 'রেকর্ড পাওয়া যায়নি')
-    return data as HousingRecord
+    return normalizeRecord(data)
+  }
+
+  /** প্রকল্পের ছবি-মোড: আপলোডের আগেই আটকানো (ডাটাবেস-ট্রিগারও আটকায়, কিন্তু তখন ফাইল অনাথ থাকত) */
+  async function assertPhotoAllowed(projectKey: ProjectType, kind: PhotoKind) {
+    const project = await projectOf(projectKey)
+    if (!project) return
+    if (project.photo_mode === 'none') {
+      throw new HousingApiError('VALIDATION_ERROR', 'এই প্রকল্পে ছবি নেই', { field: `${kind}_photo_url` })
+    }
+    if (project.photo_mode === 'after_only' && kind === 'prev') {
+      throw new HousingApiError('VALIDATION_ERROR', 'এই প্রকল্পে শুধু বর্তমান ছবি রাখা হয় — পূর্বের ছবি নয়', {
+        field: 'prev_photo_url',
+      })
+    }
   }
 
   const api: HousingApi = {
@@ -83,6 +149,14 @@ export function createSupabaseHousingApi(
       const from = (page - 1) * pageSize
       const to = from + pageSize - 1
 
+      // কাস্টম ফিল্টার/সার্চ/সাজানো লাগলে প্রকল্পের ফিল্ড-তালিকা দিয়ে whitelist (না লাগলে বাড়তি কল নয়)
+      const fieldFilters = Object.entries(params.fields ?? {}).filter(([, v]) => typeof v === 'string' && v.trim() !== '')
+      const needsProject =
+        fieldFilters.length > 0 || !!params.q?.trim() || (params.sort ?? '').startsWith('extra.') || !!params.union_name
+      const project = needsProject ? await projectOf(params.project_type) : null
+      const legacy = isKnownMissing('projects')
+      const pub = legacy ? [] : publicFields(project)
+
       let query = table().select('*', { count: 'exact' })
       if (params.project_type) query = query.eq('project_type', params.project_type)
       if (params.serial_no !== undefined) query = query.eq('serial_no', params.serial_no)
@@ -90,21 +164,48 @@ export function createSupabaseHousingApi(
       if (params.division) query = query.eq('division', nfc(params.division))
       if (params.district) query = query.eq('district', nfc(params.district))
       if (params.upazila) query = query.eq('upazila', nfc(params.upazila))
+      if (params.union_name && !legacy) query = query.eq('union_name', nfc(params.union_name))
+      for (const [key, raw] of fieldFilters) {
+        const def = pub.find((f) => f.key === key && f.filterable)
+        if (!def) continue // whitelist: অচেনা/গোপন/ফিল্টার-বন্ধ key নীরবে বাদ
+        if (def.type === 'money' || def.type === 'number') {
+          const n = Number(raw)
+          if (Number.isFinite(n)) query = query.contains('extra', { [key]: n })
+        } else {
+          query = query.contains('extra', { [key]: sanitizeValue(raw) })
+        }
+      }
       const q = params.q ? sanitizeSearch(params.q) : ''
       if (q) {
         const like = `%${q}%`
+        const extraCols = pub.filter((f) => f.searchable).map((f) => `extra->>${f.key}.ilike.${like}`)
         query = query.or(
-          `name.ilike.${like},father_or_husband_name.ilike.${like},address.ilike.${like}`,
+          [`name.ilike.${like}`, `father_or_husband_name.ilike.${like}`, `address.ilike.${like}`, ...extraCols].join(','),
         )
       }
-      const sort = params.sort ?? 'serial_no'
+      let sort: string = 'serial_no'
+      if (params.sort?.startsWith('extra.')) {
+        const key = params.sort.slice('extra.'.length)
+        if (pub.some((f) => f.key === key)) sort = `extra->${key}`
+      } else if (params.sort === 'union_name') {
+        if (!legacy) sort = 'union_name'
+      } else if (params.sort) {
+        sort = params.sort
+      }
       const ascending = (params.order ?? 'asc') === 'asc'
       query = query.order(sort, { ascending }).range(from, to)
       if (sort !== 'serial_no') query = query.order('serial_no', { ascending: true })
 
       const { data, error, count } = await query
-      if (error) throw mapSupabaseError(error)
-      return pageOf((data ?? []) as HousingRecord[], page, pageSize, count ?? 0)
+      if (error) {
+        // union_name কলাম নেই (পুরনো ডাটাবেস, কিন্তু এখনো চেনা হয়নি): মনে রেখে ফিল্টার ছাড়া আবার
+        if (isMissingError(error) && params.union_name && !legacy) {
+          markMissing('projects')
+          return api.list({ ...params, union_name: undefined })
+        }
+        throw mapSupabaseError(error)
+      }
+      return pageOf((data ?? []).map(normalizeRecord), page, pageSize, count ?? 0)
     },
 
     getById(id) {
@@ -128,7 +229,7 @@ export function createSupabaseHousingApi(
           .in('serial_no', chunk)
           .order('serial_no', { ascending: true })
         if (error) throw mapSupabaseError(error)
-        out.push(...((data ?? []) as HousingRecord[]))
+        out.push(...(data ?? []).map(normalizeRecord))
       }
       return out
     },
@@ -136,19 +237,22 @@ export function createSupabaseHousingApi(
     async create(input) {
       await guard()
       // serial_no undefined হলে কলামটি পাঠানো হয় না → ট্রিগার বরাদ্দ করে
-      const { serial_no, ...rest } = input
+      const { serial_no, ...rest } = await shapeWrite(input, input.project_type)
       const row = serial_no ? { ...rest, serial_no } : rest
       const { data, error } = await table().insert(row).select('*').single()
       if (error) throw mapSupabaseError(error)
-      return data as HousingRecord
+      return normalizeRecord(data)
     },
 
     async update(id, patch) {
       await guard()
-      const { data, error } = await table().update(patch).eq('id', id).select('*').maybeSingle()
+      // নতুন কলাম থাকলে প্রকল্প জানতে রেকর্ডটি পড়া লাগে; না থাকলে বাড়তি কল নয়
+      const needsProject = patch.union_name !== undefined || patch.extra !== undefined
+      const shaped = needsProject ? await shapeWrite(patch, (await api.getById(id)).project_type) : patch
+      const { data, error } = await table().update(shaped).eq('id', id).select('*').maybeSingle()
       if (error) throw mapSupabaseError(error)
       if (!data) throw new HousingApiError('NOT_FOUND', 'রেকর্ড পাওয়া যায়নি')
-      return data as HousingRecord
+      return normalizeRecord(data)
     },
 
     async delete(id) {
@@ -193,7 +297,8 @@ export function createSupabaseHousingApi(
 
       const result: BulkInsertResult = { inserted: 0, failed: [] }
       for (let start = 0; start < rows.length; start += BULK_CHUNK) {
-        const chunk = rows.slice(start, start + BULK_CHUNK).map((r) => {
+        const shaped = await Promise.all(rows.slice(start, start + BULK_CHUNK).map((r) => shapeWrite(r, project_type)))
+        const chunk = shaped.map((r) => {
           const { serial_no, ...rest } = r
           return {
             ...rest,
@@ -220,7 +325,9 @@ export function createSupabaseHousingApi(
       await guard()
       const result = { updated: 0, missing: [] as number[] }
       for (let start = 0; start < input.rows.length; start += BULK_CHUNK) {
-        const chunk = input.rows.slice(start, start + BULK_CHUNK)
+        const chunk = await Promise.all(
+          input.rows.slice(start, start + BULK_CHUNK).map((r) => shapeWrite(r, input.project_type)),
+        )
         const { data, error } = await getClient().rpc('housing_bulk_update_by_serial', {
           p_project_type: input.project_type,
           p_rows: chunk,
@@ -233,14 +340,8 @@ export function createSupabaseHousingApi(
       return result
     },
 
-    async stats(projectType?: ProjectType) {
-      const { data, error } = await getClient().rpc('housing_stats', {
-        p_project_type: projectType ?? null,
-      })
-      if (error) throw mapSupabaseError(error)
-      const raw = (data ?? {}) as Partial<HousingStats>
-      const empty = emptyStats()
-      return { ...empty, ...raw, distinct: { ...empty.distinct, ...(raw.distinct ?? {}) } }
+    stats(projectType, opts = {}) {
+      return fetchProjectStats(getClient, projectType ?? LEGACY_GROUP_KEY, !!opts.light)
     },
 
     async years(projectType?: ProjectType) {
@@ -259,12 +360,14 @@ export function createSupabaseHousingApi(
         divisions: keys(stats.by_division),
         districts: keys(stats.by_district),
         upazilas: keys(stats.by_upazila),
+        unions: keys(stats.by_union),
       }
     },
 
     async uploadPhoto(id, kind: PhotoKind, files) {
       await guard()
       const record = await api.getById(id)
+      await assertPhotoAllowed(record.project_type, kind)
       const base = { project_type: record.project_type, serial_no: record.serial_no, kind }
       const full = await storage.upload(files.photo, { ...base, variant: 'full' })
       const thumb = await storage.upload(files.thumb, { ...base, variant: 'thumb' })
@@ -282,7 +385,7 @@ export function createSupabaseHousingApi(
       }
       const { data, error } = await table().update(patch).eq('id', id).select('*').single()
       if (error) throw mapSupabaseError(error)
-      return data as HousingRecord
+      return normalizeRecord(data)
     },
 
     async nextSerial(projectType) {
@@ -298,7 +401,7 @@ export function createSupabaseHousingApi(
       // ১) ডাটাবেসে সিরিয়াল বদল (RPC: এডমিন যাচাই, অনন্যতা, কাউন্টার)
       const { data, error } = await getClient().rpc('housing_change_serial', { p_id: id, p_new_serial: newSerialNo })
       if (error) throw mapSupabaseError(error)
-      let record = data as HousingRecord
+      let record = normalizeRecord(data)
       // ২) ছবির ফাইল নতুন সিরিয়ালের পাথে সরানো ও url আপডেট (ফাইল না থাকলে সেই কলাম null)
       const patch: Record<string, string | null> = {}
       for (const kind of ['prev', 'current'] as const) {
@@ -323,9 +426,39 @@ export function createSupabaseHousingApi(
       if (Object.keys(patch).length) {
         const upd = await table().update({ ...patch, photo_updated_at: new Date().toISOString() }).eq('id', id).select('*').single()
         if (upd.error) throw mapSupabaseError(upd.error)
-        record = upd.data as HousingRecord
+        record = normalizeRecord(upd.data)
       }
       return record
+    },
+
+    async getPrivate(id) {
+      await guard()
+      if (isKnownMissing('projects')) return {}
+      const { data, error } = await getClient().from(PRIVATE_TABLE).select('data').eq('record_id', id).maybeSingle()
+      if (error) {
+        if (isMissingError(error)) {
+          markMissing('projects')
+          return {}
+        }
+        throw mapSupabaseError(error)
+      }
+      return ((data as { data?: ExtraValues } | null)?.data ?? {}) as ExtraValues
+    },
+
+    async setPrivate(id, values) {
+      await guard()
+      if (isKnownMissing('projects')) throw legacyWriteError()
+      const { data, error } = await getClient()
+        .from(PRIVATE_TABLE)
+        .upsert({ record_id: id, data: values }, { onConflict: 'record_id' })
+        .select('data')
+        .single()
+      if (error) {
+        if (isMissingError(error)) throw legacyWriteError()
+        throw mapSupabaseError(error)
+      }
+      // ডাটাবেস-ট্রিগার মান স্বাভাবিক করে (যেমন বাংলা অঙ্ক → ইংরেজি), তাই ফেরত মানই সঠিক
+      return ((data as { data?: ExtraValues } | null)?.data ?? {}) as ExtraValues
     },
 
     async listActivity(params) {
@@ -342,7 +475,7 @@ export function createSupabaseHousingApi(
       if (params.to) q = q.lte('at', params.to)
       const { data, error, count } = await q.order('at', { ascending: false }).order('id', { ascending: false }).range(from, from + pageSize - 1)
       if (error) throw mapSupabaseError(error)
-      return pageOf((data ?? []) as unknown as HousingRecord[], page, pageSize, count ?? 0) as unknown as Page<ActivityEntry>
+      return pageOf((data ?? []) as ActivityEntry[], page, pageSize, count ?? 0)
     },
 
     async logActivity(action, details = {}, projectType) {
@@ -372,7 +505,7 @@ export function createSupabaseHousingApi(
       }
       const { data, error } = await table().update(patch).eq('id', id).select('*').single()
       if (error) throw mapSupabaseError(error)
-      return data as HousingRecord
+      return normalizeRecord(data)
     },
   }
 

@@ -1,7 +1,7 @@
 import { t, gn } from '@/i18n'
 import { Link } from 'react-router'
 import { toBanglaNumber } from '@/lib/banglaNumber'
-import type { HousingRecord } from '../backend/interfaces/types'
+import type { HousingRecord } from '../../../backend/interfaces/types'
 import { photoSrc } from '../utils/imagePath'
 import { PROJECT_META } from '../utils/projectType'
 import { SafeImage } from './SafeImage'
