@@ -8,6 +8,7 @@ import { createLogger } from '../../src/logger.js';
 import { insertRecord, ownerDb, resetTestData } from '../support/db.js';
 import { testAppUrl } from '../support/env.js';
 import { loginAdmin, TEST_ORIGIN } from '../support/session.js';
+import { testPhotoDeps } from '../support/storage.js';
 
 // POST and PUT /api/v1/housing/bulk through the real app and test database
 // (docs/api/API_CONTRACT.md §4.9, §4.9খ): all-or-nothing import, update by serial, the 500-row cap
@@ -17,7 +18,7 @@ import { loginAdmin, TEST_ORIGIN } from '../support/session.js';
 const sql = createDb(testAppUrl);
 const owner = ownerDb();
 const silent = new Writable({ write: (_chunk, _enc, done) => done() });
-const app = createApp({ sql, logger: createLogger('info', silent), trustProxy: 0, allowedOrigins: [TEST_ORIGIN], cookieSecure: false });
+const app = createApp({ ...testPhotoDeps(), sql, logger: createLogger('info', silent), trustProxy: 0, allowedOrigins: [TEST_ORIGIN], cookieSecure: false });
 
 const row = (over: Record<string, unknown> = {}) => ({
   year: 2024,

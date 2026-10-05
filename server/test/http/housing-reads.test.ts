@@ -9,6 +9,7 @@ import { createLogger } from '../../src/logger.js';
 import { z } from 'zod';
 import { appDb, insertAdmin, insertRecord, ownerDb, resetTestData } from '../support/db.js';
 import { testAppUrl } from '../support/env.js';
+import { testPhotoDeps } from '../support/storage.js';
 
 // The public reads under /api/v1/housing through the real app and test database
 // (docs/api/API_CONTRACT.md §4). No request here sends an Origin or a cookie unless it says so.
@@ -19,7 +20,7 @@ const ORIGIN = 'http://localhost:5173';
 const silent = new Writable({ write: (_chunk, _enc, done) => done() });
 
 function makeApp(overrides: Partial<AppDeps> = {}) {
-  return createApp({ sql, logger: createLogger('info', silent), trustProxy: 0, allowedOrigins: [ORIGIN], cookieSecure: false, ...overrides });
+  return createApp({ ...testPhotoDeps(), sql, logger: createLogger('info', silent), trustProxy: 0, allowedOrigins: [ORIGIN], cookieSecure: false, ...overrides });
 }
 
 let app = makeApp();

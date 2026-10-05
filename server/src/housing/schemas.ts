@@ -54,6 +54,9 @@ export type ListQuery = z.infer<typeof listQuery>;
 
 export const idParams = z.object({ id: z.uuid() });
 
+// A repeated ?kind= arrives as an array, which the enum refuses (contract §1).
+export const deletePhotoQuery = z.object({ kind: z.enum(['prev', 'current']) });
+
 export const serialParams = z.object({
   project_type: projectType,
   serial_no: intParam(1, INT4_MAX),

@@ -1,5 +1,8 @@
+import type { Logger } from 'pino';
 import { withActor, type Actor, type Sql } from '../db.js';
 import { AppError } from '../errors.js';
+import { removeTombstoned, type TombstonedFile } from '../photos/files.js';
+import type { StorageDriver } from '../storage/index.js';
 import { RECORD_COLUMNS, type HousingRecord } from './reads.js';
 import type { BulkInsertBody, BulkUpdateBody, CreateBody, UpdateBody } from './schemas.js';
 
@@ -27,19 +30,30 @@ export async function updateRecord(sql: Sql, actor: Actor, id: string, patch: Up
   });
 }
 
-/** False when the record doesn't exist. Its serial stays used: the counter never goes down. */
-export async function deleteRecord(sql: Sql, actor: Actor, id: string): Promise<boolean> {
-  return withActor(sql, actor, async (tx) => {
+/**
+ * False when the record doesn't exist. Its serial stays used: the counter never goes down. Its
+ * photo files are tombstoned in the same transaction and removed from storage after it commits
+ * (DB-TX-02); a removal that fails is left for files:sweep and doesn't fail the delete.
+ */
+export async function deleteRecord(sql: Sql, storage: StorageDriver, actor: Actor, id: string, log: Logger): Promise<boolean> {
+  let files: TombstonedFile[] = [];
+  const deleted = await withActor(sql, actor, async (tx) => {
+    files = await tx<TombstonedFile[]>`
+      update public.housing_files set deleted_at = now()
+      where record_id = ${id} and deleted_at is null
+      returning id, storage_key`;
     const rows = await tx`delete from public.housing_beneficiaries where id = ${id} returning id`;
     return rows.length > 0;
   });
+  await removeTombstoned(sql, storage, files, log);
+  return deleted;
 }
 
 /**
  * Moves a record to another serial through housing_change_serial, which locks the row, raises the
  * counter and writes the audit row. It raises P0002 for an unknown id and 23505 for a taken serial;
- * the error handler maps both. Photo URLs are left as they are: the files stay at the old
- * serial's path, which is never reused, until the photo routes move them.
+ * the error handler maps both. Photos stay as they are: their keys and URLs don't depend on the
+ * serial, so no file moves.
  */
 export async function changeSerial(sql: Sql, actor: Actor, id: string, serialNo: number): Promise<HousingRecord> {
   return withActor(sql, actor, async (tx) => {

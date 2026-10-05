@@ -5,12 +5,13 @@ import { testAppUrl } from '../test/support/env.js';
 import { createApp } from './app.js';
 import { createDb } from './db.js';
 import { createLogger } from './logger.js';
+import { testPhotoDeps } from '../test/support/storage.js';
 
 const logger = createLogger('silent');
 const sql = createDb(testAppUrl);
 const ORIGIN = 'http://localhost:5173';
 const appDeps = { logger, trustProxy: 0, allowedOrigins: [ORIGIN], cookieSecure: true };
-const app = createApp({ sql, ...appDeps });
+const app = createApp({ ...testPhotoDeps(), sql, ...appDeps });
 
 afterAll(() => sql.end());
 
@@ -31,7 +32,7 @@ describe('createApp', () => {
     // Port 1 on loopback has nothing listening, so the connection is refused at once.
     const deadSql = postgres('postgres://housing_app:x@127.0.0.1:1/housing_test', { connect_timeout: 1, max: 1 });
     try {
-      const res = await request(createApp({ sql: deadSql, ...appDeps })).get('/api/v1/readyz');
+      const res = await request(createApp({ ...testPhotoDeps(), sql: deadSql, ...appDeps })).get('/api/v1/readyz');
       expect(res.status).toBe(503);
       expect(res.body.error.code).toBe('INTERNAL_ERROR');
       expect(JSON.stringify(res.body)).not.toMatch(/ECONNREFUSED|127\.0\.0\.1/);

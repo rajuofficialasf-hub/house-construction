@@ -1,4 +1,5 @@
 import express, { Router, type Request } from 'express';
+import type { IncomingMessage } from 'node:http';
 import { z } from 'zod';
 import { requireAdmin } from '../../auth/middleware.js';
 import type { Actor, Sql } from '../../db.js';
@@ -11,11 +12,15 @@ import {
   bulkUpdateBody,
   changeSerialBody,
   createBody,
+  deletePhotoQuery,
   idParams,
   MAX_BULK_ROWS,
   updateBody,
 } from '../../housing/schemas.js';
 import { bulkInsert, bulkUpdateBySerial, changeSerial, createRecord, deleteRecord, updateRecord } from '../../housing/writes.js';
+import type { PhotoUpload } from '../../photos/process.js';
+import { deletePhoto, savePhoto } from '../../photos/service.js';
+import type { StorageDriver } from '../../storage/index.js';
 
 // The admin housing routes (docs/api/API_CONTRACT.md §4.5খ–§4.9গ). Mounted on /api/v1/housing
 // before the public read router, so its literal paths win over the reads' /:id.
@@ -47,7 +52,16 @@ function actorOf(req: Request): Actor {
   return { id: req.admin.id, email: req.admin.email };
 }
 
-export function housingAdminRouter(sql: Sql): Router {
+export interface HousingAdminDeps {
+  sql: Sql;
+  storage: StorageDriver;
+  /** The API's public base URL; photo URLs are built from it. */
+  publicApiUrl: string;
+  /** Reads a photo upload into storage (photos/process.ts); shared so its concurrency limit is too. */
+  receivePhoto: (req: IncomingMessage) => Promise<PhotoUpload>;
+}
+
+export function housingAdminRouter({ sql, storage, publicApiUrl, receivePhoto }: HousingAdminDeps): Router {
   const router = Router();
 
   // Deny by default (NE-SEC-03): every write under /housing needs an admin session, including
@@ -90,8 +104,23 @@ export function housingAdminRouter(sql: Sql): Router {
     res.json({ data: record });
   });
 
+  // Multipart; the global JSON parser leaves it alone, and only an admin's upload is read.
+  router.post('/:id/photo', requireAdmin, async (req, res) => {
+    const { id } = idParams.parse(req.params);
+    const upload = await receivePhoto(req);
+    res.json({ data: await savePhoto({ sql, storage, publicApiUrl }, actorOf(req), id, upload, req.log) });
+  });
+
+  router.delete('/:id/photo', requireAdmin, async (req, res) => {
+    const { id } = idParams.parse(req.params);
+    const { kind } = deletePhotoQuery.parse(req.query);
+    const record = await deletePhoto({ sql, storage }, actorOf(req), id, kind, req.log);
+    if (!record) throw notFound();
+    res.json({ data: record });
+  });
+
   router.delete('/:id', requireAdmin, async (req, res) => {
-    if (!(await deleteRecord(sql, actorOf(req), idParams.parse(req.params).id))) throw notFound();
+    if (!(await deleteRecord(sql, storage, actorOf(req), idParams.parse(req.params).id, req.log))) throw notFound();
     res.status(204).end();
   });
 

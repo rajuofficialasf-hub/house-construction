@@ -12,6 +12,7 @@ import { createRestAuthProvider, createRestHousingApi } from '../../src/features
 import { runHousingApiContract } from './housingApiContract'
 import { cookieJarFetch } from './cookieJarFetch'
 import type { ContractHarness } from './harness'
+import { testPhotoDeps } from '../../server/test/support/storage'
 
 // The full contract through the REST adapter against the real Express app on the local housing_test
 // database, reset to server/db/seed/dev.sql plus one admin before every test. The server/test/support
@@ -48,7 +49,7 @@ if (!enabled) {
   beforeAll(async () => {
     vi.stubGlobal('fetch', jar.fetch)
     passwordHash = await hashPassword(ADMIN.password)
-    const app = createApp({
+    const app = createApp({ ...testPhotoDeps(),
       sql,
       logger: createLogger('silent'),
       trustProxy: 0,

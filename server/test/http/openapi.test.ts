@@ -9,12 +9,13 @@ import { housingAdminRouter } from '../../src/routes/v1/housing-admin.js';
 import { housingReadRouter } from '../../src/routes/v1/housing.js';
 import { openapiRouter } from '../../src/routes/v1/openapi.js';
 import { appDb } from '../support/db.js';
+import { testPhotoDeps } from '../support/storage.js';
 
 // GET /api/v1/openapi.json, and a check that the document and the mounted routes never drift apart.
 
 const sql = appDb();
 afterAll(() => sql.end());
-const app = createApp({ sql, logger: createLogger('silent'), trustProxy: 0, allowedOrigins: ['http://localhost:5173'], cookieSecure: false });
+const app = createApp({ ...testPhotoDeps(), sql, logger: createLogger('silent'), trustProxy: 0, allowedOrigins: ['http://localhost:5173'], cookieSecure: false });
 const document = buildOpenApiDocument();
 
 /** `METHOD /path` for every route on a router, with Express `:param` written as OpenAPI `{param}`. */
@@ -53,7 +54,7 @@ describe('GET /api/v1/openapi.json', () => {
     const mounted = [
       ...routesOf('', healthRouter(sql)),
       ...routesOf('', openapiRouter(document)),
-      ...routesOf('/housing', housingAdminRouter(sql)),
+      ...routesOf('/housing', housingAdminRouter({ sql, ...testPhotoDeps(), receivePhoto: () => Promise.reject(new Error('unused')) })),
       ...routesOf('/housing', housingReadRouter(sql)),
     ];
     expect(documentedRoutes().sort()).toEqual(mounted.sort());

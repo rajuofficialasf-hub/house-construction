@@ -9,6 +9,7 @@ import { createApp } from '../../src/app.js';
 import { errorHandler } from '../../src/errors.js';
 import { createLogger } from '../../src/logger.js';
 import { appDb, insertAdmin, ownerDb, resetTestData } from '../support/db.js';
+import { testPhotoDeps } from '../support/storage.js';
 
 // CORS, the Origin check and the session middleware, through the real middleware chain.
 
@@ -18,7 +19,7 @@ const SITE = 'http://localhost:5173';
 const OTHER = 'https://evil.example';
 const PASSWORD = 'correct horse battery staple';
 const now = () => new Date();
-const app = createApp({ sql, logger: createLogger('silent'), trustProxy: 0, allowedOrigins: [SITE], cookieSecure: false, now });
+const app = createApp({ ...testPhotoDeps(), sql, logger: createLogger('silent'), trustProxy: 0, allowedOrigins: [SITE], cookieSecure: false, now });
 
 let passwordHash: string;
 beforeAll(async () => {
@@ -49,7 +50,7 @@ describe('CORS', () => {
 
 describe('public-read CORS', () => {
   const PARTNER = 'https://partner.example.org';
-  const withPartner = createApp({
+  const withPartner = createApp({ ...testPhotoDeps(),
     sql,
     logger: createLogger('silent'),
     trustProxy: 0,

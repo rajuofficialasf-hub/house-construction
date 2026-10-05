@@ -5,6 +5,7 @@ import { hashPassword } from '../../src/auth/password.js';
 import { createApp, type AppDeps } from '../../src/app.js';
 import { createLogger } from '../../src/logger.js';
 import { appDb, insertAdmin, ownerDb, resetTestData } from '../support/db.js';
+import { testPhotoDeps } from '../support/storage.js';
 
 // /api/v1/auth/login, /logout and /me through the real app and test database.
 
@@ -23,7 +24,7 @@ const logSink = new Writable({
 });
 
 function makeApp(overrides: Partial<AppDeps> = {}) {
-  return createApp({
+  return createApp({ ...testPhotoDeps(),
     sql,
     logger: createLogger('info', logSink),
     trustProxy: 0,

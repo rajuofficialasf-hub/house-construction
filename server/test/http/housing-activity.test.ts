@@ -7,6 +7,7 @@ import { activityEntry, pageMeta } from '../../src/housing/schemas.js';
 import { createLogger } from '../../src/logger.js';
 import { appDb, insertAdmin, ownerDb, resetTestData } from '../support/db.js';
 import { loginAdmin, TEST_ORIGIN } from '../support/session.js';
+import { testPhotoDeps } from '../support/storage.js';
 
 // GET and POST /api/v1/housing/activity through the real app and test database
 // (docs/api/API_CONTRACT.md §4.9গ): admin-only, newest first, filtered and paged; the client may
@@ -16,7 +17,7 @@ const sql = appDb();
 const owner = ownerDb();
 const silent = new Writable({ write: (_chunk, _enc, done) => done() });
 const PARTNER = 'https://partner.example.org';
-const app = createApp({
+const app = createApp({ ...testPhotoDeps(),
   sql,
   logger: createLogger('info', silent),
   trustProxy: 0,

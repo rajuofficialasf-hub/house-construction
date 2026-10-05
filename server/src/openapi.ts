@@ -9,6 +9,7 @@ import {
   bulkUpdateResult,
   changeSerialBody,
   createBody,
+  deletePhotoQuery,
   errorBody,
   filterOptions,
   housingRecord,
@@ -102,9 +103,9 @@ const ERROR_DESCRIPTIONS = {
   400: 'Invalid parameter or body (VALIDATION_ERROR); details.field names it, and details.row_index the row of a bulk body',
   401: 'No admin session (UNAUTHENTICATED)',
   403: 'The Origin header is missing or not allowed (FORBIDDEN)',
-  404: 'No such record (NOT_FOUND)',
+  404: 'No such record or photo (NOT_FOUND)',
   409: 'The serial is already in use in that project (CONFLICT)',
-  413: 'The body or the number of rows is too large (PAYLOAD_TOO_LARGE)',
+  413: 'The body, a photo or the number of rows is too large (PAYLOAD_TOO_LARGE)',
   429: 'Too many requests from this IP (RATE_LIMITED)',
   500: 'Server or database failure (INTERNAL_ERROR)',
   503: 'Database unavailable',
@@ -150,7 +151,7 @@ export function buildOpenApiDocument(): OpenApiDocument {
     openapi: '3.1.0',
     info: {
       title: 'Housing project API',
-      version: '0.12',
+      version: '0.13',
       description:
         'Public, read-only access to the housing project records: no login is needed, and browser apps must be listed in PUBLIC_READ_ORIGINS and call without credentials. The housing-admin operations are for this site\'s admins only.',
     },
@@ -251,6 +252,32 @@ export function buildOpenApiDocument(): OpenApiDocument {
         put: admin(`Update 1-${MAX_BULK_ROWS} rows by serial; absent, null or blank fields stay as they are`, {
           requestBody: body(bulkUpdateBody),
           responses: { 200: ok('How many rows changed, and the serials not found', ref('BulkUpdateResult')), ...errors(400, 401, 403, 413, 500) },
+        }),
+      },
+      '/housing/{id}/photo': {
+        post: admin('Upload or replace the record\'s before (prev) or after (current) photo; the server re-encodes it as WebP and makes the thumbnail', {
+          parameters: idParam,
+          requestBody: {
+            required: true,
+            content: {
+              'multipart/form-data': {
+                schema: {
+                  type: 'object',
+                  required: ['kind', 'photo'],
+                  properties: {
+                    kind: { type: 'string', enum: ['prev', 'current'] },
+                    photo: { type: 'string', format: 'binary', description: 'A JPEG, PNG or WebP image, at most 5 MB' },
+                    thumb: { type: 'string', format: 'binary', description: 'Optional, at most 500 KB; ignored, the server makes its own' },
+                  },
+                },
+              },
+            },
+          },
+          responses: { 200: ok('The record with its new photo URLs and photo_updated_at', ref('HousingRecord')), ...errors(400, 401, 403, 404, 413, 500) },
+        }),
+        delete: admin('Remove the record\'s photo and thumbnail of one kind; succeeds when there is none', {
+          parameters: [...idParam, ...parameters(deletePhotoQuery, 'query', { kind: 'prev or current' })],
+          responses: { 200: ok('The record', ref('HousingRecord')), ...errors(400, 401, 403, 404, 500) },
         }),
       },
       '/housing/{id}/serial': {

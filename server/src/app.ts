@@ -15,6 +15,8 @@ import { healthRouter } from './routes/v1/health.js';
 import { BULK_PATH, housingAdminRouter } from './routes/v1/housing-admin.js';
 import { housingReadRouter, type ReadRateLimit } from './routes/v1/housing.js';
 import { openapiRouter } from './routes/v1/openapi.js';
+import { createPhotoReceiver, type PhotoReceiverOptions } from './photos/process.js';
+import type { StorageDriver } from './storage/index.js';
 
 export interface AppDeps {
   sql: Sql;
@@ -31,6 +33,12 @@ export interface AppDeps {
   now?: () => Date;
   /** Per-IP cap on the public housing reads; tests pass a small one. */
   readRateLimit?: ReadRateLimit;
+  /** Where photo files live (STORAGE_DRIVER); built by storage/index.ts createStorage. */
+  storage: StorageDriver;
+  /** The API's public base URL (PUBLIC_API_URL), for the photo URLs stored on records. */
+  publicApiUrl: string;
+  /** Upload limits; tests pass small ones. */
+  photoUpload?: Omit<PhotoReceiverOptions, 'storage'>;
 }
 
 const READ_METHODS = new Set(['GET', 'HEAD']);
@@ -75,6 +83,9 @@ export function createApp({
   cookieSecure,
   now = () => new Date(),
   readRateLimit,
+  storage,
+  publicApiUrl,
+  photoUpload,
 }: AppDeps): Express {
   const cookie = sessionCookie(cookieSecure);
   const app = express();
@@ -112,7 +123,8 @@ export function createApp({
   app.use('/api/v1', openapiRouter(buildOpenApiDocument()));
   app.use('/api/v1/auth', authRouter({ sql, now }, cookie));
   // The admin router first: its literal paths (/activity, /bulk) must win over the reads' /:id.
-  app.use('/api/v1/housing', housingAdminRouter(sql));
+  const receivePhoto = createPhotoReceiver({ ...photoUpload, storage });
+  app.use('/api/v1/housing', housingAdminRouter({ sql, storage, publicApiUrl, receivePhoto }));
   app.use('/api/v1/housing', housingReadRouter(sql, readRateLimit));
 
   app.use(notFoundHandler);

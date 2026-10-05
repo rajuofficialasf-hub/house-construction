@@ -7,6 +7,7 @@ import { errorBody, housingRecord } from '../../src/housing/schemas.js';
 import { createLogger } from '../../src/logger.js';
 import { appDb, insertRecord, ownerDb, resetTestData } from '../support/db.js';
 import { loginAdmin, TEST_ORIGIN } from '../support/session.js';
+import { testPhotoDeps } from '../support/storage.js';
 
 // The record writes under /api/v1/housing through the real app and test database
 // (docs/api/API_CONTRACT.md §4.5খ–§4.8): create, update, delete and change serial, each only for
@@ -15,7 +16,7 @@ import { loginAdmin, TEST_ORIGIN } from '../support/session.js';
 const sql = appDb();
 const owner = ownerDb();
 const silent = new Writable({ write: (_chunk, _enc, done) => done() });
-const app = createApp({ sql, logger: createLogger('info', silent), trustProxy: 0, allowedOrigins: [TEST_ORIGIN], cookieSecure: false });
+const app = createApp({ ...testPhotoDeps(), sql, logger: createLogger('info', silent), trustProxy: 0, allowedOrigins: [TEST_ORIGIN], cookieSecure: false });
 const MISSING_ID = '00000000-0000-4000-8000-000000000000';
 
 const one = z.strictObject({ data: housingRecord });
@@ -184,11 +185,6 @@ describe('who may write', () => {
   it('writes nothing for a create without a session', async () => {
     expect((await send('post', '', input, '')).status).toBe(401);
     expect(await total()).toBe(0);
-  });
-
-  // TODO: docs/plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md - C5 adds the photo routes; replace this then
-  it('answers 404 for the photo routes with a session, until they exist', async () => {
-    expect((await send('post', `/${MISSING_ID}/photo`, {})).status).toBe(404);
   });
 
   it('refuses a disabled admin’s session', async () => {

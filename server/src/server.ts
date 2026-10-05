@@ -2,6 +2,7 @@ import { createApp } from './app.js';
 import { ConfigError, loadConfig, type Config } from './config.js';
 import { createDb } from './db.js';
 import { createLogger } from './logger.js';
+import { createStorage } from './storage/index.js';
 
 function loadConfigOrExit(): Config {
   try {
@@ -24,6 +25,8 @@ function start(): void {
     allowedOrigins: config.ALLOWED_ORIGINS,
     publicReadOrigins: config.PUBLIC_READ_ORIGINS,
     cookieSecure: config.COOKIE_SECURE,
+    storage: createStorage(config),
+    publicApiUrl: config.PUBLIC_API_URL,
   });
   const server = app.listen(config.PORT, () => logger.info({ port: config.PORT }, 'housing API listening'));
 
