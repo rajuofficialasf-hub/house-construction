@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from '../support/backend'
 import { fillLogin, MOCK_ADMIN } from '../support/auth'
 
 const ADMIN_ROUTES = [

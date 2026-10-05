@@ -426,7 +426,7 @@ From the roadmap and the C4 brief, not reopened here:
   - Spec failures are sorted as spec, app or environment before anything is changed (`TS-15`; `ae-trace` for traces).
 - **Done when:** both commands are green.
 - **Depends on:** U3, U4, U5, U6
-- **Status:** todo
+- **Status:** done
 
 ### U9. Docs and live check
 - **Goal:** The docs match C4, and the admin flows work in a real browser against `rest`.
@@ -488,7 +488,7 @@ Finally, the Chrome check from U9.
 ## Progress
 - **Branch:** `migrate/c4-write-endpoints` (from `migrate/c3-read-endpoints`, which is not yet merged into `dev-forhad`)
 - **Updated:** 2026-10-05 16:40
-- **Next:** U8: the `admin-rest` Playwright project, `e2e/support/backend.ts` and `rest-data.ts`
+- **Next:** U9: docs (migration-notes, testing README, contract changelog) and the Chrome live check
 - **Uncommitted:** none
 - **Notes:** `activityBody.details` uses `z.record(z.string(), z.unknown())`, not `z.json()`. The body is already JSON, and this avoids the `$defs` ref, so the OpenAPI entry needs no hand override. A custom zod check's `params.reason` becomes `details.reason` (`errors.ts`).
   U3 notes:
@@ -498,4 +498,5 @@ Finally, the Chrome check from U9.
   - `writes.ts` already has `bulkInsert` and `bulkUpdateBySerial`; U4 wires them up and tests them.
   U4 note: the "guard before parser" tests send a small malformed JSON body (401 without a session, 400 `invalid_json` with one), not 4 MB. A multi-MB upload that the server answers early sometimes resets the connection, which made the test flaky.
   U7: `npm run test:contract:rest` gives 35 passed, 4 expected fail (the photo gaps), 2 skipped (non-admin). Node 22's fetch lets the test set `Origin`.
+  U8: `npm run test:e2e:rest-admin` gives 30 passed and 1 skipped (non-admin login). `npm run test:e2e:mock` is unchanged: 53 passed and the existing pagination skip. `playwright.config.ts` imports `testAppUrl` from `server/test/support/env.ts` for the API's `DATABASE_URL`.
   `origin/main` was already in `dev-forhad` on 2026-10-05, with no new `supabase/sql` to port.

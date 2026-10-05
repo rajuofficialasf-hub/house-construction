@@ -1,5 +1,5 @@
 import fs from 'node:fs'
-import { expect, test } from '@playwright/test'
+import { expect, test } from '../support/backend'
 import { loginAsAdmin } from '../support/auth'
 import { dataRows } from '../support/public'
 

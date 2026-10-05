@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from '../support/backend'
 import { loginAsAdmin } from '../support/auth'
 
 test('editing the address of a record shows the change in the admin list and keeps the serial locked', async ({ page }) => {

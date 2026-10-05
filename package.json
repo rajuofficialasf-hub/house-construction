@@ -18,6 +18,7 @@
     "test:e2e:mock": "playwright test --project=mock --project=public-mock",
     "test:e2e:live": "node scripts/e2e-live.mjs",
     "test:e2e:rest": "E2E_REST_API_URL=${E2E_REST_API_URL:-http://localhost:3001} playwright test --project=public-rest",
+    "test:e2e:rest-admin": "node scripts/e2e-rest-admin.mjs",
     "test:all": "npm run i18n-check && npm run test && npm run check:prod-bundle && npm run test:e2e:mock",
     "check:prod-bundle": "node scripts/check-prod-bundle.mjs",
     "test:contract:supabase-local": "node scripts/contract-supabase-local.mjs",

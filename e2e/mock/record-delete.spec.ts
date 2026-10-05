@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from '../support/backend'
 import { loginAsAdmin } from '../support/auth'
 
 test('delete asks for confirmation: cancel keeps the record, confirm removes it and the serial stays used', async ({ page }) => {

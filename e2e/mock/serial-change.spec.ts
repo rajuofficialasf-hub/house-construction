@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from '../support/backend'
 import { loginAsAdmin } from '../support/auth'
 
 test.describe('change serial', () => {

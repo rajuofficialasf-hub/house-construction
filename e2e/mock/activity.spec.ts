@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from '../support/backend'
 import { loginAsAdmin } from '../support/auth'
 
 test('the activity view lists login and later writes newest first, and filters by action', async ({ page }) => {
