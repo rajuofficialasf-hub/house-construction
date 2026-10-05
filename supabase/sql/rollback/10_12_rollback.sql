@@ -57,6 +57,23 @@ begin
 end
 $rb_10b_trg$;
 drop function if exists public.housing_validate_record();
+
+-- মোছার পুরনো পলিসি (03_rls.sql ও 05_storage.sql এর হুবহু) ফেরত
+drop policy if exists "housing_beneficiaries_admin_delete" on public.housing_beneficiaries;
+create policy "housing_beneficiaries_admin_delete"
+  on public.housing_beneficiaries for delete
+  to authenticated
+  using (public.is_housing_admin());
+drop policy if exists "housing_photos_admin_delete" on storage.objects;
+create policy "housing_photos_admin_delete"
+  on storage.objects for delete
+  to authenticated
+  using (bucket_id = 'housing-photos' and public.is_housing_admin());
+-- ভূমিকা: সবাই আবার 'admin'
+drop index if exists public.housing_admins_one_main_admin;
+alter table public.housing_admins drop constraint if exists housing_admins_role_check;
+update public.housing_admins set role = 'admin' where role <> 'admin';
+alter table public.housing_admins add constraint housing_admins_role_check check (role in ('admin'));
 drop function if exists public.beneficiary_private_validate();
 drop function if exists public.projects_guard();
 drop function if exists public.projects_after_write();
@@ -92,6 +109,7 @@ drop table if exists public.project_fields;
 alter table public.housing_beneficiaries drop constraint if exists housing_beneficiaries_project_type_fkey;
 drop table if exists public.projects;
 drop function if exists public.public_project_keys();   -- টেবিলগুলোর পলিসি সরার পরে
+drop function if exists public.is_housing_main_admin();  -- সব পলিসি সরার পরে
 
 -- পুরনো project_type CHECK (01_schema.sql এর হুবহু) ফেরত
 do $rb_10$

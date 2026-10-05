@@ -242,8 +242,11 @@ export class HousingApiError extends Error implements ApiError {
   }
 }
 
-/** এডমিনের ভূমিকা — আপাতত শুধু 'admin'; ভবিষ্যতে যোগ করলে এই ইউনিয়ন বাড়াতে হবে */
-export type AdminRole = 'admin'
+/**
+ * এডমিনের ভূমিকা (পর্ব ২, ২০২৬-১০-০৫): 'main_admin' = মূল এডমিন (একজন) — যোগ, এডিট ও মোছা;
+ * 'admin' = সাধারণ এডমিন — শুধু যোগ ও এডিট। মোছার নিষেধ ডাটাবেসে (RLS/ট্রিগার) প্রয়োগ হয়।
+ */
+export type AdminRole = 'admin' | 'main_admin'
 
 export interface AuthUser {
   id: string

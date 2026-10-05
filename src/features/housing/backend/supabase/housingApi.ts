@@ -156,7 +156,8 @@ export function createSupabaseHousingApi(
       const record = await api.getById(id)
       const { data, error } = await table().delete().eq('id', id).select('id')
       if (error) throw mapSupabaseError(error)
-      if (!data || data.length === 0) throw new HousingApiError('NOT_FOUND', 'রেকর্ড পাওয়া যায়নি')
+      // রেকর্ডটি একটু আগেই পড়া গেছে, তবু ০ সারি মুছলে কারণ RLS: মোছা শুধু মূল এডমিনের (পর্ব ২)
+      if (!data || data.length === 0) throw new HousingApiError('FORBIDDEN', 'শুধু মূল এডমিন রেকর্ড মুছতে পারেন')
       // সিরিয়াল পুনঃব্যবহার হয় না, তাই ছবিগুলো অনাথ হয়ে থাকত; মুছে দেওয়া হয়
       const paths = [
         record.prev_photo_url,

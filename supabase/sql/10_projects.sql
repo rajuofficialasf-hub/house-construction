@@ -196,10 +196,11 @@ on conflict (key) do nothing;
 
 insert into public.projects (key, parent_key, is_group, slug, name_bn, name_en, summary_bn, summary_en, description_bn, description_en,
                              unit_bn, unit_en, photo_mode, prev_label_bn, prev_label_en, current_label_bn, current_label_en,
-                             geo_depth, stat_cards, display, file_prefix, icon, accent, sort_order, is_published, show_on_home)
+                             geo_depth, core_fields, stat_cards, display, file_prefix, icon, accent, sort_order, is_published, show_on_home)
 select v.key, 'housing', false, v.slug, v.name_bn, v.name_en, v.desc_bn, v.desc_en, v.desc_bn, v.desc_en,
        'ঘর', 'houses', 'before_after', 'পূর্বের ঘর', 'Before', 'বর্তমান ঘর', 'After',
-       'upazila',
+       'union',
+       '{"union_name": {"required": false}}'::jsonb,
        '[{"id":"total","kind":"count","label_bn":"মোট উপকারভোগী","label_en":"Total beneficiaries","home_label_bn":"মোট ঘর নির্মাণ","home_label_en":"Houses built","icon":"users","home":true},
          {"id":"divisions","kind":"geo","level":"division","label_bn":"মোট বিভাগ","label_en":"Divisions","icon":"map"},
          {"id":"districts","kind":"geo","level":"district","label_bn":"মোট জেলা","label_en":"Districts","home_label_bn":"মোট জেলা কভার","home_label_en":"Districts covered","icon":"pin","home":true},
@@ -217,6 +218,12 @@ select v.key, 'housing', false, v.slug, v.name_bn, v.name_en, v.desc_bn, v.desc_
      'tin', 'tin-house', 20)
   ) as v(key, slug, name_bn, name_en, desc_bn, desc_en, prefix, icon, sort_order)
 on conflict (key) do nothing;
+
+-- ব্যবহারকারীর সিদ্ধান্ত (২০২৬-১০-০৫): ঘর নির্মাণেও ইউনিয়ন থাকবে, আবশ্যক নয়। আগের সংস্করণে seed হয়ে থাকলে
+-- (এবং প্যানেল থেকে কখনো বদলানো না হলে — created_at = updated_at) শুধু তখনই ঠিক করা হয়।
+update public.projects
+   set geo_depth = 'union', core_fields = core_fields || '{"union_name": {"required": false}}'::jsonb
+ where key in ('semi_pucca', 'tin') and geo_depth = 'upazila' and created_at = updated_at;
 
 -- ---------------------------------------------------------------- project_fields
 create table if not exists public.project_fields (

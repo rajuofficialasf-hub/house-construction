@@ -13,6 +13,9 @@
 --                                আগের ছবি থাকলে ছবি মোড বদল নিষেধ; স্ট্যাট কার্ডের আকার; ব্যবহৃত প্রকল্প মোছা নিষেধ
 --   projects_after_write()     — নতুন (অ-গ্রুপ) প্রকল্পের সিরিয়াল কাউন্টার সারি (০ থেকে); বিদ্যমান কাউন্টারে কখনো হাত দেয় না
 --   project_fields_guard()     — মান থাকলে ফিল্ড মোছা/key/ধরন/গোপনীয়তা বদল নিষেধ; গ্রুপে ফিল্ড নিষেধ; প্রকল্পে সর্বোচ্চ ৪০টি
+--   এডমিনের দুই ভূমিকা (ব্যবহারকারীর সিদ্ধান্ত ২০২৬-১০-০৫): **মূল এডমিন** (main_admin, একজনই) — যোগ, এডিট ও **মোছা**;
+--                                **এডমিন** (admin) — শুধু যোগ ও এডিট। মোছা (রেকর্ড, ছবি, প্রকল্প, ফিল্ড, গোপন মান, Storage ফাইল)
+--                                শুধু মূল এডমিন — RLS ও ট্রিগারে, ডাটাবেসেই প্রয়োগ। এখনকার সবচেয়ে পুরনো এডমিন মূল এডমিন হন।
 -- কাউন্টার টেবিলে RLS আছে কিন্তু পলিসি নেই, তাই কাউন্টার ছোঁয়া সব ফাংশন SECURITY DEFINER (search_path স্থির)।
 --
 -- ✅ এক ট্রানজেকশনে, ফিঙ্গারপ্রিন্ট যাচাইসহ, আবার চালালে ক্ষতি নেই। চালানোর পরে: checks/10b_selftest.sql।
@@ -29,6 +32,64 @@ end
 $pre$;
 
 create temp table _asf_fp_before on commit drop as select asf_meta.data_fingerprint() as fp;
+
+-- ---------------------------------------------------------------- এডমিনের ভূমিকা: মূল এডমিন ও এডমিন
+alter table public.housing_admins drop constraint if exists housing_admins_role_check;
+alter table public.housing_admins add constraint housing_admins_role_check check (role in ('admin', 'main_admin'));
+-- মূল এডমিন একজনই
+create unique index if not exists housing_admins_one_main_admin on public.housing_admins ((role)) where role = 'main_admin';
+-- প্রথমবার: মূল এডমিন না থাকলে সবচেয়ে পুরনো এডমিন মূল এডমিন হন (পরে বদলাতে: README দেখুন)
+update public.housing_admins
+   set role = 'main_admin'
+ where not exists (select 1 from public.housing_admins where role = 'main_admin')
+   and user_id = (select user_id from public.housing_admins order by created_at, user_id limit 1);
+
+create or replace function public.is_housing_main_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (select 1 from public.housing_admins where user_id = auth.uid() and role = 'main_admin');
+$$;
+grant execute on function public.is_housing_main_admin() to anon, authenticated;
+
+-- মোছা শুধু মূল এডমিন (যোগ/এডিটের পলিসি অপরিবর্তিত — সব এডমিন)
+drop policy if exists "housing_beneficiaries_admin_delete" on public.housing_beneficiaries;
+create policy "housing_beneficiaries_admin_delete"
+  on public.housing_beneficiaries for delete
+  to authenticated
+  using ((select public.is_housing_main_admin()));
+
+drop policy if exists "projects_admin_delete" on public.projects;
+create policy "projects_admin_delete" on public.projects for delete to authenticated
+  using ((select public.is_housing_main_admin()));
+
+drop policy if exists "project_fields_admin_delete" on public.project_fields;
+create policy "project_fields_admin_delete" on public.project_fields for delete to authenticated
+  using ((select public.is_housing_main_admin()));
+
+drop policy if exists "beneficiary_private_admin_all" on public.beneficiary_private;
+drop policy if exists "beneficiary_private_admin_read" on public.beneficiary_private;
+create policy "beneficiary_private_admin_read" on public.beneficiary_private for select to authenticated
+  using ((select public.is_housing_admin()));
+drop policy if exists "beneficiary_private_admin_insert" on public.beneficiary_private;
+create policy "beneficiary_private_admin_insert" on public.beneficiary_private for insert to authenticated
+  with check ((select public.is_housing_admin()));
+drop policy if exists "beneficiary_private_admin_update" on public.beneficiary_private;
+create policy "beneficiary_private_admin_update" on public.beneficiary_private for update to authenticated
+  using ((select public.is_housing_admin())) with check ((select public.is_housing_admin()));
+drop policy if exists "beneficiary_private_main_delete" on public.beneficiary_private;
+create policy "beneficiary_private_main_delete" on public.beneficiary_private for delete to authenticated
+  using ((select public.is_housing_main_admin()));
+
+-- Storage: ছবির ফাইল মোছা শুধু মূল এডমিন (আপলোড/প্রতিস্থাপন সব এডমিন — 05_storage.sql অপরিবর্তিত)
+drop policy if exists "housing_photos_admin_delete" on storage.objects;
+create policy "housing_photos_admin_delete"
+  on storage.objects for delete
+  to authenticated
+  using (bucket_id = 'housing-photos' and public.is_housing_main_admin());
 
 -- ---------------------------------------------------------------- এক ফিল্ডের মান: যাচাই + স্বাভাবিক করা
 -- ফেরত: স্বাভাবিক করা jsonb মান, অথবা null (খালি লেখা — সংরক্ষণ হবে না)। ভুল হলে 23514, DETAIL = extra.<key>
@@ -161,6 +222,13 @@ begin
   if p.geo_depth = 'union' and coalesce((core -> 'union_name' ->> 'required')::boolean, false)
      and new.union_name = '' and (is_ins or old.union_name <> '') then
     raise exception 'ইউনিয়ন আবশ্যক' using errcode = '23514', detail = 'union_name';
+  end if;
+
+  -- ছবি মোছা (লিংক থেকে খালি) শুধু মূল এডমিন — লগইন করা ব্যবহারকারীর ক্ষেত্রে (SQL Editor/স্ক্রিপ্টে auth.uid() নেই)
+  if not is_ins and auth.uid() is not null and not public.is_housing_main_admin()
+     and ((old.prev_photo_url is not null and new.prev_photo_url is null)
+       or (old.current_photo_url is not null and new.current_photo_url is null)) then
+    raise exception 'শুধু মূল এডমিন ছবি মুছতে পারেন' using errcode = '42501', detail = 'photo';
   end if;
 
   -- ছবি মোড
@@ -533,6 +601,11 @@ from (
   union all
   select 6, 'লাইভ ডাটার ফিঙ্গারপ্রিন্ট (ফাইলের ভেতরে আগে-পরে)', '✅', 'অপরিবর্তিত'
   union all
-  select 7, 'পরের কাজ', '➡', 'checks/10b_selftest.sql চালান (চেকলিস্ট সারি ২৭)'
+  select 7, 'মূল এডমিন (একজন) — মোছা শুধু তাঁর',
+         case when (select count(*) from public.housing_admins where role = 'main_admin') = 1 then '✅' else '❌' end,
+         coalesce((select email from public.housing_admins where role = 'main_admin'), 'নেই')
+           || ' · অন্য এডমিন (যোগ/এডিট): ' || (select count(*) from public.housing_admins where role = 'admin') || ' জন'
+  union all
+  select 8, 'পরের কাজ', '➡', 'checks/10b_selftest.sql চালান (চেকলিস্ট সারি ২৭)'
 ) t
 order by k;

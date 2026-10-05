@@ -50,6 +50,7 @@ declare
   b_ok        boolean;
   msg_a       text;
   msg_b       text;
+  roles0      text;
 begin
   if to_regprocedure('public.housing_validate_record()') is null then
     n := 0; test := '10b_project_guards.sql চালানো হয়েছে?'; ok := '❌'; detail := 'আগে 10b_project_guards.sql চালান';
@@ -57,8 +58,11 @@ begin
     return;
   end if;
   fp0 := asf_meta.data_fingerprint();
+  select string_agg(user_id::text || ':' || role, ',' order by user_id) into roles0 from public.housing_admins;
   select count(*) into live_n from public.housing_beneficiaries;
-  select a.user_id, a.email into admin_uid, admin_email from public.housing_admins a order by a.created_at limit 1;
+  -- মূল এডমিনের পরিচয়ে পরীক্ষা (না থাকলে সবচেয়ে পুরনো এডমিন)
+  select a.user_id, a.email into admin_uid, admin_email from public.housing_admins a
+   order by (a.role = 'main_admin') desc, a.created_at limit 1;
 
   -- ===================================================================== ১. গ্রুপে রেকর্ড
   t := t + 1; n := t; test := 'গ্রুপ (housing) এ সরাসরি রেকর্ড ঢোকানো আটকায়';
@@ -506,12 +510,81 @@ begin
   end;
   return next;
 
+  -- ===================================================================== ১৮. এডমিন (মূল নন) মুছতে পারেন না
+  t := t + 1; n := t; test := 'সাধারণ এডমিন: যোগ/এডিট পারেন, কিন্তু রেকর্ড মোছা ও ছবি মোছা পারেন না';
+  if admin_uid is null then
+    ok := '❌'; detail := 'housing_admins খালি';
+  else
+    begin
+      stage := 'setup';
+      perform pg_temp.asf_mk();
+      insert into public.housing_beneficiaries (project_type, year, name, division, district, upazila, extra, current_photo_url, current_thumb_url)
+      values ('zz_selftest', 2025, 'পরীক্ষা', 'ঢাকা', 'ঢাকা', 'সাভার', '{"amount": 1}', 'https://example.invalid/c.webp', 'https://example.invalid/ct.webp')
+      returning id into rid;
+      -- পরীক্ষার জন্য এই এডমিনকে সাময়িকভাবে সাধারণ এডমিন করা (শেষে ফিরে যায়)
+      update public.housing_admins set role = 'admin' where user_id = admin_uid;
+      perform set_config('request.jwt.claims', json_build_object('sub', admin_uid, 'role', 'authenticated', 'email', admin_email)::text, true);
+      perform set_config('request.jwt.claim.sub', admin_uid::text, true);
+      set local role authenticated;
+      stage := 'action';
+      update public.housing_beneficiaries set extra = extra || '{"item_name": "ছাগল"}' where id = rid;
+      get diagnostics cnt = row_count;
+      a_ok := cnt = 1;                                   -- এডিট পারেন
+      delete from public.housing_beneficiaries where id = rid;
+      get diagnostics cnt2 = row_count;
+      a_ok := a_ok and cnt2 = 0;                         -- মোছা নীরবে ০ সারি (RLS)
+      msg_a := 'এডিট ' || cnt || ' সারি · মোছা ' || cnt2 || ' সারি';
+      begin
+        update public.housing_beneficiaries set current_photo_url = null, current_thumb_url = null where id = rid;
+        b_ok := false; msg_b := 'ছবি মুছে গেছে!';
+      exception when others then
+        b_ok := sqlstate = '42501'; msg_b := sqlerrm;
+      end;
+      ok := case when a_ok and b_ok then '✅' else '❌' end;
+      detail := msg_a || ' · ' || msg_b;
+      raise exception 'asf-rollback';
+    exception when others then
+      if sqlerrm <> 'asf-rollback' then ok := '❌'; detail := stage || ': ' || sqlerrm; end if;
+    end;
+  end if;
+  return next;
+
+  -- ===================================================================== ১৯. মূল এডমিন মুছতে পারেন
+  t := t + 1; n := t; test := 'মূল এডমিন: রেকর্ড ও ছবি মুছতে পারেন';
+  if admin_uid is null or not exists (select 1 from public.housing_admins where user_id = admin_uid and role = 'main_admin') then
+    ok := '❌'; detail := 'মূল এডমিন নেই';
+  else
+    begin
+      stage := 'setup';
+      perform pg_temp.asf_mk();
+      insert into public.housing_beneficiaries (project_type, year, name, division, district, upazila, extra, current_photo_url, current_thumb_url)
+      values ('zz_selftest', 2025, 'পরীক্ষা', 'ঢাকা', 'ঢাকা', 'সাভার', '{"amount": 1}', 'https://example.invalid/c.webp', 'https://example.invalid/ct.webp')
+      returning id into rid;
+      perform set_config('request.jwt.claims', json_build_object('sub', admin_uid, 'role', 'authenticated', 'email', admin_email)::text, true);
+      perform set_config('request.jwt.claim.sub', admin_uid::text, true);
+      set local role authenticated;
+      stage := 'action';
+      update public.housing_beneficiaries set current_photo_url = null, current_thumb_url = null where id = rid;
+      get diagnostics cnt = row_count;
+      delete from public.housing_beneficiaries where id = rid;
+      get diagnostics cnt2 = row_count;
+      ok := case when cnt = 1 and cnt2 = 1 then '✅' else '❌' end;
+      detail := 'ছবি মোছা ' || cnt || ' · রেকর্ড মোছা ' || cnt2 || ' (' || admin_email || ')';
+      raise exception 'asf-rollback';
+    exception when others then
+      if sqlerrm <> 'asf-rollback' then ok := '❌'; detail := stage || ': ' || sqlerrm; end if;
+    end;
+  end if;
+  return next;
+
   -- ===================================================================== শেষ: কিছুই থেকে যায়নি
-  t := t + 1; n := t; test := 'পরীক্ষার পরে লাইভ ডাটা অপরিবর্তিত (ফিঙ্গারপ্রিন্ট শুরুর মতো; অস্থায়ী প্রকল্প নেই)';
+  t := t + 1; n := t; test := 'পরীক্ষার পরে লাইভ ডাটা অপরিবর্তিত (ফিঙ্গারপ্রিন্ট শুরুর মতো; অস্থায়ী প্রকল্প নেই; এডমিনের ভূমিকা আগের মতো)';
   fp1 := asf_meta.data_fingerprint();
   select count(*) into cnt from public.projects where key like 'zz_selftest%';
   select count(*) into cnt2 from public.housing_serial_counters where project_type like 'zz_selftest%';
-  ok := case when (fp1 - 'log') = (fp0 - 'log') and (fp1 #>> '{log,n}') = (fp0 #>> '{log,n}') and cnt = 0 and cnt2 = 0 then '✅' else '❌' end;
+  ok := case when (fp1 - 'log') = (fp0 - 'log') and (fp1 #>> '{log,n}') = (fp0 #>> '{log,n}') and cnt = 0 and cnt2 = 0
+                  and roles0 is not distinct from (select string_agg(user_id::text || ':' || role, ',' order by user_id) from public.housing_admins)
+             then '✅' else '❌' end;
   detail := case when ok = '✅' then 'মিলেছে · লগের সারি ' || (fp1 #>> '{log,n}')
                  else 'আগে ' || fp0::text || ' · পরে ' || fp1::text || ' · অস্থায়ী প্রকল্প ' || cnt || ' · কাউন্টার ' || cnt2 end;
   return next;

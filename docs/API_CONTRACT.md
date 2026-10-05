@@ -1,7 +1,7 @@
 # ঘর নির্মাণ প্রকল্প — REST API চুক্তি (API_CONTRACT.md)
 
 > নিজস্ব সার্ভারের ডেভেলপারের জন্য। ফ্রন্টএন্ডের `rest` অ্যাডাপ্টার (`src/features/housing/backend/rest/`) ঠিক এই চুক্তি অনুযায়ী কল করবে।
-> সংস্করণ: ০.৯ — সর্বশেষ আপডেট: ২০২৬-০৯-৩০
+> সংস্করণ: ০.৯.১ — সর্বশেষ আপডেট: ২০২৬-১০-০৫ (বহু-প্রকল্পের পূর্ণ চুক্তি v1.0 আসবে পর্ব ২-এর M-ধাপ ৪-এ)
 > সার্ভারের প্রযুক্তি (ভাষা/ফ্রেমওয়ার্ক/DB) অনির্ধারিত; এই চুক্তি প্রযুক্তি-নিরপেক্ষ। "TBD" অংশ এখনো চূড়ান্ত নয়।
 
 ---
@@ -11,7 +11,7 @@
 - **বেস URL:** ফ্রন্টএন্ডের `VITE_API_BASE_URL` (যেমন `https://api.example.org`)। সব পাথ `/api/...` দিয়ে শুরু।
 - **ফরম্যাট:** JSON, `Content-Type: application/json; charset=utf-8`। ছবি আপলোডে `multipart/form-data`।
 - **এনকোডিং:** UTF-8 (বাংলা টেক্সট)। সংখ্যা JSON number, তারিখ ISO 8601 UTC (`2026-09-29T10:15:00Z`)।
-- **অনুমতি:** পড়া (সব GET) সবার জন্য উন্মুক্ত, টোকেন লাগে না। লেখা (POST/PUT/DELETE) শুধু এডমিন। **অনুমতি সার্ভারে যাচাই হবে**; ফ্রন্টএন্ডের উপর ভরসা নয়।
+- **অনুমতি:** পড়া (সব GET) সবার জন্য উন্মুক্ত, টোকেন লাগে না। যোগ ও এডিট (POST/PUT) সব এডমিন; **মোছা (সব DELETE, ছবি মোছা) শুধু মূল এডমিন** (`role = "main_admin"`)। **অনুমতি সার্ভারে যাচাই হবে**; ফ্রন্টএন্ডের উপর ভরসা নয়।
 - **রাউট ক্রম:** `/api/housing/stats`, `/api/housing/years`, `/api/housing/bulk`, `/api/housing/:project_type/serial/:serial_no` অবশ্যই `/api/housing/:id` এর **আগে** ম্যাচ করতে হবে।
 - **CORS:** ওয়েবসাইটের origin অনুমোদিত (তালিকা TBD)। **Rate limit:** TBD।
 
@@ -34,7 +34,7 @@
 |---|---|---|
 | 400 | `VALIDATION_ERROR` | ভুল/অসম্পূর্ণ ইনপুট; `details.field`, `details.reason` দিন |
 | 401 | `UNAUTHENTICATED` | টোকেন/সেশন নেই, অবৈধ বা মেয়াদোত্তীর্ণ |
-| 403 | `FORBIDDEN` | লগইন আছে কিন্তু এডমিন নয় |
+| 403 | `FORBIDDEN` | লগইন আছে কিন্তু এডমিন নয়, অথবা মূল এডমিন নন এমন কেউ মুছতে চাইছেন ("শুধু মূল এডমিন … মুছতে পারেন") |
 | 404 | `NOT_FOUND` | রেকর্ড/ছবি নেই |
 | 409 | `CONFLICT` | (project_type, serial_no) ডুপ্লিকেট |
 | 413 | `PAYLOAD_TOO_LARGE` | ছবি ৫ MB এর বেশি বা bulk সারি সীমা ছাড়ালে |
@@ -50,7 +50,7 @@
   - JWT হলে: `/api/auth/login` উত্তরে `access_token` দিন; ফ্রন্টএন্ড প্রতিটি লেখার রিকোয়েস্টে `Authorization: Bearer <token>` পাঠাবে।
   - কুকি হলে: `access_token` বাদ দিন, `Set-Cookie` (HttpOnly, Secure, SameSite) দিন; ফ্রন্টএন্ড `credentials: 'include'` দিয়ে কল করবে; CSRF সুরক্ষা সার্ভারের দায়িত্ব।
 - সেশনের মেয়াদ ও রিফ্রেশ: TBD (প্রস্তাব: ৭ দিন, রিফ্রেশ ছাড়া; মেয়াদ শেষে ৪০১ → ফ্রন্টএন্ড লগইন পেইজে পাঠাবে)।
-- **এডমিন তালিকা:** সার্ভারে একটি `admins` টেবিল (Supabase এ `housing_admins`: `user_id, email, role, created_at`)। লগইন সফল হলেও ব্যবহারকারী এই টেবিলে না থাকলে `403 FORBIDDEN` ("এই অ্যাকাউন্ট এডমিন তালিকায় নেই") এবং সেশন তৈরি হবে না। `role` এখন সবসময় `"admin"` (সবার সমান অধিকার); ভবিষ্যতে নতুন role যোগ হলে ফ্রন্টএন্ড `AuthUser.role` এ পাবে।
+- **এডমিন তালিকা:** সার্ভারে একটি `admins` টেবিল (Supabase এ `housing_admins`: `user_id, email, role, created_at`)। লগইন সফল হলেও ব্যবহারকারী এই টেবিলে না থাকলে `403 FORBIDDEN` ("এই অ্যাকাউন্ট এডমিন তালিকায় নেই") এবং সেশন তৈরি হবে না। `role` দুই রকম (২০২৬-১০-০৫): `"main_admin"` — মূল এডমিন, **একজনই**, যোগ/এডিট/মোছা; `"admin"` — সাধারণ এডমিন, শুধু যোগ/এডিট। ফ্রন্টএন্ড `AuthUser.role` এ পায় (মোছার বোতাম দেখানো/লুকানো)।
 - **সাইন-আপ নেই:** কোনো `/api/auth/register` endpoint থাকবে না; নতুন এডমিন শুধু সার্ভার/ডাটাবেস থেকে যোগ হবে। পাসওয়ার্ড রিসেট endpoint ঐচ্ছিক (TBD)।
 - ব্রুট-ফোর্স সুরক্ষা (লগইনে rate limit) সার্ভারে থাকা উচিত।
 - ফ্রন্টএন্ড আচরণ (রেফারেন্স বাস্তবায়ন `src/features/housing/backend/rest/authProvider.ts`): JWT মোডে token `localStorage` কী `housing_rest_token` এ; সব অনুরোধ `credentials: 'include'` সহ যায় (কুকি মোডে কাজ করে); অ্যাপ লোডে `GET /api/auth/me` দিয়ে সেশন যাচাই; `401` → লগইন পেইজ।
@@ -143,13 +143,13 @@
 | GET | `/api/housing/:id` | পাবলিক | `getById` |
 | POST | `/api/housing` | এডমিন | `create` |
 | PUT | `/api/housing/:id` | এডমিন | `update` |
-| DELETE | `/api/housing/:id` | এডমিন | `delete` |
+| DELETE | `/api/housing/:id` | **মূল এডমিন** | `delete` |
 | POST | `/api/housing/bulk` | এডমিন | `bulkInsert` |
 | PUT | `/api/housing/bulk` | এডমিন | `bulkUpdateBySerial` |
 | GET | `/api/housing/activity` | এডমিন | `listActivity` |
 | POST | `/api/housing/activity` | এডমিন | `logActivity` |
 | POST | `/api/housing/:id/photo` | এডমিন | `uploadPhoto` |
-| DELETE | `/api/housing/:id/photo?kind=` | এডমিন | `deletePhoto` |
+| DELETE | `/api/housing/:id/photo?kind=` | **মূল এডমিন** | `deletePhoto` |
 
 ### ৪.১ GET `/api/housing` — তালিকা (মোট সংখ্যাসহ)
 Query প্যারামিটার (সব ঐচ্ছিক):
@@ -241,7 +241,7 @@ Query প্যারামিটার (সব ঐচ্ছিক):
 ### ৪.৭ PUT `/api/housing/:id` — আপডেট (এডমিন)
 body: ৩.৩ এর ফিল্ডের যেকোনো উপসেট (আংশিক আপডেট গ্রহণযোগ্য; PUT নাম হলেও semantics PATCH এর মতো)। `project_type`/`serial_no` থাকলে `400`। → `200 { "data": Beneficiary }`; নেই → `404`।
 
-### ৪.৮ DELETE `/api/housing/:id` — (এডমিন)
+### ৪.৮ DELETE `/api/housing/:id` — (মূল এডমিন)
 → `204`। সংশ্লিষ্ট ছবি ও থাম্বনেইল স্টোরেজ থেকেও মুছবে (সিরিয়াল পুনঃব্যবহার হয় না, তাই ফাইল অনাথ হয়ে থাকত)। নেই → `404`।
 
 ### ৪.৯ POST `/api/housing/bulk` — শীট থেকে ইম্পোর্ট (এডমিন)
@@ -316,8 +316,8 @@ body: ৩.৩ এর ফিল্ডের যেকোনো উপসেট (�
 ```
 এরর: ভুল টাইপ/kind → `400`; বড় ফাইল → `413`; রেকর্ড নেই → `404`।
 
-### ৪.১১ DELETE `/api/housing/:id/photo?kind=prev|current` — (এডমিন)
-ছবি ও থাম্বনেইল মুছে, `<kind>_photo_url`/`<kind>_thumb_url = null`, `photo_updated_at = now()`। → `200 { "data": Beneficiary }`। ছবি না থাকলেও `200` (idempotent)। রেকর্ড নেই → `404`।
+### ৪.১১ DELETE `/api/housing/:id/photo?kind=prev|current` — (মূল এডমিন)
+সাধারণ এডমিন → `403 FORBIDDEN` ("শুধু মূল এডমিন ছবি মুছতে পারেন"); নতুন ছবি দিয়ে **প্রতিস্থাপন** (৪.১০) সব এডমিন পারেন। ছবি ও থাম্বনেইল মুছে, `<kind>_photo_url`/`<kind>_thumb_url = null`, `photo_updated_at = now()`। → `200 { "data": Beneficiary }`। ছবি না থাকলেও `200` (idempotent)। রেকর্ড নেই → `404`।
 
 ---
 
@@ -340,6 +340,7 @@ body: ৩.৩ এর ফিল্ডের যেকোনো উপসেট (�
 | ২০২৬-০৯-২৯ | ০.৭ | এডমিন CRUD: create এ ঐচ্ছিক `serial_no`; `GET /next-serial`; `POST /:id/serial` (সিরিয়াল বদল + ছবি সরানো); list এ `serial_no` ফিল্টার |
 | ২০২৬-০৯-২৯ | ০.৮ | `PUT /api/housing/bulk` — সিরিয়াল ধরে বাল্ক আপডেট (ইম্পোর্টের আপডেট মোড) |
 | ২০২৬-০৯-৩০ | ০.৯ | একটিভিটি লগ: `GET/POST /api/housing/activity`; সার্ভার-সাইড লগিং বাধ্যতামূলক; `stats.by_location` (মানচিত্র) |
+| ২০২৬-১০-০৫ | ০.৯.১ | এডমিনের দুই ভূমিকা: `main_admin` (একজন; মোছা) ও `admin` (যোগ/এডিট); সব DELETE ও ছবি মোছা শুধু মূল এডমিন (পর্ব ২, M-ধাপ ২) |
 | ২০২৬-০৯-২৯ | ০.৮ (চূড়ান্ত পর্যালোচনা) | ফ্রন্টএন্ড ধাপ ০–১২ সম্পন্ন; এই চুক্তি ফ্রন্টএন্ডের REST অ্যাডাপ্টার (`rest/endpoints.ts`, `rest/http.ts`, `rest/authProvider.ts`) ও Supabase বাস্তবায়নের সাথে সঙ্গতিপূর্ণ। ধাপ ১৩ (সার্ভার) শুরুর আগে §৭ এর TBD গুলো ঠিক করতে হবে |
 
 ## ৭. খোলা প্রশ্ন (TBD)

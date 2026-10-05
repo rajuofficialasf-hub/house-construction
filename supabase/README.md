@@ -34,4 +34,11 @@ Supabase Dashboard → **SQL Editor** এ ফাইলগুলো **এই ক�
 
 M-ধাপ ৩-এ যোগ হবে: `backup/before_11.sql`, `11_project_rpcs.sql`, `backup/before_12.sql`, `12_activity_log_v2.sql` ও তাদের selftest।
 
+### এডমিনের ভূমিকা (10b থেকে)
+- **মূল এডমিন** (`role = 'main_admin'`, একজনই): যোগ, এডিট ও **মোছা**। **এডমিন** (`role = 'admin'`): শুধু যোগ ও এডিট।
+- নতুন (সাধারণ) এডমিন যোগ: Dashboard → Authentication → Users → Add user (Auto Confirm), তারপর SQL Editor-এ
+  `insert into public.housing_admins (user_id, email, role) select id, email, 'admin' from auth.users where email = 'নতুন@ইমেইল' on conflict (user_id) do nothing;`
+- মূল এডমিন বদল (একই ট্রানজেকশনে, কারণ মূল এডমিন একজনই):
+  `begin; update public.housing_admins set role = 'admin' where role = 'main_admin'; update public.housing_admins set role = 'main_admin' where email = 'নতুন-মূল@ইমেইল'; commit;`
+
 পুরো ধাপে-ধাপে নির্দেশনা: `docs/HOUSING_PROGRESS.md` → ধাপ ২ → "আমাকে যা করতে হবে"।
