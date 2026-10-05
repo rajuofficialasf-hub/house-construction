@@ -12,7 +12,7 @@ import { originCheck } from './http/origin.js';
 import { buildOpenApiDocument } from './openapi.js';
 import { authRouter } from './routes/v1/auth.js';
 import { healthRouter } from './routes/v1/health.js';
-import { housingAdminRouter } from './routes/v1/housing-admin.js';
+import { BULK_PATH, housingAdminRouter } from './routes/v1/housing-admin.js';
 import { housingReadRouter, type ReadRateLimit } from './routes/v1/housing.js';
 import { openapiRouter } from './routes/v1/openapi.js';
 
@@ -99,7 +99,10 @@ export function createApp({
   app.use(corsFor(allowedOrigins, publicReadOrigins));
   // Before body parsing, so a refused request costs nothing more.
   app.use(originCheck(allowedOrigins));
-  app.use(express.json({ limit: '100kb' }));
+  // 100kb for every body (NE-REQ-02) except the bulk import, which parses its own larger body
+  // after the admin check (routes/v1/housing-admin.ts).
+  const json = express.json({ limit: '100kb' });
+  app.use((req, res, next) => (req.path === BULK_PATH ? next() : json(req, res, next)));
   app.use('/api/v1', sessionMiddleware({ sql, now }, cookie.name));
 
   app.use('/api/v1', healthRouter(sql));

@@ -1,5 +1,9 @@
 import { z } from 'zod';
 import {
+  bulkInsertBody,
+  bulkInsertResult,
+  bulkUpdateBody,
+  bulkUpdateResult,
   changeSerialBody,
   createBody,
   errorBody,
@@ -10,6 +14,7 @@ import {
   idParams,
   INT4_MAX,
   listQuery,
+  MAX_BULK_ROWS,
   MAX_PAGE_SIZE,
   MAX_SERIALS,
   nextSerial,
@@ -213,6 +218,16 @@ export function buildOpenApiDocument(): OpenApiDocument {
           responses: { 204: { description: 'Deleted' }, ...errors(400, 401, 403, 404, 500) },
         }),
       },
+      '/housing/bulk': {
+        post: admin(`Import 1-${MAX_BULK_ROWS} rows in one transaction: all or nothing`, {
+          requestBody: body(bulkInsertBody),
+          responses: { 200: ok('How many rows were inserted', ref('BulkInsertResult')), ...errors(400, 401, 403, 409, 413, 500) },
+        }),
+        put: admin(`Update 1-${MAX_BULK_ROWS} rows by serial; absent, null or blank fields stay as they are`, {
+          requestBody: body(bulkUpdateBody),
+          responses: { 200: ok('How many rows changed, and the serials not found', ref('BulkUpdateResult')), ...errors(400, 401, 403, 413, 500) },
+        }),
+      },
       '/housing/{id}/serial': {
         post: admin('Move a record to another serial; the old serial is never reused', {
           parameters: idParam,
@@ -228,6 +243,8 @@ export function buildOpenApiDocument(): OpenApiDocument {
         HousingStats: jsonSchema(housingStats, 'output'),
         FilterOptions: jsonSchema(filterOptions, 'output'),
         NextSerial: jsonSchema(nextSerial, 'output'),
+        BulkInsertResult: jsonSchema(bulkInsertResult, 'output'),
+        BulkUpdateResult: jsonSchema(bulkUpdateResult, 'output'),
         Error: jsonSchema(errorBody, 'output'),
       },
       securitySchemes: {

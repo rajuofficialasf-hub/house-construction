@@ -334,7 +334,7 @@ From the roadmap and the C4 brief, not reopened here:
     - 501 rows → 413
 - **Done when:** `npm --prefix server test` is green.
 - **Depends on:** U3
-- **Status:** todo
+- **Status:** done
 
 ### U5. Activity log routes
 - **Goal:** `GET` and `POST /housing/activity` as contract §4.9গ says, admin-only.
@@ -488,7 +488,7 @@ Finally, the Chrome check from U9.
 ## Progress
 - **Branch:** `migrate/c4-write-endpoints` (from `migrate/c3-read-endpoints`, which is not yet merged into `dev-forhad`)
 - **Updated:** 2026-10-05 16:40
-- **Next:** U4: the bulk routes, plus the 10 MB parser and the skip for the global parser in `app.ts`
+- **Next:** U5: `server/src/housing/activity.ts` and the GET/POST `/activity` routes
 - **Uncommitted:** none
 - **Notes:** `activityBody.details` uses `z.record(z.string(), z.unknown())`, not `z.json()`. The body is already JSON, and this avoids the `$defs` ref, so the OpenAPI entry needs no hand override. A custom zod check's `params.reason` becomes `details.reason` (`errors.ts`).
   U3 notes:
@@ -496,4 +496,5 @@ Finally, the Chrome check from U9.
   - The HTTP tests run the app on `appDb()`, which already proves the runtime role's grants, so no separate `test/db/writes.test.ts` was added.
   - `server/test/support/session.ts` (`loginAdmin`) is shared by the admin route tests.
   - `writes.ts` already has `bulkInsert` and `bulkUpdateBySerial`; U4 wires them up and tests them.
+  U4 note: the "guard before parser" tests send a small malformed JSON body (401 without a session, 400 `invalid_json` with one), not 4 MB. A multi-MB upload that the server answers early sometimes resets the connection, which made the test flaky.
   `origin/main` was already in `dev-forhad` on 2026-10-05, with no new `supabase/sql` to port.
