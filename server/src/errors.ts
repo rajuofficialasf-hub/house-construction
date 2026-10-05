@@ -60,10 +60,13 @@ function bodyParserError(err: unknown): AppError | undefined {
 function zodDetails(err: ZodError): ErrorDetails {
   const issue = err.issues[0];
   const path = issue?.path ?? [];
+  // A custom check names its own reason in params (for example 'duplicate', 'server_logged').
+  const params = issue?.code === 'custom' ? (issue.params as { reason?: unknown } | undefined) : undefined;
+  const reason = typeof params?.reason === 'string' ? params.reason : issue?.code;
   if (path[0] === 'rows' && typeof path[1] === 'number') {
-    return { row_index: path[1], field: path.slice(2).join('.') || undefined, reason: issue?.code };
+    return { row_index: path[1], field: path.slice(2).join('.') || undefined, reason };
   }
-  return { field: path.join('.') || undefined, reason: issue?.code };
+  return { field: path.join('.') || undefined, reason };
 }
 
 const SERIAL_KEY = 'housing_beneficiaries_project_serial_key';

@@ -74,6 +74,156 @@ export const serialsQuery = z.object({
 export const projectTypeQuery = z.object({ project_type: projectType.optional() });
 export const nextSerialQuery = z.object({ project_type: projectType });
 
+// Write bodies (contract §3.3). Strict objects: an unknown key is a 400, which is what keeps
+// serial_no and project_type out of an update and the photo columns out of every write.
+
+export const MAX_BULK_ROWS = 500;
+export const MAX_DETAILS_BYTES = 8192;
+const MAX_SOURCE = 2000;
+const ACTION = /^[a-z_]{1,40}$/;
+/** Actions the server logs itself (activity trigger, login, logout); a client may not post them. */
+export const SERVER_LOGGED_ACTIONS: ReadonlySet<string> = new Set(['login', 'logout', 'create', 'update', 'delete', 'photo_update', 'serial_change']);
+
+/** Trimmed and NFC-normalized before the length check, so stored text compares exactly (contract §3.3). */
+function writeText(min: number, max: number) {
+  return z
+    .string()
+    .transform((value) => value.trim().normalize('NFC'))
+    .pipe(z.string().min(min).max(max));
+}
+
+const year = z.number().int().min(YEAR_MIN).max(YEAR_MAX);
+const serialNo = z.number().int().min(1).max(INT4_MAX);
+// The sheet's original link, kept only as a reference; the UI never renders it as a link.
+const photoSource = z
+  .string()
+  .trim()
+  .max(MAX_SOURCE)
+  .transform((value) => value || null)
+  .nullable();
+
+const recordFields = {
+  year,
+  name: writeText(1, 200),
+  father_or_husband_name: writeText(0, 200),
+  division: writeText(1, 100),
+  district: writeText(1, 100),
+  upazila: writeText(1, 100),
+  address: writeText(0, 1000),
+  prev_photo_source: photoSource,
+  current_photo_source: photoSource,
+};
+
+/** One record without its project type: a bulk row, and the base of createBody. */
+const createRow = z.strictObject({
+  ...recordFields,
+  serial_no: serialNo.optional(),
+  father_or_husband_name: recordFields.father_or_husband_name.default(''),
+  address: recordFields.address.default(''),
+  prev_photo_source: photoSource.default(null),
+  current_photo_source: photoSource.default(null),
+});
+
+export const createBody = createRow.extend({ project_type: projectType });
+export type CreateBody = z.infer<typeof createBody>;
+
+export const updateBody = z
+  .strictObject(recordFields)
+  .partial()
+  .refine((patch) => Object.keys(patch).length > 0, { message: 'কোনো ফিল্ড দেওয়া হয়নি', params: { reason: 'empty' } });
+export type UpdateBody = z.infer<typeof updateBody>;
+
+export const changeSerialBody = z.strictObject({ serial_no: serialNo });
+
+export const bulkInsertBody = z
+  .strictObject({
+    project_type: projectType,
+    mode: z.enum(['assign_serial', 'use_given_serial']),
+    // The route answers more than MAX_BULK_ROWS with 413 before this runs; max() is only a backstop.
+    rows: z.array(createRow).min(1).max(MAX_BULK_ROWS),
+  })
+  .superRefine((body, ctx) => {
+    if (body.mode !== 'use_given_serial') return;
+    const seen = new Set<number>();
+    body.rows.forEach((row, i) => {
+      const path = ['rows', i, 'serial_no'];
+      if (row.serial_no === undefined) ctx.addIssue({ code: 'custom', path, message: 'serial_no আবশ্যক', params: { reason: 'required' } });
+      else if (seen.has(row.serial_no)) ctx.addIssue({ code: 'custom', path, message: 'ব্যাচে একই serial_no দুবার', params: { reason: 'duplicate' } });
+      else seen.add(row.serial_no);
+    });
+  })
+  .transform((body) =>
+    body.mode === 'assign_serial' ? { ...body, rows: body.rows.map(({ serial_no: _ignored, ...rest }) => rest) } : body,
+  );
+export type BulkInsertBody = z.infer<typeof bulkInsertBody>;
+
+// Bulk update leaves absent or null fields unchanged, and also blank required text, exactly as
+// housing_bulk_update_by_serial does (0004_bulk_update.sql); the import sends '' for blank cells.
+function keepIfFilled(max: number) {
+  return writeText(0, max)
+    .transform((value) => value || undefined)
+    .nullish();
+}
+
+const bulkUpdateRow = z.strictObject({
+  serial_no: serialNo,
+  year: year.nullish(),
+  name: keepIfFilled(200),
+  father_or_husband_name: writeText(0, 200).nullish(),
+  division: keepIfFilled(100),
+  district: keepIfFilled(100),
+  upazila: keepIfFilled(100),
+  address: writeText(0, 1000).nullish(),
+  prev_photo_source: z.string().trim().max(MAX_SOURCE).nullish(),
+  current_photo_source: z.string().trim().max(MAX_SOURCE).nullish(),
+});
+
+export const bulkUpdateBody = z
+  .strictObject({ project_type: projectType, rows: z.array(bulkUpdateRow).min(1).max(MAX_BULK_ROWS) })
+  .transform((body) => ({
+    ...body,
+    // Absent and null mean the same to the SQL function; dropping them keeps the jsonb small.
+    rows: body.rows.map((row) => Object.fromEntries(Object.entries(row).filter(([, value]) => value != null)) as typeof row),
+  }));
+export type BulkUpdateBody = z.infer<typeof bulkUpdateBody>;
+
+const actionName = z.string().regex(ACTION, 'action: a-z and _ only, at most 40');
+
+export const activityQuery = z.object({
+  action: actionName.optional(),
+  project_type: projectType.optional(),
+  record_id: z.uuid().optional(),
+  actor_email: z
+    .string()
+    .trim()
+    .max(254)
+    .transform((value) => value || undefined)
+    .optional(),
+  from: z.iso.datetime({ offset: true }).optional(),
+  to: z.iso.datetime({ offset: true }).optional(),
+  page: intParam(1, INT4_MAX).default(1),
+  page_size: intParam(1, MAX_PAGE_SIZE).default(DEFAULT_PAGE_SIZE),
+});
+export type ActivityQuery = z.infer<typeof activityQuery>;
+
+export const activityBody = z.strictObject({
+  action: actionName.refine((action) => !SERVER_LOGGED_ACTIONS.has(action), {
+    message: 'এই action সার্ভার নিজেই লগ করে',
+    params: { reason: 'server_logged' },
+  }),
+  project_type: projectType.optional(),
+  // The body came from JSON.parse, so any value inside is JSON already; z.unknown() also keeps
+  // the OpenAPI schema free of the $defs that z.json() emits.
+  details: z
+    .record(z.string(), z.unknown())
+    .refine((details) => Buffer.byteLength(JSON.stringify(details)) <= MAX_DETAILS_BYTES, {
+      message: 'details অনেক বড়',
+      params: { reason: 'too_big' },
+    })
+    .default({}),
+});
+export type ActivityBody = z.infer<typeof activityBody>;
+
 // Responses. Strict objects, so a test that parses a response also proves no extra column leaks.
 
 const timestamp = z.iso.datetime({ offset: true });
@@ -132,6 +282,26 @@ export const errorBody = z.strictObject({
   error: z.strictObject({
     code: z.string(),
     message: z.string(),
-    details: z.strictObject({ field: z.string().optional(), reason: z.string().optional() }).optional(),
+    details: z.strictObject({ field: z.string().optional(), reason: z.string().optional(), row_index: z.number().int().optional() }).optional(),
   }),
 });
+
+export const activityEntry = z.strictObject({
+  id: z.number().int(),
+  at: timestamp,
+  actor_id: z.uuid().nullable(),
+  actor_email: z.string().nullable(),
+  action: z.string(),
+  project_type: z.string().nullable(),
+  record_id: z.uuid().nullable(),
+  serial_no: z.number().int().nullable(),
+  record_name: z.string().nullable(),
+  details: z.record(z.string(), z.unknown()),
+});
+
+export const bulkInsertResult = z.strictObject({
+  inserted: z.number().int(),
+  failed: z.array(z.strictObject({ row_index: z.number().int(), error: z.strictObject({ code: z.string(), message: z.string() }) })),
+});
+
+export const bulkUpdateResult = z.strictObject({ updated: z.number().int(), missing: z.array(z.number().int()) });

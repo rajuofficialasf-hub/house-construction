@@ -1,6 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { idParams, listQuery, nextSerialQuery, projectTypeQuery, serialParams, serialsQuery } from './schemas.js';
+import {
+  activityBody,
+  activityQuery,
+  bulkInsertBody,
+  bulkUpdateBody,
+  changeSerialBody,
+  createBody,
+  idParams,
+  listQuery,
+  nextSerialQuery,
+  projectTypeQuery,
+  serialParams,
+  serialsQuery,
+  updateBody,
+} from './schemas.js';
 
 const fails = (schema: z.ZodType, input: unknown) => expect(schema.safeParse(input).success).toBe(false);
 
@@ -135,5 +149,193 @@ describe('path and other query schemas', () => {
     fails(projectTypeQuery, { project_type: 'x' });
     fails(nextSerialQuery, {});
     expect(nextSerialQuery.parse({ project_type: 'tin' })).toEqual({ project_type: 'tin' });
+  });
+});
+
+// Write bodies (contract §3.3, §4.5খ–§4.9গ).
+
+const record = {
+  project_type: 'tin',
+  year: 2025,
+  name: 'মমতাজ বেগম',
+  division: 'ময়মনসিংহ',
+  district: 'শেরপুর',
+  upazila: 'নালিতাবাড়ী',
+};
+const { project_type: _pt, ...row } = record;
+void _pt;
+
+/** The zod issue's reason as the error handler reports it: params.reason when set, else the code. */
+function reasonOf(schema: z.ZodType, input: unknown) {
+  const result = schema.safeParse(input);
+  expect(result.success).toBe(false);
+  const issue = result.error!.issues[0] as { code: string; path: PropertyKey[]; params?: { reason?: string } };
+  return { reason: issue.params?.reason ?? issue.code, path: issue.path.join('.') };
+}
+
+describe('createBody', () => {
+  it('fills the optional fields with the contract defaults', () => {
+    expect(createBody.parse(record)).toEqual({ ...record, father_or_husband_name: '', address: '', prev_photo_source: null, current_photo_source: null });
+  });
+
+  it('trims and NFC-normalizes text', () => {
+    const raw = 'বা\u09DCি';
+    expect(createBody.parse({ ...record, name: `  ${raw}  ` }).name).toBe(raw.normalize('NFC'));
+  });
+
+  it.each([
+    ['a blank name', { name: '   ' }],
+    ['a 201-character name', { name: 'ক'.repeat(201) }],
+    ['an empty division', { division: '' }],
+    ['year 1999', { year: 1999 }],
+    ['year 2101', { year: 2101 }],
+    ['a fractional year', { year: 2025.5 }],
+    ['a year sent as a string', { year: '2025' }],
+    ['serial 0', { serial_no: 0 }],
+    ['a serial above int4', { serial_no: 2147483648 }],
+    ['an unknown project type', { project_type: 'villa' }],
+    ['an unknown key', { actor_email: 'x@example.org' }],
+    ['a photo url, which only the photo routes set', { prev_photo_url: 'https://x' }],
+    ['a 2001-character source', { prev_photo_source: 'h'.repeat(2001) }],
+  ])('refuses %s', (_label, over) => {
+    fails(createBody, { ...record, ...over });
+  });
+
+  it('accepts an explicit serial and turns a blank source into null', () => {
+    const parsed = createBody.parse({ ...record, serial_no: 41, prev_photo_source: '  ', current_photo_source: ' https://x ' });
+    expect(parsed).toMatchObject({ serial_no: 41, prev_photo_source: null, current_photo_source: 'https://x' });
+  });
+});
+
+describe('updateBody', () => {
+  it('keeps only the given fields, with no defaults added', () => {
+    expect(updateBody.parse({ address: ' নতুন ' })).toEqual({ address: 'নতুন' });
+  });
+
+  it('refuses an empty patch', () => {
+    expect(reasonOf(updateBody, {}).reason).toBe('empty');
+  });
+
+  it.each([{ serial_no: 5 }, { project_type: 'tin' }, { name: null }, { photo_updated_at: '2026-01-01T00:00:00Z' }])('refuses %o', (patch) => {
+    fails(updateBody, patch);
+  });
+
+  it('lets a source be cleared with null', () => {
+    expect(updateBody.parse({ prev_photo_source: null })).toEqual({ prev_photo_source: null });
+  });
+});
+
+describe('changeSerialBody', () => {
+  it('takes one whole serial from 1', () => {
+    expect(changeSerialBody.parse({ serial_no: 350 })).toEqual({ serial_no: 350 });
+    fails(changeSerialBody, { serial_no: 0 });
+    fails(changeSerialBody, { serial_no: '350' });
+    fails(changeSerialBody, {});
+  });
+});
+
+describe('bulkInsertBody', () => {
+  it('drops the given serials in assign_serial mode', () => {
+    const parsed = bulkInsertBody.parse({ project_type: 'tin', mode: 'assign_serial', rows: [{ ...row, serial_no: 9 }, row] });
+    expect(parsed.rows.map((r) => 'serial_no' in r)).toEqual([false, false]);
+  });
+
+  it('keeps the serials in use_given_serial mode', () => {
+    const parsed = bulkInsertBody.parse({ project_type: 'tin', mode: 'use_given_serial', rows: [{ ...row, serial_no: 9 }, { ...row, serial_no: 3 }] });
+    expect(parsed.rows.map((r) => ('serial_no' in r ? r.serial_no : undefined))).toEqual([9, 3]);
+  });
+
+  it('requires a serial on every row in use_given_serial mode, naming the row', () => {
+    const rows = [{ ...row, serial_no: 1 }, { ...row, serial_no: 2 }, row];
+    expect(reasonOf(bulkInsertBody, { project_type: 'tin', mode: 'use_given_serial', rows })).toEqual({ reason: 'required', path: 'rows.2.serial_no' });
+  });
+
+  it('refuses a serial repeated inside the batch', () => {
+    const rows = [{ ...row, serial_no: 4 }, { ...row, serial_no: 4 }];
+    expect(reasonOf(bulkInsertBody, { project_type: 'tin', mode: 'use_given_serial', rows })).toEqual({ reason: 'duplicate', path: 'rows.1.serial_no' });
+  });
+
+  it('names an invalid row', () => {
+    expect(reasonOf(bulkInsertBody, { project_type: 'tin', mode: 'assign_serial', rows: [row, { ...row, year: 1999 }] }).path).toBe('rows.1.year');
+  });
+
+  it('refuses no rows and an unknown mode', () => {
+    fails(bulkInsertBody, { project_type: 'tin', mode: 'assign_serial', rows: [] });
+    fails(bulkInsertBody, { project_type: 'tin', mode: 'merge', rows: [row] });
+  });
+});
+
+describe('bulkUpdateBody', () => {
+  it('drops blank required text and nulls, and keeps an empty address', () => {
+    const parsed = bulkUpdateBody.parse({ project_type: 'tin', rows: [{ serial_no: 3, name: '  ', division: null, address: '', year: 2024 }] });
+    expect(parsed.rows[0]).toEqual({ serial_no: 3, address: '', year: 2024 });
+  });
+
+  it('checks the given fields and requires the serial', () => {
+    fails(bulkUpdateBody, { project_type: 'tin', rows: [{ name: 'x' }] });
+    fails(bulkUpdateBody, { project_type: 'tin', rows: [{ serial_no: 3, year: 1999 }] });
+    fails(bulkUpdateBody, { project_type: 'tin', rows: [{ serial_no: 3, name: 'ক'.repeat(201) }] });
+    fails(bulkUpdateBody, { project_type: 'tin', rows: [] });
+  });
+});
+
+describe('activityQuery', () => {
+  it('defaults the page and parses every filter', () => {
+    expect(activityQuery.parse({})).toEqual({ page: 1, page_size: 50 });
+    expect(
+      activityQuery.parse({
+        action: 'update',
+        project_type: 'tin',
+        record_id: '3f2c0000-0000-4000-8000-000000000001',
+        actor_email: ' admin ',
+        from: '2026-10-01T00:00:00+06:00',
+        to: '2026-10-05T23:59:59.999Z',
+        page: '2',
+        page_size: '100',
+      }),
+    ).toMatchObject({ actor_email: 'admin', page: 2, page_size: 100 });
+  });
+
+  it.each([
+    { action: 'Login' },
+    { action: 'a'.repeat(41) },
+    { from: '2026-10-01T00:00:00' },
+    { record_id: 'abc' },
+    { page_size: '101' },
+    { project_type: 'villa' },
+  ])('refuses %o', (query) => {
+    fails(activityQuery, query);
+  });
+});
+
+describe('activityBody', () => {
+  it('takes a client event with details', () => {
+    expect(activityBody.parse({ action: 'import_run', project_type: 'tin', details: { rows: 3 } })).toEqual({ action: 'import_run', project_type: 'tin', details: { rows: 3 } });
+    expect(activityBody.parse({ action: 'photo_bulk_run' })).toEqual({ action: 'photo_bulk_run', details: {} });
+  });
+
+  it.each(['login', 'logout', 'create', 'update', 'delete', 'photo_update', 'serial_change'])('refuses %s, which the server logs itself', (action) => {
+    expect(reasonOf(activityBody, { action }).reason).toBe('server_logged');
+  });
+
+  it('refuses details over 8 KB, details that are not an object, and an actor in the body', () => {
+    expect(reasonOf(activityBody, { action: 'import_run', details: { note: 'ক'.repeat(2731) } }).reason).toBe('too_big');
+    fails(activityBody, { action: 'import_run', details: [1] });
+    fails(activityBody, { action: 'import_run', actor_email: 'x@example.org' });
+    fails(activityBody, { action: 'Bad-Action' });
+  });
+});
+
+describe('write schemas as JSON Schema', () => {
+  it.each([
+    ['createBody', createBody],
+    ['updateBody', updateBody],
+    ['changeSerialBody', changeSerialBody],
+    ['bulkInsertBody', bulkInsertBody],
+    ['bulkUpdateBody', bulkUpdateBody],
+    ['activityQuery', activityQuery],
+    ['activityBody', activityBody],
+  ] as const)('%s converts with no unresolvable $defs refs', (_name, schema) => {
+    expect(JSON.stringify(z.toJSONSchema(schema, { io: 'input' }))).not.toContain('#/$defs');
   });
 });

@@ -249,7 +249,7 @@ From the roadmap and the C4 brief, not reopened here:
   - `z.toJSONSchema(…, { io: 'input' })` doesn't throw for each body.
 - **Done when:** `npm --prefix server test -- schemas` is green.
 - **Depends on:** none
-- **Status:** todo
+- **Status:** done
 
 ### U3. Record writes: create, update, delete, change serial
 - **Goal:** The four record routes work as contract §4.5খ and §4.6–§4.8 say, behind the deny-by-default guard.
@@ -488,6 +488,7 @@ Finally, the Chrome check from U9.
 ## Progress
 - **Branch:** `migrate/c4-write-endpoints` (from `migrate/c3-read-endpoints`, which is not yet merged into `dev-forhad`)
 - **Updated:** 2026-10-05 16:40
-- **Next:** U2: write body schemas in `server/src/housing/schemas.ts`
+- **Next:** U3: `server/src/housing/writes.ts` and the admin router
 - **Uncommitted:** none
-- **Notes:** `origin/main` was already in `dev-forhad` on 2026-10-05, with no new `supabase/sql` to port.
+- **Notes:** `activityBody.details` uses `z.record(z.string(), z.unknown())`, not `z.json()`. The body is already JSON, and this avoids the `$defs` ref, so the OpenAPI entry needs no hand override. A custom zod check's `params.reason` becomes `details.reason` (`errors.ts`).
+  `origin/main` was already in `dev-forhad` on 2026-10-05, with no new `supabase/sql` to port.

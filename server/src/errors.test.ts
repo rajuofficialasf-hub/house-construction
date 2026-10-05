@@ -70,6 +70,12 @@ describe('errorHandler', () => {
   });
 });
 
+it('reports the reason a custom check names in its params', async () => {
+  const parsed = z.object({ a: z.string().refine(() => false, { params: { reason: 'server_logged' } }) }).safeParse({ a: 'x' });
+  const res = await request(appThrowing(parsed.error)).get('/boom');
+  expect(res.body.error.details).toEqual({ field: 'a', reason: 'server_logged' });
+});
+
 describe('errorHandler with Postgres errors', () => {
   // Shaped as postgres.js builds them from the server's error fields.
   const pgError = (fields: Record<string, unknown>) =>
