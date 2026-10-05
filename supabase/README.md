@@ -24,6 +24,14 @@ Supabase Dashboard → **SQL Editor** এ ফাইলগুলো **এই ক�
 | `dev/06_seed.sql` | ২০টি ডামি রেকর্ড | টেবিলে রেকর্ড থাকলে থামে; ইচ্ছাকৃত হলে শুরুতে `set asf.confirm_seed = 'YES';` |
 | `dev/08_reset_test_data.sql` | সব রেকর্ড ও সিরিয়াল-বদলের লগ মুছে কাউন্টার ০ (২০২৬-০৯-৩০ এ একবার চালানো হয়েছিল) | টেবিলে রেকর্ড থাকলে থামে; ইচ্ছাকৃত হলে শুরুতে `set asf.confirm_reset = 'YES';` |
 
-পর্ব ২ (বহু-প্রকল্প) এর নতুন SQL (১০, ১০b, ১১, ১২, ব্যাকআপ, রোলব্যাক) আসবে M-ধাপ ২–৩-এ — ক্রম ও নিয়ম: `docs/MULTI_PROJECT_PLAN.md` §৬.৪।
+### পর্ব ২ — বহু-প্রকল্প (ক্রম ও নিয়ম: `docs/MULTI_PROJECT_PLAN.md` §৬.৪; নির্দেশনা: `docs/HOUSING_PROGRESS.md` → পর্ব ২)
+| ক্রম | ফাইল | কী করে |
+|---|---|---|
+| ২৫ | `backup/before_10.sql` (আগে Table Editor থেকে CSV এক্সপোর্ট) | `backup` স্কিমায় লাইভ টেবিলের কপি |
+| ২৬ | `10_projects.sql` → `checks/10_verify.sql` | প্রকল্প রেজিস্ট্রি, ফিল্ড, গোপন টেবিল, FK, নতুন কলাম, RLS (শুধু সম্প্রসারণ) → বেসলাইনের সাথে মেলানো |
+| ২৭ | `10b_project_guards.sql` → `checks/10b_selftest.sql` → `checks/rollback_rehearsal.sql` | যাচাই-ট্রিগার ও গার্ড → ১৮টি নিজে-ফিরে-যাওয়া পরীক্ষা → রোলব্যাকের মহড়া |
+| (জরুরি) | `rollback/10_12_rollback.sql` | শুধু AI-এর পরামর্শে; নতুন ডাটা থাকলে নিজেই থামে |
+
+M-ধাপ ৩-এ যোগ হবে: `backup/before_11.sql`, `11_project_rpcs.sql`, `backup/before_12.sql`, `12_activity_log_v2.sql` ও তাদের selftest।
 
 পুরো ধাপে-ধাপে নির্দেশনা: `docs/HOUSING_PROGRESS.md` → ধাপ ২ → "আমাকে যা করতে হবে"।
