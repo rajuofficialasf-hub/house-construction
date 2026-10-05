@@ -9,6 +9,16 @@ const valid = {
   DATABASE_URL: 'postgres://housing_app:pw@127.0.0.1:5432/housing',
   ALLOWED_ORIGINS: 'https://housing.example.org,http://localhost:5173',
   COOKIE_SECURE: 'false',
+  PUBLIC_API_URL: 'https://api.example.org',
+  STORAGE_DRIVER: 'nas',
+  STORAGE_ROOT: '/srv/housing/storage',
+};
+
+const s3 = {
+  ...valid,
+  STORAGE_DRIVER: 's3',
+  S3_BUCKET: 'housing-photos',
+  S3_REGION: 'auto',
 };
 
 describe('loadConfig', () => {
@@ -22,11 +32,20 @@ describe('loadConfig', () => {
       ALLOWED_ORIGINS: ['https://housing.example.org', 'http://localhost:5173'],
       PUBLIC_READ_ORIGINS: [],
       COOKIE_SECURE: false,
+      PUBLIC_API_URL: 'https://api.example.org',
+      STORAGE_DRIVER: 'nas',
+      STORAGE_ROOT: '/srv/housing/storage',
     });
   });
 
   it('applies defaults for optional settings', () => {
-    const config = loadConfig({ DATABASE_URL: valid.DATABASE_URL, ALLOWED_ORIGINS: 'http://localhost:5173' });
+    const config = loadConfig({
+      DATABASE_URL: valid.DATABASE_URL,
+      ALLOWED_ORIGINS: 'http://localhost:5173',
+      PUBLIC_API_URL: valid.PUBLIC_API_URL,
+      STORAGE_DRIVER: 'nas',
+      STORAGE_ROOT: valid.STORAGE_ROOT,
+    });
     expect(config).toMatchObject({ NODE_ENV: 'development', PORT: 3001, LOG_LEVEL: 'info', TRUST_PROXY: 0 });
   });
 
@@ -98,4 +117,61 @@ describe('loadConfig', () => {
       /PUBLIC_READ_ORIGINS: http:\/\/localhost:5173 is also in ALLOWED_ORIGINS/,
     );
   });
+
+  it('requires STORAGE_DRIVER, with no default', () => {
+    const { STORAGE_DRIVER: _omit, ...env } = valid;
+    expect(() => loadConfig(env)).toThrow(/STORAGE_DRIVER/);
+  });
+
+  it('rejects an unknown storage driver', () => {
+    expect(() => loadConfig({ ...valid, STORAGE_DRIVER: 'ftp' })).toThrow(/STORAGE_DRIVER/);
+  });
+
+  it('requires STORAGE_ROOT for the nas driver', () => {
+    const { STORAGE_ROOT: _omit, ...env } = valid;
+    expect(() => loadConfig(env)).toThrow(/STORAGE_ROOT/);
+    expect(() => loadConfig({ ...valid, STORAGE_ROOT: ' ' })).toThrow(/STORAGE_ROOT/);
+  });
+
+  it('parses an s3 configuration, path style off by default', () => {
+    expect(loadConfig(s3)).toMatchObject({ STORAGE_DRIVER: 's3', S3_BUCKET: 'housing-photos', S3_REGION: 'auto', S3_FORCE_PATH_STYLE: false });
+    expect(loadConfig({ ...s3, S3_ENDPOINT: 'http://127.0.0.1:9000', S3_FORCE_PATH_STYLE: 'true' })).toMatchObject({
+      S3_ENDPOINT: 'http://127.0.0.1:9000',
+      S3_FORCE_PATH_STYLE: true,
+    });
+  });
+
+  it('names a missing S3_BUCKET or S3_REGION for the s3 driver', () => {
+    const { S3_BUCKET: _bucket, ...noBucket } = s3;
+    const { S3_REGION: _region, ...noRegion } = s3;
+    expect(() => loadConfig(noBucket)).toThrow(/S3_BUCKET/);
+    expect(() => loadConfig(noRegion)).toThrow(/S3_REGION/);
+  });
+
+  it('never echoes S3 credentials in the error', () => {
+    expect(() => loadConfig({ ...s3, S3_BUCKET: '', AWS_SECRET_ACCESS_KEY: 'sekrit-key' })).toThrow(
+      expect.objectContaining({ message: expect.not.stringContaining('sekrit-key') }),
+    );
+  });
+
+  it('reports base and storage problems together', () => {
+    const { STORAGE_ROOT: _omit, ...env } = valid;
+    expect(() => loadConfig({ ...env, PORT: 'x' })).toThrow(/PORT[\s\S]*STORAGE_ROOT/);
+  });
+
+  it('requires PUBLIC_API_URL', () => {
+    const { PUBLIC_API_URL: _omit, ...env } = valid;
+    expect(() => loadConfig(env)).toThrow(/PUBLIC_API_URL/);
+  });
+
+  it('accepts a PUBLIC_API_URL with a path prefix', () => {
+    expect(loadConfig({ ...valid, PUBLIC_API_URL: 'https://example.org/housing-api' }).PUBLIC_API_URL).toBe('https://example.org/housing-api');
+  });
+
+  it.each(['https://api.example.org/', 'api.example.org', 'ftp://api.example.org', 'https://api.example.org?x=1'])(
+    'rejects %s as PUBLIC_API_URL',
+    (value) => {
+      expect(() => loadConfig({ ...valid, PUBLIC_API_URL: value })).toThrow(/PUBLIC_API_URL/);
+    },
+  );
 });

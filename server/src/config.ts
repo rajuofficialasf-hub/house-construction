@@ -7,6 +7,17 @@ const origin = z
   .trim()
   .refine((value) => URL.canParse(value) && new URL(value).origin === value, 'must be an origin like https://example.org');
 
+// The API's own public base URL, which stored photo URLs are built from (docs/api/API_CONTRACT.md §3.2).
+// Scheme, host, optional path; no trailing slash, query or fragment, so `${url}/api/v1/…` is always right.
+const baseUrl = z
+  .string()
+  .trim()
+  .refine((value) => {
+    if (!URL.canParse(value)) return false;
+    const url = new URL(value);
+    return (url.protocol === 'http:' || url.protocol === 'https:') && !value.endsWith('/') && !url.search && !url.hash;
+  }, 'must be an http(s) URL with no trailing slash, like https://api.example.org');
+
 // Every setting the API reads from the environment. The process refuses to start when any
 // value is missing or malformed (NE-CFG-01).
 const configSchema = z.object({
@@ -32,6 +43,7 @@ const configSchema = z.object({
     .enum(['true', 'false'])
     .default('true')
     .transform((value) => value === 'true'),
+  PUBLIC_API_URL: baseUrl,
 }).superRefine((config, ctx) => {
   // One role per origin, so nobody has to work out which list wins.
   for (const value of config.PUBLIC_READ_ORIGINS) {
@@ -41,7 +53,26 @@ const configSchema = z.object({
   }
 });
 
-export type Config = z.infer<typeof configSchema>;
+// Which storage driver holds the photos, and only that driver's settings (NS-34). No default: a
+// deployment must say where its files live. S3 credentials are not settings here; the AWS SDK reads
+// AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY or the host's IAM role (NS-43).
+const storageSchema = z.discriminatedUnion('STORAGE_DRIVER', [
+  z.object({ STORAGE_DRIVER: z.literal('nas'), STORAGE_ROOT: z.string().trim().min(1) }),
+  // TEMP: S3 is a stopgap until the NAS is ready; remove this branch with drivers/s3.ts.
+  z.object({
+    STORAGE_DRIVER: z.literal('s3'),
+    S3_BUCKET: z.string().trim().min(1),
+    S3_REGION: z.string().trim().min(1),
+    S3_ENDPOINT: z.url({ protocol: /^https?$/ }).optional(),
+    S3_FORCE_PATH_STYLE: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+  }),
+]);
+
+export type StorageConfig = z.infer<typeof storageSchema>;
+export type Config = z.infer<typeof configSchema> & StorageConfig;
 
 export class ConfigError extends Error {
   override name = 'ConfigError';
@@ -49,10 +80,12 @@ export class ConfigError extends Error {
 
 /** Parses the environment. Throws a ConfigError listing each bad setting by name, never its value. */
 export function loadConfig(env: Record<string, string | undefined> = process.env): Config {
-  const result = configSchema.safeParse(env);
-  if (!result.success) {
-    const problems = result.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`);
+  const base = configSchema.safeParse(env);
+  const storage = storageSchema.safeParse(env);
+  const issues = [...(base.error?.issues ?? []), ...(storage.error?.issues ?? [])];
+  if (!base.success || !storage.success) {
+    const problems = issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`);
     throw new ConfigError(`Invalid server configuration:\n  ${problems.join('\n  ')}`);
   }
-  return result.data;
+  return { ...base.data, ...storage.data };
 }

@@ -30,10 +30,10 @@ npm run i18n-check                # বাংলা UI লেখা বনাম
 
 ```bash
 docker compose up                 # UI http://localhost:5173 , API http://localhost:3001/api/v1/readyz
-VITE_HOUSING_BACKEND=rest docker compose up   # UI কে লোকাল API তে চালাতে (পড়া কাজ করে; লেখা C4 এ, ছবি C5 এ; ডিফল্ট mock)
+VITE_HOUSING_BACKEND=rest docker compose up   # UI কে লোকাল API তে চালাতে (পড়া, লেখা ও ছবি; ডিফল্ট mock)
 ```
 
-প্রথমবার কন্টেইনারে `npm ci` চলে বলে একটু সময় লাগে; package-lock বদলালে আবার চলে। কন্টেইনার কোনো `.env` ফাইল পড়ে না এবং সোর্স শুধু পড়তে পারে; তাই এখানে Supabase মোড চলে না, সেটি হোস্টে `npm run dev` দিয়ে চালান।
+ছবি NAS ড্রাইভারে `housing-storage` ভলিউমে থাকে (`docker compose down -v` এ মুছে যায়)। প্রথমবার কন্টেইনারে `npm ci` চলে বলে একটু সময় লাগে; package-lock বদলালে আবার চলে। কন্টেইনার কোনো `.env` ফাইল পড়ে না এবং সোর্স শুধু পড়তে পারে; তাই এখানে Supabase মোড চলে না, সেটি হোস্টে `npm run dev` দিয়ে চালান।
 
 আলাদা করে হোস্টে চালাতে:
 

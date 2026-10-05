@@ -33,6 +33,10 @@ failed.csv
 data/*.csv
 photos/
 
+# লোকাল ছবির স্টোরেজ (NAS ড্রাইভার, ডেভ ও e2e)
+.storage/
+server/.storage/
+
 # ডেমো বিল্ডের জিপ
 dist.zip
 

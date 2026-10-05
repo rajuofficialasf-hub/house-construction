@@ -24,7 +24,7 @@ The server has no photo routes. Its admin guard answers 401 or 404 for them. The
 - **R4** `GET /photos/:id` streams a photo to anyone, with no login and no CORS needed for `<img>`. A replaced, deleted or unknown photo is 404. The response is cacheable for a year and safe to embed from the site's and allowlisted apps' origins (roadmap R12).
 - **R5** Deleting a record removes its photo files from storage after the delete commits. A serial change keeps the record's photos and URLs as they are (contract §4.5খ, §4.8).
 - **R6** No storage call runs inside a database transaction. A removal that fails after commit is retried later by a sweep command, and a failed upload leaves the record unchanged (`DB-TX-02`, `NS-06`).
-- **R7** Storage goes through one interface with a NAS driver and an S3 driver chosen by `STORAGE_DRIVER`. Both pass the same storage tests, the NAS driver against a temp folder and the S3 driver against MinIO in local Docker (roadmap R11).
+- **R7** Storage goes through one interface with a NAS driver and an S3 driver chosen by `STORAGE_DRIVER`. Both run the same storage tests: the NAS driver against a temp folder on every run, and the S3 driver against a real bucket when `TEST_S3_*` is set (C6). MinIO's images are no longer available, so there is no local S3 (user decision, 2026-10-05) (roadmap R11).
 - **R8** Every photo upload, and every photo delete that removes something, leaves a `photo_update` activity row carrying the acting admin and the changed kinds (roadmap R6).
 - **R9** The REST runner has no photo known gaps, and the `admin-rest` Playwright project runs the photo specs, including the bulk photo page (2 uploads at a time) (roadmap R1, R2).
 - **R10** `GET /api/v1/openapi.json` documents the photo upload and delete as admin-only and the photo route as public.
@@ -35,7 +35,7 @@ The server has no photo routes. Its admin guard answers 401 or 404 for them. The
   - the `housing_files` table (migration 0009)
   - photo upload, delete and serve routes, with image processing
   - file removal on record delete, and the tombstone sweep command
-  - MinIO and a storage volume in compose
+  - a storage volume in compose
   - contract v0.13, the shared contract suite's photo tests, the REST runner and the `admin-rest` photo specs
   - migration-notes and testing docs
 - Out (not now):
@@ -110,12 +110,12 @@ From the roadmap and the C5 brief, not reopened here:
     - `get` sends `GetObjectCommand` and returns the body as a `Readable`. `NoSuchKey` (or a 404 status) becomes `StorageNotFoundError`.
     - `remove` sends `DeleteObjectCommand`, which already succeeds on a missing key.
     - The client gets `NodeHttpHandler` connection and request timeouts (5 s and 30 s), `forcePathStyle` from config, and credentials from the default AWS chain (`NS-43`).
-    - The bucket is private (`NS-40`); MinIO's init container creates it with no anonymous policy. Server-side encryption is a bucket setting, not a request header (AWS S3 and R2 encrypt at rest by default; MinIO without KMS refuses an SSE header). So the driver sends none, and C6 checks that the production bucket blocks public access, has default encryption on, and that its IAM policy covers that one bucket only (`NS-43`).
+    - The bucket is private (`NS-40`). Server-side encryption is a bucket setting, not a request header (AWS S3 and R2 encrypt at rest by default). So the driver sends none, and C6 checks that the production bucket blocks public access, has default encryption on, and that its IAM policy covers that one bucket only (`NS-43`).
   - **Config (`NS-34`).** `config.ts` keeps its `z.object(…).superRefine(…)` schema for the existing keys (plus `PUBLIC_API_URL`) and parses a `storageEnv` discriminated union on `STORAGE_DRIVER` (no default) next to it. `loadConfig` runs both `safeParse`s, merges both issue lists into one `ConfigError`, and returns `Config = BaseConfig & StorageConfig`. U1 owns the whole union, the `s3` branch included.
     - `nas` needs `STORAGE_ROOT`.
     - `s3` needs `S3_BUCKET` and `S3_REGION`, plus an optional `S3_ENDPOINT` (url) and `S3_FORCE_PATH_STYLE` (boolean string). These are `TEMP:`.
     - The error names the missing variable and never prints a value (`NE-CFG-03`).
-    - Credentials are not config keys: the AWS SDK reads `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` (or an IAM role). `server/test/support/env.ts` sets them to the MinIO root values before the test client is built. Compose passes them to the api only in a commented `TEMP:` s3 block. The MinIO root credentials live only in `compose.yaml` and gitignored `.env` files and are never reused in staging or production.
+    - Credentials are not config keys: the AWS SDK reads `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` (or an IAM role). The S3 tests read the bucket, region, optional endpoint and these two variables from the developer's own environment (`TEST_S3_BUCKET`, `TEST_S3_REGION`, `TEST_S3_ENDPOINT`), never from committed files. Use a test-only bucket and key, never the production ones.
 - **Upload pipeline (`NS-03`, `NS-04`, `NE-REQ-02`).** It lives in `server/src/photos/process.ts`, with no DB and no Express in it.
   - **Parsing.** `busboy` reads `req` with these limits: `files: 2`, `fields: 2`, `parts: 4`, `fieldSize: 64`, `fileSize: 5 MB`. The chain is `originCheck` (`server/src/http/origin.ts`, method-based, so it covers multipart too), then the guard, then `requireAdmin`, then the handler, so no cross-origin or anonymous request is parsed. The global `express.json` skips multipart by content type, so `app.ts` needs no `BULK_PATH`-style skip.
   - **Fields.**
@@ -181,13 +181,12 @@ From the roadmap and the C5 brief, not reopened here:
 - **REST adapter.** `uploadPhoto` and `deletePhoto` already call the endpoints (`rest/index.ts:133-137`). The UI never calls `getImageStorage` (only the adapters use `ImageStorage` internally), so `createRestImageStorage` stays a `NOT_IMPLEMENTED` stub. Its comment changes to say photos go through `uploadPhoto` and `deletePhoto`, and that the stub goes with the `ImageStorage` interface in C8. `photoSrc`'s `?v=` stays.
 - **Local Docker (`NS-20`).** `compose.yaml` changes:
   - The api service gets `STORAGE_DRIVER=nas`, `STORAGE_ROOT=/data/storage` on a named volume `housing-storage` (writable; the other api mounts are read-only), and `PUBLIC_API_URL=http://localhost:3001`.
-  - New `minio` service: a pinned `minio/minio` tag, `127.0.0.1:9000` and console `127.0.0.1:9001`, volume `housing-minio`, a healthcheck, and `TEMP:` comments.
-  - New one-shot `minio-init` (`minio/mc`) that creates the private buckets `housing-photos-dev` and `housing-test`.
+  - No local S3 service: MinIO's public images are gone (Docker Hub has no repo, quay.io needs a login), and the user chose to test S3 against a real bucket in C6 instead of a substitute.
   - `server/.env.example` gets the storage and `PUBLIC_API_URL` lines, with the S3 block commented as `TEMP:`.
 - **How tests run each driver (R7).** `server/test/storage/storageContract.ts` exports `runStorageContract(name, makeDriver)`, following `tests/contract/housingApiContract.ts`.
   - `nas.test.ts` runs it on a fresh temp folder.
-  - `s3.test.ts` runs it against MinIO at `127.0.0.1:9000` (`TEST_S3_*` defaults in `test/support/env.ts`, with the same local-host guard as the database).
-  - MinIO is required like the database: if it isn't reachable, the test fails with "start it with `docker compose up -d minio`" instead of skipping.
+  - `s3.test.ts` runs it against a real bucket only when `TEST_S3_BUCKET` and `TEST_S3_REGION` are set; otherwise `describe.skipIf` skips it, and the skip reason names the variables. This skip is the user's decision, not a weakened test (`TS-15`).
+  - Always, with no bucket: the S3 driver's timeout test against a local TCP server that accepts and never answers, and `createStorage` building an s3 driver from config.
   - The route tests run on the NAS driver. One upload-serve-delete smoke test also runs with the S3 driver.
 
 - **Diagram:** `docs/diagrams/backend-architecture.md` (Mermaid), the target flow now shows the photo routes, the storage adapter with NAS and S3 drivers, and the photo rules.
@@ -195,7 +194,7 @@ From the roadmap and the C5 brief, not reopened here:
 ## Implementation units
 
 ### U1. Storage config and local Docker
-- **Goal:** `STORAGE_DRIVER`, `STORAGE_ROOT`, `S3_*` and `PUBLIC_API_URL` are parsed at startup, and compose starts MinIO and a storage volume.
+- **Goal:** `STORAGE_DRIVER`, `STORAGE_ROOT`, `S3_*` and `PUBLIC_API_URL` are parsed at startup, and compose gives the API a storage volume.
 - **Requirements:** R7
 - **Files:** `server/src/config.ts`, `server/src/config.test.ts` (update the `valid` fixture, the whole-config `toEqual` and the "applies defaults" env), `server/.env.example`, `server/.env` (local, by hand), `compose.yaml`, `.gitignore`, `README.md` (local setup lines). `server.ts` wiring moves to U6, where `createApp` accepts the deps.
 - **Approach:** the `NS-34` union next to the existing schema, as in Technical decisions. Compose follows the existing `db` service (loopback port, healthcheck, named volume).
@@ -203,9 +202,9 @@ From the roadmap and the C5 brief, not reopened here:
   - Each of these fails and names the variable: a missing `STORAGE_DRIVER`, `STORAGE_DRIVER=ftp`, `nas` without `STORAGE_ROOT`, `s3` without `S3_BUCKET`, `PUBLIC_API_URL` missing, and `PUBLIC_API_URL` not a URL or with a trailing slash.
   - Valid `nas` and `s3` configs parse.
   - A secret value (`AWS_SECRET_ACCESS_KEY` in env) never shows in an error.
-- **Done when:** `docker compose up -d db minio minio-init` brings db and minio to healthy, `minio-init` exits 0 and both buckets exist, and `loadConfig` accepts the compose api env.
+- **Done when:** the config tests pass and `loadConfig` accepts the compose api env. The api container starting with the new env is checked in U6, when `server.ts` reads it.
 - **Depends on:** none
-- **Status:** todo
+- **Status:** done
 
 ### U2. Storage interface, NAS driver and storage contract suite
 - **Goal:** `StorageDriver` exists with a path-safe NAS driver that passes a shared driver suite.
@@ -230,14 +229,14 @@ From the roadmap and the C5 brief, not reopened here:
 - **Status:** todo
 
 ### U3. S3 driver (temporary)
-- **Goal:** `STORAGE_DRIVER=s3` works against MinIO (and AWS S3 or R2 through config), added as one file plus one registry line.
+- **Goal:** `STORAGE_DRIVER=s3` works against AWS S3 or R2 (or any S3-compatible service) through config, added as one file plus one registry line.
 - **Requirements:** R7
 - **Files:** `server/src/storage/drivers/s3.ts`, one line in `server/src/storage/index.ts`, `server/package.json` and lock (`@aws-sdk/client-s3`, `@aws-sdk/lib-storage`), `server/test/support/env.ts` (`TEST_S3_*`), `server/test/storage/s3.test.ts`
 - **Approach:** `NS-40`..`NS-44` as in Technical decisions, every line `TEMP:`. Check install scripts first (`ST-32`).
 - **Tests:**
-  - the full `runStorageContract` against MinIO;
+  - the full `runStorageContract` against a real bucket, when `TEST_S3_*` is set;
   - a client pointed at a port that accepts but never answers rejects within the request timeout instead of hanging;
-  - MinIO down gives the clear "start it with …" failure.
+  - without `TEST_S3_*` the contract run is skipped with a message naming the variables.
 - **Done when:** both driver runs pass, and the commit that adds S3 touches only `drivers/s3.ts`, one `index.ts` line, package files, `test/support/env.ts` and its tests (U1 already parses the `s3` config).
 - **Depends on:** U2
 - **Status:** todo
@@ -311,7 +310,7 @@ From the roadmap and the C5 brief, not reopened here:
     - two concurrent uploads to the same slot leave exactly one live pair, and the loser's files are tombstoned or removed.
   - Record delete: a record with both kinds' photos answers 204 and all four objects are removed; a failing `remove` still gives 204 and leaves tombstones.
   - changeSerial on a record with photos keeps the URLs and files (the existing test).
-  - The S3 smoke test: one upload, then a delete, with the S3 driver against MinIO.
+  - The S3 smoke test: one upload, then a delete, with the S3 driver, when `TEST_S3_*` is set.
   - OpenAPI drift passes with both routes marked `adminSession`.
 - **Done when:** the tests pass and the contract text matches the behavior.
 - **Depends on:** U3, U4, U5
@@ -368,7 +367,7 @@ From the roadmap and the C5 brief, not reopened here:
 - **Requirements:** R1–R10
 - **Files:**
   - `docs/architecture/migration-notes.md`: the Known facts photo bullets; Decision 3 settled in C5 (UUID keys, files table, no move, tombstones, serve route, `PUBLIC_API_URL`)
-  - `docs/testing/README.md`: the MinIO requirement, the driver runs and the storage folder for e2e
+  - `docs/testing/README.md`: how to run the S3 tests against a real bucket (`TEST_S3_*`), the driver runs and the storage folder for e2e
   - the roadmap C5 row (done, plan link; the copy script moves to the NAS switch)
   - a status note at the top of the photo plan saying which parts C5 built and what changed (file-to-record direction, tombstones, copy script and orphan cleanup deferred)
   - this plan's "Notes for later chunks" (fill in what was built differently)
@@ -385,7 +384,7 @@ From the roadmap and the C5 brief, not reopened here:
 
 ## Verification
 - `PATH=~/.nvm/versions/node/v22.20.0/bin:$PATH` for every server command.
-- `docker compose up -d db minio minio-init`
+- `docker compose up -d db`
 - `npm --prefix server run typecheck` and `npm --prefix server run build`
 - `npm --prefix server test` (rebuilds `housing_test`, runs both storage drivers)
 - `npm run lint`, `npm run build` (runs `tsc -b`), `npm test`
@@ -404,7 +403,7 @@ From the roadmap and the C5 brief, not reopened here:
 
 ## Notes for later chunks
 - C6: set `TRUST_PROXY` to the exact hop count before the photo route is reachable beyond local and staging. Without it every client shares the proxy's IP in the photo limiter, and with a loose value `X-Forwarded-For` can be spoofed past it.
-- C6: check the production bucket: public access blocked, default encryption on, an IAM policy for that one bucket only (`NS-40`, `NS-43`). Set `PUBLIC_API_URL` to the production value before the first upload.
+- C6: run `npm --prefix server test` once with `TEST_S3_*` pointing at a test bucket on the chosen provider (S3 or R2), so the S3 contract and smoke tests run. Then check the production bucket: public access blocked, default encryption on, an IAM policy for that one bucket only (`NS-40`, `NS-43`). Set `PUBLIC_API_URL` to the production value before the first upload.
 - C6: schedule `npm --prefix server run files:sweep` (PM2 cron), allow the API origin in the web app's CSP `img-src`, and check `require('sharp')` on the box.
 - C6: objects left with no `housing_files` row by a crash mid-upload need a `list` operation to find. Decide whether to add one to `NS-31`.
 - C7: import Supabase photos through `storage.put` plus `housing_files` rows, writing URLs with the production `PUBLIC_API_URL`. `scripts/migrate-photos.mjs` stays until C8.
@@ -418,7 +417,7 @@ From the roadmap and the C5 brief, not reopened here:
 
 ## Progress
 - **Branch:** `migrate/c5-photos`
-- **Updated:** 2026-10-05 17:50
-- **Next:** U1, add the storage union and `PUBLIC_API_URL` to `server/src/config.ts`
+- **Updated:** 2026-10-05 18:05
+- **Next:** U2, write `server/test/storage/storageContract.ts` and the NAS driver
 - **Uncommitted:** none
-- **Notes:** doc review 2026-10-05: kept tombstones + sweep; no activity row on a no-op photo delete; drain timeout 10 s and 2 concurrent decodes added.
+- **Notes:** U1 also added `e2e/support/rest-env.ts` and the admin-rest API's storage env now, so `playwright.config.ts` keeps working with the new required config. A local `server/.env` (gitignored) needs `PUBLIC_API_URL`, `STORAGE_DRIVER` and `STORAGE_ROOT` added by hand. MinIO's images can't be pulled (Docker Hub repo gone, quay.io 401). The user chose no local S3: S3 tests run only with `TEST_S3_*`, in C6. Doc review 2026-10-05: kept tombstones + sweep; no activity row on a no-op photo delete; drain timeout 10 s and 2 concurrent decodes added.
