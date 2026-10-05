@@ -1,7 +1,7 @@
 ---
 title: C5 Photos
 type: migrate
-status: in-progress
+status: done
 source: plan
 date: 2026-10-05
 doc_review: 2026-10-05
@@ -415,6 +415,12 @@ From the roadmap and the C5 brief, not reopened here:
   - The "401 before parsing" test sends a small upload and checks that no storage write happened; a 6 MB body answered early reset the connection.
   - busboy refuses a raw control character in a file name as a malformed part (400), so names are only cut to 255 characters.
   - The `.gitignore` rule `photos/` (photo-migration data) got exceptions for `server/src/photos/` and `server/test/photos/`.
+- Review (2026-10-05): one P1 and one P2, both fixed:
+  - **P1:** a photo part that busboy emitted after the request had already failed was still processed. That could hang the upload or leave orphan files; it is now drained.
+  - **P2:** record delete now takes the photo writes' row lock, so a racing upload can't leave live files without a record.
+  - **P3s fixed:** the plan path on R12, comments on the magic-number check, the S3 bucket encryption, the 0009 down section, and the exact storage count in the race test.
+  - **No change needed:** an unauthenticated DELETE photo test was asked for, but `housing-writes.test.ts` already has one.
+  - **Still open:** P3 `CLAUDE.md` `## Stack profile` (`ST-43`), with the roadmap's rule-amendment task as before.
 - Live check (2026-10-05, compose on `rest`): a JPEG with GPS EXIF and orientation 6 came back as a 1600×2133 WebP with no EXIF; replace gave a new URL and the old one 404s; a serial change kept the URLs; a record delete removed all four files; the bulk page uploaded 4 of 4. The dev database now has photos on five semi_pucca/tin records, and record 1's serial went to 900 and back, so the semi_pucca counter is at 900. `docker compose down -v` resets it.
 
 ## Definition of done
@@ -422,10 +428,3 @@ From the roadmap and the C5 brief, not reopened here:
 - Verification commands pass
 - `ae-review` has run, with no open P0 or P1
 - Code from abandoned attempts is removed
-
-## Progress
-- **Branch:** `migrate/c5-photos`
-- **Updated:** 2026-10-05 18:05
-- **Next:** finish: `ae-test` (full), then `ae-simplify`, `ae-review`
-- **Uncommitted:** none
-- **Notes:** U9: the supabase-local runner had no photo gaps to rename. The replace check in the shared suite compares URLs per mode (same path on serial, new URL on opaque) instead of `photo_updated_at`, which can repeat within one millisecond on the mock. U8: the sweep CLI is `server/src/cli/files-sweep.ts` (not `server/scripts/`), next to the admin CLI, because only `src/` is built and production must run it. U7: the UI check of served photos moves to U10's live run (compose on `rest`). U6: the "401 before parsing" test sends a small upload and checks no storage write happened; a 6 MB body answered early reset the connection (EPIPE) in 2 of 4 runs. The DB-failure-after-put case is covered by the unknown-record 404 (same catch path: the transaction throws and the new keys are removed). The C5 TODO test in `housing-writes.test.ts` was removed; `housing-photos.test.ts` covers the real routes. U5 stream gotchas, all in `server/src/photos/process.ts` comments: never destroy busboy's file stream (busboy stalls; unpipe and resume instead); the NAS driver attaches to a body only after `mkdir`, so a body destroyed earlier needs its own error listener; a storage failure must not be read as an image error (pipe, not pipeline, from the encoder); busboy needs `defParamCharset: 'utf8'` or Bangla file names arrive as Latin-1. busboy refuses a raw control character in a file name (400 `malformed_multipart`). The S3 client needs `throwOnRequestTimeout: true`; without it `requestTimeout` only logs a warning and the request hangs (the timeout test caught it). U1 also added `e2e/support/rest-env.ts` and the admin-rest API's storage env now, so `playwright.config.ts` keeps working with the new required config. A local `server/.env` (gitignored) needs `PUBLIC_API_URL`, `STORAGE_DRIVER` and `STORAGE_ROOT` added by hand. MinIO's images can't be pulled (Docker Hub repo gone, quay.io 401). The user chose no local S3: S3 tests run only with `TEST_S3_*`, in C6. Doc review 2026-10-05: kept tombstones + sweep; no activity row on a no-op photo delete; drain timeout 10 s and 2 concurrent decodes added.
