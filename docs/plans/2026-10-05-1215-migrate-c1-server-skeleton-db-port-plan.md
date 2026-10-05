@@ -83,7 +83,7 @@ Every later chunk (login, reads, writes, photos) needs a running server and the 
   - responses carry helmet headers and no `x-powered-by`.
 - **Done when:** `npm --prefix server run typecheck` and `npm --prefix server test` pass, `npm --prefix server run dev` serves `/api/v1/readyz` = 200 against the Docker database, and the root `npm run build` and `npm test` still pass.
 - **Depends on:** U1
-- **Status:** todo
+- **Status:** done
 
 ### U3. Port the housing schema to migrations
 - **Goal:** The migrations rebuild the Supabase housing schema on plain Postgres, with roles and the actor helper.
@@ -160,7 +160,7 @@ Every later chunk (login, reads, writes, photos) needs a running server and the 
 
 ## Progress
 - **Branch:** `migrate/c1-server-db`
-- **Updated:** 2026-10-05 12:20
-- **Next:** U2, create `server/package.json` and `server/src/config.ts`
+- **Updated:** 2026-10-05 12:45
+- **Next:** U3, port `supabase/sql/01_schema.sql` to `server/db/migrations/0001_housing_schema.sql` and add dbmate
 - **Uncommitted:** none
-- **Notes:** Local machine runs Node 26; code targets Node 22 (`ST-22`), so run the final test pass under Node 22 via nvm.
+- **Notes:** Local machine runs Node 26; code targets Node 22 (`ST-22`), so run server commands with `PATH=~/.nvm/versions/node/v22.20.0/bin:$PATH`. TypeScript pinned to ~6.0.2 to match the root (npm picked 7 by default). esbuild's postinstall (used by tsx/vitest) was checked and rebuilt; installs use `--ignore-scripts` (`ST-32`).
