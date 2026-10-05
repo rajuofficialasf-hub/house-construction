@@ -165,7 +165,7 @@ From the roadmap and the C3 brief, not reopened here:
   - `z.toJSONSchema(listQuery, { io: 'input' })` does not throw
 - **Done when:** `npm --prefix server test -- schemas` is green and typecheck passes.
 - **Depends on:** none
-- **Status:** todo
+- **Status:** done
 
 ### U2. Migration 0008: read indexes
 - **Goal:** Index `serial_no` and `created_at` for the list sorts.
@@ -374,6 +374,6 @@ Finally, the Chrome check from U9.
 ## Progress
 - **Branch:** `migrate/c3-read-endpoints`
 - **Updated:** 2026-10-05 14:10
-- **Next:** U1, write `server/src/housing/schemas.test.ts` first
+- **Next:** U2, write `0008_read_indexes.sql` and its index/ACL test
 - **Uncommitted:** none
 - **Notes:** `origin/main` had nothing new at start (no `supabase/sql` to port), so 0008 is free.
