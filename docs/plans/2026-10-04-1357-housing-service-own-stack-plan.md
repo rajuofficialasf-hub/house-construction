@@ -4,7 +4,11 @@ type: feat
 date: 2026-10-04
 topic: housing-service-own-stack
 execution: code
+status: superseded
+superseded_by: docs/plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md
 ---
+
+> **Superseded** by `docs/plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md`. The database (plain SQL) and auth (own session login) choices still stand. Photos now follow `docs/plans/2026-10-04-1607-feat-photo-storage-strategy-plan.md`: S3 first, NAS later, all photos served through the API. The Security Baseline, deployment and cutover sections below are still the reference for chunks C2, C6 and C7.
 
 ## Goal Capsule
 
