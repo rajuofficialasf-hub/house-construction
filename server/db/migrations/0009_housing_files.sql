@@ -33,4 +33,6 @@ revoke all on public.housing_files from public;
 grant select, insert, update, delete on public.housing_files to housing_app;
 
 -- migrate:down
+-- Only before real uploads exist: dropping the table loses the key of every stored object, and the
+-- records' photo URLs then 404. With real photos, fix forward instead (DB-MIG-05).
 drop table if exists public.housing_files;

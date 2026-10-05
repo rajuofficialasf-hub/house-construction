@@ -5,7 +5,11 @@ export type SniffedFormat = 'jpeg' | 'png' | 'webp';
 
 export const SNIFF_BYTES = 12;
 
-/** The format the leading bytes say, or undefined. Never trusts a Content-Type or file name (NS-03). */
+/**
+ * The format the leading bytes say, or undefined. Never trusts a Content-Type or file name (NS-03).
+ * Three fixed signatures instead of the file-type package: sharp then decodes the whole image, so
+ * this only has to turn away anything that isn't one of the allowed formats before decoding.
+ */
 export function sniffImage(head: Buffer): SniffedFormat | undefined {
   if (head.length >= 3 && head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff) return 'jpeg';
   if (head.length >= 8 && head.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'png';

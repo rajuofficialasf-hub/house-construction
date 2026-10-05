@@ -28,7 +28,8 @@ function isNotFound(err: unknown): boolean {
 /**
  * The S3 driver for AWS S3 or an S3-compatible service such as R2 (NS-40..NS-44). The bucket is
  * private and every file goes through the API; credentials come from the AWS environment variables
- * or the host's IAM role, never from config (NS-43).
+ * or the host's IAM role, never from config (NS-43). Server-side encryption is the bucket's default
+ * setting (NS-40), checked when the bucket is set up, so no encryption header is sent.
  */
 export function createS3Driver(config: S3DriverConfig, timeouts: S3Timeouts = DEFAULT_TIMEOUTS): StorageDriver {
   const client = new S3Client({

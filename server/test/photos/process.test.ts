@@ -140,6 +140,17 @@ describe('photo upload pipeline', () => {
       expect(await storedFiles()).toEqual([]);
     });
 
+    it.each([
+      ['an unknown field', (r: request.Test) => r.field('serial_no', '3')],
+      ['a repeated kind', (r: request.Test) => r.field('kind', 'prev').field('kind', 'current')],
+      ['an over-long kind', (r: request.Test) => r.field('kind', 'x'.repeat(100))],
+    ])('%s before the photo, answered without hanging', async (_name, before) => {
+      const png = await solid(40, 40).png().toBuffer();
+      const res = await before(request(appFor({ storage })).post('/upload')).attach('photo', png, 'x.png');
+      expect(res.status).toBe(400);
+      expect(await storedFiles()).toEqual([]);
+    }, 4_000);
+
     it('a truncated JPEG', async () => {
       const jpeg = await solid(1200, 900).jpeg().toBuffer();
       const res = await request(appFor({ storage })).post('/upload').field('kind', 'prev').attach('photo', jpeg.subarray(0, jpeg.length / 2), 'x.jpg');

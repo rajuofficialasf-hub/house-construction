@@ -12,7 +12,7 @@ import { imageGate, UnsupportedImageError } from './sniff.js';
 /**
  * Turns a photo upload (contract §4.10: multipart kind, photo, optional thumb) into two WebP files
  * in storage: the full photo (≤1600 px wide) and a 400 px thumbnail, both decoded and re-encoded
- * by sharp, which writes no EXIF, GPS or other metadata (roadmap R12). The client's own thumb is
+ * by sharp, which writes no EXIF, GPS or other metadata (R12, docs/plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md). The client's own thumb is
  * read and discarded so its metadata never gets in. Bytes stream from the request through sharp to
  * storage (NS-04); nothing here touches the database. On any failure both keys are removed and the
  * rest of the request is drained before the error is thrown, so the client reads the error status.
@@ -188,7 +188,8 @@ export function createPhotoReceiver(options: PhotoReceiverOptions): (req: Incomi
     const gate = imageGate();
     input.pipe(gate);
     // The request failed elsewhere (size limit, a bad field): stop reading this photo too.
-    signal.addEventListener('abort', () => gate.destroy(signal.reason as Error), { once: true });
+    if (signal.aborted) gate.destroy(signal.reason as Error);
+    else signal.addEventListener('abort', () => gate.destroy(signal.reason as Error), { once: true });
     const feeding = pipeline(gate, decoder).catch((err: unknown) => {
       imageError ??= err;
       input.unpipe(gate);
@@ -272,6 +273,11 @@ export function createPhotoReceiver(options: PhotoReceiverOptions): (req: Incomi
       });
 
       parser.on('file', (name, stream, info) => {
+        // busboy can still emit parts from the chunk it is in after the request has already failed.
+        if (settled) {
+          stream.resume();
+          return;
+        }
         if (name === 'photo' && !photo) {
           stream.once('limit', () => fail(tooLarge()));
           photo = storePhoto(stream, cleanName(info.filename), keys, abort.signal);

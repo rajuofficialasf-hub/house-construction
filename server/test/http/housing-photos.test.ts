@@ -173,13 +173,15 @@ describe('POST /api/v1/housing/:id/photo', () => {
 
   it('leaves exactly one live photo and thumb when two uploads race for the same slot', async () => {
     const { id } = await insertRecord(sql);
+    const before = await storedCount();
     const results = await Promise.all([upload(id, 'current'), upload(id, 'current')]);
     expect(results.map((r) => r.status)).toEqual([200, 200]);
     const files = await fileRows(id);
     expect(files.map((f) => f.variant).sort()).toEqual(['photo', 'thumb']);
     const [rec] = await owner<{ current_photo_url: string }[]>`select current_photo_url from public.housing_beneficiaries where id = ${id}`;
     expect(rec!.current_photo_url).toBe(`${TEST_PUBLIC_API_URL}/api/v1/photos/${files.find((f) => f.variant === 'photo')!.id}`);
-    expect(await storedCount()).toBeGreaterThanOrEqual(2);
+    // The losing upload's files were replaced and removed: only the live pair is left in storage.
+    expect(await storedCount()).toBe(before + 2);
   });
 });
 
@@ -223,6 +225,19 @@ describe('DELETE /api/v1/housing/:id with photos', () => {
     expect(res.status).toBe(204);
     for (const key of keys) expect(await exists(local.storage, key)).toBe(false);
     expect(await owner`select count(*)::int as n from public.housing_files`).toEqual([{ n: 0 }]);
+  });
+
+  it('tombstones the files of an upload that commits while the delete waits for the record lock', async () => {
+    const { id } = await insertRecord(sql);
+    await upload(id, 'prev');
+    const [uploadRes, deleteRes] = await Promise.all([
+      upload(id, 'current'),
+      request(app).delete(`/api/v1/housing/${id}`).set('origin', TEST_ORIGIN).set('cookie', cookie),
+    ]);
+    expect(deleteRes.status).toBe(204);
+    expect([200, 404]).toContain(uploadRes.status);
+    // Whichever ran first, no live file is left behind without its record.
+    expect(await owner`select count(*)::int as n from public.housing_files where deleted_at is null`).toEqual([{ n: 0 }]);
   });
 
   it('still answers 204 when storage fails, leaving tombstones for the sweep', async () => {

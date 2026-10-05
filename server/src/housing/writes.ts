@@ -38,6 +38,10 @@ export async function updateRecord(sql: Sql, actor: Actor, id: string, patch: Up
 export async function deleteRecord(sql: Sql, storage: StorageDriver, actor: Actor, id: string, log: Logger): Promise<boolean> {
   let files: TombstonedFile[] = [];
   const deleted = await withActor(sql, actor, async (tx) => {
+    // The same row lock as the photo writes, so an upload in flight either commits first (and its
+    // files are tombstoned here) or waits and then finds no record.
+    const locked = await tx`select id from public.housing_beneficiaries where id = ${id} for update`;
+    if (locked.length === 0) return false;
     files = await tx<TombstonedFile[]>`
       update public.housing_files set deleted_at = now()
       where record_id = ${id} and deleted_at is null
