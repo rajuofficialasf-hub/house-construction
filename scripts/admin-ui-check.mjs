@@ -86,6 +86,35 @@ async function fakeRecords(u, method, req, respond0) {
     }
     return respond(200, String(n))
   }
+  // বাল্ক আপডেট (সিরিয়াল ধরে) — 11_project_rpcs.sql › housing_bulk_update_by_serial এর নিয়মে: খালি = অপরিবর্তিত,
+  // _clear = মোছা, extra এর গোপন key → beneficiary_private (মিশিয়ে)
+  if (u.pathname === '/rest/v1/rpc/housing_bulk_update_by_serial' && body?.p_project_type === 'demo') {
+    writes.push({ method, path: u.pathname, search: u.search, body })
+    const adminKeys = allFields().filter((f) => f.project_key === 'demo' && f.visibility === 'admin').map((f) => f.key)
+    let updated = 0
+    const missing = []
+    for (const row of body.p_rows) {
+      const r = demoRecs.find((x) => x.serial_no === row.serial_no)
+      if (!r) {
+        missing.push(row.serial_no)
+        continue
+      }
+      for (const k of ['year', 'name', 'father_or_husband_name', 'division', 'district', 'upazila', 'union_name', 'address', 'prev_photo_source', 'current_photo_source']) {
+        if (row[k] !== undefined && row[k] !== null && row[k] !== '') r[k] = row[k]
+      }
+      for (const c of row._clear ?? []) {
+        if (c.startsWith('extra.')) delete r.extra[c.slice(6)]
+        else r[c] = c.endsWith('_source') ? null : ''
+      }
+      for (const [k, v] of Object.entries(row.extra ?? {})) {
+        if (v === null || v === '') continue
+        if (adminKeys.includes(k)) demoPrivate[r.id] = { ...(demoPrivate[r.id] ?? {}), [k]: v }
+        else r.extra[k] = v
+      }
+      updated++
+    }
+    return respond(200, { updated, missing })
+  }
   if (u.pathname === '/rest/v1/beneficiary_private') {
     if (method === 'GET') {
       const id = eqParam(u, 'record_id')
@@ -103,9 +132,18 @@ async function fakeRecords(u, method, req, respond0) {
   }
   if (u.pathname !== '/rest/v1/housing_beneficiaries') return undefined
   const id = eqParam(u, 'id')
-  const isDemo = eqParam(u, 'project_type') === 'demo' || (id && demoRecs.some((r) => r.id === id)) || body?.project_type === 'demo'
+  const isDemo = eqParam(u, 'project_type') === 'demo' || (id && demoRecs.some((r) => r.id === id)) || body?.project_type === 'demo' || (Array.isArray(body) && body[0]?.project_type === 'demo')
   if (!isDemo) return undefined
   const ts = new Date().toISOString()
+  const newRec = (row) => ({ id: `00000000-0000-0000-0000-0000000${String(demoRecs.length + 1).padStart(5, '0')}`, serial_no: row.serial_no ?? demoRecs.reduce((m, r) => Math.max(m, r.serial_no), 0) + 1, union_name: '', extra: {}, prev_photo_url: null, prev_thumb_url: null, current_photo_url: null, current_thumb_url: null, prev_photo_source: null, current_photo_source: null, photo_updated_at: null, created_at: ts, updated_at: ts, ...row })
+  // বাল্ক ইনসার্ট (array, return=minimal, count=exact): সিরিয়াল ডুপ্লিকেট হলে পুরো চাঙ্ক ব্যর্থ (ডাটাবেসের মতো)
+  if (method === 'POST' && Array.isArray(body)) {
+    writes.push({ method, path: u.pathname, search: u.search, body })
+    const dup = body.find((row) => row.serial_no && demoRecs.some((r) => r.serial_no === row.serial_no))
+    if (dup) return respond(409, { code: '23505', message: `duplicate key value violates unique constraint (serial ${dup.serial_no})`, details: null, hint: null })
+    for (const row of body) demoRecs.push(newRec(row))
+    return respond(201, '', { 'content-range': `*/${body.length}` })
+  }
   if (method === 'GET') {
     let rows = demoRecs.filter((r) => !id || r.id === id)
     const sn = eqParam(u, 'serial_no')
@@ -747,6 +785,159 @@ for (const [w, mobile] of [[1280, false], [390, true]]) {
   ok('৩৯০px: কার্ডে "উপকরণের ক্যাটাগরি: গাভী", "টাকা: ৳ ২৫,০০০", পাতার মোট; ওভারফ্লো নেই', ms.includes('উপকরণের ক্যাটাগরি: গাভী') && ms.includes('টাকা: ৳ ২৫,০০০') && ms.includes('এই পাতার মোট') && !over, ms.slice(0, 200))
   await m.screenshot({ path: '.smoke/admin-records-demo-390.png', fullPage: true })
   await m.close()
+  demoRecs.length = 0
+}
+
+// ---------------------------------------------------------------- J. ঘর নির্মাণের ইম্পোর্ট-প্রিভিউ — স্ক্রিনশট (M-ধাপ ১১: আগের সাথে মেলানো; কিছু চালানো হয় না)
+const SEMI_CSV = [
+  'ক্রমিক,সাল,উপকারভোগীর নাম,পিতা/স্বামীর নাম,বিভাগ,জেলা,উপজেলা,গ্রাম/ঠিকানা,পূর্বের ঘরের ছবি (লিঙ্ক),বর্তমান ঘরের ছবি (লিঙ্ক)',
+  '101,২০২৪,রহিম উদ্দিন,করিম উদ্দিন,চট্টগ্রাম,চট্টগ্রাম,মীরসরাই,করেরহাট,https://sp/1,',
+  '102,,জোসনা বেগম,আব্দুল বারিক,,,,ভবানী,,https://sp/2',
+  '103,২০২৪,সাজেদা আক্তার,সিরাজুল ইসলাম,চট্টগ্রাম,চট্রগ্রাম,মিরসরাই,ধুম,,',
+  '104,২০২৪,রহিম উদ্দিন,করিম উদ্দিন,চট্টগ্রাম,চট্টগ্রাম,মীরসরাই,,,',
+  '105,২০২৪,আনোয়ার,হাসান,চট্টগ্রাম,চট্টগ্রাম,মীরশ্বরাই,,,',
+  ',৩০২৪,,,ঢাকা,গাজীপুর,,,,',
+].join('\r\n')
+fs.writeFileSync('.smoke/import-semi.csv', '﻿' + SEMI_CSV + '\r\n')
+for (const [w, mobile] of [[1280, false], [390, true]]) {
+  const p = await newPage(w, mobile)
+  await p.goto(BASE + '/admin/import?project=semi_pucca', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  const input = await p.$('#imp-file')
+  await input.uploadFile('.smoke/import-semi.csv')
+  await settle(p)
+  await p.screenshot({ path: `.smoke/admin-import-semi-${w}.png`, fullPage: true })
+  ok(`ঘর নির্মাণের ইম্পোর্ট-প্রিভিউ (${w}px) — ৬ সারি, কোনো page error নেই`, (await text(p)).includes('মোট ৬') && p.errors.length === 0, p.errors.join(' | ') || (await text(p)).match(/মোট \S+/)?.[0])
+  await p.close()
+}
+
+// ---------------------------------------------------------------- K. জেনেরিক ইম্পোর্ট — পরীক্ষা প্রকল্প (M-ধাপ ১১; সব লেখা নকল-ভাণ্ডারে)
+{
+  demoRecs.length = 0
+  for (const k of Object.keys(demoPrivate)) delete demoPrivate[k]
+  // ২৫ সারি: শীটের শিরোনাম বিকল্প নামে ("ক্যাটাগরি", "টাকার পরিমাণ", "উপকরণ"), সাল/ঠিকানা একবার লিখে নিচে খালি (ফিল-ডাউন)
+  const head = 'সাল,উপকারভোগীর নাম,পিতা/স্বামীর নাম,বিভাগ,জেলা,উপজেলা,ইউনিয়ন,ক্যাটাগরি,উপকরণ,টাকার পরিমাণ,মোবাইল নম্বর'
+  const cats = ['গাভী', 'গাভি', 'ছাগল', 'সেলাই মেশিন', 'গাভী']
+  const body25 = Array.from({ length: 25 }, (_, i) => {
+    const first = i === 0
+    const amount = i === 3 ? 'এক লাখ' : i % 2 ? '১,২০,০০০' : '১২০০০০/-'
+    const union = i === 4 ? 'মীরসরাই পৌরসভা' : i === 5 ? 'করেরহাট ইউনিয়ন' : 'করেরহাট'
+    // কমা থাকা ঘর (যেমন "১,২০,০০০") CSV তে উদ্ধৃতিতে
+    return [first ? '২০২৫' : '', `উপকারভোগী ${i + 1}`, `পিতা ${i + 1}`, first ? 'চট্টগ্রাম' : '', first ? 'চট্টগ্রাম' : '', first ? 'মীরসরাই' : '', union, cats[i % 5], i % 3 ? 'দুগ্ধবতী' : '', amount, i === 1 ? '০১৭১১০০০০০১' : ''].map((c) => (c.includes(',') ? `"${c}"` : c)).join(',')
+  })
+  fs.writeFileSync('.smoke/import-demo.csv', '﻿' + [head, ...body25].join('\r\n') + '\r\n')
+
+  const p = await newPage()
+  const cdp = await p.createCDPSession()
+  await cdp.send('Browser.setDownloadBehavior', { behavior: 'deny' }).catch(() => {})
+  await p.evaluateOnNewDocument(() => {
+    window.__downloads = []
+    const orig = URL.createObjectURL.bind(URL)
+    URL.createObjectURL = (b) => {
+      const entry = { name: '', text: null }
+      window.__downloads.push(entry)
+      b.text().then((t) => (entry.text = t))
+      return orig(b)
+    }
+    HTMLAnchorElement.prototype.click = function () {
+      const d = window.__downloads.at(-1)
+      if (d && this.download) d.name = this.download
+    }
+  })
+  const mapOf = () => p.evaluate(() => Object.fromEntries([...document.querySelectorAll('select[aria-label$="কলামের ফিল্ড"]')].map((s) => [s.getAttribute('aria-label').replace(/^"|" কলামের ফিল্ড$/g, ''), s.value])))
+  const upload = async (file) => {
+    const input = await p.$('#imp-file')
+    await input.uploadFile(file)
+    await settle(p)
+  }
+  await p.goto(BASE + '/admin/import?project=demo', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  ok('ইম্পোর্টের প্রকল্প-তালিকা রেজিস্ট্রি থেকে (খসড়া "পরীক্ষা প্রকল্প" সহ)', (await p.$eval('#imp-project', (s) => [...s.options].map((o) => o.textContent).join('|'))).includes('পরীক্ষা প্রকল্প (খসড়া)') && (await p.$eval('#imp-project', (s) => s.value)) === 'demo')
+  await upload('.smoke/import-demo.csv')
+  const m = await mapOf()
+  ok('কলাম নিজে মেলে: বিকল্প নামে ক্যাটাগরি/উপকরণ/টাকা, ইউনিয়ন, গোপন মোবাইল', m['ক্যাটাগরি'] === 'x.category' && m['উপকরণ'] === 'x.item_name' && m['টাকার পরিমাণ'] === 'x.amount' && m['ইউনিয়ন'] === 'union_name' && m['মোবাইল নম্বর'] === 'x.mobile' && m['সাল'] === 'year', JSON.stringify(m))
+  let s = await text(p)
+  ok('প্রিভিউ: মোট ২৫, ভুল ১ (টাকা "এক লাখ"), ফিল-ডাউনে সাল/বিভাগ/জেলা/উপজেলা ভরা (২৪ × ৪ = ৯৬)', s.includes('মোট ২৫') && s.includes('ভুল ১ (বাদ যাবে)') && s.includes('«টাকা»: শুধু সংখ্যা দিন') && /৯৬ টি ঘর ভরা হয়েছে/.test(s), s.match(/\S+ টি ঘর ভরা হয়েছে/)?.[0])
+  const badCell = await p.evaluate(() => [...document.querySelectorAll('tbody tr')].some((tr) => tr.className.includes('bg-red-50') && [...tr.querySelectorAll('span')].some((x) => x.className.includes('bg-red-100') && x.textContent === 'এক লাখ')))
+  ok('ভুল টাকার ঘর লাল চিহ্নিত', badCell)
+  const moneyHits = (s.match(/৳\s১,২০,০০০/g) ?? []).length
+  const row2 = await p.evaluate(() => document.querySelector('tbody tr')?.innerText.replace(/\s+/g, ' ') ?? '')
+  ok('টাকা পার্স: "১,২০,০০০" ও "১২০০০০/-" → ৳ ১,২০,০০০', moneyHits >= 20, `${moneyHits} · ${row2}`)
+  ok('ইউনিয়ন: "করেরহাট ইউনিয়ন" → তালিকার বানান; "মীরসরাই পৌরসভা" ঐচ্ছিক (হলুদ) প্যানেলে', s.includes('ইউনিয়নের বানান তালিকা অনুযায়ী: "করেরহাট"') && s.includes('ইউনিয়ন তালিকায় নেই (১ টি)') && s.includes('"মীরসরাই পৌরসভা"'))
+  const totalBefore = Number((s.match(/মোট ক্যাটাগরি \(ইম্পোর্টের পর\): (\S+)/)?.[1] ?? '').replace(/[০-৯]/g, (d) => '০১২৩৪৫৬৭৮৯'.indexOf(d)))
+  ok('ক্যাটাগরির মান: শীটের মান ও সারির সংখ্যা, "গাভী"/"গাভি" পাশাপাশি', s.includes('ক্যাটাগরির মান (ঐচ্ছিক যাচাই — ইম্পোর্ট আটকায় না)') && s.includes('কাছাকাছি বানান') && totalBefore === 4, String(totalBefore))
+  await clickText(p, 'button', 'এক বানানে আনুন: «গাভী»')
+  await sleep(200)
+  s = await text(p)
+  const totalAfter = Number((s.match(/মোট ক্যাটাগরি \(ইম্পোর্টের পর\): (\S+)/)?.[1] ?? '').replace(/[০-৯]/g, (d) => '০১২৩৪৫৬৭৮৯'.indexOf(d)))
+  ok('"এক বানানে আনুন" → "মোট ক্যাটাগরি" এক কমে (৪ → ৩), «গাভি» → «গাভী»', totalAfter === 3 && s.includes('«গাভি» → «গাভী»'), `${totalBefore} → ${totalAfter}`)
+  await p.screenshot({ path: '.smoke/admin-import-demo.png', fullPage: true })
+  let before = writes.length
+  await clickText(p, 'button', '২৪ টি সারি যোগ করুন')
+  await settle(p)
+  const ins = writes.slice(before).filter((w) => w.method === 'POST' && w.path === '/rest/v1/housing_beneficiaries')
+  const priv = writes.slice(before).find((w) => w.path === '/rest/v1/rpc/housing_bulk_update_by_serial')
+  const cats2 = new Set(demoRecs.map((r) => r.extra.category))
+  const btnTexts = await p.evaluate(() => [...document.querySelectorAll('button')].map((b) => `${b.textContent.trim()}${b.disabled ? '[x]' : ''}`).filter((x) => /সারি/.test(x)).join(' | '))
+  const summary = ((await text(p)).match(/সারসংক্ষেপ[\s\S]{0,300}/)?.[0] ?? '').replace(/\n/g, ' ⏎ ')
+  ok('ইম্পোর্ট: ২৪টি রেকর্ড; ক্যাটাগরি শীটের মতোই (এক-বানানসহ), টাকা সংখ্যায়, ইউনিয়ন', ins.length === 1 && demoRecs.length === 24 && [...cats2].sort().join(',') === ['গাভী', 'ছাগল', 'সেলাই মেশিন'].sort().join(',') && demoRecs.every((r) => r.extra.amount === 120000) && demoRecs.find((r) => r.name === 'উপকারভোগী 6')?.union_name === 'করেরহাট' && demoRecs.find((r) => r.name === 'উপকারভোগী 5')?.union_name === 'মীরসরাই পৌরসভা', `${demoRecs.length} ${[...cats2].join("/")} · ${btnTexts} · ${summary}`)
+  ok('গোপন মোবাইল আলাদা পাঠানো (সিরিয়াল ধরে), রেকর্ডের extra তে নেই', !!priv && priv.body.p_rows.length === 1 && priv.body.p_rows[0].extra.mobile === '01711000001' && !demoRecs.some((r) => 'mobile' in r.extra) && Object.values(demoPrivate).some((d) => d.mobile === '01711000001'), priv && JSON.stringify(priv.body.p_rows))
+  s = await text(p)
+  ok('সারসংক্ষেপ: সফল ২৪, ব্যর্থ/বাদ ১', s.includes('সফল: ২৪') && s.includes('ব্যর্থ/বাদ: ১'))
+  await clickText(p, 'button', 'ব্যর্থদের তালিকা CSV ডাউনলোড')
+  await sleep(300)
+  const failed = await p.evaluate(() => window.__downloads.at(-1))
+  ok('ব্যর্থ সারির CSV (সারি ৫, কারণসহ)', /^import-failed-demo\.csv$/.test(failed?.name ?? '') && failed.text.includes('শুধু সংখ্যা দিন') && failed.text.split('\r\n')[1]?.startsWith('5,'), failed?.name)
+
+  // আপডেট মোড: শুধু টাকা কলাম, একটি সারিতে (মুছুন)
+  const serials = demoRecs.map((r) => r.serial_no).sort((a, b) => a - b)
+  const [s1, s2, s3] = serials
+  const name2 = demoRecs.find((r) => r.serial_no === s2).name
+  fs.writeFileSync('.smoke/import-demo-update.csv', '﻿' + ['সিরিয়াল,টাকা,উপকরণের নাম/বিবরণ', `${s1},২,০০,০০০,`.replace('২,০০,০০০', '"২,০০,০০০"'), `${s2},,(মুছুন)`, `${s3},(মুছুন),`, '9999,৫০০,'].join('\r\n') + '\r\n')
+  await p.goto(BASE + '/admin/import?project=demo', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  await p.evaluate(() => [...document.querySelectorAll('input[name="mode"]')][1].click())
+  await sleep(100)
+  s = await text(p)
+  ok('আপডেট মোডে নিয়মের ছোট ব্যাখ্যা (শুধু সিরিয়াল আবশ্যক, খালি = অপরিবর্তিত, (মুছুন))', s.includes('"সিরিয়াল ধরে আপডেট" এর নিয়ম') && s.includes('খালি ঘর = অপরিবর্তিত') && s.includes('ঘরে লিখুন (মুছুন)'))
+  await upload('.smoke/import-demo-update.csv')
+  s = await text(p)
+  ok('আপডেট: সাল/নাম/ঠিকানা ম্যাপ না থাকলেও চলে; আবশ্যক টাকা "(মুছুন)" → ভুল', !s.includes('আবশ্যক ফিল্ড ম্যাপ হয়নি') && s.includes('«টাকা» আবশ্যক — মোছা যায় না') && s.includes('ভুল ১ (বাদ যাবে)'))
+  ok('আপডেটে ফিল-ডাউনের বিকল্প নেই (খালি = অপরিবর্তিত)', !s.includes('ঘরে উপরের সারির মান ধরুন'))
+  const before2 = JSON.parse(JSON.stringify(demoRecs))
+  before = writes.length
+  await clickText(p, 'button', '৩ টি সারি আপডেট করুন')
+  await settle(p)
+  const up = writes.slice(before).find((w) => w.path === '/rest/v1/rpc/housing_bulk_update_by_serial')
+  const rowsSent = up?.body.p_rows ?? []
+  ok('পাঠানো হয় শুধু ম্যাপ করা ও খালি নয় এমন ঘর: {serial, extra.amount} · {serial, _clear: [extra.item_name]} · ৯৯৯৯ (মেলেনি)', JSON.stringify(rowsSent) === JSON.stringify([{ serial_no: s1, extra: { amount: 200000 } }, { serial_no: s2, _clear: ['extra.item_name'] }, { serial_no: 9999, extra: { amount: 500 } }]), JSON.stringify(rowsSent))
+  const r1 = demoRecs.find((r) => r.serial_no === s1)
+  const r2 = demoRecs.find((r) => r.serial_no === s2)
+  const b1 = before2.find((r) => r.serial_no === s1)
+  ok('আপডেটের পর: শুধু টাকা বদলায়, নাম/ক্যাটাগরি/ইউনিয়ন অক্ষত; "(মুছুন)" দেওয়া মানটিই মোছে', r1.extra.amount === 200000 && r1.name === b1.name && r1.extra.category === b1.extra.category && r1.union_name === b1.union_name && !('item_name' in r2.extra) && r2.name === name2 && r2.extra.amount === 120000)
+  s = await text(p)
+  ok('সিরিয়াল ৯৯৯৯ মেলেনি → "সিরিয়াল মিলেনি" তালিকায়', s.includes('সিরিয়াল মিলেনি (আপডেট হয়নি): ১'))
+
+  // এক্সপোর্ট → আবার ইম্পোর্ট: সব শিরোনাম নিজে মেলে
+  await p.goto(BASE + '/admin/records/demo', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  await clickText(p, 'button', 'সিরিয়াল সহ এক্সপোর্ট (CSV)')
+  await sleep(200)
+  await clickText(p, '[role="dialog"] button', 'এক্সপোর্ট করুন')
+  await settle(p)
+  await sleep(300)
+  const exp = await p.evaluate(() => window.__downloads.at(-1))
+  fs.writeFileSync('.smoke/import-demo-export.csv', '﻿' + exp.text)
+  await p.goto(BASE + '/admin/import?project=demo', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  await upload('.smoke/import-demo-export.csv')
+  const em = await mapOf()
+  const unmapped = Object.entries(em).filter(([, v]) => !v).map(([h]) => h)
+  const infoCols = ['উপকরণসহ ছবি (সিস্টেম URL)', 'ছবি আপডেট', 'রেকর্ড আইডি']
+  ok('এক্সপোর্ট করা CSV আবার দিলে সব শিরোনাম নিজে মেলে (শুধু তথ্য-কলাম উপেক্ষা, জানিয়ে)', unmapped.sort().join('|') === infoCols.sort().join('|') && (await text(p)).includes('এক্সপোর্টের তথ্য-কলাম উপেক্ষা করা হলো'), `${Object.keys(em).length} কলাম; না-মেলা: ${unmapped.join(', ')}`)
+  ok('এক্সপোর্ট→ইম্পোর্ট: টাকা/ক্যাটাগরি/ইউনিয়ন ঠিক পড়ে (ভুল ০)', (await text(p)).includes('ভুল') === false || !(await text(p)).includes('(বাদ যাবে)'), (await text(p)).match(/ভুল \S+ \(বাদ যাবে\)/)?.[0])
+  ok('ইম্পোর্ট-পাতায় কোনো page error নেই', p.errors.length === 0, p.errors.join(' | '))
+  await p.close()
   demoRecs.length = 0
 }
 

@@ -212,7 +212,8 @@ export function resolveGeo(
   return result
 }
 
-export function geoFixKey(level: GeoLevel, raw: string, parent: string): string {
+/** level 'union': ইম্পোর্টে তালিকায় নেই এমন ইউনিয়নের ঠিক করা নাম (parent = উপজেলা) */
+export function geoFixKey(level: GeoLevel | 'union', raw: string, parent: string): string {
   return `${level}|${nfc(parent)}|${nfc(raw)}`
 }
 

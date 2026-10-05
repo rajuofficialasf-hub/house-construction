@@ -1,20 +1,22 @@
-import { gn, lt, t } from '@/i18n'
+import { gn, lt, pick, t } from '@/i18n'
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import { useToast } from '@/components/useToast'
 import { formatBanglaNumber, toBanglaNumber } from '@/lib/banglaNumber'
-import { getHousingApi } from '../../../backend/factory'
-import { HousingApiError, type HousingBulkRow, type ProjectType } from '../../../backend/interfaces/types'
-import { ProgressBar } from '../components/ImageUploader'
-import { downloadText, toCsv } from '../utils/csvExport'
-import { candidatesFor, geoFixKey } from '@/features/geo/geoMatch'
-import { FIELD_LABEL, guessMapping, IMPORT_FIELDS, REQUIRED_FIELDS, type ImportField } from '../utils/importColumns'
-import { parseSpreadsheet, type ParsedSheet } from '../utils/importParse'
-import { analyzeRows, fillDown, type ImportAnalysis, type ImportRow, type Mapping } from '../utils/importValidate'
-import { adminPath, useHousingProjects } from '../utils/housingProjects'
+import { getHousingApi, HousingApiError, type BulkUpdateInput, type HousingBulkRow, type Project, type ProjectKey } from '@/backend'
+import { gnUnion, useUnionData } from '@/features/geo/unions'
+import { formatField } from '@/features/projects/fields'
+import { ProgressBar } from '@/features/housing/components/ImageUploader'
+import { downloadText, toCsv } from '@/features/housing/utils/csvExport'
+import { adminPath, useRecordProjects } from '@/features/housing/utils/housingProjects'
+import { useCategoryUsage } from '../records/useCategoryUsage'
+import { CategoryReviewPanel } from './CategoryReviewPanel'
+import { GeoFixPanel } from './GeoFixPanel'
+import { analyzeRows, CLEAR_TOKEN, fillDown, fillDownFields, type ImportAnalysis, type ImportMode, type ImportRow, type Mapping } from './importAnalyze'
+import { buildImportFields, guessMapping, isIgnoredHeader, type ImportFieldDef, type ImportFieldId } from './importFields'
+import { parseSpreadsheet, type ParsedSheet } from './importParse'
 
-type Mode = 'insert' | 'update'
 const BATCH = 200
 const PREVIEW_LIMIT = 300
 
@@ -25,32 +27,45 @@ interface RunResult {
 }
 
 /**
- * /admin/import?project=<key> — Google Sheet (xlsx/csv) থেকে বাল্ক ইম্পোর্ট, ৪ ধাপ:
- * ১) প্রকল্প, মোড, ফাইল → ২) কলাম ম্যাপিং (স্বয়ংক্রিয় অনুমান) → ৩) প্রিভিউ: ভ্যালিডেশন, ভৌগোলিক নাম ঠিক করা, ডুপ্লিকেট → ৪) ব্যাচে চালানো + সারসংক্ষেপ + ব্যর্থ CSV।
+ * /admin/import?project=<key> — Google Sheet (xlsx/csv) থেকে যেকোনো প্রকল্পে বাল্ক ইম্পোর্ট (M-ধাপ ১১; প্রকল্প রেজিস্ট্রি থেকে), ৪ ধাপ:
+ * ১) প্রকল্প, মোড, ফাইল → ২) কলাম ম্যাপিং (প্রকল্পের ফিল্ড থেকে স্বয়ংক্রিয় অনুমান) → ৩) প্রিভিউ: যাচাই, ভৌগোলিক নাম
+ * (ইউনিয়নসহ), ক্যাটাগরির বানান (ঐচ্ছিক), ডুপ্লিকেট → ৪) ব্যাচে চালানো (গোপন মান আলাদা) + সারসংক্ষেপ + ব্যর্থ CSV।
  */
-export function HousingImportPage() {
+export function ImportPage() {
   useDocumentTitle(t('বাল্ক ইম্পোর্ট'))
+  const projects = useRecordProjects()
+  const [searchParams] = useSearchParams()
+  const asked = searchParams.get('project')
+  const [chosen, setProjectKey] = useState<ProjectKey | null>(null)
+  // URL এর প্রকল্প (খসড়া হলে এডমিনের রেজিস্ট্রিতে একটু পরে আসে) — এলে সেটিই; ব্যবহারকারী বাছলে সেটি
+  const projectKey = chosen ?? (projects.some((p) => p.key === asked) ? asked : null) ?? projects[0]?.key
+  const project = projects.find((p) => p.key === projectKey) ?? projects[0]
+  if (!project) return null
+  return <Importer key={project.key} project={project} projects={projects} onProject={setProjectKey} />
+}
+
+function Importer({ project, projects, onProject }: { project: Project; projects: Project[]; onProject: (key: ProjectKey) => void }) {
   const toast = useToast()
   const api = getHousingApi()
-  const projects = useHousingProjects()
-  const [searchParams] = useSearchParams()
-  const [projectType, setProjectType] = useState<ProjectType>(() => {
-    const asked = searchParams.get('project')
-    return projects.find((p) => p.key === asked)?.key ?? projects[0]?.key ?? 'semi_pucca'
-  })
-  const projectSlug = projects.find((p) => p.key === projectType)?.slug ?? projectType
-  const [mode, setMode] = useState<Mode>('insert')
+  const projectType = project.key
+  const fields = useMemo(() => buildImportFields(project), [project])
+  const byId = useMemo(() => new Map(fields.map((f) => [f.id, f])), [fields])
+  const [mode, setMode] = useState<ImportMode>('insert')
   const [file, setFile] = useState<File | null>(null)
   const [sheet, setSheet] = useState<ParsedSheet | null>(null)
   const [parseError, setParseError] = useState<string | null>(null)
   const [mapping, setMapping] = useState<Mapping>([])
   const [geoFixes, setGeoFixes] = useState<Record<string, string>>({})
+  const [categoryFixes, setCategoryFixes] = useState<Record<string, Record<string, string>>>({})
   const [nextSerial, setNextSerial] = useState<number | null>(null)
   const [onlyErrors, setOnlyErrors] = useState(false)
   const [useFillDown, setUseFillDown] = useState(true)
   const [insertMissing, setInsertMissing] = useState(false)
   const [running, setRunning] = useState<{ done: number; total: number } | null>(null)
   const [result, setResult] = useState<RunResult | null>(null)
+  const existing = useCategoryUsage(project, result ? 1 : 0)
+  const unionMapped = mapping.includes('union_name')
+  const { data: unions } = useUnionData(project.geo_depth === 'union' && unionMapped)
 
   // ---- পরবর্তী সিরিয়াল ----
   useEffect(() => {
@@ -71,35 +86,37 @@ export function HousingImportPage() {
     setParseError(null)
     setResult(null)
     setGeoFixes({})
+    setCategoryFixes({})
     if (!f) return
     try {
       const parsed = await parseSpreadsheet(f)
       setSheet(parsed)
-      setMapping(guessMapping(parsed.headers))
+      setMapping(guessMapping(parsed.headers, fields))
     } catch (err) {
       setParseError(HousingApiError.from(err).message)
     }
   }
 
   // ---- বিশ্লেষণ ----
+  const update = mode === 'update'
   const hasSerialCol = mapping.includes('serial_no')
-  // খালি সাল/বিভাগ/জেলা/উপজেলা → উপরের সারির মান (শীটে একবার লিখে নিচে খালি রাখার রীতি)
-  const filled = useMemo(() => (sheet && useFillDown ? fillDown(sheet.rows, mapping) : { rows: sheet?.rows ?? [], filled: 0 }), [sheet, mapping, useFillDown])
+  // খালি সাল/বিভাগ/জেলা/উপজেলা (আর ফিল-ডাউন চালু কাস্টম ফিল্ড) → উপরের সারির মান; আপডেটে নয় (সেখানে খালি = অপরিবর্তিত)
+  const fdIds = useMemo(() => fillDownFields(fields), [fields])
+  const filled = useMemo(() => (sheet && useFillDown && !update ? fillDown(sheet.rows, mapping, fdIds) : { rows: sheet?.rows ?? [], filled: 0 }), [sheet, mapping, useFillDown, update, fdIds])
   const analysis: ImportAnalysis | null = useMemo(() => {
     if (!sheet) return null
-    return analyzeRows(filled.rows, mapping, {
-      geoFixes,
-      serialFromFile: hasSerialCol,
-      startSerial: nextSerial ?? 1,
-    })
-  }, [sheet, filled, mapping, geoFixes, hasSerialCol, nextSerial])
+    return analyzeRows(filled.rows, mapping, fields, { mode, geoFixes, serialFromFile: hasSerialCol, startSerial: nextSerial ?? 1, unions, categoryFixes })
+  }, [sheet, filled, mapping, fields, mode, geoFixes, hasSerialCol, nextSerial, unions, categoryFixes])
 
-  const missingRequired = REQUIRED_FIELDS.filter((f) => !mapping.includes(f))
-  const modeNeedsSerial = mode === 'update' && !hasSerialCol
+  const missingRequired = update ? [] : fields.filter((f) => f.required && !mapping.includes(f.id))
+  const modeNeedsSerial = update && !hasSerialCol
   const canRun = !!analysis && analysis.validCount > 0 && missingRequired.length === 0 && !modeNeedsSerial && !running
 
-  const setMap = (i: number, field: ImportField | null) =>
-    setMapping((m) => m.map((f, j) => (j === i ? field : f === field && field !== null ? null : f)))
+  const setMap = (i: number, id: ImportFieldId | null) => setMapping((m) => m.map((f, j) => (j === i ? id : f === id && id !== null ? null : f)))
+  const fieldLabel = (f: ImportFieldDef) => pick(f.label_bn, f.label_en)
+  const mappedCustom = useMemo(() => fields.filter((f) => f.id.startsWith('x.') && mapping.includes(f.id)), [fields, mapping])
+  const categoryMapped = useMemo(() => mappedCustom.filter((f) => f.def?.type === 'category' && !f.private), [mappedCustom])
+  const photoIds = (['prev_photo_source', 'current_photo_source'] as const).filter((id) => byId.has(id))
 
   // ---- চালানো ----
   const run = useCallback(async () => {
@@ -111,9 +128,8 @@ export function HousingImportPage() {
       failed: invalid.map((r) => ({ rowNo: r.rowNo, serial: r.values.serial_no, name: r.values.name, reason: t('বাদ (ভুল): {errors}', { errors: r.errors.join('; ') }) })),
       missing: [],
     }
-    setResult(null)
-    setRunning({ done: 0, total: valid.length })
-    const toRow = (r: ImportRow): HousingBulkRow => ({
+    const hasCustom = project.fields.some((f) => f.is_active)
+    const insertRow = (r: ImportRow): HousingBulkRow => ({
       serial_no: r.values.serial_no ?? undefined,
       year: r.values.year!,
       name: r.values.name,
@@ -124,32 +140,65 @@ export function HousingImportPage() {
       address: r.values.address,
       prev_photo_source: r.values.prev_photo_source,
       current_photo_source: r.values.current_photo_source,
+      ...(byId.has('union_name') ? { union_name: r.values.union_name } : {}),
+      ...(hasCustom ? { extra: r.extra } : {}),
     })
+    /** আপডেট: শুধু ম্যাপ করা আর খালি নয় এমন ঘর; "(মুছুন)" → _clear; গোপন মান extra দিয়ে (ডাটাবেস আলাদা জায়গায় রাখে) */
+    const updateRow = (r: ImportRow): BulkUpdateInput['rows'][number] => {
+      const p = (id: ImportFieldId) => r.present.has(id)
+      const v = r.values
+      const extra = { ...r.extra, ...r.priv }
+      return {
+        serial_no: v.serial_no!,
+        ...(p('year') && v.year !== null ? { year: v.year } : {}),
+        ...(p('name') ? { name: v.name } : {}),
+        ...(p('father_or_husband_name') ? { father_or_husband_name: v.father_or_husband_name } : {}),
+        ...(p('division') && v.division ? { division: v.division, district: v.district!, upazila: v.upazila! } : {}),
+        ...(p('union_name') ? { union_name: v.union_name } : {}),
+        ...(p('address') ? { address: v.address } : {}),
+        ...(p('prev_photo_source') ? { prev_photo_source: v.prev_photo_source } : {}),
+        ...(p('current_photo_source') ? { current_photo_source: v.current_photo_source } : {}),
+        ...(Object.keys(extra).length ? { extra } : {}),
+        ...(r.clear.length ? { _clear: r.clear } : {}),
+      }
+    }
+    /** নতুন যোগের পর গোপন মান (সিরিয়াল ধরে; ডাটাবেস beneficiary_private এ রাখে) */
+    const sendPrivate = async (inserted: ImportRow[]) => {
+      const rows = inserted.filter((r) => Object.keys(r.priv).length && r.values.serial_no !== null).map((r) => ({ serial_no: r.values.serial_no!, extra: r.priv }))
+      if (!rows.length) return
+      try {
+        await api.bulkUpdateBySerial({ project_type: projectType, rows })
+      } catch (err) {
+        const reason = t('রেকর্ড যোগ হয়েছে, কিন্তু গোপন মান সংরক্ষণ হয়নি: {message}', { message: HousingApiError.from(err).message })
+        for (const r of inserted.filter((x) => Object.keys(x.priv).length)) res.failed.push({ rowNo: r.rowNo, serial: r.values.serial_no, name: r.values.name, reason })
+      }
+    }
+    setResult(null)
+    setRunning({ done: 0, total: valid.length })
     try {
       for (let start = 0; start < valid.length; start += BATCH) {
         const chunk = valid.slice(start, start + BATCH)
         try {
-          if (mode === 'insert') {
-            const out = await api.bulkInsert({ project_type: projectType, mode: 'use_given_serial', rows: chunk.map(toRow) })
+          if (!update) {
+            const out = await api.bulkInsert({ project_type: projectType, mode: 'use_given_serial', rows: chunk.map(insertRow) })
             res.ok += out.inserted
+            await sendPrivate(chunk.slice(0, out.inserted))
             if (out.failed.length) {
               // চাঙ্ক-স্তরে ব্যর্থ → চাঙ্কের সব সারি ব্যর্থ (ইনসার্ট হয়নি)
               const reason = out.failed.map((f) => f.error.message).join('; ')
               for (const r of chunk.slice(out.inserted)) res.failed.push({ rowNo: r.rowNo, serial: r.values.serial_no, name: r.values.name, reason })
             }
           } else {
-            const out = await api.bulkUpdateBySerial({
-              project_type: projectType,
-              rows: chunk.map((r) => ({ ...toRow(r), serial_no: r.values.serial_no! })),
-            })
+            const out = await api.bulkUpdateBySerial({ project_type: projectType, rows: chunk.map(updateRow) })
             res.ok += out.updated
             res.missing.push(...out.missing)
             if (insertMissing && out.missing.length) {
               const miss = new Set(out.missing)
               const toInsert = chunk.filter((r) => r.values.serial_no !== null && miss.has(r.values.serial_no))
-              const ins = await api.bulkInsert({ project_type: projectType, mode: 'use_given_serial', rows: toInsert.map(toRow) })
+              const ins = await api.bulkInsert({ project_type: projectType, mode: 'use_given_serial', rows: toInsert.map(insertRow) })
               res.ok += ins.inserted
               res.missing = res.missing.filter((s) => !miss.has(s))
+              await sendPrivate(toInsert.slice(0, ins.inserted))
               if (ins.failed.length) {
                 const reason = ins.failed.map((f) => f.error.message).join('; ')
                 for (const r of toInsert.slice(ins.inserted)) res.failed.push({ rowNo: r.rowNo, serial: r.values.serial_no, name: r.values.name, reason })
@@ -165,18 +214,18 @@ export function HousingImportPage() {
     } finally {
       setRunning(null)
       setResult(res)
-      if (res.ok) toast.success(mode === 'insert' ? t('{n} টি সারি যোগ হয়েছে', { n: formatBanglaNumber(res.ok) }) : t('{n} টি সারি আপডেট হয়েছে', { n: formatBanglaNumber(res.ok) }))
+      if (res.ok) toast.success(!update ? t('{n} টি সারি যোগ হয়েছে', { n: formatBanglaNumber(res.ok) }) : t('{n} টি সারি আপডেট হয়েছে', { n: formatBanglaNumber(res.ok) }))
       if (res.failed.length) toast.error(t('{n} টি সারি ব্যর্থ/বাদ — নিচে তালিকা', { n: formatBanglaNumber(res.failed.length) }))
-      void api.logActivity('import_run', { mode, file: file?.name ?? '', rows: valid.length, [mode === 'insert' ? 'inserted' : 'updated']: res.ok, failed: res.failed.length, missing: res.missing.length }, projectType)
+      void api.logActivity('import_run', { mode, file: file?.name ?? '', rows: valid.length, [!update ? 'inserted' : 'updated']: res.ok, failed: res.failed.length, missing: res.missing.length }, projectType)
       api.nextSerial(projectType).then(setNextSerial).catch(() => {})
     }
-  }, [analysis, api, mode, projectType, insertMissing, toast, file])
+  }, [analysis, api, mode, update, projectType, insertMissing, toast, file, byId, project.fields])
 
   const downloadFailed = () => {
     if (!result) return
     const rows = result.failed.map((f) => [f.rowNo, f.serial ?? '', f.name, f.reason])
     const missingRows = result.missing.map((s) => ['', s, '', t('সিরিয়াল ধরে রেকর্ড পাওয়া যায়নি (আপডেট হয়নি)')])
-    downloadText(`import-failed-${projectSlug}.csv`, toCsv([t('ফাইলের সারি'), t('সিরিয়াল'), t('নাম'), t('কারণ')], [...rows, ...missingRows]))
+    downloadText(`import-failed-${project.slug}.csv`, toCsv([t('ফাইলের সারি'), t('সিরিয়াল'), t('নাম'), t('কারণ')], [...rows, ...missingRows]))
   }
 
   const previewRows = useMemo(() => {
@@ -184,6 +233,13 @@ export function HousingImportPage() {
     const src = onlyErrors ? analysis.rows.filter((r) => r.errors.length || r.warnings.length) : analysis.rows
     return src.slice(0, PREVIEW_LIMIT)
   }, [analysis, onlyErrors])
+  const sheetValues = useMemo(() => {
+    const out: Record<string, string[]> = {}
+    for (const f of categoryMapped) out[f.id] = (analysis?.rows ?? []).map((r) => r.raw[f.id])
+    return out
+  }, [analysis, categoryMapped])
+  const unionCol = byId.has('union_name') && unionMapped
+  const ignoredHeaders = sheet ? sheet.headers.filter(isIgnoredHeader) : []
 
   return (
     <section className="container-page py-8 sm:py-10">
@@ -205,10 +261,10 @@ export function HousingImportPage() {
             <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="imp-project">
               {t('প্রকল্প')}
             </label>
-            <select id="imp-project" className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm" value={projectType} onChange={(e) => setProjectType(e.target.value as ProjectType)} disabled={!!running}>
+            <select id="imp-project" className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm" value={projectType} onChange={(e) => onProject(e.target.value)} disabled={!!running}>
               {projects.map((p) => (
                 <option key={p.key} value={p.key}>
-                  {lt(p, 'name')}
+                  {p.is_published ? lt(p, 'name') : t('{name} (খসড়া)', { name: lt(p, 'name') })}
                 </option>
               ))}
             </select>
@@ -222,7 +278,7 @@ export function HousingImportPage() {
             <label className="flex items-center gap-2 text-sm">
               <input type="radio" name="mode" checked={mode === 'update'} onChange={() => setMode('update')} disabled={!!running} className="accent-brand-700" /> {t('সিরিয়াল ধরে আপডেট করুন')}
             </label>
-            {mode === 'update' && (
+            {update && (
               <label className="mt-1 flex items-center gap-2 text-xs text-slate-600">
                 <input type="checkbox" checked={insertMissing} onChange={(e) => setInsertMissing(e.target.checked)} className="accent-brand-700" /> {t('মিলছে না এমন সিরিয়াল নতুন হিসেবে যোগ করুন')}
               </label>
@@ -245,6 +301,16 @@ export function HousingImportPage() {
             )}
           </div>
         </div>
+        {update && (
+          <div className="mt-4 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950" role="note">
+            <p className="font-semibold">{t('"সিরিয়াল ধরে আপডেট" এর নিয়ম')}</p>
+            <ul className="mt-1 list-disc space-y-0.5 pl-5">
+              <li>{t('শুধু সিরিয়াল কলাম আবশ্যক; যে কলাম ম্যাপ করবেন শুধু সেগুলোই বদলাবে।')}</li>
+              <li>{t('খালি ঘর = অপরিবর্তিত (আগের মান থাকে)।')}</li>
+              <li>{t('কোনো মান মুছতে ঘরে লিখুন {token} — আবশ্যক ঘর (সাল, নাম, ঠিকানার স্তর, আবশ্যক ফিল্ড) মোছা যায় না।', { token: CLEAR_TOKEN })}</li>
+            </ul>
+          </div>
+        )}
       </Step>
 
       {/* ---------- ধাপ ২ ---------- */}
@@ -262,21 +328,23 @@ export function HousingImportPage() {
                     {t('যেমন: {v}', { v: sheet.rows[0]?.[i] || '—' })}
                   </p>
                 </div>
-                <select className="h-9 w-40 rounded-md border border-slate-300 bg-white px-2 text-xs" value={mapping[i] ?? ''} onChange={(e) => setMap(i, (e.target.value || null) as ImportField | null)} disabled={!!running} aria-label={t('"{h}" কলামের ফিল্ড', { h })}>
+                <select className="h-9 w-40 rounded-md border border-slate-300 bg-white px-2 text-xs" value={mapping[i] ?? ''} onChange={(e) => setMap(i, (e.target.value || null) as ImportFieldId | null)} disabled={!!running} aria-label={t('"{h}" কলামের ফিল্ড', { h })}>
                   <option value="">{t('— উপেক্ষা —')}</option>
-                  {IMPORT_FIELDS.map((f) => (
-                    <option key={f} value={f}>
-                      {t(FIELD_LABEL[f])}
-                      {REQUIRED_FIELDS.includes(f) ? ' *' : ''}
+                  {fields.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.private ? '🔒 ' : ''}
+                      {fieldLabel(f)}
+                      {!update && f.required ? ' *' : update && f.id === 'serial_no' ? ' *' : ''}
                     </option>
                   ))}
                 </select>
               </div>
             ))}
           </div>
+          {ignoredHeaders.length > 0 && <p className="mt-2 text-xs text-slate-500">{t('এক্সপোর্টের তথ্য-কলাম উপেক্ষা করা হলো: {list}', { list: ignoredHeaders.join(', ') })}</p>}
           {missingRequired.length > 0 && (
             <p role="alert" className="mt-3 text-sm text-red-700">
-              {t('আবশ্যক ফিল্ড ম্যাপ হয়নি: {fields}', { fields: missingRequired.map((f) => t(FIELD_LABEL[f])).join(', ') })}
+              {t('আবশ্যক ফিল্ড ম্যাপ হয়নি: {fields}', { fields: missingRequired.map(fieldLabel).join(', ') })}
             </p>
           )}
           {modeNeedsSerial && (
@@ -284,18 +352,20 @@ export function HousingImportPage() {
               {t('"সিরিয়াল ধরে আপডেট" মোডে সিরিয়াল কলাম ম্যাপ করা আবশ্যক।')}
             </p>
           )}
-          {mode === 'insert' && (
+          {!update && (
             <p className="mt-2 text-xs text-slate-600">
               {t('সিরিয়াল: {info}', { info: hasSerialCol ? t('ফাইলের সিরিয়াল কলাম ব্যবহার হবে (সংখ্যা, অনন্য, ফাঁকা নয়)') : t('ফাইলে সিরিয়াল কলাম নেই — সারির ক্রমে {n} থেকে দেওয়া হবে', { n: toBanglaNumber(nextSerial ?? 1) }) })}
             </p>
           )}
-          <label className="mt-3 flex items-start gap-2 text-sm text-slate-700">
-            <input type="checkbox" checked={useFillDown} onChange={(e) => setUseFillDown(e.target.checked)} disabled={!!running} className="mt-0.5 accent-brand-700" />
-            <span>
-              {t('খালি')} <strong>{t('সাল / বিভাগ / জেলা / উপজেলা')}</strong> {t('ঘরে উপরের সারির মান ধরুন (শীটে একবার লিখে নিচে খালি রাখলে)')}
-              {filled.filled > 0 && <span className="ml-1 text-xs text-slate-500">— {t('{n} টি ঘর ভরা হয়েছে', { n: formatBanglaNumber(filled.filled) })}</span>}
-            </span>
-          </label>
+          {!update && (
+            <label className="mt-3 flex items-start gap-2 text-sm text-slate-700">
+              <input type="checkbox" checked={useFillDown} onChange={(e) => setUseFillDown(e.target.checked)} disabled={!!running} className="mt-0.5 accent-brand-700" />
+              <span>
+                {t('খালি')} <strong>{t('সাল / বিভাগ / জেলা / উপজেলা')}</strong> {t('ঘরে উপরের সারির মান ধরুন (শীটে একবার লিখে নিচে খালি রাখলে)')}
+                {filled.filled > 0 && <span className="ml-1 text-xs text-slate-500">— {t('{n} টি ঘর ভরা হয়েছে', { n: formatBanglaNumber(filled.filled) })}</span>}
+              </span>
+            </label>
+          )}
         </Step>
       )}
 
@@ -312,8 +382,22 @@ export function HousingImportPage() {
             </label>
           </div>
 
-          {analysis.unresolvedGeo.length > 0 && (
-            <GeoFixPanel items={analysis.unresolvedGeo} rows={analysis.rows} fixes={geoFixes} onFix={(key, value) => setGeoFixes((f) => ({ ...f, [key]: value }))} />
+          {analysis.unresolvedGeo.length > 0 && <GeoFixPanel items={analysis.unresolvedGeo} rows={analysis.rows} fixes={geoFixes} unions={unions} onFix={(key, value) => setGeoFixes((f) => ({ ...f, [key]: value }))} />}
+          {categoryMapped.length > 0 && (
+            <CategoryReviewPanel
+              fields={categoryMapped}
+              sheetValues={sheetValues}
+              existing={existing}
+              fixes={categoryFixes}
+              onChange={(key, from, to) =>
+                setCategoryFixes((all) => {
+                  const cur = { ...(all[key] ?? {}) }
+                  if (to) cur[from] = to
+                  else delete cur[from]
+                  return { ...all, [key]: cur }
+                })
+              }
+            />
           )}
 
           <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200 bg-white">
@@ -328,8 +412,15 @@ export function HousingImportPage() {
                   <th className="px-2 py-2">{t('বিভাগ')}</th>
                   <th className="px-2 py-2">{t('জেলা')}</th>
                   <th className="px-2 py-2">{t('উপজেলা')}</th>
+                  {unionCol && <th className="px-2 py-2">{t('ইউনিয়ন')}</th>}
                   <th className="px-2 py-2">{t('ঠিকানা')}</th>
-                  <th className="px-2 py-2">{t('ছবি লিঙ্ক')}</th>
+                  {mappedCustom.map((f) => (
+                    <th key={f.id} className="px-2 py-2">
+                      {f.private ? '🔒 ' : ''}
+                      {fieldLabel(f)}
+                    </th>
+                  ))}
+                  {photoIds.length > 0 && <th className="px-2 py-2">{t('ছবি লিঙ্ক')}</th>}
                   <th className="px-2 py-2">{t('অবস্থা')}</th>
                 </tr>
               </thead>
@@ -338,18 +429,31 @@ export function HousingImportPage() {
                   <tr key={r.rowNo} className={r.errors.length ? 'bg-red-50' : r.warnings.length ? 'bg-amber-50/60' : ''}>
                     <td className="px-2 py-1.5 text-slate-500">{toBanglaNumber(r.rowNo)}</td>
                     <td className="px-2 py-1.5 font-medium tabular-nums">{r.values.serial_no !== null ? toBanglaNumber(r.values.serial_no) : <Bad>{r.raw.serial_no || '—'}</Bad>}</td>
-                    <td className="px-2 py-1.5">{r.values.year !== null ? toBanglaNumber(r.values.year) : <Bad>{r.raw.year || '—'}</Bad>}</td>
-                    <td className="px-2 py-1.5">{r.values.name || <Bad>—</Bad>}</td>
-                    <td className="px-2 py-1.5">{r.values.father_or_husband_name || '—'}</td>
-                    <GeoCell value={r.values.division} raw={r.raw.division} corrected={r.geo.corrected.includes('division')} />
-                    <GeoCell value={r.values.district} raw={r.raw.district} corrected={r.geo.corrected.includes('district')} />
-                    <GeoCell value={r.values.upazila} raw={r.raw.upazila} corrected={r.geo.corrected.includes('upazila')} />
+                    <td className="px-2 py-1.5">{r.values.year !== null ? toBanglaNumber(r.values.year) : update && !r.raw.year ? '—' : <Bad>{r.raw.year || '—'}</Bad>}</td>
+                    <td className="px-2 py-1.5">{r.values.name || (update ? '—' : <Bad>—</Bad>)}</td>
+                    <td className="px-2 py-1.5">{r.clear.includes('father_or_husband_name') ? <Cleared /> : r.values.father_or_husband_name || '—'}</td>
+                    <GeoCell value={r.values.division} raw={r.raw.division} corrected={r.geo.corrected.includes('division')} soft={update} />
+                    <GeoCell value={r.values.district} raw={r.raw.district} corrected={r.geo.corrected.includes('district')} soft={update} />
+                    <GeoCell value={r.values.upazila} raw={r.raw.upazila} corrected={r.geo.corrected.includes('upazila')} soft={update} />
+                    {unionCol && (
+                      <td className="px-2 py-1.5">
+                        {r.clear.includes('union_name') ? <Cleared /> : r.values.union_name ? gnUnion(r.values.district, r.values.upazila, r.values.union_name) : '—'}
+                        {r.geo.union?.status === 'unlisted' && r.values.union_name === r.geo.union.value && <span className="ml-1 text-[10px] text-yellow-700">{t('(তালিকায় নেই)')}</span>}
+                      </td>
+                    )}
                     <td className="max-w-[12rem] truncate px-2 py-1.5 text-slate-600" title={r.values.address}>
-                      {r.values.address || '—'}
+                      {r.clear.includes('address') ? <Cleared /> : r.values.address || '—'}
                     </td>
-                    <td className="px-2 py-1.5 text-slate-500">
-                      {r.values.prev_photo_source ? '✓' : '–'} / {r.values.current_photo_source ? '✓' : '–'}
-                    </td>
+                    {mappedCustom.map((f) => {
+                      const key = f.id.slice(2)
+                      const v = (f.private ? r.priv : r.extra)[key]
+                      return (
+                        <td key={f.id} className={`px-2 py-1.5 ${f.def?.type === 'money' || f.def?.type === 'number' ? 'text-right whitespace-nowrap tabular-nums' : ''}`}>
+                          {r.bad.has(f.id) ? <Bad>{r.raw[f.id] || '—'}</Bad> : r.clear.includes(`extra.${key}`) ? <Cleared /> : v !== undefined ? formatField(f.def!, v) : '—'}
+                        </td>
+                      )
+                    })}
+                    {photoIds.length > 0 && <td className="px-2 py-1.5 text-slate-500">{photoIds.map((id) => (r.clear.includes(id) ? '✕' : r.values[id] ? '✓' : '–')).join(' / ')}</td>}
                     <td className="max-w-[18rem] px-2 py-1.5">
                       {r.errors.map((e, i) => (
                         <p key={`e${i}`} className="text-red-700">
@@ -377,7 +481,7 @@ export function HousingImportPage() {
         <Step n={4} title={t('ইম্পোর্ট চালান')}>
           <div className="flex flex-wrap items-center gap-3">
             <button type="button" disabled={!canRun} onClick={() => void run()} className="inline-flex h-11 items-center rounded-md bg-brand-700 px-6 text-sm font-semibold text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50">
-              {mode === 'insert' ? t('{n} টি সারি যোগ করুন', { n: formatBanglaNumber(analysis.validCount) }) : t('{n} টি সারি আপডেট করুন', { n: formatBanglaNumber(analysis.validCount) })}
+              {!update ? t('{n} টি সারি যোগ করুন', { n: formatBanglaNumber(analysis.validCount) }) : t('{n} টি সারি আপডেট করুন', { n: formatBanglaNumber(analysis.validCount) })}
             </button>
             {analysis.errorCount > 0 && <span className="text-sm text-red-700">{t('{n} টি ভুল সারি বাদ যাবে (ব্যর্থ তালিকায় থাকবে)', { n: formatBanglaNumber(analysis.errorCount) })}</span>}
           </div>
@@ -395,7 +499,7 @@ export function HousingImportPage() {
               <ul className="mt-2 space-y-1">
                 <li className="text-green-700">{t('সফল: {n}', { n: formatBanglaNumber(result.ok) })}</li>
                 <li className="text-red-700">{t('ব্যর্থ/বাদ: {n}', { n: formatBanglaNumber(result.failed.length) })}</li>
-                {mode === 'update' && <li className="text-amber-800">{t('সিরিয়াল মিলেনি (আপডেট হয়নি): {n}', { n: formatBanglaNumber(result.missing.length) })}</li>}
+                {update && <li className="text-amber-800">{t('সিরিয়াল মিলেনি (আপডেট হয়নি): {n}', { n: formatBanglaNumber(result.missing.length) })}</li>}
               </ul>
               {(result.failed.length > 0 || result.missing.length > 0) && (
                 <>
@@ -446,65 +550,18 @@ function Bad({ children }: { children: ReactNode }) {
   return <span className="rounded bg-red-100 px-1 text-red-800">{children}</span>
 }
 
-function GeoCell({ value, raw, corrected }: { value: string | null; raw: string; corrected: boolean }) {
+function Cleared() {
+  return <span className="rounded bg-slate-200 px-1 text-slate-700">{t('(মুছে যাবে)')}</span>
+}
+
+function GeoCell({ value, raw, corrected, soft = false }: { value: string | null; raw: string; corrected: boolean; soft?: boolean }) {
   if (!value) {
-    return (
-      <td className="px-2 py-1.5">
-        <Bad>{raw || '—'}</Bad>
-      </td>
-    )
+    return <td className="px-2 py-1.5">{soft && !raw ? '—' : <Bad>{raw || '—'}</Bad>}</td>
   }
   return (
     <td className="px-2 py-1.5" title={corrected ? t('ফাইলে: "{raw}"', { raw }) : undefined}>
       {gn(value)}
       {corrected && <span className="ml-1 text-[10px] text-amber-700">{t('(সংশোধিত)')}</span>}
     </td>
-  )
-}
-
-/** না-মেলা ভৌগোলিক নামের প্যানেল: পরামর্শ + সম্পূর্ণ তালিকা থেকে বাছাই; একবার ঠিক করলে একই মানের সব সারিতে প্রযোজ্য */
-function GeoFixPanel({ items, rows, fixes, onFix }: { items: ImportAnalysis['unresolvedGeo']; rows: ImportRow[]; fixes: Record<string, string>; onFix: (key: string, value: string) => void }) {
-  const LEVEL = { division: 'বিভাগ', district: 'জেলা', upazila: 'উপজেলা' } as const
-  return (
-    <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
-      <p className="text-sm font-semibold text-amber-900">{t('ভৌগোলিক নাম মেলেনি — সঠিক নাম বেছে দিন ({n} টি স্বতন্ত্র মান)', { n: formatBanglaNumber(items.length) })}</p>
-      <ul className="mt-3 space-y-2">
-        {items.map((it) => {
-          // এই মানের প্রথম সারি থেকে parent প্রসঙ্গ
-          const sample = rows.find((r) => r.geo.unresolved.some((u) => u.level === it.level && u.raw === it.raw))
-          const parentDivision = sample?.geo.division ?? null
-          const parentDistrict = sample?.geo.district ?? null
-          const options = candidatesFor(it.level, parentDivision, parentDistrict)
-          const key = geoFixKey(it.level, it.raw, it.parent)
-          return (
-            <li key={it.key} className="flex flex-wrap items-center gap-2 rounded-md bg-white px-3 py-2 text-sm">
-              <span className="rounded bg-amber-100 px-1.5 text-xs text-amber-900">{t(LEVEL[it.level])}</span>
-              <span className="font-medium text-slate-800">"{it.raw}"</span>
-              <span className="text-xs text-slate-500">({t('{n} সারি', { n: formatBanglaNumber(it.count) })}{it.parent ? `, ${gn(it.parent)}` : ''})</span>
-              <span className="text-slate-400">→</span>
-              <select className="h-9 min-w-[12rem] rounded-md border border-slate-300 bg-white px-2 text-sm" value={fixes[key] ?? ''} onChange={(e) => e.target.value && onFix(key, e.target.value)} aria-label={t('"{raw}" এর সঠিক {level}', { raw: it.raw, level: t(LEVEL[it.level]) })}>
-                <option value="">{t('— বেছে নিন —')}</option>
-                {it.suggestions.length > 0 && (
-                  <optgroup label={t('পরামর্শ')}>
-                    {it.suggestions.map((s) => (
-                      <option key={`s-${s}`} value={s}>
-                        {gn(s)}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-                <optgroup label={t('সম্পূর্ণ তালিকা')}>
-                  {options.map((o) => (
-                    <option key={o} value={o}>
-                      {gn(o)}
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
-            </li>
-          )
-        })}
-      </ul>
-    </div>
   )
 }

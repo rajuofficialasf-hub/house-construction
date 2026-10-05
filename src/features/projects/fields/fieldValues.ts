@@ -266,7 +266,7 @@ export function fieldErrorMessage(err: FieldError): string {
     case 'money_fraction':
       return t('টাকা পূর্ণসংখ্যায় দিন (পয়সা নয়)')
     case 'money_range':
-      return t('টাকার পরিমাণ ০ থেকে ১০,০০০ কোটির মধ্যে হতে হবে')
+      return t('টাকার পরিমাণ ০ থেকে ১০০০ কোটির মধ্যে হতে হবে')
     case 'decimals':
       return t('সর্বোচ্চ ২ ঘর দশমিক')
     case 'min':

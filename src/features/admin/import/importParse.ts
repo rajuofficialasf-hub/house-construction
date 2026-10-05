@@ -1,6 +1,6 @@
 import { t } from '@/i18n'
-import { HousingApiError } from '../../../backend/interfaces/types'
-import { stripFormulaGuard } from './csvExport'
+import { HousingApiError } from '@/backend'
+import { stripFormulaGuard } from '@/features/housing/utils/csvExport'
 
 export interface ParsedSheet {
   sheetName: string

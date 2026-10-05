@@ -67,7 +67,7 @@ eq('"Tk 5,000" → 5000', P(money, 'Tk 5,000'), 5000)
 eq('"abc" → ত্রুটি (সংখ্যা নয়)', P(money, 'abc'), 'ERR:not_number')
 eq('"100.50" → ত্রুটি (পয়সা নয়)', P(money, '100.50'), 'ERR:money_fraction')
 eq('"-5" → ত্রুটি (সীমার বাইরে)', P(money, '-5'), 'ERR:money_range')
-eq('100000000001 → ত্রুটি (সীমার বাইরে)', P(money, 100000000001), 'ERR:money_range')
+eq('১০০০ কোটি ঠিক আছে; 10000000001 → ত্রুটি (সীমার বাইরে)', [P(money, 10000000000), P(money, 10000000001)], [10000000000, 'ERR:money_range'])
 eq('খালি → null; আবশ্যক হলে ত্রুটি', [P(money, ''), P(def('money', { required: true }), ' ')], [null, 'ERR:required'])
 eq('min/max (১০০০–৫০০০০)', [P(def('money', { min_value: 1000, max_value: 50000 }), '৫০০'), P(def('money', { min_value: 1000, max_value: 50000 }), '60000')], ['ERR:min', 'ERR:max'])
 
@@ -236,6 +236,35 @@ eq('গোপন ফিল্ড আছে কি না (এক্সপোর�
 setCurrentLang('en')
 eq('ইংরেজি মোডেও CSV হেডার বাংলা', csvPlan(grant10, false).headers[1], 'অনুদানের সাল')
 setCurrentLang('bn')
+
+section('জেনেরিক ইম্পোর্ট (M-ধাপ ১১)')
+const { buildImportFields, guessMapping, isIgnoredHeader } = await import('../src/features/admin/import/importFields.ts')
+const { analyzeRows, fillDown, fillDownFields } = await import('../src/features/admin/import/importAnalyze.ts')
+const g11 = { ...grant10, geo_depth: 'union', fields: grant10.fields.map((f) => (f.key === 'category' ? { ...f, label_bn: 'উপকরণের ক্যাটাগরি', import_aliases: ['ক্যাটাগরি', 'category'] } : f.key === 'amount' ? { ...f, label_bn: 'টাকা', required: true, import_aliases: ['টাকার পরিমাণ', 'অনুদানের পরিমাণ'] } : f.key === 'item_name' ? { ...f, label_bn: 'উপকরণের নাম/বিবরণ', import_aliases: ['উপকরণ', 'উপকরণের নাম'] } : f)) }
+const F11 = buildImportFields(g11)
+const expHeaders = csvPlan(g11, true).headers
+const em = guessMapping(expHeaders, F11)
+eq('এক্সপোর্টের CSV (গোপনসহ) আবার দিলে সব শিরোনাম মেলে — শুধু তথ্য-কলাম (সিস্টেম URL, ছবি আপডেট, রেকর্ড আইডি, আর্কাইভ) বাদ', expHeaders.filter((h, i) => em[i] === null && !isIgnoredHeader(h)), [])
+eq('বিকল্প নাম: লম্বাটি আগে ("উপকরণের নাম" → item_name, "ক্যাটাগরি" → category, "টাকার পরিমাণ" → amount)', guessMapping(['উপকরণের নাম', 'ক্যাটাগরি', 'টাকার পরিমাণ'], F11), ['x.item_name', 'x.category', 'x.amount'])
+eq('হুবহু শিরোনাম আগে: "উপজেলা" কখনো জেলা নয় (পুরনো regex বাগ ঠিক)', guessMapping(['উপজেলা', 'জেলা'], F11), ['upazila', 'district'])
+const ids = ['year', 'name', 'division', 'district', 'upazila', 'union_name', 'x.category', 'x.amount', 'x.item_name', 'x.mobile']
+const sheet = [
+  ['২০২৫', 'ক', 'চট্টগ্রাম', 'চট্টগ্রাম', 'মীরসরাই', 'করেরহাট', 'গাভি', '১,২০,০০০', '', '০১৭১১০০০০০১'],
+  ['', 'খ', '', '', '', 'করেরহাট', 'গাভী', 'এক লাখ', '', ''],
+  ['', 'ক', '', '', '', 'করেরহাট', 'ছাগল', '১২০০০০/-', '', ''],
+]
+const fd = fillDown(sheet, ids, fillDownFields(F11))
+const A = analyzeRows(fd.rows, ids, F11, { mode: 'insert', geoFixes: {}, serialFromFile: false, startSerial: 10, categoryFixes: { category: { 'গাভি': 'গাভী' } } })
+eq('ফিল-ডাউন: সাল/বিভাগ/জেলা/উপজেলা (২ সারি × ৪)', fd.filled, 8)
+eq('ইনসার্ট: টাকা পার্স, ক্যাটাগরির এক-বানান, গোপন মান আলাদা', [A.rows[0].extra, A.rows[0].priv, A.rows[0].values.union_name, A.rows[0].values.serial_no], [{ category: 'গাভী', amount: 120000 }, { mobile: '01711000001' }, 'করেরহাট', 10])
+eq('ভুল টাকা → সারিতে ভুল ও লাল ঘর', [A.rows[1].errors.some((e) => e.includes('শুধু সংখ্যা দিন')), A.rows[1].bad.has('x.amount'), A.errorCount], [true, true, 1])
+eq('ডুপ্লিকেট ব্যক্তি: নাম + পিতা + সবচেয়ে নিচের স্তর (ইউনিয়ন)', A.rows[2].warnings.some((w) => w.includes('সম্ভাব্য ডুপ্লিকেট ব্যক্তি')), true)
+const uids = ['serial_no', 'x.amount', 'x.item_name', 'address', 'x.mobile', 'name']
+const U = analyzeRows([['5', '২,০০,০০০', '', '', '', ''], ['6', '', '(মুছুন)', '(মুছুন)', '(মুছুন)', ''], ['7', '(মুছুন)', '', '', '', '(মুছুন)'], ['', '১', '', '', '', '']], uids, F11, { mode: 'update', geoFixes: {}, serialFromFile: true, startSerial: 1 })
+eq('আপডেট: শুধু ম্যাপ করা ও খালি নয় এমন ঘর পাঠানো হয়', [[...U.rows[0].present].sort(), U.rows[0].extra, U.rows[0].errors], [['x.amount'], { amount: 200000 }, []])
+eq('আপডেট: "(মুছুন)" → _clear (ঐচ্ছিক ঘর), গোপনে শুধু সতর্কতা', [U.rows[1].clear, U.rows[1].warnings.some((w) => w.includes('গোপন')), U.rows[1].errors], [['address', 'extra.item_name'], true, []])
+eq('আপডেট: আবশ্যক ঘর (টাকা, নাম) মোছা যায় না → ভুল', U.rows[2].errors.filter((e) => e.includes('মোছা যায় না')).length, 2)
+eq('আপডেট: সিরিয়াল ছাড়া সারি → ভুল; সাল/নাম/ঠিকানা আবশ্যক নয়', [U.rows[3].errors, U.rows[0].errors.length], [['সিরিয়াল ফাঁকা'], 0])
 
 console.log(`\nফল: PASS ${pass}, FAIL ${fail}`)
 process.exit(fail ? 1 : 0)

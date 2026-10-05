@@ -8,3 +8,5 @@ export const LazyProjectSettingsPage = lazy(() => import('./ProjectSettingsPage'
 /** রেকর্ড (M-ধাপ ১০-এ features/housing থেকে সরানো — এখন যেকোনো প্রকল্পের, ফিল্ড-চালিত) */
 export const LazyAdminRecordsPage = lazy(() => import('../records/AdminRecordsPage').then((m) => ({ default: m.AdminRecordsPage })))
 export const LazyRecordFormPage = lazy(() => import('../records/RecordFormPage').then((m) => ({ default: m.RecordFormPage })))
+/** বাল্ক ইম্পোর্ট (M-ধাপ ১১-এ features/housing থেকে সরানো — এখন যেকোনো প্রকল্পের, ফিল্ড-চালিত) */
+export const LazyImportPage = lazy(() => import('../import/ImportPage').then((m) => ({ default: m.ImportPage })))

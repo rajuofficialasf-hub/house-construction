@@ -115,7 +115,8 @@ export function createSupabaseHousingApi(
     }
     if (project) {
       if (project.geo_depth !== 'union') delete out.union_name
-      if (publicFields(project).length === 0) delete out.extra
+      // কাস্টম ফিল্ড না থাকলে extra বাদ (পুরনো আচরণ); গোপন-ফিল্ডের মান বাল্ক-আপডেটে extra দিয়েই যায় (RPC আলাদা করে) — M-ধাপ ১১
+      if (!project.fields.some((f) => f.is_active)) delete out.extra
     }
     if (out.union_name !== undefined) out.union_name = nfc(out.union_name)
     return out
