@@ -15,6 +15,9 @@ npm run security-check            # anon key দিয়ে পড়া-খো
 npm run migrate-photos -- --help  # ছবি মাইগ্রেশন স্ক্রিপ্ট (লোকাল, service_role .env এ)
 npm run build-map -- --in gadm41_BGD_3.json   # উপজেলা মানচিত্রের TopoJSON পুনর্নির্মাণ (GADM 4.1 level 3 থেকে)
 npm run i18n-check                # বাংলা UI লেখা বনাম src/i18n/en.ts ইংরেজি অভিধান — অনুপস্থিত অনুবাদ খোঁজে
+npm run photo-check               # লগইন ছাড়া সব ছবির URL খোলে কি না (HEAD → 200)
+npm run smoke                     # Chrome/Edge দিয়ে ৩৬০–১২৮০px × বাংলা/ইংরেজি পেইজ-পরীক্ষা + স্ক্রিনশট (.smoke/); আগে npm run dev
+npm run smoke -- --quick          # দ্রুত (৩৯০ ও ১২৮০px, শুধু বাংলা)
 ```
 
 ## রুট

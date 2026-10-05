@@ -35,3 +35,6 @@ photos/
 
 # ডেমো বিল্ডের জিপ
 dist.zip
+
+# smoke টেস্টের স্ক্রিনশট/রিপোর্ট (scripts/smoke.mjs)
+.smoke/

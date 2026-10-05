@@ -11,7 +11,9 @@
     "migrate-photos": "tsx scripts/migrate-photos.mjs",
     "security-check": "node scripts/security-check.mjs",
     "build-map": "tsx scripts/build-map.mjs",
-    "i18n-check": "node scripts/i18n-check.mjs"
+    "i18n-check": "node scripts/i18n-check.mjs",
+    "photo-check": "node scripts/photo-check.mjs",
+    "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
@@ -32,6 +34,7 @@
     "@vitejs/plugin-react": "^6.1.1",
     "mapshaper": "^0.7.70",
     "oxlint": "^1.81.0",
+    "puppeteer-core": "^25.12.0",
     "sharp": "^0.35.5",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.15",

@@ -1,9 +1,23 @@
 -- =====================================================================
--- 06_seed.sql — টেস্টের জন্য ২০টি ডামি রেকর্ড (১২টি সেমিপাকা, ৮টি টিনের ঘর)
+-- dev/06_seed.sql — ⚠ শুধু খালি টেস্ট ডাটাবেসের জন্য: ২০টি ডামি রেকর্ড (১২টি সেমিপাকা, ৮টি টিনের ঘর)
+-- M-ধাপ ১ (২০২৬-১০-০৫): লাইভ ডাটা আসার পর এই ফাইল supabase/sql/ থেকে dev/ এ সরানো হয়েছে।
+-- গার্ড: টেবিলে কোনো রেকর্ড থাকলে ফাইলটি নিজেই থেমে যায় (কিছুই ঢোকে না)। ইচ্ছাকৃতভাবে চালাতে হলে
+--   একদম শুরুতে একটি লাইন যোগ করুন:  set asf.confirm_seed = 'YES';
 -- সব নাম/ঠিকানা কাল্পনিক। ছবির লিঙ্ক example.com (কাজ করবে না, শুধু ফরম্যাট দেখানোর জন্য)।
--- SQL Editor থেকে চালালে RLS বাইপাস হয়। দ্বিতীয়বার চালালে (project_type, serial_no) ডুপ্লিকেট এরর দেবে;
--- আগে মুছতে: delete from public.housing_beneficiaries;  (কাউন্টার ইচ্ছাকৃতভাবে রিসেট হয় না)
+-- SQL Editor থেকে চালালে RLS বাইপাস হয়। (কাউন্টার ইচ্ছাকৃতভাবে রিসেট হয় না)
 -- =====================================================================
+
+begin;
+
+do $guard$
+begin
+  if exists (select 1 from public.housing_beneficiaries)
+     and coalesce(current_setting('asf.confirm_seed', true), '') <> 'YES' then
+    raise exception 'থামানো হয়েছে: টেবিলে আসল রেকর্ড আছে, তাই ডামি ডাটা ঢোকানো হবে না। কিছুই বদলায়নি।'
+      using hint = 'এটি শুধু খালি টেস্ট ডাটাবেসের জন্য। সত্যিই চাইলে ফাইলের শুরুতে লিখুন: set asf.confirm_seed = ''YES'';';
+  end if;
+end
+$guard$;
 
 insert into public.housing_beneficiaries
   (project_type, serial_no, year, name, father_or_husband_name, division, district, upazila, address,
@@ -32,6 +46,8 @@ values
   ('tin',  6, 2025, 'মোঃ কামাল হোসেন',     'মৃত আব্দুল বারেক',    'খুলনা',     'যশোর',         'কেশবপুর',        'গ্রাম: মঙ্গলকোট, ডাকঘর: কেশবপুর',       'https://example.com/photos/tin_0006_prev.jpg', 'https://example.com/photos/tin_0006_current.jpg'),
   ('tin',  7, 2025, 'মমতাজ বেগম',           'মোঃ শামসুল হক',       'ময়মনসিংহ',  'শেরপুর',       'নালিতাবাড়ী',     'গ্রাম: পোড়াগাঁও, ডাকঘর: নালিতাবাড়ী',     'https://example.com/photos/tin_0007_prev.jpg', 'https://example.com/photos/tin_0007_current.jpg'),
   ('tin',  8, 2025, 'মোঃ ইব্রাহিম খলিল',    'মৃত আব্দুল জব্বার',   'ঢাকা',      'টাঙ্গাইল',     'ভুয়াপুর',        'গ্রাম: গাবসারা, ডাকঘর: ভুয়াপুর',         'https://example.com/photos/tin_0008_prev.jpg', 'https://example.com/photos/tin_0008_current.jpg');
+
+commit;
 
 -- যাচাই:
 -- select project_type, count(*), max(serial_no) from public.housing_beneficiaries group by project_type;

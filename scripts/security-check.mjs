@@ -22,12 +22,26 @@ const rest = (path, init = {}) => fetch(`${URL_}/rest/v1/${path}`, { ...init, he
 
 let pass = 0
 let fail = 0
+let skipped = 0
 const ok = (label, cond, detail = '') => {
   if (cond) pass++
   else fail++
   console.log(`${cond ? 'PASS' : 'FAIL'}  ${label}${detail ? '  — ' + detail : ''}`)
 }
+const skip = (label, why) => {
+  skipped++
+  console.log(`SKIP  ${label}  — ${why}`)
+}
 const status = (r) => `HTTP ${r.status}`
+/** PostgREST: টেবিল (PGRST205) বা ফাংশন (PGRST202) ডাটাবেসে নেই */
+const isMissing = (r, body) => r.status === 404 && /PGRST20[25]/.test(body)
+const safeJson = (t) => {
+  try {
+    return JSON.parse(t)
+  } catch {
+    return null
+  }
+}
 
 console.log(`প্রজেক্ট: ${URL_}\n`)
 
@@ -62,6 +76,30 @@ let sample = null
   const r = await rest('housing_serial_changes?select=*')
   const rows = r.ok ? await r.json() : null
   ok('anon: সিরিয়াল-বদলের লগ অগম্য', !r.ok || (Array.isArray(rows) && rows.length === 0), status(r))
+}
+// ---------- একটিভিটি লগ (09_activity_log.sql; M-ধাপ ১ এ যোগ) ----------
+// টেবিল/ফাংশন না থাকলে (PGRST205 / PGRST202) সেটি নিরাপত্তা-ত্রুটি নয় — SKIP, সাথে "সারি ২৩" নির্দেশনা।
+{
+  const r = await rest('housing_activity_log?select=id,action,actor_email&limit=5')
+  const body = await r.text()
+  if (isMissing(r, body)) skip('anon: একটিভিটি লগ অগম্য', '09_activity_log.sql চালানো হয়নি (চেকলিস্ট সারি ২৩)')
+  else {
+    const rows = r.ok ? safeJson(body) : null
+    ok('anon: একটিভিটি লগ অগম্য (খালি বা ৪০x)', !r.ok || (Array.isArray(rows) && rows.length === 0), `${status(r)}, ${Array.isArray(rows) ? rows.length + ' সারি' : 'n/a'}`)
+  }
+}
+{
+  const r = await fetch(`${URL_}/rest/v1/rpc/housing_log_event`, {
+    method: 'POST',
+    headers: H,
+    body: JSON.stringify({ p_action: 'security_check', p_details: { by: 'security-check' }, p_project_type: null }),
+  })
+  const body = await r.text()
+  if (isMissing(r, body)) skip('anon: housing_log_event RPC নিষিদ্ধ', '09_activity_log.sql চালানো হয়নি (চেকলিস্ট সারি ২৩)')
+  else {
+    ok('anon: housing_log_event RPC নিষিদ্ধ (লগে লিখতে পারে না)', !r.ok, `${status(r)} ${body.slice(0, 80)}`)
+    if (r.ok) console.log('   !! anon লগে লিখতে পেরেছে — housing_log_event এর এডমিন-যাচাই ভুল। লগে "security_check" সারিটি দেখা যাবে।')
+  }
 }
 
 // ---------- লেখা (সব বন্ধ থাকা উচিত) ----------
@@ -115,8 +153,9 @@ if (sample) {
   ok('bucket housing-photos পাবলিক (read)', isPublic, `${status(r)} ${text.slice(0, 80)}`)
 }
 
-console.log(`\nফল: PASS ${pass}, FAIL ${fail}`)
-process.exit(fail ? 2 : 0)
+console.log(`\nফল: PASS ${pass}, FAIL ${fail}${skipped ? `, SKIP ${skipped}` : ''}`)
+if (skipped && !fail) console.log('কিছু পরীক্ষা বাদ পড়েছে — উপরের SKIP লাইনের নির্দেশনা অনুযায়ী SQL চালিয়ে আবার চালান।')
+process.exit(fail ? 2 : skipped ? 3 : 0)
 
 function loadEnv(file) {
   if (!fs.existsSync(file)) return
