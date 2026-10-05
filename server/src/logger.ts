@@ -1,4 +1,4 @@
-import { pino, type Level, type Logger } from 'pino';
+import { pino, type DestinationStream, type Level, type Logger } from 'pino';
 
 // Never log credentials or session material (NE-LOG-02).
 const REDACT = [
@@ -10,6 +10,7 @@ const REDACT = [
   '*.token',
 ];
 
-export function createLogger(level: Level | 'silent'): Logger {
-  return pino({ level, redact: { paths: REDACT, censor: '[redacted]' } });
+/** A JSON logger with secrets redacted, writing to stdout unless given another destination. */
+export function createLogger(level: Level | 'silent', destination?: DestinationStream): Logger {
+  return pino({ level, redact: { paths: REDACT, censor: '[redacted]' } }, destination);
 }

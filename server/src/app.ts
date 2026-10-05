@@ -9,6 +9,7 @@ import { sessionMiddleware } from './auth/middleware.js';
 import type { Sql } from './db.js';
 import { errorHandler, notFoundHandler } from './errors.js';
 import { originCheck } from './http/origin.js';
+import { authRouter } from './routes/v1/auth.js';
 import { healthRouter } from './routes/v1/health.js';
 
 export interface AppDeps {
@@ -50,6 +51,7 @@ export function createApp({ sql, logger, trustProxy, allowedOrigins, cookieSecur
   app.use('/api/v1', sessionMiddleware({ sql, now }, cookie.name));
 
   app.use('/api/v1', healthRouter(sql));
+  app.use('/api/v1/auth', authRouter({ sql, now }, cookie));
 
   app.use(notFoundHandler);
   app.use(errorHandler);

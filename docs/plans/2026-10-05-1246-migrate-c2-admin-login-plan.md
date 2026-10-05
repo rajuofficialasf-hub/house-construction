@@ -144,7 +144,7 @@ From the roadmap and the C2 brief (not reopened here): minimal admin login with 
   - The response and logs never contain the password or token: assert on the body, and on a pino destination captured in the test.
 - **Done when:** tests pass; `curl` against `docker compose up` shows the cookie flow.
 - **Depends on:** U5
-- **Status:** todo
+- **Status:** done
 
 ### U7. Admin CLI
 - **Goal:** An operator can create, re-password, disable, enable and list admins from the server.
@@ -208,7 +208,7 @@ From the roadmap and the C2 brief (not reopened here): minimal admin login with 
 
 ## Progress
 - **Branch:** `migrate/c2-admin-login` (from `migrate/c1-server-db`)
-- **Updated:** 2026-10-05 13:08
-- **Next:** U6, add express-rate-limit and server/src/routes/v1/auth.ts
+- **Updated:** 2026-10-05 13:10
+- **Next:** U7, write server/src/auth/admins.ts with tests, then the CLI in server/src/cli/admin.ts
 - **Uncommitted:** none
 - **Notes:** The local server/.env (gitignored) needs ALLOWED_ORIGINS and COOKIE_SECURE added by hand, like .env.example. U5: the cors package sends Allow-Credentials even to disallowed origins; harmless without Allow-Origin, and the test asserts only Allow-Origin. Cookie parsing is hand-written (no cookie dependency).
