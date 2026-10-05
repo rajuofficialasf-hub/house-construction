@@ -85,6 +85,7 @@ describe('public-read CORS', () => {
   it.each([
     ['a write preflight on housing', () => preflight('/api/v1/housing', 'POST')],
     ['a delete preflight on a record', () => preflight('/api/v1/housing/00000000-0000-4000-8000-ffffffffffff', 'DELETE')],
+    ['an update preflight on a record', () => preflight('/api/v1/housing/00000000-0000-4000-8000-ffffffffffff', 'PUT')],
     ['a GET of the current admin', () => request(withPartner).get('/api/v1/auth/me').set('origin', PARTNER)],
     ['a login preflight', () => preflight('/api/v1/auth/login', 'POST')],
     ['a GET of the health check', () => request(withPartner).get('/api/v1/healthz').set('origin', PARTNER)],

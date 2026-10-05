@@ -298,7 +298,7 @@ From the roadmap and the C4 brief, not reopened here:
   - **OpenAPI:** the drift test covers both routers; each write entry has `security`.
 - **Done when:** `npm --prefix server test` and typecheck are green, and the contract §4.6–§4.8 text matches the tests.
 - **Depends on:** U1, U2
-- **Status:** todo
+- **Status:** done
 
 ### U4. Bulk insert and bulk update
 - **Goal:** `POST` and `PUT /housing/bulk` as contract §4.9 and §4.9খ say, with their own body limit.
@@ -488,7 +488,12 @@ Finally, the Chrome check from U9.
 ## Progress
 - **Branch:** `migrate/c4-write-endpoints` (from `migrate/c3-read-endpoints`, which is not yet merged into `dev-forhad`)
 - **Updated:** 2026-10-05 16:40
-- **Next:** U3: `server/src/housing/writes.ts` and the admin router
+- **Next:** U4: the bulk routes, plus the 10 MB parser and the skip for the global parser in `app.ts`
 - **Uncommitted:** none
 - **Notes:** `activityBody.details` uses `z.record(z.string(), z.unknown())`, not `z.json()`. The body is already JSON, and this avoids the `$defs` ref, so the OpenAPI entry needs no hand override. A custom zod check's `params.reason` becomes `details.reason` (`errors.ts`).
+  U3 notes:
+  - The CORS cases live in `server/test/http/security.test.ts`; there is no separate `cors.test.ts`.
+  - The HTTP tests run the app on `appDb()`, which already proves the runtime role's grants, so no separate `test/db/writes.test.ts` was added.
+  - `server/test/support/session.ts` (`loginAdmin`) is shared by the admin route tests.
+  - `writes.ts` already has `bulkInsert` and `bulkUpdateBySerial`; U4 wires them up and tests them.
   `origin/main` was already in `dev-forhad` on 2026-10-05, with no new `supabase/sql` to port.

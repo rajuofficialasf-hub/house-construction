@@ -28,7 +28,7 @@ export interface HousingRecord {
 
 // Exactly the contract §3.2 fields. Named, never `*`, so a column added later stays private
 // until someone decides to publish it (DB-Q-05).
-const RECORD_COLUMNS = [
+export const RECORD_COLUMNS = [
   'id', 'project_type', 'serial_no', 'year', 'name', 'father_or_husband_name', 'division', 'district', 'upazila',
   'address', 'prev_photo_url', 'prev_thumb_url', 'current_photo_url', 'current_thumb_url', 'prev_photo_source',
   'current_photo_source', 'photo_updated_at', 'created_at', 'updated_at',

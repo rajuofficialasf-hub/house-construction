@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import {
+  changeSerialBody,
+  createBody,
   errorBody,
   filterOptions,
   housingRecord,
@@ -17,14 +19,16 @@ import {
   serialParams,
   serialsParams,
   serialsQuery,
+  updateBody,
   YEAR_MAX,
   YEAR_MIN,
 } from './housing/schemas.js';
 
-// The OpenAPI 3.1 description of the public /api/v1 routes, served at /api/v1/openapi.json for
+// The OpenAPI 3.1 description of the /api/v1 housing routes, served at /api/v1/openapi.json for
 // other apps (docs/api/API_CONTRACT.md §1). Parameter and body schemas come from the same zod
 // schemas the routes parse with; test/http/openapi.test.ts fails if a route and its entry drift
-// apart. Admin routes are left out on purpose: only this site uses them.
+// apart. The housing writes are listed as admin-only; the login routes (/auth/*) are left out on
+// purpose, because only this site uses them.
 
 type JsonSchema = Record<string, unknown>;
 
@@ -40,15 +44,19 @@ interface Operation {
   summary: string;
   tags: string[];
   parameters?: Parameter[];
+  requestBody?: { required: true; content: Record<string, { schema: JsonSchema }> };
+  security?: Record<string, string[]>[];
   responses: Record<string, { description: string; content?: Record<string, { schema: JsonSchema }> }>;
 }
+
+type Method = 'get' | 'post' | 'put' | 'delete';
 
 export interface OpenApiDocument {
   openapi: '3.1.0';
   info: { title: string; version: string; description: string };
   servers: { url: string }[];
-  paths: Record<string, { get?: Operation }>;
-  components: { schemas: Record<string, JsonSchema> };
+  paths: Record<string, Partial<Record<Method, Operation>>>;
+  components: { schemas: Record<string, JsonSchema>; securitySchemes: Record<string, JsonSchema> };
 }
 
 /** Request schemas describe what the client sends (strings with patterns); responses what it gets back. */
@@ -83,8 +91,12 @@ function ok(description: string, data: JsonSchema, meta?: JsonSchema) {
 }
 
 const ERROR_DESCRIPTIONS = {
-  400: 'Invalid parameter (VALIDATION_ERROR); details.field names it',
+  400: 'Invalid parameter or body (VALIDATION_ERROR); details.field names it, and details.row_index the row of a bulk body',
+  401: 'No admin session (UNAUTHENTICATED)',
+  403: 'The Origin header is missing or not allowed (FORBIDDEN)',
   404: 'No such record (NOT_FOUND)',
+  409: 'The serial is already in use in that project (CONFLICT)',
+  413: 'The body or the number of rows is too large (PAYLOAD_TOO_LARGE)',
   429: 'Too many requests from this IP (RATE_LIMITED)',
   500: 'Server or database failure (INTERNAL_ERROR)',
   503: 'Database unavailable',
@@ -116,14 +128,23 @@ export function buildOpenApiDocument(): OpenApiDocument {
     get: { summary, tags: ['housing'], ...operation },
   });
   const projectFilter = parameters(projectTypeQuery, 'query', { project_type: PROJECT_TYPE_DOC });
+  // Admin-only: the site's session cookie and an allowed Origin, so other apps can't call these.
+  const admin = (summary: string, operation: Omit<Operation, 'summary' | 'tags' | 'security'>): Operation => ({
+    summary,
+    tags: ['housing-admin'],
+    security: [{ adminSession: [] }],
+    ...operation,
+  });
+  const body = (schema: z.ZodType) => ({ required: true as const, content: jsonContent(jsonSchema(schema, 'input')) });
+  const idParam = parameters(idParams, 'path');
 
   return {
     openapi: '3.1.0',
     info: {
       title: 'Housing project API',
-      version: '0.11',
+      version: '0.12',
       description:
-        'Public, read-only access to the housing project records. No login is needed. Browser apps must be listed in PUBLIC_READ_ORIGINS and call without credentials.',
+        'Public, read-only access to the housing project records: no login is needed, and browser apps must be listed in PUBLIC_READ_ORIGINS and call without credentials. The housing-admin operations are for this site\'s admins only.',
     },
     servers: [{ url: '/api/v1' }],
     paths: {
@@ -140,10 +161,16 @@ export function buildOpenApiDocument(): OpenApiDocument {
       '/openapi.json': {
         get: { summary: 'This document', tags: ['meta'], responses: { 200: { description: 'OpenAPI 3.1 document', content: jsonContent({ type: 'object' }) } } },
       },
-      '/housing': reads('List records with filters, search, sort and paging', {
-        parameters: parameters(listQuery, 'query', LIST_DOCS),
-        responses: { 200: ok('One page and its totals', { type: 'array', items: ref('HousingRecord') }, ref('PageMeta')), ...errors(400, 429, 500) },
-      }),
+      '/housing': {
+        ...reads('List records with filters, search, sort and paging', {
+          parameters: parameters(listQuery, 'query', LIST_DOCS),
+          responses: { 200: ok('One page and its totals', { type: 'array', items: ref('HousingRecord') }, ref('PageMeta')), ...errors(400, 429, 500) },
+        }),
+        post: admin('Create a record; without serial_no the next serial is assigned', {
+          requestBody: body(createBody),
+          responses: { 201: ok('The new record', ref('HousingRecord')), ...errors(400, 401, 403, 409, 500) },
+        }),
+      },
       '/housing/stats': reads('Counts by year and place', {
         parameters: projectFilter,
         responses: { 200: ok('Counts', ref('HousingStats')), ...errors(400, 429, 500) },
@@ -171,10 +198,28 @@ export function buildOpenApiDocument(): OpenApiDocument {
         ],
         responses: { 200: ok('The records found, in serial order; missing serials are left out', { type: 'array', items: ref('HousingRecord') }), ...errors(400, 429, 500) },
       }),
-      '/housing/{id}': reads('One record by id', {
-        parameters: parameters(idParams, 'path'),
-        responses: { 200: ok('The record', ref('HousingRecord')), ...errors(400, 404, 429, 500) },
-      }),
+      '/housing/{id}': {
+        ...reads('One record by id', {
+          parameters: idParam,
+          responses: { 200: ok('The record', ref('HousingRecord')), ...errors(400, 404, 429, 500) },
+        }),
+        put: admin('Change some fields of a record; serial_no and project_type cannot change here', {
+          parameters: idParam,
+          requestBody: body(updateBody),
+          responses: { 200: ok('The updated record', ref('HousingRecord')), ...errors(400, 401, 403, 404, 500) },
+        }),
+        delete: admin('Delete a record; its serial is never reused', {
+          parameters: idParam,
+          responses: { 204: { description: 'Deleted' }, ...errors(400, 401, 403, 404, 500) },
+        }),
+      },
+      '/housing/{id}/serial': {
+        post: admin('Move a record to another serial; the old serial is never reused', {
+          parameters: idParam,
+          requestBody: body(changeSerialBody),
+          responses: { 200: ok('The record with its new serial', ref('HousingRecord')), ...errors(400, 401, 403, 404, 409, 500) },
+        }),
+      },
     },
     components: {
       schemas: {
@@ -184,6 +229,14 @@ export function buildOpenApiDocument(): OpenApiDocument {
         FilterOptions: jsonSchema(filterOptions, 'output'),
         NextSerial: jsonSchema(nextSerial, 'output'),
         Error: jsonSchema(errorBody, 'output'),
+      },
+      securitySchemes: {
+        adminSession: {
+          type: 'apiKey',
+          in: 'cookie',
+          name: '__Host-housing_session',
+          description: 'The admin session cookie set by the site login. Plain-http local development (COOKIE_SECURE=false) names it housing_session.',
+        },
       },
     },
   };

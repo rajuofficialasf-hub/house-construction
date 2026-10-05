@@ -5,6 +5,7 @@ import { createApp } from '../../src/app.js';
 import { createLogger } from '../../src/logger.js';
 import { buildOpenApiDocument } from '../../src/openapi.js';
 import { healthRouter } from '../../src/routes/v1/health.js';
+import { housingAdminRouter } from '../../src/routes/v1/housing-admin.js';
 import { housingReadRouter } from '../../src/routes/v1/housing.js';
 import { openapiRouter } from '../../src/routes/v1/openapi.js';
 import { appDb } from '../support/db.js';
@@ -48,13 +49,24 @@ describe('GET /api/v1/openapi.json', () => {
     expect(res.body.servers).toEqual([{ url: '/api/v1' }]);
   });
 
-  it('documents exactly the public routes the app mounts', () => {
+  it('documents exactly the routes the app mounts, apart from /auth', () => {
     const mounted = [
       ...routesOf('', healthRouter(sql)),
       ...routesOf('', openapiRouter(document)),
+      ...routesOf('/housing', housingAdminRouter(sql)),
       ...routesOf('/housing', housingReadRouter(sql)),
     ];
     expect(documentedRoutes().sort()).toEqual(mounted.sort());
+  });
+
+  it('marks every housing write admin-only with the session cookie scheme', () => {
+    const operations = Object.values(document.paths).flatMap((item) => Object.entries(item));
+    for (const [method, operation] of operations) {
+      if (method === 'get') continue;
+      expect(operation.security, operation.summary).toEqual([{ adminSession: [] }]);
+      expect(operation.responses).toHaveProperty('401');
+    }
+    expect(document.components.securitySchemes.adminSession).toMatchObject({ type: 'apiKey', in: 'cookie' });
   });
 
   it('leaves the admin auth routes out', () => {
