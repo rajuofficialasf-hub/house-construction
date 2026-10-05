@@ -14,6 +14,8 @@ npm run lint
 npm test                          # unit + backend-contract টেস্ট
 npm run test:e2e:mock             # Playwright: এডমিন/লেখার ফ্লো (মক ব্যাকএন্ডে) + পাবলিক ফ্লো
 npm run test:e2e:live             # Playwright: লাইভ Supabase এ শুধু পড়ার ফ্লো (.env.local এ ক্রেডেনশিয়াল না থাকলে স্কিপ)
+npm run test:e2e:rest             # Playwright: একই পাবলিক ফ্লো লোকাল API তে (আগে docker compose up -d db api, npm --prefix server run db:seed)
+npm run test:contract:rest        # চুক্তি-স্যুট REST অ্যাডাপ্টার দিয়ে Express সার্ভারে (housing_test; আগে docker compose up -d db)
 npm run security-check            # anon key দিয়ে পড়া-খোলা/লেখা-বন্ধ যাচাই (ডাটাবেস সেটআপের পর)
 npm run migrate-photos -- --help  # ছবি মাইগ্রেশন স্ক্রিপ্ট (লোকাল, service_role .env এ)
 npm run build-map -- --in gadm41_BGD_3.json   # উপজেলা মানচিত্রের TopoJSON পুনর্নির্মাণ (GADM 4.1 level 3 থেকে)
@@ -28,7 +30,7 @@ npm run i18n-check                # বাংলা UI লেখা বনাম
 
 ```bash
 docker compose up                 # UI http://localhost:5173 , API http://localhost:3001/api/v1/readyz
-VITE_HOUSING_BACKEND=rest docker compose up   # UI কে লোকাল API তে চালাতে (REST অ্যাডাপ্টার C3/C4 এ তৈরি হবে; এখন ডিফল্ট mock)
+VITE_HOUSING_BACKEND=rest docker compose up   # UI কে লোকাল API তে চালাতে (পড়া কাজ করে; লেখা C4 এ, ছবি C5 এ; ডিফল্ট mock)
 ```
 
 প্রথমবার কন্টেইনারে `npm ci` চলে বলে একটু সময় লাগে; package-lock বদলালে আবার চলে। কন্টেইনার কোনো `.env` ফাইল পড়ে না এবং সোর্স শুধু পড়তে পারে; তাই এখানে Supabase মোড চলে না, সেটি হোস্টে `npm run dev` দিয়ে চালান।

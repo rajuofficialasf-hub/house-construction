@@ -7,10 +7,15 @@ import { defineConfig, devices } from '@playwright/test'
 //   mock — VITE_HOUSING_BACKEND=mock, in-memory backend, admin and write flows (e2e/mock).
 //   public-mock — the same read-only public specs as live (e2e/live), run against the mock backend. No credentials
 //          needed; it keeps the public specs honest while live credentials are unavailable.
+//   public-rest — the same public specs against the Express API (VITE_HOUSING_BACKEND=rest). Registered only when
+//          E2E_REST_API_URL is set (npm run test:e2e:rest). The API must be running with the dev seed, and its
+//          ALLOWED_ORIGINS must include http://localhost:5185 (compose.yaml does).
 // Dedicated ports (not the ones `npm run dev` / `dev:mock` use) and no server reuse: a stray dev server on the same port
 // could otherwise answer for the wrong backend and make a run pass against the wrong data (or reach the live project).
 const LIVE_PORT = 5183
 const MOCK_PORT = 5184
+const REST_PORT = 5185
+const restApiUrl = process.env.E2E_REST_API_URL?.trim()
 
 const hasLiveEnv =
   (!!process.env.VITE_SUPABASE_URL && !!process.env.VITE_SUPABASE_ANON_KEY) ||
@@ -48,6 +53,15 @@ export default defineConfig({
           },
         ]
       : []),
+    ...(restApiUrl
+      ? [
+          {
+            name: 'public-rest',
+            testDir: './e2e/live',
+            use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${REST_PORT}` },
+          },
+        ]
+      : []),
   ],
   webServer: [
     {
@@ -63,6 +77,16 @@ export default defineConfig({
             url: `http://localhost:${LIVE_PORT}`,
             reuseExistingServer: false,
             env: { VITE_HOUSING_BACKEND: 'supabase' },
+          },
+        ]
+      : []),
+    ...(restApiUrl
+      ? [
+          {
+            command: `npx vite --port ${REST_PORT} --strictPort`,
+            url: `http://localhost:${REST_PORT}`,
+            reuseExistingServer: false,
+            env: { VITE_HOUSING_BACKEND: 'rest', VITE_API_BASE_URL: restApiUrl },
           },
         ]
       : []),

@@ -337,7 +337,7 @@ From the roadmap and the C3 brief, not reopened here:
 - **Tests:** the `e2e/live` specs under `public-rest`.
 - **Done when:** `npm run test:e2e:rest` is green (minus any documented C5 exclusion), `npm run test:e2e:mock` is still green, and the Chrome check is recorded in Progress.
 - **Depends on:** U8
-- **Status:** todo
+- **Status:** done
 
 ## Verification
 Use Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$PATH`. Start the database with `docker compose up -d db`.
@@ -374,6 +374,7 @@ Finally, the Chrome check from U9.
 ## Progress
 - **Branch:** `migrate/c3-read-endpoints`
 - **Updated:** 2026-10-05 14:10
-- **Next:** U9, the `public-rest` project in `playwright.config.ts`, then `npm run test:e2e:rest` with the compose API seeded
+- **Next:** finish: `ae-test` full, then simplify, review
 - **Uncommitted:** none
 - **Notes:** `origin/main` had nothing new at start (no `supabase/sql` to port), so 0008 is free. The REST adapter also cuts `q` to 100 characters (the server's limit), sorts serials before chunking so merged by-serials results stay in order (Supabase sorts per chunk only), and drops serials above int4. The shared contract suite's unauthenticated-write test now attaches `code()` to every call at once (`.map(code)`), because on REST the stub rejections were reported as unhandled.
+  - U9: `npm run test:e2e:rest` passed 17 and skipped 2 on the specs' own data guards, with no exclusions: the photo-compare spec needs a record with photos (C5), and the paging spec needs more than 50 records (the seed has 20). Chrome pass on 2026-10-05 against `VITE_HOUSING_BACKEND=rest docker compose up -d api web`: the list and a record detail rendered, every `/api/v1/housing…` request answered 200 (stats, years, list), and the console showed no errors. compose's `ALLOWED_ORIGINS` now also lists `http://localhost:5185` for the e2e dev server. `npm run db:seed` must run from the host; inside the api container the local-host guard refuses host `db`.
