@@ -1,7 +1,7 @@
 ---
 title: C4 Write Endpoints
 type: migrate
-status: in-progress
+status: done
 source: plan
 date: 2026-10-05
 doc_review: 2026-10-05
@@ -483,28 +483,17 @@ Finally, the Chrome check from U9.
 ## Notes for later chunks
 - C5: add `POST /housing/:id/photo` and `DELETE /housing/:id/photo` to `housingAdminRouter`. The guard already returns 401 without a session. Move the files and rewrite the URL columns in change-serial, and delete the files after commit on delete (`DB-TX-02`). Remove the four photo known gaps and the `testIgnore` for `photo-*.spec.ts` in `admin-rest`.
 - C6: decide on a per-session write rate limit before production (accepted for staging at C4 doc review).
-- C6: CI runs `test:contract:rest` and `test:e2e:rest-admin` against a Postgres service container, one after the other on the same `housing_test`.
+- C6/C7: `housing_activity_log` has no index on `project_type` or `actor_email`, so those filters scan the table. Add indexes if the log grows large enough for them to show up.
+- Built as planned, with these differences:
+  - `activityBody.details` is `z.record(z.string(), z.unknown())`, not `z.json()`, so the OpenAPI entry needs no hand override.
+  - The CORS tests live in `server/test/http/security.test.ts` and the activity HTTP tests; there is no `cors.test.ts`.
+  - The guard-before-parser tests send malformed JSON instead of 4 MB. A large upload that the server answers early resets the connection now and then.
+  - The live check used a temporary admin, `livecheck@example.org`, which is now disabled in the local dev database.
+- Review (2026-10-05): no P0–P2. Four P3s were fixed:
+  - an invalid activity date in the adapter;
+  - zod instead of a cast in the row-cap check;
+  - a contract test for the activity log that needs no photos;
+  - a C5 TODO on the temporary photo 404 test.
 
-## Progress
-- **Branch:** `migrate/c4-write-endpoints` (from `migrate/c3-read-endpoints`, which is not yet merged into `dev-forhad`)
-- **Updated:** 2026-10-05 16:40
-- **Next:** finish steps: `ae-test` (full), then `ae-simplify`, `ae-review`
-- **Uncommitted:** none
-- **Notes:** `activityBody.details` uses `z.record(z.string(), z.unknown())`, not `z.json()`. The body is already JSON, and this avoids the `$defs` ref, so the OpenAPI entry needs no hand override. A custom zod check's `params.reason` becomes `details.reason` (`errors.ts`).
-  U3 notes:
-  - The CORS cases live in `server/test/http/security.test.ts`; there is no separate `cors.test.ts`.
-  - The HTTP tests run the app on `appDb()`, which already proves the runtime role's grants, so no separate `test/db/writes.test.ts` was added.
-  - `server/test/support/session.ts` (`loginAdmin`) is shared by the admin route tests.
-  - `writes.ts` already has `bulkInsert` and `bulkUpdateBySerial`; U4 wires them up and tests them.
-  U4 note: the "guard before parser" tests send a small malformed JSON body (401 without a session, 400 `invalid_json` with one), not 4 MB. A multi-MB upload that the server answers early sometimes resets the connection, which made the test flaky.
-  U7: `npm run test:contract:rest` gives 35 passed, 4 expected fail (the photo gaps), 2 skipped (non-admin). Node 22's fetch lets the test set `Origin`.
-  U8: `npm run test:e2e:rest-admin` gives 30 passed and 1 skipped (non-admin login). `npm run test:e2e:mock` is unchanged: 53 passed and the existing pagination skip. `playwright.config.ts` imports `testAppUrl` from `server/test/support/env.ts` for the API's `DATABASE_URL`.
-  U9 live check (2026-10-05), Chrome against `VITE_HOUSING_BACKEND=rest docker compose up -d api web`:
-  - Logged in as a temporary admin, `livecheck@example.org` (the dev admin's password isn't known to the agent). It was disabled afterwards.
-  - Created a record (auto serial 13).
-  - Changed the serial to 6. The UI showed "এই সিরিয়াল আগে থেকেই আছে", so the 409 that `housing_change_serial` raises itself works.
-  - Changed the serial to 60, then deleted the record.
-  - The activity page with `?from=2026-10-05&to=2026-10-05` (local dates, converted by the adapter) listed one login, the create and the serial change 13 → 60, all for the temporary admin.
-  - The web container is back on the mock backend.
-  - Edit and import were not repeated by hand; `test:e2e:rest-admin` covers them through the same UI.
-  `origin/main` was already in `dev-forhad` on 2026-10-05, with no new `supabase/sql` to port.
+  Still open: P3 `CLAUDE.md` `## Stack profile` (`ST-43`). It belongs with the roadmap's ST-03/ST-04 amendment task.
+- C6: CI runs `test:contract:rest` and `test:e2e:rest-admin` against a Postgres service container, one after the other on the same `housing_test`.
