@@ -19,7 +19,8 @@
     "test:e2e:live": "node scripts/e2e-live.mjs",
     "test:all": "npm run i18n-check && npm run test && npm run check:prod-bundle && npm run test:e2e:mock",
     "check:prod-bundle": "node scripts/check-prod-bundle.mjs",
-    "test:contract:supabase-local": "node scripts/contract-supabase-local.mjs"
+    "test:contract:supabase-local": "node scripts/contract-supabase-local.mjs",
+    "test:contract:rest": "node scripts/contract-rest.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",

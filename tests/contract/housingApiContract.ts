@@ -210,7 +210,8 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
       const some = (await h.api.list({ page_size: 1 })).data[0]
       const id = some?.id ?? MISSING_ID
       const files = { photo: webp('x'), thumb: webp('x') }
-      const calls = [
+      // code() is attached to every call at once, so a backend that rejects them all leaves none unhandled
+      const codes = [
         h.api.create(input()),
         h.api.update(id, { name: 'x' }),
         h.api.delete(id),
@@ -220,8 +221,8 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
         h.api.uploadPhoto(id, 'prev', files),
         h.api.deletePhoto(id, 'prev'),
         h.api.listActivity({}),
-      ]
-      for (const c of calls) expect(await code(c)).toBe('UNAUTHENTICATED')
+      ].map(code)
+      for (const c of await Promise.all(codes)) expect(c).toBe('UNAUTHENTICATED')
       expect((await h.api.list({ page_size: 1 })).meta.total).toBe(before)
     })
   })

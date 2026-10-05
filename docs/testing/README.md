@@ -32,8 +32,8 @@ The mock keeps its state across page reloads inside one browser context. `window
 
 ## Re-pointing the suite at the new backend
 
-1. Write the REST `HousingApi` and `ImageStorage` adapters (`src/features/housing/backend/rest/index.ts` is a stub today; only the REST auth adapter exists) and build the Express server from the contract.
-2. Add a contract runner next to `tests/contract/mock.contract.test.ts` that builds a harness (`tests/contract/harness.ts`) around the REST adapter, a test admin and a test non-admin, and call `runHousingApiContract(..., { writes: true })`. The same assertions then check the new server in full. Use a dedicated test database.
+1. The REST `HousingApi` reads are wired to the Express server (`src/features/housing/backend/rest/index.ts`); writes and `ImageStorage` come in C4 and C5 of `docs/plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md`.
+2. `npm run test:contract:rest` runs the suite through the REST adapter against the real Express app (`createApp`) on the local `housing_test` database, reset to `server/db/seed/dev.sql` before every test. Start the database first with `docker compose up -d db`. The script migrates `housing_test`, then runs `tests/contract/rest.contract.test.ts`; plain `npm test` skips that file. Only the read contract runs today (`writes: false`). The unauthenticated-write check is a known gap until C4 adds the write routes, then C4 switches the runner to `writes: true` with a test admin.
 3. Run the browser specs against it: set `VITE_HOUSING_BACKEND=rest` and `VITE_API_BASE_URL` for a Playwright project, and replace the mock reset hook (`e2e/support/data.ts`) with a database reset or reseed. That reset is the only backend-specific seam in the specs.
 4. A failing test names the lost behavior. Do not edit a test to make it pass unless the contract itself changed.
 

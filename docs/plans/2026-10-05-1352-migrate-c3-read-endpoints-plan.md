@@ -325,7 +325,7 @@ From the roadmap and the C3 brief, not reopened here:
 - **Tests:** the suite itself: every read case passes, and the one known gap fails as expected. Plain `npm test` without the env skips the file and stays green.
 - **Done when:** `npm run test:contract:rest` passes with the DB from `docker compose up -d db`.
 - **Depends on:** U5, U7
-- **Status:** todo
+- **Status:** done
 
 ### U9. Public pages on `rest`, and the live check
 - **Goal:** Prove the public site works against the API in a browser, and keep it proven with a `public-rest` Playwright project.
@@ -374,6 +374,6 @@ Finally, the Chrome check from U9.
 ## Progress
 - **Branch:** `migrate/c3-read-endpoints`
 - **Updated:** 2026-10-05 14:10
-- **Next:** U8, `tests/contract/rest.contract.test.ts` and `scripts/contract-rest.mjs`
+- **Next:** U9, the `public-rest` project in `playwright.config.ts`, then `npm run test:e2e:rest` with the compose API seeded
 - **Uncommitted:** none
-- **Notes:** `origin/main` had nothing new at start (no `supabase/sql` to port), so 0008 is free. The REST adapter also cuts `q` to 100 characters (the server's limit), sorts serials before chunking so merged by-serials results stay in order (Supabase sorts per chunk only), and drops serials above int4.
+- **Notes:** `origin/main` had nothing new at start (no `supabase/sql` to port), so 0008 is free. The REST adapter also cuts `q` to 100 characters (the server's limit), sorts serials before chunking so merged by-serials results stay in order (Supabase sorts per chunk only), and drops serials above int4. The shared contract suite's unauthenticated-write test now attaches `code()` to every call at once (`.map(code)`), because on REST the stub rejections were reported as unhandled.
