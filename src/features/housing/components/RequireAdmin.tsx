@@ -1,7 +1,7 @@
 import { t } from '@/i18n'
 import { Navigate, Outlet, useLocation } from 'react-router'
 import { useAuth } from '../hooks/useAuth'
-import { AdminShell } from './AdminShell'
+import { AdminLayout } from '@/features/admin/layout/AdminLayout'
 
 export const LOGIN_PATH = '/admin/login'
 
@@ -27,8 +27,8 @@ export function RequireAdmin() {
   }
 
   return (
-    <AdminShell user={auth.user}>
+    <AdminLayout user={auth.user}>
       <Outlet />
-    </AdminShell>
+    </AdminLayout>
   )
 }

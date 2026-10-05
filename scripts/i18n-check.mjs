@@ -88,7 +88,10 @@ function rawJsxText(code) {
  * (যেমন features/projects/registry/icons.tsx এর বাছাইয়ের নাম)। তাই লিটারেল তোলার আগে বাদ।
  */
 function stripBilingualPairs(code) {
-  return code.replace(/\b(\w+_bn)\s*:\s*(['"`])(?:\\.|(?!\2)[^\\])*\2/g, "$1: ''")
+  return code
+    .replace(/\b(\w+_bn)\s*:\s*(['"`])(?:\\.|(?!\2)[^\\])*\2/g, "$1: ''")
+    // শীটের কলাম-শিরোনাম মেলানোর বিকল্প নাম (import_aliases: ['…']) — দেখানোর লেখা নয়
+    .replace(/\bimport_aliases\s*:\s*\[[^\]]*\]/g, 'import_aliases: []')
 }
 
 /**

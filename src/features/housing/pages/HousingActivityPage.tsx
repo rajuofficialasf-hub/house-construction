@@ -15,30 +15,9 @@ import {
 import { ErrorNotice } from '../components/ErrorNotice'
 import { Pagination } from '../components/Pagination'
 import { leafProjects, useProject, useProjects } from '@/features/projects/registry'
+import { ACTION_CLASS, ACTION_LABEL, formatDateTime } from '../utils/activityLabels'
 import { adminPath } from '../utils/housingProjects'
 
-const ACTION_LABEL: Record<string, string> = {
-  create: 'রেকর্ড যোগ',
-  update: 'রেকর্ড সম্পাদনা',
-  delete: 'রেকর্ড মুছে ফেলা',
-  photo_update: 'ছবি আপডেট',
-  serial_change: 'সিরিয়াল বদল',
-  login: 'লগইন',
-  logout: 'লগআউট',
-  import_run: 'বাল্ক ইম্পোর্ট',
-  photo_bulk_run: 'ছবি বাল্ক আপডেট',
-}
-const ACTION_CLASS: Record<string, string> = {
-  create: 'bg-green-100 text-green-800',
-  update: 'bg-blue-100 text-blue-800',
-  delete: 'bg-red-100 text-red-800',
-  photo_update: 'bg-purple-100 text-purple-800',
-  serial_change: 'bg-amber-100 text-amber-900',
-  login: 'bg-slate-100 text-slate-700',
-  logout: 'bg-slate-100 text-slate-700',
-  import_run: 'bg-teal-100 text-teal-800',
-  photo_bulk_run: 'bg-purple-100 text-purple-800',
-}
 const FIELD_LABEL: Record<string, string> = {
   serial_no: 'সিরিয়াল',
   year: 'সাল',
@@ -269,8 +248,3 @@ function fmt(v: unknown): string {
   return String(v)
 }
 
-function formatDateTime(iso: string): string {
-  const d = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return toBanglaNumber(`${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`)
-}

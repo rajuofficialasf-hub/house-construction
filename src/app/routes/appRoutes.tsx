@@ -14,8 +14,9 @@ import {
   LazyHousingPhotoBulkPage,
   LazyHousingRecordFormPage,
 } from '@/features/housing/pages/lazyPages'
+import { LazyAdminDashboardPage, LazyAdminProjectsPage, LazyProjectSettingsPage, LazyProjectWizardPage } from '@/features/admin/pages/lazyAdminPages'
 import { ProjectFrame } from './ProjectFrame'
-import { AdminIndexRedirect, LegacyAdminRedirect } from './routeGuards'
+import { LegacyAdminRedirect } from './routeGuards'
 
 /**
  * রাউট-টেবিলের অংশ (App.tsx এ <Routes> এর ভেতরে বসে; Route এলিমেন্ট সরাসরি Routes এর child হতে হয় বলে
@@ -79,7 +80,10 @@ function leafRoute(p: Project) {
 export const adminRoutes = [
   <Route key="admin-login" path="admin/login" element={<HousingLoginPage />} />,
   <Route key="admin" path="admin" element={<RequireAdmin />}>
-    <Route index element={<AdminIndexRedirect />} />
+    <Route index element={<Lazy><LazyAdminDashboardPage /></Lazy>} />
+    <Route path="projects" element={<Lazy><LazyAdminProjectsPage /></Lazy>} />
+    <Route path="projects/new" element={<Lazy><LazyProjectWizardPage /></Lazy>} />
+    <Route path="projects/:key" element={<Lazy><LazyProjectSettingsPage /></Lazy>} />
     <Route path="records/:key" element={<Lazy><LazyHousingAdminRecordsPage /></Lazy>} />
     <Route path="records/:key/new" element={<Lazy><LazyHousingRecordFormPage mode="new" /></Lazy>} />
     <Route path="records/:key/:serial/edit" element={<Lazy><LazyHousingRecordFormPage mode="edit" /></Lazy>} />

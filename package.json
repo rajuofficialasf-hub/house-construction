@@ -17,7 +17,8 @@
     "build-rehearsal": "node scripts/build-rehearsal.mjs",
     "content-check": "node scripts/content-check.mjs",
     "adapter-check": "tsx scripts/adapter-check.mts",
-    "field-types-check": "tsx --tsconfig tsconfig.app.json scripts/field-types-check.mjs"
+    "field-types-check": "tsx --tsconfig tsconfig.app.json scripts/field-types-check.mjs",
+    "admin-ui-check": "node scripts/admin-ui-check.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",

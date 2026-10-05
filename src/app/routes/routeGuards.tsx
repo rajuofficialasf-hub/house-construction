@@ -1,7 +1,7 @@
 import { t } from '@/i18n'
 import { useEffect } from 'react'
 import { Navigate, useLocation, useParams } from 'react-router'
-import { findBySlug, getRegistry, housingProjects, leafProjects, refreshProjects, useProjects, useRegistry } from '@/features/projects/registry'
+import { findBySlug, getRegistry, refreshProjects, useProjects, useRegistry } from '@/features/projects/registry'
 import { useAuth } from '@/features/housing/hooks/useAuth'
 import { adminPath } from '@/features/housing/utils/housingProjects'
 import { NotFoundPage } from '@/pages/NotFoundPage'
@@ -43,13 +43,6 @@ export function LegacyAdminRedirect() {
     to = adminPath(key, parts.slice(1).join('/'))
   }
   return <Navigate to={`${to}${location.search}${location.hash}`} replace state={location.state} />
-}
-
-/** /admin — ড্যাশবোর্ড আসবে M-ধাপ ৭-এ; ততদিন প্রথম প্রকল্পের রেকর্ড-তালিকায় (আগের /housing/admin এর মতো) */
-export function AdminIndexRedirect() {
-  const projects = useProjects()
-  const first = housingProjects(projects)[0] ?? leafProjects(projects)[0]
-  return <Navigate to={first ? adminPath(first.key) : '/admin/activity'} replace />
 }
 
 /**
