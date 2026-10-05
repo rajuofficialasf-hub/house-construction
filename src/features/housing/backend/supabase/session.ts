@@ -26,7 +26,9 @@ export async function adminRole(getClient: GetClient, userId: string): Promise<A
   const { data, error } = await getClient().rpc('housing_current_admin')
   if (error) throw mapSupabaseError(error)
   const rows = (data ?? []) as { role: string }[]
-  const role = rows.length > 0 && rows[0].role === 'admin' ? ('admin' as const) : null
+  const raw = rows[0]?.role
+  // দুই ভূমিকাই এডমিন (10b থেকে): main_admin = মূল এডমিন, admin = সাধারণ এডমিন
+  const role: AdminRole | null = raw === 'main_admin' || raw === 'admin' ? raw : null
   roleCache.set(userId, role)
   return role
 }

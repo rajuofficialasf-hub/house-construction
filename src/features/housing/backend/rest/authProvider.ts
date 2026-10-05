@@ -63,7 +63,7 @@ export function createRestAuthProvider(baseUrl: string): AuthProvider {
 
     async isAdmin() {
       const u = cached !== undefined ? cached : await fetchMe()
-      return u?.role === 'admin'
+      return u?.role === 'admin' || u?.role === 'main_admin'
     },
 
     onAuthChange(callback) {
