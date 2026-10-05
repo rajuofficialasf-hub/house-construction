@@ -218,7 +218,7 @@ From the roadmap and the C4 brief, not reopened here:
   - A zod issue at `['rows', 3, 'year']` → `{ row_index: 3, field: 'year' }`; a non-row path keeps today's `field`.
 - **Done when:** `npm --prefix server test -- errors` is green and typecheck passes.
 - **Depends on:** none
-- **Status:** todo
+- **Status:** done
 
 ### U2. Write body schemas
 - **Goal:** The zod schemas from Technical decisions for create, update, change-serial, both bulk bodies, and the activity query and body.
@@ -488,6 +488,6 @@ Finally, the Chrome check from U9.
 ## Progress
 - **Branch:** `migrate/c4-write-endpoints` (from `migrate/c3-read-endpoints`, which is not yet merged into `dev-forhad`)
 - **Updated:** 2026-10-05 16:40
-- **Next:** U1: extend `toAppError` in `server/src/errors.ts`
+- **Next:** U2: write body schemas in `server/src/housing/schemas.ts`
 - **Uncommitted:** none
 - **Notes:** `origin/main` was already in `dev-forhad` on 2026-10-05, with no new `supabase/sql` to port.

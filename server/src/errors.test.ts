@@ -1,4 +1,5 @@
 import express from 'express';
+import postgres from 'postgres';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
@@ -59,5 +60,53 @@ describe('errorHandler', () => {
     const res = await request(appThrowing(null)).get('/nope');
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('NOT_FOUND');
+  });
+
+  it('names the row of a bulk zod error with row_index and the field inside it', async () => {
+    const parsed = z.object({ rows: z.array(z.object({ year: z.number() })) }).safeParse({ rows: [{ year: 1 }, { year: 2 }, { year: 'x' }, { year: 4 }] });
+    const res = await request(appThrowing(parsed.error)).get('/boom');
+    expect(res.status).toBe(400);
+    expect(res.body.error.details).toEqual({ row_index: 2, field: 'year', reason: 'invalid_type' });
+  });
+});
+
+describe('errorHandler with Postgres errors', () => {
+  // Shaped as postgres.js builds them from the server's error fields.
+  const pgError = (fields: Record<string, unknown>) =>
+    new postgres.PostgresError({ message: 'duplicate key value violates "x"', detail: 'Key (serial_no)=(7) already exists.', ...fields } as never);
+
+  it('maps a unique-serial violation to 409 with a fixed message and no Postgres text', async () => {
+    const res = await request(appThrowing(pgError({ code: '23505', constraint_name: 'housing_beneficiaries_project_serial_key' }))).get('/boom');
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: { code: 'CONFLICT', message: 'এই সিরিয়াল আগে থেকেই আছে' } });
+  });
+
+  it('maps a 23505 raised by a function, with no constraint, to 409', async () => {
+    const res = await request(appThrowing(pgError({ code: '23505' }))).get('/boom');
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('CONFLICT');
+  });
+
+  it('keeps a 23505 on any other constraint a 500, since it would be a bug', async () => {
+    const res = await request(appThrowing(pgError({ code: '23505', constraint_name: 'housing_admins_email_key' }))).get('/boom');
+    expect(res.status).toBe(500);
+  });
+
+  it('maps P0002 to 404', async () => {
+    const res = await request(appThrowing(pgError({ code: 'P0002' }))).get('/boom');
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: { code: 'NOT_FOUND', message: 'রেকর্ড পাওয়া যায়নি' } });
+  });
+
+  it.each(['23514', '23502', '22023', '22P02'])('maps %s to 400 with reason constraint', async (code) => {
+    const res = await request(appThrowing(pgError({ code }))).get('/boom');
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: { code: 'VALIDATION_ERROR', message: 'ইনপুট সঠিক নয়', details: { reason: 'constraint' } } });
+  });
+
+  it('keeps a missing grant (42501) a generic 500', async () => {
+    const res = await request(appThrowing(pgError({ code: '42501' }))).get('/boom');
+    expect(res.status).toBe(500);
+    expect(JSON.stringify(res.body)).not.toContain('duplicate');
   });
 });
