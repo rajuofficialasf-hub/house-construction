@@ -144,6 +144,7 @@ begin
   -- anon (লগইন ছাড়া) হিসেবে দেখা — সাব-ট্রানজেকশনে, শেষে নিজে ফিরে যায়
   begin
     set local role anon;
+    perform set_config('request.jwt.claims', '{"role":"anon"}', true); perform set_config('request.jwt.claim.sub', '', true);
     select count(*) into anon_r from public.housing_beneficiaries;
     select count(*) into anon_p from public.projects;
     select count(*) into anon_f from public.project_fields;

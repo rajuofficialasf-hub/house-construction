@@ -397,6 +397,7 @@ begin
     insert into public.beneficiary_private (record_id, data) values (rid, '{"phone": "01711000000"}');
     stage := 'anon';
     set local role anon;
+    perform set_config('request.jwt.claims', '{"role":"anon"}', true); perform set_config('request.jwt.claim.sub', '', true);
     stage := 'action';
     select count(*) into cnt from public.projects where key = 'zz_selftest';
     select count(*) into cnt2 from public.project_fields where project_key = 'zz_selftest';
