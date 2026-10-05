@@ -1,5 +1,6 @@
 import { t } from '@/i18n'
 import { HousingApiError } from '../../../backend/interfaces/types'
+import { stripFormulaGuard } from './csvExport'
 
 export interface ParsedSheet {
   sheetName: string
@@ -33,7 +34,8 @@ export async function parseSpreadsheet(file: File): Promise<ParsedSheet> {
   if (!sheetName) throw new HousingApiError('VALIDATION_ERROR', t('ফাইলে কোনো শীট নেই'))
   const ws = wb.Sheets[sheetName]
   const grid = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: false, defval: '', blankrows: false })
-  const asText = (v: unknown) => (v === null || v === undefined ? '' : String(v)).replace(/ /g, ' ').trim()
+  // এক্সপোর্টের ফর্মুলা-সুরক্ষার ' সরানো (csvExport.ts › stripFormulaGuard), তারপর trim
+  const asText = (v: unknown) => stripFormulaGuard((v === null || v === undefined ? '' : String(v)).replace(/\u00a0/g, ' ')).trim()
   const table = grid.map((r) => (Array.isArray(r) ? r.map(asText) : []))
   const headerIdx = table.findIndex((r) => r.some((c) => c !== ''))
   if (headerIdx === -1) throw new HousingApiError('VALIDATION_ERROR', t('শীট খালি'))

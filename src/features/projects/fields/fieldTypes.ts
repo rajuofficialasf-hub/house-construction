@@ -20,6 +20,7 @@ import {
   type FieldCellProps,
   type FieldInputProps,
 } from './fieldComponents'
+import { MoneyInput } from './MoneyInput'
 import { FIELD_VALUE_SPECS, type FieldValueSpec } from './fieldValues'
 
 export interface FieldTypeSpec extends FieldValueSpec {
@@ -31,7 +32,7 @@ const COMPONENTS: Record<FieldType, Pick<FieldTypeSpec, 'Input' | 'Cell'>> = {
   text: { Input: TextInput, Cell: TextCell },
   long_text: { Input: LongTextInput, Cell: LongTextCell },
   number: { Input: NumberInput, Cell: NumberCell },
-  money: { Input: NumberInput, Cell: MoneyCell },
+  money: { Input: MoneyInput, Cell: MoneyCell },
   category: { Input: CategoryInput, Cell: TextCell },
   date: { Input: DateInput, Cell: TextCell },
   phone: { Input: PhoneInput, Cell: TextCell },

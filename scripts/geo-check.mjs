@@ -5,7 +5,7 @@
  *   খ. মেলানো: matchUnion / resolveGeo এর ৪র্থ স্তর — "ইউনিয়ন/ইউপি/union/UP" বাদ, "পৌরসভা/ওয়ার্ড" বাদ নয়, উপজেলার ভেতরেই
  *   গ. gnUnion: ইংরেজি মোডে পুরো পথ ধরে ইংরেজি নাম, পৌরসভা → Municipality
  *   ঘ. ব্রাউজার: src/dev/geo-demo.html (dev সার্ভারে) — সাজেশন, নিজে লেখা, হলুদ সতর্কতা, পৌরসভা চিপ, কীবোর্ড, ইংরেজি, ফোন
- *   ঙ. বিল্ড: vite build — প্রোডাকশন বিল্ডে ইউনিয়নের ডাটা নেই; ডেমোসহ বিল্ডে তা আলাদা chunk এ (lazy)
+ *   ঙ. বিল্ড: vite build — ইউনিয়নের ডাটা আলাদা chunk এ (শুধু lazy import), মূল বান্ডল বাড়েনি
  * চালানো (ঘ এর জন্য আগে npm run dev): npm run geo-check  [-- --base http://localhost:5173] [--no-ui] [--no-build]
  */
 import fs from 'node:fs'
@@ -224,29 +224,25 @@ if (!argv.includes('--no-ui')) {
 }
 
 // ---------------------------------------------------------------- ঙ. বিল্ড
+// M-ধাপ ১০ থেকে রেকর্ড-ফর্ম (lazy এডমিন পাতা) ইউনিয়নের কম্বোবক্স ব্যবহার করে — তাই প্রোডাকশন বিল্ডেই যাচাই:
+// ইউনিয়নের ডাটা নিজের chunk এ, শুধু lazy import() দিয়ে, মূল বান্ডলে কখনো নয়
 if (!argv.includes('--no-build')) {
-  section('ঙ. বিল্ড (vite build — .smoke/geo-build-*)')
+  section('ঙ. বিল্ড (vite build — .smoke/geo-build)')
   const { build } = await import('vite')
-  const files = (dir) => fs.readdirSync(path.join(dir, 'assets')).map((f) => path.join(dir, 'assets', f))
-  const has = (f, s) => fs.readFileSync(f, 'utf8').includes(s)
-  const outMain = path.join(ROOT, '.smoke/geo-build-main')
-  await build({ root: ROOT, logLevel: 'silent', build: { outDir: outMain, emptyOutDir: true } })
-  const mainJs = files(outMain).filter((f) => f.endsWith('.js'))
-  const indexJs = mainJs.find((f) => /[\\/]index-[\w-]+\.js$/.test(f))
+  const out = path.join(ROOT, '.smoke/geo-build')
+  await build({ root: ROOT, logLevel: 'silent', build: { outDir: out, emptyOutDir: true } })
+  const js = fs.readdirSync(path.join(out, 'assets')).filter((x) => x.endsWith('.js')).map((x) => path.join(out, 'assets', x))
+  const src = (x) => fs.readFileSync(x, 'utf8')
+  const indexJs = js.find((x) => /^index-[\w-]+\.js$/.test(path.basename(x)))
   const indexBytes = fs.statSync(indexJs).size
-  ok('প্রোডাকশন বিল্ডে ইউনিয়নের ডাটা কোথাও নেই (এখনো কোনো পাতা ব্যবহার করে না)', mainJs.every((f) => !has(f, 'করেরহাট')))
-  // M-ধাপ ৮ এর বিল্ডে মূল বান্ডল ২৭২,৮০৭ বাইট (Vite: 272.80 kB, gzip 82.26 kB) — পরের ধাপে বদলালে এই সংখ্যা হালনাগাদ করুন
-  ok('মূল বান্ডল বাড়েনি (M-ধাপ ৮: ২৭২,৮০৭ বাইট)', indexBytes <= 272807, `${indexBytes} বাইট`)
-  const outDemo = path.join(ROOT, '.smoke/geo-build-demo')
-  await build({ root: ROOT, logLevel: 'silent', build: { outDir: outDemo, emptyOutDir: true, rollupOptions: { input: { index: path.join(ROOT, 'index.html'), geo: path.join(ROOT, 'src/dev/geo-demo.html') } } } })
-  const demoJs = files(outDemo).filter((f) => f.endsWith('.js'))
-  const unionChunk = demoJs.filter((f) => has(f, 'করেরহাট'))
-  const src = (f) => fs.readFileSync(f, 'utf8')
-  const lazyRef = demoJs.filter((f) => /import\(\s*[`"']\.\/bd-unions-/.test(src(f)))
-  const staticRef = demoJs.filter((f) => /(from|import)\s*[`"']\.\/bd-unions-/.test(src(f)))
+  const unionChunk = js.filter((x) => src(x).includes('করেরহাট'))
+  const lazyRef = js.filter((x) => /import\(\s*[`"']\.\/bd-unions-/.test(src(x)))
+  const staticRef = js.filter((x) => /(from|import)\s*[`"']\.\/bd-unions-/.test(src(x)))
   const ucGz = unionChunk[0] ? zlib.gzipSync(fs.readFileSync(unionChunk[0])).length : 0
-  ok('ডেমোসহ বিল্ডে ইউনিয়ন আলাদা একটি chunk এ', unionChunk.length === 1 && !/^(index|geo)-/.test(path.basename(unionChunk[0])), unionChunk.map((f) => path.basename(f)).join(', '))
-  ok('ইউনিয়নের chunk শুধু lazy import() দিয়ে আসে (কোথাও স্থির import নয়)', lazyRef.length >= 1 && staticRef.length === 0, `${lazyRef.map((f) => path.basename(f)).join(', ')} → ${path.basename(unionChunk[0] ?? '')} (${(ucGz / 1024).toFixed(1)} KB gzip)`)
+  ok('ইউনিয়নের ডাটা একটিই আলাদা chunk এ (মূল বান্ডলে নয়)', unionChunk.length === 1 && unionChunk[0] !== indexJs && /^bd-unions-/.test(path.basename(unionChunk[0])), unionChunk.map((x) => path.basename(x)).join(', '))
+  ok('ইউনিয়নের chunk শুধু lazy import() দিয়ে আসে (কোথাও স্থির import নয়)', lazyRef.length >= 1 && staticRef.length === 0 && !lazyRef.includes(indexJs), `${lazyRef.map((x) => path.basename(x)).join(', ')} → ${path.basename(unionChunk[0] ?? '')} (${(ucGz / 1024).toFixed(1)} KB gzip)`)
+  // সর্বশেষ মাপা: M-ধাপ ১০ এর বিল্ডে মূল বান্ডল ২৭৩,০৯৬ বাইট (Vite: 273.09 kB, gzip 82.43 kB) — পরের ধাপে বদলালে হালনাগাদ করুন
+  ok('মূল বান্ডল বাড়েনি (M-ধাপ ১০: ২৭৩,০৯৬ বাইট)', indexBytes <= 273096, `${indexBytes} বাইট`)
 }
 
 console.log(`\nফল: PASS ${pass}, FAIL ${fail}`)

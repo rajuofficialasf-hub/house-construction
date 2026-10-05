@@ -416,6 +416,8 @@ export type ActivityAction =
   | 'logout'
   | 'import_run'
   | 'photo_bulk_run'
+  /** ক্লায়েন্ট-ইভেন্ট (M-ধাপ ১০): CSV এক্সপোর্ট — details { rows, private } (মান নয়) */
+  | 'records_export'
   // পর্ব ২ (SQL ১২): গোপন মান (শুধু ফিল্ডের নাম, মান নয়) আর প্রকল্প/ফিল্ডের সেটিং
   | 'private_update'
   | 'project_create'

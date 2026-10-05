@@ -65,6 +65,11 @@ export interface HousingApi {
   getPrivate(id: string): Promise<ExtraValues>
   /** গোপন মান পুরোটা বদলে রাখা (এডমিন); কোনো key বাদ দিলে সেটি মুছে যায়। পুরনো ডাটাবেসে CONFIG_ERROR */
   setPrivate(id: string, data: ExtraValues): Promise<ExtraValues>
+  /**
+   * অনেক রেকর্ডের গোপন মান একসাথে (এডমিন; গোপন কলামসহ CSV এক্সপোর্ট, M-ধাপ ১০) — এক কলে ≤ ১০০টি id।
+   * ফল: { [record_id]: data } — মান নেই এমন রেকর্ড বাদ; পুরনো ডাটাবেসে {}।
+   */
+  getPrivateMany(projectType: ProjectType, ids: string[]): Promise<Record<string, ExtraValues>>
   /** একটিভিটি লগ (এডমিন): নতুন আগে, পেজিনেশন */
   listActivity(params: ActivityListParams): Promise<Page<ActivityEntry>>
   /** ক্লায়েন্ট-ইভেন্ট লগ (এডমিন): login/logout/import_run/photo_bulk_run …; ব্যর্থ হলে throw নয় (লগ UI ভাঙবে না) */

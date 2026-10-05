@@ -4,11 +4,10 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { toBanglaNumber } from '@/lib/banglaNumber'
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import { NotFoundPage } from '@/pages/NotFoundPage'
-import { getHousingApi } from '../../../backend/factory'
-import { HousingApiError, type HousingRecord } from '../../../backend/interfaces/types'
-import { ErrorNotice } from '../components/ErrorNotice'
-import { RecordForm } from '../components/RecordForm'
-import { adminPath, useHousingProjectByKey } from '../utils/housingProjects'
+import { getHousingApi, HousingApiError, type HousingRecord } from '@/backend'
+import { ErrorNotice } from '@/features/housing/components/ErrorNotice'
+import { adminPath, useRecordProjectByKey } from '@/features/housing/utils/housingProjects'
+import { RecordForm } from './RecordForm'
 
 interface Props {
   mode: 'new' | 'edit'
@@ -18,13 +17,13 @@ type Loaded = { serial: number; status: 'ready'; record: HousingRecord } | { ser
 
 /**
  * /admin/records/:key/new  এবং  /admin/records/:key/:serial/edit
- * এডিটে রেকর্ড সিরিয়াল ধরে লোড হয়ে ফর্মে আগে থেকে ভরা থাকে।
+ * এডিটে রেকর্ড সিরিয়াল ধরে লোড হয়ে ফর্মে আগে থেকে ভরা থাকে। যেকোনো প্রকল্পের (খসড়াও; গ্রুপ নয়) — M-ধাপ ১০।
  */
-export function HousingRecordFormPage({ mode }: Props) {
+export function RecordFormPage({ mode }: Props) {
   useDocumentTitle(mode === 'new' ? t('নতুন রেকর্ড') : t('রেকর্ড সম্পাদনা'))
   const { key, serial } = useParams()
   const navigate = useNavigate()
-  const project = useHousingProjectByKey(key)
+  const project = useRecordProjectByKey(key)
   const projectType = project?.key
   const serialNo = Number(serial)
   const [loaded, setLoaded] = useState<Loaded | null>(null)
@@ -57,7 +56,7 @@ export function HousingRecordFormPage({ mode }: Props) {
       <h1 className="mt-1 mb-6 text-2xl font-bold text-slate-900">{mode === 'new' ? t('নতুন উপকারভোগী যোগ করুন') : t('রেকর্ড সম্পাদনা')}</h1>
 
       {mode === 'new' && (
-        <RecordForm projectType={projectType} onSaved={() => navigate(listPath)} onCancel={() => navigate(listPath)} />
+        <RecordForm project={project} onSaved={() => navigate(listPath)} onCancel={() => navigate(listPath)} />
       )}
 
       {mode === 'edit' && !current && (
@@ -71,7 +70,7 @@ export function HousingRecordFormPage({ mode }: Props) {
       )}
       {mode === 'edit' && current?.status === 'ready' && (
         <RecordForm
-          projectType={projectType}
+          project={project}
           record={current.record}
           onSaved={(r) => {
             // সিরিয়াল বদলালে নতুন URL এ; নইলে তালিকায়

@@ -461,6 +461,27 @@ export function createSupabaseHousingApi(
       return ((data as { data?: ExtraValues } | null)?.data ?? {}) as ExtraValues
     },
 
+    // projectType: REST পাথের জন্য (/api/projects/:key/records/private); Supabase এ RLS-ই যথেষ্ট (beneficiary_private শুধু এডমিন পড়েন),
+    // আর id গুলো ডাকার জায়গা এই প্রকল্পের তালিকা থেকেই নেয়
+    async getPrivateMany(_projectType, ids) {
+      await guard()
+      if (isKnownMissing('projects') || ids.length === 0) return {}
+      if (ids.length > MAX_PAGE_SIZE) throw new HousingApiError('VALIDATION_ERROR', `এক কলে সর্বোচ্চ ${MAX_PAGE_SIZE}টি রেকর্ড`)
+      const { data, error } = await getClient().from(PRIVATE_TABLE).select('record_id, data').in('record_id', ids)
+      if (error) {
+        if (isMissingError(error)) {
+          markMissing('projects')
+          return {}
+        }
+        throw mapSupabaseError(error)
+      }
+      const out: Record<string, ExtraValues> = {}
+      for (const row of (data ?? []) as { record_id: string; data: ExtraValues | null }[]) {
+        if (row.data && Object.keys(row.data).length) out[row.record_id] = row.data
+      }
+      return out
+    },
+
     async listActivity(params) {
       await guard()
       const page = Math.max(1, Math.floor(params.page ?? 1))

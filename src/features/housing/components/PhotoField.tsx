@@ -10,6 +10,8 @@ const KIND_LABEL: Record<PhotoKind, string> = { prev: 'পূর্বের ঘ
 
 interface Props {
   kind: PhotoKind
+  /** ঘরের নাম (প্রকল্পের ছবির লেবেল, M-ধাপ ১০); না দিলে আগের নাম */
+  label?: string
   /** এডিট মোডে বিদ্যমান রেকর্ড (থাকা ছবি দেখাতে) */
   record?: HousingRecord | null
   /** নির্বাচিত নতুন ফাইল (একটি) — parent এ রাখা হয়, সেভের সময় আপলোড */
@@ -24,7 +26,8 @@ interface Props {
  * ফর্মের একক ছবি ফিল্ড: বিদ্যমান ছবি (থাকলে) + ImageUploader (একটি ফাইল) + নতুন ফাইলের প্রিভিউ।
  * নতুন ফাইল দিলে সেভের সময় সিরিয়াল-ভিত্তিক পাথে ওভাররাইট হয় (HousingApi.uploadPhoto)।
  */
-export function PhotoField({ kind, record, item, onChange, onDeleteExisting, disabled = false }: Props) {
+export function PhotoField({ kind, label, record, item, onChange, onDeleteExisting, disabled = false }: Props) {
+  const title = label || t(KIND_LABEL[kind])
   const existing = record ? photoSrc(record[`${kind}_thumb_url`], record.photo_updated_at) : null
   const existingFull = record ? record[`${kind}_photo_url`] : null
   const [items, setItems] = useState<UploadItem[]>(item ? [item] : [])
@@ -57,11 +60,11 @@ export function PhotoField({ kind, record, item, onChange, onDeleteExisting, dis
 
   return (
     <fieldset className="rounded-xl border border-slate-200 bg-white p-4" disabled={disabled}>
-      <legend className="px-1 text-sm font-semibold text-slate-800">{t(KIND_LABEL[kind])}</legend>
+      <legend className="px-1 text-sm font-semibold text-slate-800">{title}</legend>
 
       {existingFull && (
         <div className="mb-3 flex items-center gap-3">
-          <SafeImage src={existing} alt={`${t(KIND_LABEL[kind])} (${t('বর্তমানে সংরক্ষিত')})`} className="h-20 w-20 rounded-md object-cover" placeholderClassName="h-20 w-20 rounded-md" />
+          <SafeImage src={existing} alt={`${title} (${t('বর্তমানে সংরক্ষিত')})`} className="h-20 w-20 rounded-md object-cover" placeholderClassName="h-20 w-20 rounded-md" />
           <div className="text-xs text-slate-600">
             <p className="font-medium text-slate-700">{t('বর্তমানে সংরক্ষিত ছবি')}</p>
             <p>{t('নতুন ছবি দিলে এটি প্রতিস্থাপিত হবে (একই সিরিয়াল পাথে)।')}</p>

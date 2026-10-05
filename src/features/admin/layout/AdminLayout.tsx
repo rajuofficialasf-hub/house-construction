@@ -2,7 +2,7 @@ import { lt, t } from '@/i18n'
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router'
 import { getAuthProvider, getHousingApi, HousingApiError, type AuthUser } from '@/backend'
-import { adminPath, useHousingProjects } from '@/features/housing/utils/housingProjects'
+import { adminPath, useRecordProjects } from '@/features/housing/utils/housingProjects'
 
 interface NavItem {
   to: string
@@ -22,7 +22,8 @@ export function AdminLayout({ user, children }: { user: AuthUser; children: Reac
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const records = useHousingProjects().map((p) => ({ to: adminPath(p.key), label: lt(p, 'name') }))
+  // সব প্রকল্পের রেকর্ড (M-ধাপ ১০) — খসড়ায় চিহ্ন
+  const records = useRecordProjects().map((p) => ({ to: adminPath(p.key), label: p.is_published ? lt(p, 'name') : t('{name} (খসড়া)', { name: lt(p, 'name') }) }))
   const groups: { title: string; items: NavItem[] }[] = [
     {
       title: t('প্যানেল'),

@@ -6,8 +6,6 @@ import { lazy, Suspense, type ReactNode } from 'react'
  * এডমিন কোড (ফর্ম, ইম্পোর্ট, ছবি বাল্ক, তুলনা) শুধু দরকার হলে নামে। routes.tsx এ <Lazy> দিয়ে মোড়ানো।
  */
 export const LazyHousingDetailPage = lazy(() => import('./HousingDetailPage').then((m) => ({ default: m.HousingDetailPage })))
-export const LazyHousingAdminRecordsPage = lazy(() => import('./HousingAdminRecordsPage').then((m) => ({ default: m.HousingAdminRecordsPage })))
-export const LazyHousingRecordFormPage = lazy(() => import('./HousingRecordFormPage').then((m) => ({ default: m.HousingRecordFormPage })))
 export const LazyHousingPhotoBulkPage = lazy(() => import('./HousingPhotoBulkPage').then((m) => ({ default: m.HousingPhotoBulkPage })))
 export const LazyHousingImportPage = lazy(() => import('./HousingImportPage').then((m) => ({ default: m.HousingImportPage })))
 export const LazyHousingActivityPage = lazy(() => import('./HousingActivityPage').then((m) => ({ default: m.HousingActivityPage })))

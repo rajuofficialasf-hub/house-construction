@@ -1,7 +1,7 @@
 # As-Sunnah Foundation প্রকল্প-প্ল্যাটফর্ম — REST API চুক্তি (API_CONTRACT.md)
 
 > নিজস্ব সার্ভারের ডেভেলপারের জন্য। ফ্রন্টএন্ডের `rest` অ্যাডাপ্টার (`src/backend/rest/`, পাথ `src/backend/rest/endpoints.ts`) ঠিক এই চুক্তি অনুযায়ী কল করবে।
-> সংস্করণ: **১.০** — সর্বশেষ আপডেট: ২০২৬-১০-০৫ (পর্ব ২, M-ধাপ ৪: বহু-প্রকল্প)
+> সংস্করণ: **১.১** — সর্বশেষ আপডেট: ২০২৬-১০-০৫ (পর্ব ২, M-ধাপ ১০: অনেক রেকর্ডের গোপন মান একসাথে, এক্সপোর্টের লগ)
 > সার্ভারের প্রযুক্তি (ভাষা/ফ্রেমওয়ার্ক/DB) অনির্ধারিত; এই চুক্তি প্রযুক্তি-নিরপেক্ষ। "TBD" অংশ এখনো চূড়ান্ত নয়। ধাপ ১৩ (নিজস্ব সার্ভার) স্থগিত।
 > রেফারেন্স বাস্তবায়ন: Supabase (`supabase/sql/*.sql` — ট্রিগার ও RLS এ প্রতিটি নিয়ম আছে; `src/backend/supabase/`)। দুই জায়গায় নিয়ম আলাদা হলে **এই চুক্তি সংশোধন করে** মেলাতে হবে।
 
@@ -257,6 +257,7 @@
 | PATCH | `/api/records/:id` | এডমিন | `HousingApi.update` |
 | DELETE | `/api/records/:id` | **মূল এডমিন** | `HousingApi.delete` |
 | GET / PUT | `/api/records/:id/private` | এডমিন | `HousingApi.getPrivate` / `setPrivate` |
+| POST | `/api/projects/:key/records/private` | এডমিন | `HousingApi.getPrivateMany` (v১.১) |
 | POST | `/api/records/:id/serial` | এডমিন | `HousingApi.changeSerial` |
 | PUT | `/api/records/:id/photos/:slot` | এডমিন | `HousingApi.uploadPhoto` |
 | DELETE | `/api/records/:id/photos/:slot` | **মূল এডমিন** | `HousingApi.deletePhoto` |
@@ -394,6 +395,7 @@ body: §৪.৪.৪ এর যেকোনো উপসেট। `project_type`/
 
 #### ৪.৪.৮ GET / PUT `/api/records/:id/private` — গোপন মান (এডমিন)
 - GET → `{ "data": { "phone": "01711987654" } }`; কিছু না থাকলে `{}`।
+- **POST `/api/projects/:key/records/private`** (v১.১, গোপনসহ CSV এক্সপোর্টের জন্য) body `{ "ids": ["3f2c…", "9a1b…"] }` (≤ ১০০টি) → `200 { "data": { "3f2c…": { "phone": "01711987654" } } }` — শুধু মান থাকা রেকর্ড; অন্য প্রকল্পের id নীরবে বাদ; ১০০-র বেশি → `400`। পড়া লগ হয় না; ক্লায়েন্ট এক্সপোর্ট শেষে `records_export` ইভেন্ট পাঠায় (§৪.৫)।
 - PUT body `{ "data": { "phone": "০১৭১১৯৮৭৬৫৪" } }` → পুরোটা **প্রতিস্থাপন** (যে key বাদ, তার মান মুছে যায়; খালি/null মান সংরক্ষিত হয় না) → `200 { "data": { "phone": "01711987654" } }` (স্বাভাবিক করা মান)। শুধু প্রকল্পের **গোপন ও সক্রিয়** ফিল্ডের key; পাবলিক/অচেনা/আর্কাইভ key → `400` (`details.field = "private.<key>"`)। অপরিবর্তিত পুরনো মান (আর্কাইভ ফিল্ডেরও) আবার পাঠালে গ্রহণযোগ্য।
 
 #### ৪.৪.৯ POST `/api/records/:id/serial` — সিরিয়াল বদল (এডমিন, বিশেষ)
@@ -430,6 +432,7 @@ body: §৪.৪.৪ এর যেকোনো উপসেট। `project_type`/
 | `project_create` / `project_update` / `project_publish` / `project_unpublish` / `project_delete` | প্রকল্পের সেটিং | `record_id: null`, `project_type` = প্রকল্পের key; শুধু ক্রম বদল লগ হয় না |
 | `field_create` / `field_update` / `field_archive` / `field_restore` / `field_delete` | ফিল্ডের সেটিং | একই |
 | `login` / `logout` / `import_run` / `photo_bulk_run` | ক্লায়েন্ট-ইভেন্ট (POST দিয়ে) | যেকোনো |
+| `records_export` (v১.১) | ক্লায়েন্ট-ইভেন্ট: CSV এক্সপোর্ট | `{ "rows": 120, "private": true }` — কোন রেকর্ড বা মান নয় |
 
 **GET `/api/activity`** — query: `action`, `project_type`, `record_id`, `actor_email` (আংশিক), `from`/`to` (ISO), `page`, `page_size` (≤ ১০০)। নতুন আগে।
 ```json
@@ -510,6 +513,7 @@ Supabase রেফারেন্সে এগুলো `supabase/sql/10b_projec
 | ২০২৬-১০-০৫ | ০.৯.১ | এডমিনের দুই ভূমিকা: `main_admin` (একজন; মোছা) ও `admin` (যোগ/এডিট) |
 | ২০২৬-১০-০৫ | ০.৯.২ | বাল্ক আপডেটে খালি `""` = অপরিবর্তিত, মোছার জন্য `_clear`; `next-serial` খসড়ায় `null` |
 | ২০২৬-১০-০৫ | **১.০** | **বহু-প্রকল্প (পর্ব ২, M-ধাপ ৪):** প্রকল্প, ফিল্ড, ওভারভিউ endpoint; পাথ `/api/projects/:key/...` ও `/api/records/:id/...` (§৯); রেকর্ডে `union_name`, `extra`; গোপন মান endpoint; ফিল্ডের ধরন ও যাচাই; `ProjectStats` শেপ (by_union, by_project, fields, distinct.unions); কাস্টম ফিল্টার `f.<key>` (whitelist), `sort=extra.<key>`; ছবি-মোড; খসড়া লুকানো; অপরিবর্তনীয় জিনিসের তালিকা; লগের নতুন action; PUT এর বদলে PATCH (আংশিক আপডেট); ছবি endpoint `PUT/DELETE …/photos/:slot` |
+| ২০২৬-১০-০৫ | ১.১ | `POST /api/projects/:key/records/private` (অনেক রেকর্ডের গোপন মান একসাথে, ≤ ১০০; গোপনসহ CSV এক্সপোর্ট — M-ধাপ ১০); ক্লায়েন্ট-ইভেন্ট `records_export` |
 
 ## ৯. পুরনো (v০.৯) → নতুন (v১.০) পাথ
 | v০.৯ | v১.০ |

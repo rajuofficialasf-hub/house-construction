@@ -12,7 +12,7 @@ import {
 import { projectPath, useProjects } from '@/features/projects/registry'
 import { ErrorNotice } from '@/features/housing/components/ErrorNotice'
 import { ACTION_CLASS, ACTION_LABEL, formatDateTime } from '@/features/housing/utils/activityLabels'
-import { adminPath, useHousingProjects } from '@/features/housing/utils/housingProjects'
+import { adminPath, useRecordProjects } from '@/features/housing/utils/housingProjects'
 import { formatBanglaNumber, toBanglaNumber } from '@/lib/banglaNumber'
 import { formatTaka } from '@/lib/money'
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
@@ -38,7 +38,7 @@ export function AdminDashboardPage() {
   useDocumentTitle(t('ড্যাশবোর্ড'))
   const [state, setState] = useState<State>({ status: 'loading' })
   const [reload, setReload] = useState(0)
-  const housingKeys = new Set(useHousingProjects().map((p) => p.key))
+  const recordKeys = new Set(useRecordProjects().map((p) => p.key))
   const projects = useProjects()
 
   useEffect(() => {
@@ -143,7 +143,7 @@ export function AdminDashboardPage() {
                 </div>
               </dl>
               <div className="mt-4 flex flex-wrap gap-2">
-                {housingKeys.has(item.key) && (
+                {recordKeys.has(item.key) && (
                   <Link to={adminPath(item.key)} className="inline-flex min-h-11 items-center rounded-md border border-slate-300 px-3 text-sm font-medium text-slate-700 hover:border-brand-400 hover:text-brand-700">
                     {t('রেকর্ড')}
                   </Link>

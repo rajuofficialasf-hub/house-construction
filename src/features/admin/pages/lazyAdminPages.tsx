@@ -5,3 +5,6 @@ export const LazyAdminDashboardPage = lazy(() => import('./AdminDashboardPage').
 export const LazyAdminProjectsPage = lazy(() => import('./AdminProjectsPage').then((m) => ({ default: m.AdminProjectsPage })))
 export const LazyProjectWizardPage = lazy(() => import('./ProjectWizardPage').then((m) => ({ default: m.ProjectWizardPage })))
 export const LazyProjectSettingsPage = lazy(() => import('./ProjectSettingsPage').then((m) => ({ default: m.ProjectSettingsPage })))
+/** রেকর্ড (M-ধাপ ১০-এ features/housing থেকে সরানো — এখন যেকোনো প্রকল্পের, ফিল্ড-চালিত) */
+export const LazyAdminRecordsPage = lazy(() => import('../records/AdminRecordsPage').then((m) => ({ default: m.AdminRecordsPage })))
+export const LazyRecordFormPage = lazy(() => import('../records/RecordFormPage').then((m) => ({ default: m.RecordFormPage })))

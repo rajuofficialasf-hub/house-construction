@@ -43,6 +43,8 @@ export const ENDPOINTS = {
     records: (key: ProjectKey) => `/api/projects/${enc(key)}/records`,
     /** POST (নতুন যোগ) / PUT (সিরিয়াল ধরে আপডেট) — এডমিন */
     recordsBulk: (key: ProjectKey) => `/api/projects/${enc(key)}/records/bulk`,
+    /** POST { ids } (এডমিন; ≤ ১০০) — অনেক রেকর্ডের গোপন মান একসাথে (গোপনসহ CSV এক্সপোর্ট, চুক্তি v১.১) */
+    recordsPrivate: (key: ProjectKey) => `/api/projects/${enc(key)}/records/private`,
     /** GET (পাবলিক) */
     recordBySerial: (key: ProjectKey, serialNo: number) => `/api/projects/${enc(key)}/records/serial/${serialNo}`,
     /** GET (পাবলিক; ≤ ১০০ প্রতি কলে) */

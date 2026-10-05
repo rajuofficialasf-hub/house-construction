@@ -35,6 +35,7 @@ export function createRestHousingApi(_baseUrl: string): HousingApi {
     changeSerial: async () => notImplemented('changeSerial'), // POST ENDPOINTS.records.serial
     getPrivate: async () => notImplemented('getPrivate'), // GET  ENDPOINTS.records.private
     setPrivate: async () => notImplemented('setPrivate'), // PUT  ENDPOINTS.records.private
+    getPrivateMany: async () => notImplemented('getPrivateMany'), // POST ENDPOINTS.projects.recordsPrivate(key) { ids }
     listActivity: async () => notImplemented('listActivity'), // GET  ENDPOINTS.activity
     logActivity: async () => {}, // POST ENDPOINTS.activity (ব্যর্থতা নীরব)
   }

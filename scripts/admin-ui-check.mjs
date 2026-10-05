@@ -55,20 +55,103 @@ const addedFields = [] // নকল POST project_fields এর ফল
 const usage = { category: 32 } // নকল project_field_usage: key → কতটি রেকর্ডে মান আছে
 const allFields = () => [...(created?.fields ?? []), ...addedFields]
 
+// ---- নকল রেকর্ড-ভাণ্ডার (M-ধাপ ১০): খসড়া demo প্রকল্পের রেকর্ড, গোপন মান, ক্যাটাগরির মান — সব এখানেই, লাইভে কিছু নয়
+let adminRole = 'main_admin'
+const demoRecs = [] // housing_beneficiaries এর সারি (project_type = demo)
+const demoPrivate = {} // record_id → data
+const eqParam = (u, k) => u.searchParams.get(k)?.replace(/^eq\./, '')
+function usageOf(key) {
+  if (usage[key] !== undefined) return { count: usage[key], values: [] }
+  const m = new Map()
+  for (const r of demoRecs) if (r.extra?.[key] !== undefined) m.set(r.extra[key], (m.get(r.extra[key]) ?? 0) + 1)
+  return { count: [...m.values()].reduce((a, b) => a + b, 0), values: [...m].map(([value, n]) => ({ value, n })) }
+}
+/** demo এর অনুরোধ হলে নকল উত্তর দিয়ে true, নইলে undefined */
+async function fakeRecords(u, method, req, respond0) {
+  // উত্তর দিলে true (await এর পর respond এর Promise undefined হয় — তাই আলাদা চিহ্ন)
+  const respond = (...a) => respond0(...a).then(() => true)
+  const body = req.postData() ? JSON.parse(req.postData()) : null
+  const accept = req.headers()['accept'] ?? ''
+  const one = accept.includes('vnd.pgrst.object')
+  const send = (rows) => (one ? (rows[0] ? respond(200, rows[0]) : respond(406, { code: 'PGRST116', message: 'JSON object requested, multiple (or no) rows returned', details: 'The result contains 0 rows', hint: null })) : respond(200, rows, { 'content-range': rows.length ? `0-${rows.length - 1}/${rows.length}` : '*/0' }))
+  if (u.pathname === '/rest/v1/rpc/housing_next_serial' && body?.p_project_type === 'demo') return respond(200, String(demoRecs.reduce((m, r) => Math.max(m, r.serial_no), 0) + 1))
+  if (u.pathname === '/rest/v1/rpc/project_field_rename_value' && body?.p_project === 'demo') {
+    writes.push({ method, path: u.pathname, search: u.search, body })
+    let n = 0
+    for (const r of demoRecs) {
+      if (r.extra?.[body.p_key] === body.p_from) {
+        r.extra[body.p_key] = body.p_to
+        n++
+      }
+    }
+    return respond(200, String(n))
+  }
+  if (u.pathname === '/rest/v1/beneficiary_private') {
+    if (method === 'GET') {
+      const id = eqParam(u, 'record_id')
+      const inList = u.searchParams.get('record_id')?.match(/^in\.\((.*)\)$/)?.[1]?.split(',').map((s) => s.replace(/"/g, ''))
+      const ids = inList ?? (id ? [id] : [])
+      if (!ids.some((x) => demoRecs.some((r) => r.id === x))) return undefined
+      return send(ids.filter((x) => demoPrivate[x]).map((x) => ({ record_id: x, data: demoPrivate[x] })))
+    }
+    if (method === 'POST' && demoRecs.some((r) => r.id === body?.record_id)) {
+      writes.push({ method, path: u.pathname, search: u.search, body })
+      demoPrivate[body.record_id] = body.data
+      return send([{ record_id: body.record_id, data: body.data }])
+    }
+    return undefined
+  }
+  if (u.pathname !== '/rest/v1/housing_beneficiaries') return undefined
+  const id = eqParam(u, 'id')
+  const isDemo = eqParam(u, 'project_type') === 'demo' || (id && demoRecs.some((r) => r.id === id)) || body?.project_type === 'demo'
+  if (!isDemo) return undefined
+  const ts = new Date().toISOString()
+  if (method === 'GET') {
+    let rows = demoRecs.filter((r) => !id || r.id === id)
+    const sn = eqParam(u, 'serial_no')
+    if (sn) rows = rows.filter((r) => String(r.serial_no) === sn)
+    const cs = u.searchParams.get('extra')?.match(/^cs\.(.*)$/)?.[1]
+    if (cs) {
+      const want = JSON.parse(cs)
+      rows = rows.filter((r) => Object.entries(want).every(([k, v]) => r.extra?.[k] === v))
+    }
+    return send([...rows].sort((a, b) => a.serial_no - b.serial_no))
+  }
+  writes.push({ method, path: u.pathname, search: u.search, body })
+  if (method === 'POST') {
+    const serial = body.serial_no ?? demoRecs.reduce((m, r) => Math.max(m, r.serial_no), 0) + 1
+    const r = { id: `00000000-0000-0000-0000-00000000d${String(demoRecs.length + 1).padStart(3, '0')}`, serial_no: serial, union_name: '', extra: {}, prev_photo_url: null, prev_thumb_url: null, current_photo_url: null, current_thumb_url: null, prev_photo_source: null, current_photo_source: null, photo_updated_at: null, created_at: ts, updated_at: ts, ...body }
+    demoRecs.push(r)
+    return send([r])
+  }
+  const r = demoRecs.find((x) => x.id === id)
+  if (!r) return send([])
+  if (method === 'PATCH') {
+    Object.assign(r, body, { updated_at: ts })
+    return send([r])
+  }
+  if (method === 'DELETE') {
+    demoRecs.splice(demoRecs.indexOf(r), 1)
+    return send([{ id }])
+  }
+  return undefined
+}
+
 async function handle(req) {
   const url = req.url()
   if (!url.startsWith(SB)) return req.continue()
   const u = new URL(url)
   const method = req.method()
   const respond = (status, body, headers = {}) =>
-    req.respond({ status, contentType: 'application/json', headers: { 'access-control-allow-origin': '*', ...headers }, body: typeof body === 'string' ? body : JSON.stringify(body) })
+    req.respond({ status, contentType: 'application/json', headers: { 'access-control-allow-origin': '*', 'access-control-expose-headers': 'content-range', ...headers }, body: typeof body === 'string' ? body : JSON.stringify(body) })
   if (method === 'OPTIONS') return req.respond({ status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' } })
   if (u.pathname.startsWith('/auth/v1/')) {
     if (u.pathname.endsWith('/user')) return respond(200, USER)
     if (u.pathname.endsWith('/logout')) return respond(204, '')
     return respond(200, SESSION)
   }
-  if (u.pathname === '/rest/v1/rpc/housing_current_admin') return respond(200, [{ role: 'main_admin', email: USER.email }])
+  if (u.pathname === '/rest/v1/rpc/housing_current_admin') return respond(200, [{ role: adminRole, email: USER.email }])
+  if (await fakeRecords(u, method, req, respond)) return
   if (u.pathname === '/rest/v1/housing_activity_log') return respond(200, [], { 'content-range': '*/0' })
   if (u.pathname === '/rest/v1/rpc/housing_log_event') return respond(200, 'null')
 
@@ -127,7 +210,7 @@ async function handle(req) {
   }
   if (u.pathname === '/rest/v1/rpc/projects_reorder') return respond(200, '3')
   // ---- ফিল্ড বিল্ডার (M-ধাপ ৮): নকল ফিল্ড-অবস্থা (created.fields + addedFields), GET এ ফেরত আসে
-  if (u.pathname === '/rest/v1/rpc/project_field_usage') return respond(200, { count: usage[body.p_key] ?? 0, values: [] })
+  if (u.pathname === '/rest/v1/rpc/project_field_usage') return respond(200, usageOf(body.p_key))
   if (u.pathname === '/rest/v1/rpc/project_fields_reorder') {
     body.p_ids.forEach((id, i) => { const f = allFields().find((x) => x.id === id); if (f) f.sort_order = (i + 1) * 10 })
     return respond(200, 'null')
@@ -436,6 +519,235 @@ async function addField(p, labelBn, tableOn) {
   await p.screenshot({ path: '.smoke/admin-stats.png', fullPage: true })
   ok('পরিসংখ্যান ট্যাবে কোনো page error নেই', p.errors.length === 0, p.errors.join(' | '))
   await p.close()
+}
+
+// ---------------------------------------------------------------- H. ঘর নির্মাণের রেকর্ড-পাতা ও ফর্ম — স্ক্রিনশট (M-ধাপ ১০: আগের সাথে মেলানো)
+for (const [w, mobile] of [[1280, false], [390, true]]) {
+  const p = await newPage(w, mobile)
+  for (const [path, name] of [['/admin/records/semi_pucca', 'list'], ['/admin/records/semi_pucca/new', 'new'], ['/admin/records/semi_pucca/1/edit', 'edit']]) {
+    await p.goto(BASE + path, { waitUntil: 'domcontentloaded' })
+    await settle(p)
+    await p.screenshot({ path: `.smoke/admin-rec-semi-${name}-${w}.png`, fullPage: true })
+  }
+  ok(`ঘর নির্মাণের রেকর্ড-পাতা/ফর্ম (${w}px) — কোনো page error নেই`, p.errors.length === 0, p.errors.join(' | '))
+  await p.close()
+}
+
+// ---------------------------------------------------------------- I. পরীক্ষা প্রকল্পে রেকর্ড: CRUD, টাকা, গোপন, ক্যাটাগরি, এক্সপোর্ট (M-ধাপ ১০)
+{
+  // F-এ ক্যাটাগরি আর্কাইভ হয়েছিল আর ৩২টি নকল মান ছিল — এখানে আসল (নকল-ভাণ্ডারের) অবস্থায় ফেরা; সাথে একটি গোপন মোবাইল-ফিল্ড
+  delete usage.category
+  const cat = allFields().find((f) => f.project_key === 'demo' && f.key === 'category')
+  if (cat) cat.is_active = true
+  const ts = new Date().toISOString()
+  addedFields.push({ id: '00000000-0000-0000-0000-0000000003a1', project_key: 'demo', key: 'mobile', type: 'phone', label_bn: 'মোবাইল নম্বর', label_en: 'Mobile number', help_bn: '', help_en: '', options: [], required: false, visibility: 'admin', show_in_table: false, show_in_card: false, show_in_detail: true, filterable: false, searchable: false, fill_down: false, max_length: null, min_value: null, max_value: null, import_aliases: [], sort_order: 90, is_active: true, created_at: ts, updated_at: ts })
+
+  const p = await newPage()
+  const cdp = await p.createCDPSession()
+  await cdp.send('Browser.setDownloadBehavior', { behavior: 'deny' }).catch(() => {})
+  // ডাউনলোড ধরা: Blob এর লেখা ও ফাইলের নাম
+  await p.evaluateOnNewDocument(() => {
+    window.__downloads = []
+    const orig = URL.createObjectURL.bind(URL)
+    URL.createObjectURL = (b) => {
+      const entry = { name: '', text: null }
+      window.__downloads.push(entry)
+      b.text().then((t) => (entry.text = t))
+      // Blob.text() BOM বাদ দিয়ে পড়ে — তাই প্রথম ৩ বাইট আলাদা
+      b.arrayBuffer().then((buf) => (entry.bom = [...new Uint8Array(buf.slice(0, 3))].join(',')))
+      const url = orig(b)
+      setTimeout(() => {
+        const a = [...document.querySelectorAll('a[download]')].find((x) => x.href === url)
+        if (a) entry.name = a.download
+      }, 0)
+      return url
+    }
+    const click = HTMLAnchorElement.prototype.click
+    HTMLAnchorElement.prototype.click = function () {
+      const d = window.__downloads.at(-1)
+      if (d && this.download) d.name = this.download
+      if (!this.download) click.call(this)
+    }
+  })
+  const fieldId = (label) => p.evaluate((x) => [...document.querySelectorAll('label')].find((l) => l.textContent.replace('*', '').trim() === x)?.htmlFor, label)
+  const fill = async (label, value) => {
+    const id = await fieldId(label)
+    if (!id) throw new Error('label not found: ' + label)
+    const el = await p.$(`[id="${id}"]`)
+    await clearInput(p, el)
+    if (value) await el.type(value)
+  }
+  const fillRecord = async (name, amount, category, mobile) => {
+    await fill('উপকারভোগীর নাম', name)
+    await p.select('#f-division', 'চট্টগ্রাম')
+    await p.select('#f-district', 'চট্টগ্রাম')
+    await p.select('#f-upazila', 'মীরসরাই')
+    await fill('টাকা', amount)
+    await fill('উপকরণের ক্যাটাগরি', category)
+    if (mobile) await fill('মোবাইল নম্বর', mobile)
+  }
+
+  await p.goto(BASE + '/admin/records/demo', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  let s = await text(p)
+  ok('খসড়া demo এর রেকর্ড-পাতা খোলে ("খসড়া" চিহ্ন, সাইডবারে "পরীক্ষা প্রকল্প (খসড়া)"), এখনো রেকর্ড নেই', s.includes('পরীক্ষা প্রকল্প — রেকর্ড') && s.includes('পরীক্ষা প্রকল্প (খসড়া)') && s.includes('এখনো কোনো রেকর্ড নেই'), s.slice(0, 120))
+
+  await p.goto(BASE + '/admin/records/demo/new', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  s = await text(p)
+  const legends = await p.evaluate(() => [...document.querySelectorAll('fieldset legend')].map((l) => l.textContent.trim()))
+  ok('নতুন ফর্ম: "অনুদানের সাল", ইউনিয়ন, "প্রকল্পের তথ্য" (ক্যাটাগরি, উপকরণের নাম, টাকা), "🔒 শুধু এডমিন তথ্য" (মোবাইল)', s.includes('অনুদানের সাল *') && !!(await p.$('#f-union')) && s.includes('প্রকল্পের তথ্য') && s.includes('উপকরণের ক্যাটাগরি *') && s.includes('উপকরণের নাম/বিবরণ') && s.includes('🔒 শুধু এডমিন তথ্য') && s.includes('মোবাইল নম্বর'))
+  ok('ছবির ঘর ছবি মোড অনুযায়ী: শুধু একটি, লেবেল "উপকরণসহ ছবি"; পূর্বের ছবির লিঙ্কের ঘর নেই', legends.join('|') === 'উপকরণসহ ছবি' && !(await p.$('#f-prev-src')) && !!(await p.$('#f-cur-src')), legends.join('|'))
+  const amountId = await fieldId('টাকা')
+  ok('টাকার ঘর: inputMode="numeric"', (await p.$eval(`[id="${amountId}"]`, (e) => e.inputMode)) === 'numeric')
+
+  // রেকর্ড ১: "১,২০,০০০", গোপন মোবাইল, নাম "=1+1" (এক্সপোর্টে ফর্মুলা-সুরক্ষা দেখতে)
+  await fillRecord('=1+1', '১,২০,০০০', 'গাভী', '০১৭১১০০০০০০')
+  await p.focus('#f-union')
+  await p.waitForSelector('[role="option"]', { timeout: 10000 }).catch(() => {})
+  await p.evaluate(() => [...document.querySelectorAll('[role="option"]')].find((o) => o.textContent.trim() === 'করেরহাট')?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })))
+  await sleep(100)
+  const preview = await p.evaluate((id) => document.getElementById(id).parentElement.textContent, amountId)
+  ok('"১,২০,০০০" লিখলে পাশে "৳ ১,২০,০০০"', preview.includes('৳ ১,২০,০০০'), preview)
+  let before = writes.length
+  await clickText(p, 'button', 'পরীক্ষা প্রকল্প — যোগ করুন')
+  await settle(p)
+  const post1 = writes.slice(before).find((w) => w.method === 'POST' && w.path === '/rest/v1/housing_beneficiaries')
+  const priv1 = writes.slice(before).find((w) => w.path === '/rest/v1/beneficiary_private')
+  ok('তৈরি: extra = {category, amount: 120000}, union_name "করেরহাট", মোবাইল extra তে নেই', !!post1 && post1.body.extra?.amount === 120000 && post1.body.extra?.category === 'গাভী' && post1.body.union_name === 'করেরহাট' && !('mobile' in (post1.body.extra ?? {})), post1 && JSON.stringify(post1.body).slice(0, 220))
+  ok('গোপন মান আলাদা জায়গায় (beneficiary_private) — {"mobile":"01711000000"}', !!priv1 && JSON.stringify(priv1.body.data) === '{"mobile":"01711000000"}', priv1 && JSON.stringify(priv1.body))
+  ok('সংরক্ষণের পর তালিকায় ফেরে', p.url().endsWith('/admin/records/demo'), p.url())
+
+  // রেকর্ড ২: "১২০০০০/-", বানান "গাভি" (কাছাকাছি)
+  await p.goto(BASE + '/admin/records/demo/new', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  const dl = await p.evaluate(() => [...document.querySelectorAll('datalist option')].map((o) => o.value))
+  ok('ক্যাটাগরির ঘরে আগে ব্যবহৃত মানের সাজেশন ("গাভী")', dl.includes('গাভী'), dl.join(','))
+  await fillRecord('রহিমা খাতুন', '১২০০০০/-', 'গাভি', '')
+  before = writes.length
+  await clickText(p, 'button', 'পরীক্ষা প্রকল্প — যোগ করুন')
+  await settle(p)
+  const post2 = writes.slice(before).find((w) => w.method === 'POST' && w.path === '/rest/v1/housing_beneficiaries')
+  ok('"১২০০০০/-" → 120000; গোপন মান খালি হলে beneficiary_private এ কিছু যায় না', post2?.body.extra?.amount === 120000 && !writes.slice(before).some((w) => w.path === '/rest/v1/beneficiary_private'), post2 && JSON.stringify(post2.body.extra))
+
+  // ভুল টাকা: ফর্মেই আটকায়
+  await p.goto(BASE + '/admin/records/demo/new', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  await fillRecord('করিম', 'এক লাখ', 'ছাগল', '')
+  before = writes.length
+  await clickText(p, 'button', 'পরীক্ষা প্রকল্প — যোগ করুন')
+  await sleep(300)
+  ok('ভুল টাকা ("এক লাখ") → ঘরের নিচে "শুধু সংখ্যা দিন", কোনো লেখা-অনুরোধ নয়', (await text(p)).includes('শুধু সংখ্যা দিন') && writes.length === before)
+
+  // তালিকা: টাকার কলাম ও পাতার মোট; গোপন মান নেই
+  await p.goto(BASE + '/admin/records/demo', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  s = await text(p)
+  const heads = await p.evaluate(() => [...document.querySelectorAll('thead th')].map((x) => x.textContent.trim()))
+  ok('তালিকা: কলাম কনফিগ থেকে (… ঠিকানা, উপকরণের ক্যাটাগরি, টাকা, মন্তব্য, ছবি …)', heads.includes('উপকরণের ক্যাটাগরি') && heads.includes('টাকা') && heads.includes('মন্তব্য') && heads.includes('ছবি') && !heads.includes('মোবাইল নম্বর'), heads.join('|') || s.slice(s.indexOf('পরীক্ষা প্রকল্প — রেকর্ড'), s.indexOf('পরীক্ষা প্রকল্প — রেকর্ড') + 700).replace(/\n/g, ' ⏎ '))
+  ok('টাকার কলামে "এই পাতার মোট ৳ ২,৪০,০০০"; ঠিকানায় ইউনিয়ন', s.includes('এই পাতার মোট') && s.includes('৳ ২,৪০,০০০') && s.includes('করেরহাট, মীরসরাই'), s.match(/এই পাতার মোট[^\n]*/)?.[0])
+  ok('গোপন মোবাইল নম্বর তালিকায় কোথাও নেই', !s.includes('01711000000') && !s.includes('০১৭১১০০০০০০'))
+
+  // ক্যাটাগরি ফিল্টার
+  await p.select('#ff-category', 'গাভী')
+  await settle(p)
+  ok('ক্যাটাগরি ফিল্টার "গাভী" → ১টি রেকর্ড, URL এ f.category', (await p.$$('tbody tr')).length === 1 && decodeURIComponent(p.url()).includes('f.category=গাভী'), decodeURIComponent(p.url()))
+  await p.select('#ff-category', '')
+  await settle(p)
+
+  // ক্যাটাগরির বানান একীকরণ
+  await p.evaluate(() => document.querySelector('details summary')?.click())
+  await sleep(200)
+  s = await text(p)
+  ok('"ক্যাটাগরির মান ও বানান": গাভী · ১, গাভি · ১, কাছাকাছি বানান পাশাপাশি', s.includes('কাছাকাছি বানান') && /«গাভী» \(১\) · «গাভি» \(১\)|«গাভি» \(১\) · «গাভী» \(১\)/.test(s))
+  await clickText(p, 'details button', 'এক বানানে আনুন')
+  await sleep(200)
+  ok('"এক বানানে আনুন" → নিশ্চিতকরণ (কোন বানান থাকবে)', (await dlgText(p)).includes('কোন বানান থাকবে'))
+  before = writes.length
+  await clickText(p, '[role="dialog"] button', 'হ্যাঁ, এক বানানে আনুন')
+  await settle(p)
+  const ren = writes.slice(before).find((w) => w.path === '/rest/v1/rpc/project_field_rename_value')
+  ok('project_field_rename_value (demo, category) ডাকা হয়; পরে একটিই বানান', !!ren && ren.body.p_project === 'demo' && ren.body.p_key === 'category' && new Set(demoRecs.map((r) => r.extra.category)).size === 1, ren && JSON.stringify(ren.body))
+
+  // এডিট: গোপন মান আসে; বদল না হলে beneficiary_private এ যায় না
+  await p.goto(BASE + '/admin/records/demo/1/edit', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  const mobileVal = await p.evaluate(async () => {
+    const l = [...document.querySelectorAll('label')].find((x) => x.textContent.trim() === 'মোবাইল নম্বর')
+    return l ? document.getElementById(l.htmlFor).value : null
+  })
+  ok('এডিট: গোপন মোবাইল নম্বর ফর্মে আসে; টাকা "120000"', mobileVal === '01711000000' && (await p.$eval(`[id="${amountId}"]`, (e) => e.value)) === '120000', String(mobileVal))
+  await fill('টাকা', '১,৫০,০০০')
+  before = writes.length
+  await clickText(p, 'button', 'সংরক্ষণ করুন')
+  await settle(p)
+  const patch1 = writes.slice(before).find((w) => w.method === 'PATCH' && w.path === '/rest/v1/housing_beneficiaries')
+  ok('এডিট সংরক্ষণ: extra এ নতুন টাকা 150000, ক্যাটাগরি অক্ষত; গোপন মান না বদলালে পাঠানো হয় না', patch1?.body.extra?.amount === 150000 && !!patch1.body.extra.category && !writes.slice(before).some((w) => w.path === '/rest/v1/beneficiary_private'), patch1 && JSON.stringify(patch1.body.extra))
+
+  // এক্সপোর্ট: গোপন ফিল্ড আছে → জিজ্ঞাসা
+  await p.goto(BASE + '/admin/records/demo', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  await clickText(p, 'button', 'সিরিয়াল সহ এক্সপোর্ট (CSV)')
+  await sleep(200)
+  ok('গোপন ফিল্ড থাকায় এক্সপোর্টের আগে জিজ্ঞাসা (ডিফল্ট: গোপন ছাড়া)', (await dlgText(p)).includes('গোপন কলামসহ এক্সপোর্ট করবেন?') && (await p.evaluate(() => document.querySelector('input[name="export-private"]')?.checked)) === true)
+  await clickText(p, '[role="dialog"] button', 'এক্সপোর্ট করুন')
+  await settle(p)
+  await sleep(300)
+  let d = await p.evaluate(() => window.__downloads.at(-1))
+  const lines = (d?.text ?? '').split('\r\n')
+  ok('CSV: UTF-8 BOM, হেডার বাংলা লেবেলে (সিরিয়াল, অনুদানের সাল, …, উপকরণের ক্যাটাগরি, টাকা)', d?.bom === '239,187,191' && lines[0].startsWith('সিরিয়াল,অনুদানের সাল,উপকারভোগীর নাম') && lines[0].includes('ইউনিয়ন/পৌরসভা') && lines[0].includes('উপকরণের ক্যাটাগরি') && lines[0].includes(',টাকা'), lines[0]?.slice(0, 160))
+  ok('গোপন ছাড়া: মোবাইলের কলাম ও মান নেই; ফাইলের নাম demo-YYYY-MM-DD.csv', !lines[0].includes('মোবাইল') && !d.text.includes('01711000000') && /^demo-\d{4}-\d{2}-\d{2}\.csv$/.test(d.name), d?.name)
+  ok('"=1+1" নামের আগে \' (Excel এ ফর্মুলা চলে না); টাকা সাধারণ সংখ্যা 150000', lines[1]?.includes(",'=1+1,") && lines[1].includes(',150000,'), lines[1]?.slice(0, 160))
+  await clickText(p, 'button', 'সিরিয়াল সহ এক্সপোর্ট (CSV)')
+  await sleep(200)
+  await p.evaluate(() => [...document.querySelectorAll('input[name="export-private"]')][1]?.click())
+  before = writes.length
+  await clickText(p, '[role="dialog"] button', 'এক্সপোর্ট করুন')
+  await settle(p)
+  await sleep(300)
+  d = await p.evaluate(() => window.__downloads.at(-1))
+  ok('গোপনসহ: "মোবাইল নম্বর" কলাম ও মান, ফাইলের নামে "-private"', d?.text?.split('\r\n')[0].includes('মোবাইল নম্বর') && d.text.includes('01711000000') && /-private\.csv$/.test(d.name), d?.name)
+  const logged = writes.slice(before).find((w) => w.path === '/rest/v1/rpc/housing_log_event')
+  ok('এক্সপোর্ট লগে যায় (records_export, মান নয়)', !logged || (JSON.stringify(logged.body).includes('records_export') && !JSON.stringify(logged.body).includes('01711000000')), logged && JSON.stringify(logged.body).slice(0, 120))
+  await p.screenshot({ path: '.smoke/admin-records-demo.png', fullPage: true })
+
+  // বাল্ক ডিলেট (মূল এডমিন)
+  await p.evaluate(() => document.querySelector('thead input[type="checkbox"]')?.click())
+  await sleep(100)
+  await clickText(p, 'button', 'নির্বাচিতগুলো মুছুন')
+  await sleep(200)
+  before = writes.length
+  await clickText(p, '[role="dialog"] button', 'হ্যাঁ, সব মুছুন')
+  await settle(p)
+  ok('বাল্ক ডিলেট (মূল এডমিন): ২টি DELETE, তালিকা খালি', writes.slice(before).filter((w) => w.method === 'DELETE' && w.path === '/rest/v1/housing_beneficiaries').length === 2 && (await text(p)).includes('এখনো কোনো রেকর্ড নেই'))
+  ok('রেকর্ড-পাতা/ফর্মে কোনো page error নেই', p.errors.length === 0, p.errors.join(' | '))
+  await p.close()
+
+  // সাধারণ এডমিন: মোছার বোতাম নেই
+  adminRole = 'admin'
+  demoRecs.push({ ...JSON.parse(JSON.stringify(post2?.body ?? {})), id: '00000000-0000-0000-0000-00000000d999', serial_no: 7, union_name: '', extra: { amount: 1, category: 'ছাগল' }, prev_photo_url: null, prev_thumb_url: null, current_photo_url: null, current_thumb_url: null, prev_photo_source: null, current_photo_source: null, photo_updated_at: null, created_at: ts, updated_at: ts, project_type: 'demo', year: 2025, name: 'ক', division: 'ঢাকা', district: 'ঢাকা', upazila: 'সাভার', father_or_husband_name: '', address: '' })
+  const q = await newPage()
+  await q.goto(BASE + '/admin/records/demo', { waitUntil: 'domcontentloaded' })
+  await settle(q)
+  await q.evaluate(() => document.querySelector('thead input[type="checkbox"]')?.click())
+  await sleep(100)
+  const btns = await q.evaluate(() => [...document.querySelectorAll('button')].map((b) => b.textContent.trim()))
+  ok('সাধারণ এডমিন: "ডিলেট" ও "নির্বাচিতগুলো মুছুন" নেই, "এডিট" আছে', !btns.includes('ডিলেট') && !btns.includes('নির্বাচিতগুলো মুছুন') && (await text(q)).includes('এডিট'), btns.filter((b) => /মুছুন|ডিলেট/.test(b)).join(','))
+  await q.close()
+  adminRole = 'main_admin'
+  demoRecs.length = 0
+
+  // ফোন: রেকর্ড-কার্ডে কাস্টম ফিল্ড ও পাতার মোট
+  demoRecs.push({ id: '00000000-0000-0000-0000-00000000d998', serial_no: 8, union_name: 'করেরহাট', extra: { amount: 25000, category: 'গাভী', item_name: 'দুগ্ধবতী গাভী' }, prev_photo_url: null, prev_thumb_url: null, current_photo_url: null, current_thumb_url: null, prev_photo_source: null, current_photo_source: null, photo_updated_at: null, created_at: ts, updated_at: ts, project_type: 'demo', year: 2025, name: 'রহিমা', division: 'চট্টগ্রাম', district: 'চট্টগ্রাম', upazila: 'মীরসরাই', father_or_husband_name: '', address: '' })
+  const m = await newPage(390, true)
+  await m.goto(BASE + '/admin/records/demo', { waitUntil: 'domcontentloaded' })
+  await settle(m)
+  const ms = await text(m)
+  const over = await m.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)
+  ok('৩৯০px: কার্ডে "উপকরণের ক্যাটাগরি: গাভী", "টাকা: ৳ ২৫,০০০", পাতার মোট; ওভারফ্লো নেই', ms.includes('উপকরণের ক্যাটাগরি: গাভী') && ms.includes('টাকা: ৳ ২৫,০০০') && ms.includes('এই পাতার মোট') && !over, ms.slice(0, 200))
+  await m.screenshot({ path: '.smoke/admin-records-demo-390.png', fullPage: true })
+  await m.close()
+  demoRecs.length = 0
 }
 
 // ---------------------------------------------------------------- E. ফোনে ড্রয়ার
