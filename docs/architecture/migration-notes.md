@@ -22,7 +22,9 @@ Not used: Realtime, Edge Functions.
 
 ## Known facts that affect the migration
 
-- The REST `HousingApi` adapter is a stub today (every method throws NOT_IMPLEMENTED). Only the REST auth adapter is written.
+- The REST adapter covers login, reads, writes and the activity log (C2–C4). The server has no photo routes until C5. Until then:
+  - a serial change leaves the photo URLs at the old serial's path, where the files still are;
+  - a delete leaves any photo files in place.
 - Serial counters never decrease and deleted serials are never reused (`02_serial.sql`).
 - Admin login and logout write activity-log rows.
 - `scripts/migrate-photos.mjs` uses the Supabase service key and needs a rewrite.
@@ -34,6 +36,7 @@ Roadmap: [../plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md](../pla
 1. Sessions: an opaque token in an HttpOnly cookie, not JWT. Only its SHA-256 is stored; timeouts are 8 hours idle and 7 days absolute. Settled in C2 ([../plans/2026-10-05-1246-migrate-c2-admin-login-plan.md](../plans/2026-10-05-1246-migrate-c2-admin-login-plan.md)).
 2. CORS and login rate limiting: the API answers only the origins in `ALLOWED_ORIGINS`, with credentials, and refuses state-changing requests from any other origin. Login is limited to 10 failures per IP per 15 minutes, counted in memory, which is exact only while the API runs as one process. Settled in C2. C3 split CORS into two lists: other apps' origins go in `PUBLIC_READ_ORIGINS`, which gets credential-less CORS on the housing GETs and `openapi.json` only, and never passes the write Origin check. An origin may be on only one list. The public reads are limited to 300 requests per IP per minute, also in memory.
 3. Photos: the storage adapter, S3 at cutover, NAS later ([../plans/2026-10-04-1607-feat-photo-storage-strategy-plan.md](../plans/2026-10-04-1607-feat-photo-storage-strategy-plan.md)).
+4. Writes: every POST, PUT or DELETE under `/api/v1/housing` needs an admin session, checked before the body is read. The acting admin for the activity log always comes from the session (`withActor()`), never from the request. The bulk routes take up to 500 rows in one transaction, with a 10 MB body limit; every other route has 100 KB. There is no write rate limit yet; C6 decides on one before production. Settled in C4 ([../plans/2026-10-05-1601-migrate-c4-write-endpoints-plan.md](../plans/2026-10-05-1601-migrate-c4-write-endpoints-plan.md)).
 
 ## Where each `supabase/sql` file went
 

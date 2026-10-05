@@ -15,6 +15,9 @@ The suite exists so that nothing is lost when the backend moves from Supabase to
 | `npm run check:prod-bundle` | Builds with `VITE_HOUSING_BACKEND=mock` and fails if any mock backend code is in the production bundle | nothing |
 | `npm run test:all` | `i18n-check`, `npm test`, `check:prod-bundle`, `test:e2e:mock` | Chromium |
 | `npm --prefix server test` | Server tests (`server/src/**/*.test.ts`, `server/test/`): config, errors, health routes, and the ported SQL (serials, stats, bulk update, activity log, role privileges) on a real PostgreSQL. Rebuilds the `housing_test` database from the migrations first, checking that each down section undoes its up section | `docker compose up -d db` and Node 22 |
+| `npm run test:contract:rest` | The full backend-contract suite, writes included, through the REST adapter against the Express app on `housing_test` | `docker compose up -d db` and Node 22 |
+| `npm run test:e2e:rest` | Playwright: the public flows (`e2e/live/`) against the compose API (`VITE_HOUSING_BACKEND=rest`, project `public-rest`) | `docker compose up -d db api` with the dev seed |
+| `npm run test:e2e:rest-admin` | Playwright: the admin flows (`e2e/mock/`, except the photo specs) against an API it starts on `housing_test` (project `admin-rest`) | `docker compose up -d db` and Node 22 |
 | `npm run dev:mock` | The app on the mock backend, for manual checks. Admin login: see `MOCK_ADMIN` in `src/features/housing/backend/mock/fixtures.ts` | nothing |
 
 ## Rules
@@ -32,10 +35,19 @@ The mock keeps its state across page reloads inside one browser context. `window
 
 ## Re-pointing the suite at the new backend
 
-1. The REST `HousingApi` reads are wired to the Express server (`src/features/housing/backend/rest/index.ts`); writes and `ImageStorage` come in C4 and C5 of `docs/plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md`.
-2. `npm run test:contract:rest` runs the suite through the REST adapter against the real Express app (`createApp`) on the local `housing_test` database, reset to `server/db/seed/dev.sql` before every test. Start the database first with `docker compose up -d db`. The script migrates `housing_test`, then runs `tests/contract/rest.contract.test.ts`; plain `npm test` skips that file. Only the read contract runs today (`writes: false`). The unauthenticated-write check is a known gap until C4 adds the write routes, then C4 switches the runner to `writes: true` with a test admin.
-3. Run the browser specs against it: set `VITE_HOUSING_BACKEND=rest` and `VITE_API_BASE_URL` for a Playwright project, and replace the mock reset hook (`e2e/support/data.ts`) with a database reset or reseed. That reset is the only backend-specific seam in the specs.
-4. A failing test names the lost behavior. Do not edit a test to make it pass unless the contract itself changed.
+1. The REST `HousingApi` (`src/features/housing/backend/rest/index.ts`) calls the Express server for reads, writes and the activity log. The server gets its photo routes in C5 of `docs/plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md`. Until then, the photo calls get 401 without a session and 404 with one.
+2. `npm run test:contract:rest` runs the whole suite (`writes: true`) through the REST adapter against the real Express app (`createApp`) on the local `housing_test` database.
+   - Before every test, the database is reset to `server/db/seed/dev.sql` plus one admin.
+   - A cookie-jar fetch (`tests/contract/cookieJarFetch.ts`) keeps the session cookie and sends the site's `Origin`, as a browser does.
+   - The four photo tests are known gaps until C5.
+   - The two non-admin tests are skipped: the server has only admin accounts (contract §2).
+   - Plain `npm test` skips this file.
+3. `npm run test:e2e:rest-admin` runs the admin specs (`e2e/mock/`) in the `admin-rest` Playwright project.
+   - The project starts the API on `housing_test` (port 3002) and the UI with `VITE_HOUSING_BACKEND=rest` (port 5186).
+   - Before each test, the auto fixture in `e2e/support/backend.ts` resets the database to the mock seed and the mock admin (`e2e/support/rest-data.ts`). On the mock project the fixture does nothing.
+   - The photo specs wait for C5. The non-admin login spec is skipped.
+4. `npm --prefix server test`, `npm run test:contract:rest` and `npm run test:e2e:rest-admin` all reset `housing_test`. Run them one after another, never at the same time.
+5. A failing test names the lost behavior. Do not edit a test to make it pass unless the contract itself changed.
 
 ## Checked against real Supabase (local stack)
 
@@ -61,5 +73,5 @@ These contract tests are expected to fail on Supabase (`KNOWN_GAPS` in `tests/co
 - The public list has no sort control; it is always ordered by serial. Sorting by other fields exists only in the API.
 - CSV export is an admin feature (`/housing/admin/semi-pucca`), so its spec is in `e2e/mock/`.
 - The bulk import wizard validates in the browser and sends only valid rows. A file with an invalid row imports the valid rows and reports the invalid one. The all-or-nothing rule applies to one batch sent to the API and is checked in the contract suite.
-- The Supabase adapter splits a bulk insert into chunks of 200 and can stop after earlier chunks were saved. The contract in section 4.9 says one transaction. Decide which behavior the Express server should have.
+- The Supabase adapter splits a bulk insert into chunks of 200 and can stop after earlier chunks were saved. The contract in section 4.9 says one transaction. On the Express server, one request is one transaction, and the REST adapter doesn't split (C4). The import page already sends 200 rows at a time.
 - On the map, the caption counts only records whose district and upazila exist in the map data, so it can be lower than the stat card total.
