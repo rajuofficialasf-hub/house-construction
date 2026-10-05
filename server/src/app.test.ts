@@ -8,7 +8,9 @@ import { createLogger } from './logger.js';
 
 const logger = createLogger('silent');
 const sql = createDb(testAppUrl);
-const app = createApp({ sql, logger, trustProxy: 0 });
+const ORIGIN = 'http://localhost:5173';
+const appDeps = { logger, trustProxy: 0, allowedOrigins: [ORIGIN], cookieSecure: true };
+const app = createApp({ sql, ...appDeps });
 
 afterAll(() => sql.end());
 
@@ -29,7 +31,7 @@ describe('createApp', () => {
     // Port 1 on loopback has nothing listening, so the connection is refused at once.
     const deadSql = postgres('postgres://housing_app:x@127.0.0.1:1/housing_test', { connect_timeout: 1, max: 1 });
     try {
-      const res = await request(createApp({ sql: deadSql, logger, trustProxy: 0 })).get('/api/v1/readyz');
+      const res = await request(createApp({ sql: deadSql, ...appDeps })).get('/api/v1/readyz');
       expect(res.status).toBe(503);
       expect(res.body.error.code).toBe('INTERNAL_ERROR');
       expect(JSON.stringify(res.body)).not.toMatch(/ECONNREFUSED|127\.0\.0\.1/);
@@ -47,6 +49,7 @@ describe('createApp', () => {
   it('rejects a JSON body over 100 kB with 413', async () => {
     const res = await request(app)
       .post('/api/v1/healthz')
+      .set('origin', ORIGIN)
       .set('content-type', 'application/json')
       .send(JSON.stringify({ pad: 'x'.repeat(110 * 1024) }));
     expect(res.status).toBe(413);
@@ -54,13 +57,15 @@ describe('createApp', () => {
   });
 
   it('rejects malformed JSON with 400', async () => {
-    const res = await request(app).post('/api/v1/healthz').set('content-type', 'application/json').send('{"a":');
+    const res = await request(app).post('/api/v1/healthz')
+      .set('origin', ORIGIN).set('content-type', 'application/json').send('{"a":');
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 
   it('answers an unsupported body encoding with 400, not 500', async () => {
-    const res = await request(app).post('/api/v1/healthz').set('content-type', 'application/json').set('content-encoding', 'foo').send('{}');
+    const res = await request(app).post('/api/v1/healthz')
+      .set('origin', ORIGIN).set('content-type', 'application/json').set('content-encoding', 'foo').send('{}');
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });

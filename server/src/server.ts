@@ -17,7 +17,13 @@ function start(): void {
   const config = loadConfigOrExit();
   const logger = createLogger(config.LOG_LEVEL);
   const sql = createDb(config.DATABASE_URL);
-  const app = createApp({ sql, logger, trustProxy: config.TRUST_PROXY });
+  const app = createApp({
+    sql,
+    logger,
+    trustProxy: config.TRUST_PROXY,
+    allowedOrigins: config.ALLOWED_ORIGINS,
+    cookieSecure: config.COOKIE_SECURE,
+  });
   const server = app.listen(config.PORT, () => logger.info({ port: config.PORT }, 'housing API listening'));
 
   // Stop taking new connections, let in-flight requests finish, then close the pool (NE-ERR-04).
