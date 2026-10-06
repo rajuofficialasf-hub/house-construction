@@ -609,6 +609,7 @@ Object.assign(EN, {
   'বাংলা নাম দিন': 'Enter the Bangla name',
   'বাল্ক ছবি আপলোডে ফাইলনাম চেনার জন্য। উদাহরণ (সিরিয়াল ১২): {example}': 'Used to recognise file names in bulk photo upload. Example (serial 12): {example}',
   'মূল এডমিন': 'Main admin',
+  'প্রকল্পের ইউজার': 'Project user',
   'মোট টাকা': 'Total amount',
   'যেমন "ঘর", "উপকারভোগী" — মানচিত্র ও পরিসংখ্যানে': 'e.g. "houses", "beneficiaries" — on the map and in statistics',
   'যেমন উপকরণসহ ছবি': 'e.g. Photo with the item',

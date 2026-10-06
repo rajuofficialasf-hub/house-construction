@@ -39,15 +39,21 @@ Supabase Dashboard → **SQL Editor** এ ফাইলগুলো **এই ক�
 | ২৯ | `backup/before_12.sql` → `12_activity_log_v2.sql` → `checks/12_selftest.sql` | কপি → লগ v2 → ৬টি পরীক্ষা |
 | ৩০ | `checks/rollback_rehearsal.sql` (+ AI: `npm run security-check`) | ১০–১২ এর রোলব্যাকের মহড়া |
 | ৩১ (ঐচ্ছিক) | `checks/11_perf_optional.sql`, তারপর আলাদাভাবে `VACUUM ANALYZE public.housing_beneficiaries;` | ৫,০০০ কৃত্রিম রেকর্ডে সময় মাপা (সব ফেরত) |
-| (জরুরি) | `rollback/10_12_rollback.sql` | শুধু AI-এর পরামর্শে; নতুন ডাটা থাকলে নিজেই থামে |
+| (জরুরি) | `rollback/10_12_rollback.sql` | শুধু AI-এর পরামর্শে; নতুন ডাটা থাকলে নিজেই থামে; SQL ১৪ চালানো থাকলে আগে `rollback/14_rollback.sql` |
+| ৩৪ | `13_money_limit.sql` | টাকার সীমা ১০০০ কোটি (ফেরাতে `rollback/13_rollback.sql`) |
+| ৩৫ (পর্ব চ) | `backup/before_14.sql` → `14_project_users.sql` → `checks/14_selftest.sql` → `checks/14_rollback_rehearsal.sql` | কপি → প্রকল্পভিত্তিক ইউজার, "মোছার সমান" কাজ শুধু মূল এডমিন → ১৭টি নিজে-ফিরে-যাওয়া পরীক্ষা → রোলব্যাকের মহড়া (১৪-এর আগের গভীর ছাপের সাথে) |
+| (জরুরি) | `rollback/14_rollback.sql` | ১৪ ফেরানো; বরাদ্দ-সীমা উঠে যায় (প্রকল্পের ইউজার আবার সব প্রকল্পের এডমিন), নিষ্ক্রিয়রা মুছে যায় |
 
 রোলব্যাক উল্টো ক্রমে কাজ করে (১২ → ১১ → ১০b → ১০) এবং পুরনো ফাংশনগুলো মূল ফাইল থেকে হুবহু ফেরত আনে। রোলব্যাক ফাইল বদলালে `npm run build-rehearsal` দিয়ে মহড়া-ফাইল আবার তৈরি করতে হয়।
 
-### এডমিনের ভূমিকা (10b থেকে)
-- **মূল এডমিন** (`role = 'main_admin'`, একজনই): যোগ, এডিট ও **মোছা**। **এডমিন** (`role = 'admin'`): শুধু যোগ ও এডিট।
-- নতুন (সাধারণ) এডমিন যোগ: Dashboard → Authentication → Users → Add user (Auto Confirm), তারপর SQL Editor-এ
-  `insert into public.housing_admins (user_id, email, role) select id, email, 'admin' from auth.users where email = 'নতুন@ইমেইল' on conflict (user_id) do nothing;`
+### এডমিনের ভূমিকা (SQL ১৪ থেকে — পর্ব চ)
+- **মূল এডমিন** (`role = 'main_admin'`, একজনই): সব — মোছা, থাকা ছবি বদল, মান ফাঁকা করা, সিরিয়াল বদল, প্রকল্পের সেটিংস, ইউজার।
+- **প্রকল্পের ইউজার** (`role = 'editor'`): শুধু বরাদ্দ প্রকল্পে (`housing_admin_projects`; `all_projects = true` হলে সব) যোগ ও এডিট। `is_active = false` হলে কিছুই নয়।
+- নতুন ইউজার: Dashboard → Authentication → Users → Add user (Auto Confirm), তারপর প্যানেলের ইউজার-পাতা (M-ধাপ ১৯)। তার আগে SQL Editor-এ (মূল এডমিনের সেশনে নয়, তাই সরাসরি টেবিলে):
+  `insert into public.housing_admins (user_id, email, role, all_projects) select id, email, 'editor', false from auth.users where email = 'নতুন@ইমেইল' on conflict (user_id) do nothing;`
+  `insert into public.housing_admin_projects (user_id, project_key) select id, 'self_reliance_project' from auth.users where email = 'নতুন@ইমেইল';`
 - মূল এডমিন বদল (একই ট্রানজেকশনে, কারণ মূল এডমিন একজনই):
-  `begin; update public.housing_admins set role = 'admin' where role = 'main_admin'; update public.housing_admins set role = 'main_admin' where email = 'নতুন-মূল@ইমেইল'; commit;`
+  `begin; update public.housing_admins set role = 'editor', all_projects = true where role = 'main_admin'; update public.housing_admins set role = 'main_admin' where email = 'নতুন-মূল@ইমেইল'; commit;`
+- SQL ১৪-এর আগে (পুরনো নিয়ম) ভূমিকা ছিল `main_admin` / `admin`; ১৪ চালানোর পরে `'admin'` দিয়ে যোগ করলে ডাটাবেস আটকায়।
 
 পুরো ধাপে-ধাপে নির্দেশনা: `docs/HOUSING_PROGRESS.md` → ধাপ ২ → "আমাকে যা করতে হবে"।

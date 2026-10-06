@@ -229,6 +229,27 @@ if (sample) {
 } else {
   console.log('SKIP  UPDATE/DELETE/RPC পরীক্ষা — টেবিলে কোনো সারি নেই (seed চালান)')
 }
+// প্রকল্পভিত্তিক ইউজার (SQL ১৪, পর্ব চ): anon এর কোনো প্রকল্পে লেখার অধিকার নেই; ইউজার-তালিকা/বদল ও বরাদ্দ-টেবিল বন্ধ
+{
+  const why14 = '14_project_users.sql চালানো হয়নি (চেকলিস্ট সারি ৩৫)'
+  const mine = await fetch(`${URL_}/rest/v1/rpc/housing_my_project_keys`, { method: 'POST', headers: H, body: '{}' })
+  const mineBody = await mine.text()
+  if (isMissing(mine, mineBody)) skip('anon: কোনো প্রকল্পে লেখার অধিকার নেই (housing_my_project_keys = [])', why14)
+  else ok('anon: কোনো প্রকল্পে লেখার অধিকার নেই (housing_my_project_keys = [])', mine.ok && JSON.stringify(JSON.parse(mineBody)) === '[]', `${status(mine)} ${mineBody.slice(0, 60)}`)
+  for (const [name, args] of [
+    ['housing_admin_users', {}],
+    ['housing_admin_user_save', { p_email: 'zz-security-check@example.invalid', p_all_projects: true, p_projects: [], p_active: true }],
+  ]) {
+    const r = await fetch(`${URL_}/rest/v1/rpc/${name}`, { method: 'POST', headers: H, body: JSON.stringify(args) })
+    const body = await r.text()
+    if (isMissing(r, body)) skip(`anon: ${name} RPC নিষিদ্ধ`, why14)
+    else ok(`anon: ${name} RPC নিষিদ্ধ`, !r.ok, `${status(r)} ${body.slice(0, 70)}`)
+  }
+  const ap = await fetch(`${URL_}/rest/v1/housing_admin_projects?select=*`, { headers: H })
+  const apBody = await ap.text()
+  if (isMissing(ap, apBody)) skip('anon: ইউজার-বরাদ্দের টেবিল (housing_admin_projects) অগম্য', why14)
+  else ok('anon: ইউজার-বরাদ্দের টেবিল (housing_admin_projects) অগম্য', !ap.ok || apBody.trim() === '[]', `${status(ap)} ${apBody.slice(0, 60)}`)
+}
 {
   const r = await rest('housing_serial_counters', { method: 'PATCH', body: JSON.stringify({ last_serial: 0 }), headers: { prefer: 'return=representation' } })
   const rows = r.ok ? await r.json() : null

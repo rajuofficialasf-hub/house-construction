@@ -512,16 +512,17 @@ export class HousingApiError extends Error implements ApiError {
 }
 
 /**
- * এডমিনের ভূমিকা (পর্ব ২, ২০২৬-১০-০৫): 'main_admin' = মূল এডমিন (একজন) — যোগ, এডিট ও মোছা;
- * 'admin' = সাধারণ এডমিন — শুধু যোগ ও এডিট। মোছার নিষেধ ডাটাবেসে (RLS/ট্রিগার) প্রয়োগ হয়।
+ * এডমিনের ভূমিকা: 'main_admin' = মূল/সুপার এডমিন (একজন) — সব, মোছা ও প্রকল্পের সেটিংসসহ;
+ * 'editor' = প্রকল্পের ইউজার (SQL ১৪, পর্ব চ) — শুধু বরাদ্দ প্রকল্পে যোগ ও এডিট; মোছা, থাকা ছবি বদল, মান ফাঁকা করা,
+ * সিরিয়াল বদল আর সেটিংস নয়; 'admin' = SQL ১৪-এর আগের সাধারণ এডমিন (পুরনো ডাটাবেসে)। সব নিষেধ ডাটাবেসে (RLS/ট্রিগার)।
  */
-export type AdminRole = 'admin' | 'main_admin'
+export type AdminRole = 'admin' | 'main_admin' | 'editor'
 
 export interface AuthUser {
   id: string
   email: string
   name: string | null
-  /** housing_admins টেবিল থেকে: main_admin (মোছা পারেন) বা admin */
+  /** housing_admins টেবিল থেকে: main_admin (মোছা ও সেটিংস পারেন), editor (প্রকল্পের ইউজার) বা পুরনো admin */
   role: AdminRole
 }
 

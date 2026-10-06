@@ -523,7 +523,12 @@ begin
       values ('zz_selftest', 2025, 'পরীক্ষা', 'ঢাকা', 'ঢাকা', 'সাভার', '{"amount": 1}', 'https://example.invalid/c.webp', 'https://example.invalid/ct.webp')
       returning id into rid;
       -- পরীক্ষার জন্য এই এডমিনকে সাময়িকভাবে সাধারণ এডমিন করা (শেষে ফিরে যায়)
-      update public.housing_admins set role = 'admin' where user_id = admin_uid;
+      -- SQL ১৪-এর পরে ভূমিকার নাম 'editor' (+ সব প্রকল্প) — তখনও একই পরীক্ষা চলে
+      if to_regclass('public.housing_admin_projects') is not null then
+        execute format('update public.housing_admins set role = %L, all_projects = true where user_id = %L', 'editor', admin_uid);
+      else
+        update public.housing_admins set role = 'admin' where user_id = admin_uid;
+      end if;
       perform set_config('request.jwt.claims', json_build_object('sub', admin_uid, 'role', 'authenticated', 'email', admin_email)::text, true);
       perform set_config('request.jwt.claim.sub', admin_uid::text, true);
       set local role authenticated;

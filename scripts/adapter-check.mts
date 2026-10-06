@@ -12,6 +12,9 @@ import { createSupabaseProjectsApi } from '../src/backend/supabase/projectsApi.t
 import { resetLegacyState } from '../src/backend/supabase/legacy.ts'
 import { FALLBACK_PROJECTS } from '../src/backend/fallbackProjects.ts'
 import { DEFAULT_LIST_ORDER } from '../src/backend/interfaces/types.ts'
+import { createSupabaseImageStorage } from '../src/backend/supabase/imageStorage.ts'
+import { adminRole, clearAdminCache } from '../src/backend/supabase/session.ts'
+import { mapSupabaseError } from '../src/backend/supabase/errors.ts'
 
 type Op = [string, unknown[]]
 type Handler = (target: string, ops: Op[]) => { data: unknown; error: unknown; count?: number }
@@ -203,6 +206,49 @@ const rec = { id: 'r1', project_type: 'semi_pucca', serial_no: 1, year: 2024, na
   )
   list = await projects.list({ includeDrafts: true })
   ok('রেজিস্ট্রি: embed না চললে (PGRST200) আগের দুই কলে — একই ফল, পুরনো-ডাটাবেস মোড নয়', log.map((l) => l.target).join() === 'projects,projects,project_fields' && list.find((p) => p.key === 'semi_pucca')?.fields.map((f) => f.key).join() === 'first,alpha,zeta' && (await projects.backendMode()) === 'full', log.map((l) => l.target).join())
+}
+
+// ===================================================================== ৪. প্রকল্পভিত্তিক ইউজার (পর্ব চ, M-ধাপ ১৮)
+{
+  // ছবি: আগে নতুন ফাইল (upsert false); "আগেই আছে" হলে তবেই ওভাররাইট (upsert true) — ওভাররাইট SQL ১৪-এ শুধু মূল এডমিন
+  const calls: { path: string; upsert: boolean }[] = []
+  const exists = new Set<string>()
+  let overwriteAllowed = true
+  const client = {
+    storage: {
+      from: () => ({
+        upload: async (path: string, _f: Blob, o: { upsert: boolean }) => {
+          calls.push({ path, upsert: o.upsert })
+          if (exists.has(path) && !o.upsert) return { data: null, error: { statusCode: '409', message: 'The resource already exists' } }
+          if (exists.has(path) && !overwriteAllowed) return { data: null, error: { statusCode: '403', message: 'new row violates row-level security policy' } }
+          exists.add(path)
+          return { data: { path }, error: null }
+        },
+        getPublicUrl: (p: string) => ({ data: { publicUrl: 'https://x/' + p } }),
+      }),
+    },
+  }
+  const st = createSupabaseImageStorage(() => client as never)
+  const target = { project_type: 'sr', serial_no: 1, kind: 'current' as const, variant: 'full' as const }
+  await st.upload(new Blob(['a']), target)
+  ok('ছবি: নতুন ফাইল একবারেই, upsert ছাড়া', calls.length === 1 && calls[0].upsert === false, JSON.stringify(calls))
+  calls.length = 0
+  await st.upload(new Blob(['b']), target)
+  ok('ছবি: ফাইল আগেই থাকলে তবেই ওভাররাইট (upsert true) — মূল এডমিন', calls.map((c) => c.upsert).join() === 'false,true', JSON.stringify(calls))
+  overwriteAllowed = false
+  const e = await st.upload(new Blob(['c']), target).then(() => null, (x) => x)
+  ok('ছবি: ইউজারের ওভাররাইট আটকালে বাংলা "অনুমতি নেই" (FORBIDDEN)', e?.code === 'FORBIDDEN' && /অনুমতি আপনার নেই/.test(e.message), e?.message)
+
+  // ভূমিকা: editor (SQL ১৪) প্যানেলে ঢোকেন; অচেনা ভূমিকা নয়
+  for (const [raw, want] of [['editor', 'editor'], ['main_admin', 'main_admin'], ['admin', 'admin'], ['guest', null]] as const) {
+    clearAdminCache()
+    const c = { rpc: async () => ({ data: [{ role: raw, email: 'x@y', all_projects: false, projects: ['sr'] }], error: null }) }
+    ok(`ভূমিকা "${raw}" → ${want ?? 'এডমিন নন'}`, (await adminRole(() => c as never, 'u-' + raw)) === want)
+  }
+  const m = mapSupabaseError({ code: '42501', message: 'new row violates row-level security policy for table "projects"' })
+  ok('RLS এর ইংরেজি বার্তা → বাংলা, কোড FORBIDDEN', m.code === 'FORBIDDEN' && m.message.startsWith('এই কাজের অনুমতি আপনার নেই'), m.message)
+  const g = mapSupabaseError({ code: '42501', message: 'বিস্তারিত ঠিকানা মুছে ফাঁকা করতে পারেন শুধু মূল এডমিন' })
+  ok('ডাটাবেসের বাংলা গার্ড-বার্তা যেমন আছে তেমন', g.code === 'FORBIDDEN' && g.message.includes('শুধু মূল এডমিন'), g.message)
 }
 
 console.log(`\nফল: PASS ${pass}, FAIL ${fail}`)

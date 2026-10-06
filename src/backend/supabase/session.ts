@@ -27,8 +27,9 @@ export async function adminRole(getClient: GetClient, userId: string): Promise<A
   if (error) throw mapSupabaseError(error)
   const rows = (data ?? []) as { role: string }[]
   const raw = rows[0]?.role
-  // দুই ভূমিকাই এডমিন (10b থেকে): main_admin = মূল এডমিন, admin = সাধারণ এডমিন
-  const role: AdminRole | null = raw === 'main_admin' || raw === 'admin' ? raw : null
+  // সব ভূমিকাই প্যানেলে ঢোকে: main_admin = মূল এডমিন, editor = প্রকল্পের ইউজার (SQL ১৪), admin = ১৪-এর আগের সাধারণ এডমিন।
+  // নিষ্ক্রিয় ইউজারের সারি RPC ফেরত দেয় না → null। কে কী পারেন তা ডাটাবেস ঠিক করে।
+  const role: AdminRole | null = raw === 'main_admin' || raw === 'editor' || raw === 'admin' ? raw : null
   roleCache.set(userId, role)
   return role
 }

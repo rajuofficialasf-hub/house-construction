@@ -26,6 +26,15 @@ begin
   before_sch := asf_meta.schema_fingerprint();
   begin
     execute $rehearsal_body$
+-- ---------------------------------------------------------------- SQL ১৪ চালানো থাকলে আগে সেটি ফেরাতে হয় (পর্ব চ)
+do $rb_14$
+begin
+  if to_regclass('public.housing_admin_projects') is not null then
+    raise exception 'আগে rollback/14_rollback.sql চালান (SQL ১৪ চালানো আছে) — কিছুই বদলায়নি।';
+  end if;
+end
+$rb_14$;
+
 -- ---------------------------------------------------------------- নিরাপত্তা-গার্ড
 do $rb_guard$
 declare
