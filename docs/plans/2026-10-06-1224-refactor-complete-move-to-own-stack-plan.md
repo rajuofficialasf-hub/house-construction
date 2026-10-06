@@ -797,7 +797,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** P2's finish: `ae-test` (full), `ae-simplify`, `ae-review`.
+- **Next:** P3. Run `ae-plan` on this file to add P3's units (bulk v2, photos with photo mode, `years`, `next-serial`, `/activity`, record and private log v2 in `0014`), then `ae-work`.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
@@ -852,3 +852,11 @@ Run these at the end of P1:
     - `extra` keys are checked by `customValueKeys` on the raw object. A plain `z.record` puts the rejected key in the error path (so `details.field` would echo it) and assigns `__proto__`. `openapi.ts` describes that check by hand, because zod can't turn a custom check into JSON Schema.
     - `recordFields`, `writeText` and `serialNo` are exported from `housing/schemas.ts`. `actorOf` and `writeRateLimiter` are exported from `housing-admin.ts`. The records admin router has its own write-limit counter.
   - **U11 notes:** `privateNoStore` runs before `requireAdmin`, so a 401 is also marked `private, no-store`. The guard-coverage test in `records-writes.test.ts` skips it when looking for the first real handler. The bulk read is a POST, so it counts against the per-admin write limit.
+  - **P2 done (2026-10-06):** U7–U12 are committed (974f8d6..8e551fb).
+    - **Full run:** server 692, UI 165, contract 40, admin-rest 35, `test:all` Playwright 53. Typecheck and lint are clean.
+    - **`ae-simplify`** applied 5 changes. **`ae-review`** ran correctness, standards, security, database and testing reviewers and found no P0 or P1. The P2 (no 429 tests on the new limiters) and two P3s (plan-less IDs in comments, an unbounded poll in the race test) were fixed.
+    - The `0013` file's comment wording changed after it ran on the local dev database. dbmate keeps no checksum and nothing is shared, so nothing needs re-running.
+    - **Left for later chunks:**
+      - `GET /records/:id/private` writes no security-event line (the PUT and the bulk read do). P3's log v2 can decide whether single reads are logged.
+      - The two admin routes that only need the project's existence also run its fields query (one small query).
+      - A `phone` value given to a filter isn't digit-normalised. Phones are private and never filterable, so this has no effect today.
