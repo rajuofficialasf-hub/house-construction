@@ -539,7 +539,7 @@ These settle what research turned up. They add to Technical decisions and change
   - the logged object holds no `message` and no `detail` text other than the checked field
 - **Done when:** the unit tests pass. U10's HTTP tests confirm it end to end.
 - **Depends on:** none (it can run beside U7)
-- **Status:** todo
+- **Status:** done
 
 ### U9. Record reads
 - **Goal:** Records can be read one at a time, by serial, by a list of serials, and as a filtered, searched, sorted page. A visitor sees only records of public projects.
@@ -743,7 +743,7 @@ These settle what research turned up. They add to Technical decisions and change
   - plus the three test additions above
 - **Done when:** the server suite passes.
 - **Depends on:** none (it can run beside U7 and U8)
-- **Status:** todo
+- **Status:** done
 
 ### P2 order and parallel lanes
 
@@ -837,3 +837,7 @@ Run these at the end of P1:
       - `details.field` is present only when it matches the field-key pattern
     - `ae-doc-review` ran on P2 (2026-10-06). It fixed the private PUT (update-then-insert, not an upsert), router mounting (no root `use()`), the `::text` casts, the `union_name` rule, and draft-group 404s. The user chose: strip non-public `extra` keys for visitors, add security-event log lines for private writes and bulk reads, and keep U12 in P2.
   - **U7 notes:** the record trigger now refuses an unknown project, a non-object `extra` and an undefined private key before the FK or CHECK can, so three `projects-registry` tests expect `HC400` now. The size CHECK is reached with three valid 2000-letter long texts. `insertProject` gained `geo_depth` and `core_fields`.
+  - **Lane B (U8, U12) notes:** built in a parallel worktree and cherry-picked as `298cb62` and `4e7a39d`.
+    - The plain-admin photo-delete 403 case lives in `main-admin.test.ts`. The new file-survival test was added to `housing-photos.test.ts` instead, so U12 stayed inside its file list.
+    - The main_admin race tests hold a SHARE lock on `housing_admins` to force both calls past the check; they failed with the raw `23505` before the fix.
+    - Three U12 tests passed before any change (the CLI invalid-role message, the photo 403 and the draft-group direct GET): they pin behaviour that already worked.
