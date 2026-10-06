@@ -20,13 +20,15 @@ interface Props {
   /** বিদ্যমান ছবি মোছার অনুরোধ (parent নিশ্চিতকরণ + API করে) */
   onDeleteExisting?: () => void
   disabled?: boolean
+  /** true = থাকা ছবি বদলানো যায় না (প্রকল্পের ইউজার; শুধু মূল এডমিন — পর্ব চ); ছবি না থাকলে নতুন দেওয়া যায় */
+  locked?: boolean
 }
 
 /**
  * ফর্মের একক ছবি ফিল্ড: বিদ্যমান ছবি (থাকলে) + ImageUploader (একটি ফাইল) + নতুন ফাইলের প্রিভিউ।
  * নতুন ফাইল দিলে সেভের সময় সিরিয়াল-ভিত্তিক পাথে ওভাররাইট হয় (HousingApi.uploadPhoto)।
  */
-export function PhotoField({ kind, label, record, item, onChange, onDeleteExisting, disabled = false }: Props) {
+export function PhotoField({ kind, label, record, item, onChange, onDeleteExisting, disabled = false, locked = false }: Props) {
   const title = label || t(KIND_LABEL[kind])
   const existing = record ? photoSrc(record[`${kind}_thumb_url`], record.photo_updated_at) : null
   const existingFull = record ? record[`${kind}_photo_url`] : null
@@ -67,7 +69,7 @@ export function PhotoField({ kind, label, record, item, onChange, onDeleteExisti
           <SafeImage src={existing} alt={`${title} (${t('বর্তমানে সংরক্ষিত')})`} className="h-20 w-20 rounded-md object-cover" placeholderClassName="h-20 w-20 rounded-md" />
           <div className="text-xs text-slate-600">
             <p className="font-medium text-slate-700">{t('বর্তমানে সংরক্ষিত ছবি')}</p>
-            <p>{t('নতুন ছবি দিলে এটি প্রতিস্থাপিত হবে (একই সিরিয়াল পাথে)।')}</p>
+            <p>{locked ? t('ছবি আগে থেকেই আছে — বদলাতে বা মুছতে পারেন শুধু মূল এডমিন।') : t('নতুন ছবি দিলে এটি প্রতিস্থাপিত হবে (একই সিরিয়াল পাথে)।')}</p>
             {onDeleteExisting && (
               <button type="button" onClick={onDeleteExisting} className="mt-1 text-red-700 underline-offset-2 hover:underline">
                 {t('এই ছবি মুছুন')}
@@ -77,7 +79,7 @@ export function PhotoField({ kind, label, record, item, onChange, onDeleteExisti
         </div>
       )}
 
-      <ImageUploader items={items} onAdd={add} onRemove={remove} multiple={false} disabled={disabled} showList />
+      {!(locked && existingFull) && <ImageUploader items={items} onAdd={add} onRemove={remove} multiple={false} disabled={disabled} showList />}
     </fieldset>
   )
 }

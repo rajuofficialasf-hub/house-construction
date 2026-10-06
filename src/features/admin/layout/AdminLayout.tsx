@@ -38,7 +38,9 @@ export function AdminLayout({
       title: t('প্যানেল'),
       items: [
         { to: '/admin', label: t('ড্যাশবোর্ড'), end: true },
-        { to: '/admin/projects', label: t('প্রকল্পসমূহ') },
+        // প্রকল্পের সেটিংস ও ইউজার শুধু মূল এডমিন (পর্ব চ, প্রশ্ন ২২)
+        ...(user.role === 'editor' ? [] : [{ to: '/admin/projects', label: t('প্রকল্পসমূহ') }]),
+        ...(user.role === 'main_admin' ? [{ to: '/admin/users', label: t('ইউজার') }] : []),
       ],
     },
     { title: t('রেকর্ড'), items: records },
@@ -118,7 +120,7 @@ export function AdminLayout({
       <p className="truncate px-3 text-slate-600" title={user.email}>
         {user.name ?? user.email}
       </p>
-      <p className="px-3 text-xs text-slate-400">{user.role === 'main_admin' ? t('মূল এডমিন') : t('এডমিন')}</p>
+      <p className="px-3 text-xs text-slate-400">{user.role === 'main_admin' ? t('মূল এডমিন') : user.role === 'editor' ? t('প্রকল্পের ইউজার') : t('এডমিন')}</p>
       <div className="mt-2 flex flex-col gap-1">
         <Link to="/" className="flex min-h-11 items-center rounded-md px-3 text-slate-700 hover:bg-slate-100">
           {t('পাবলিক সাইট দেখুন')}

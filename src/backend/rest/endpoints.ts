@@ -36,4 +36,9 @@ export const ENDPOINTS = {
     photo: (id: string, kind?: PhotoKind) =>
       `${API}/housing/${encodeURIComponent(id)}/photo${kind ? `?kind=${kind}` : ''}`, // POST (multipart) / DELETE ?kind=
   },
+  /** ইউজার-ব্যবস্থাপনা (শুধু মূল এডমিন; চুক্তি v১.৫ §৪.৭) — নিজস্ব সার্ভারে নেই (প্যারিটি a8e2154 এ স্থির) */
+  adminUsers: {
+    list: () => `${API}/admin/users`, // GET
+    save: () => `${API}/admin/users`, // PUT
+  },
 } as const

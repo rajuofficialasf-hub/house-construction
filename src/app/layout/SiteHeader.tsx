@@ -1,7 +1,8 @@
 import { LanguageToggle, t } from '@/i18n'
 import { useState } from 'react'
 import { Link, NavLink } from 'react-router'
-import { SITE_NAME, SITE_NAME_SHORT } from '@/config/site'
+import { SITE_NAME } from '@/config/site'
+import logoUrl from '@/assets/asf-logo.svg'
 import { MobileProjectLinks, ProjectsMenu } from './ProjectsMenu'
 
 /** স্থির মেনু; প্রকল্পগুলো "প্রকল্পসমূহ ▾" এ (রেজিস্ট্রি থেকে, ProjectsMenu.tsx) */
@@ -22,12 +23,10 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 bg-brand-800 text-white shadow-md">
       <div className="container-page flex h-16 items-center justify-between gap-4">
-        <Link to="/" className="flex items-center gap-2" onClick={() => setOpen(false)}>
-          <span
-            aria-hidden="true"
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-accent-500 text-base font-bold text-brand-950"
-          >
-            {SITE_NAME_SHORT}
+        <Link to="/" className="flex items-center gap-2.5" onClick={() => setOpen(false)}>
+          {/* লোগো (বাঁয়ে) — গাঢ় হেডারে লোগোর কালো লেখা যাতে পড়া যায়, তাই সাদা পটভূমিতে; নাম ডানে পাশেই */}
+          <span aria-hidden="true" className="flex h-11 items-center rounded-md bg-white px-1.5">
+            <img src={logoUrl} alt="" width={55} height={36} className="h-9 w-auto" />
           </span>
           <span className="text-lg font-semibold tracking-tight max-[359px]:sr-only">{t(SITE_NAME)}</span>
         </Link>

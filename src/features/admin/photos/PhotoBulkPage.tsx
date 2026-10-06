@@ -14,6 +14,7 @@ import { photoSrc } from '@/features/housing/utils/imagePath'
 import { buildProjectAliases, parsePhotoFilename, photoNameExamples, photoTarget, type PhotoTarget } from '@/features/housing/utils/photoFilename'
 import { useRecordProjects } from '@/features/housing/utils/housingProjects'
 import { photoSlotLabel } from '../records/recordColumns'
+import { isMainAdmin, useAdminUser } from '../adminUser'
 
 const UPLOAD_CONCURRENCY = 2
 
@@ -24,6 +25,8 @@ type Match =
   | { kind: 'bad_kind'; project_type: ProjectKey; serial_no: number; reason: BadReason }
   | { kind: 'no_record'; project_type: ProjectKey; serial_no: number; photoKind: PhotoKind }
   | { kind: 'duplicate'; project_type: ProjectKey; serial_no: number; photoKind: PhotoKind }
+  /** ছবি আগে থেকেই আছে, আর ইউজার মূল এডমিন নন — ওভাররাইট "মোছার সমান" (পর্ব চ, প্রশ্ন ২৪), তাই বাদ */
+  | { kind: 'locked'; project_type: ProjectKey; serial_no: number; photoKind: PhotoKind; record: HousingRecord }
 
 interface Row {
   item: UploadItem
@@ -67,6 +70,7 @@ export function PhotoBulkPage() {
   const [lookup, setLookup] = useState<Lookup | null>(null)
   const [phase, setPhase] = useState<'select' | 'uploading' | 'done'>('select')
   const [confirmOverwrite, setConfirmOverwrite] = useState(false)
+  const mainAdmin = isMainAdmin(useAdminUser())
 
   // object URL মুক্ত করা শুধু আনমাউন্টে (items বদলালে নয় — তাহলে প্রিভিউ ভেঙে যেত)
   const itemsRef = useRef<UploadItem[]>([])
@@ -163,12 +167,13 @@ export function PhotoBulkPage() {
       seen.add(target)
       const record = records?.get(`${p.project_type}:${p.serial_no}`)
       if (!record) return { item: p.item, match: { kind: 'no_record', ...base } }
+      if (!mainAdmin && record[`${p.photoKind}_photo_url`]) return { item: p.item, match: { kind: 'locked', ...base, record } }
       return { item: p.item, match: { kind: 'ok', ...base, record } }
     })
-  }, [parsed, records])
+  }, [parsed, records, mainAdmin])
 
   const counts = useMemo(() => {
-    const c = { ok: 0, overwrite: 0, unparsed: 0, bad_kind: 0, no_record: 0, duplicate: 0 }
+    const c = { ok: 0, overwrite: 0, unparsed: 0, bad_kind: 0, no_record: 0, duplicate: 0, locked: 0 }
     for (const r of rows) {
       if (r.match.kind === 'ok') {
         c.ok++
@@ -198,7 +203,9 @@ export function PhotoBulkPage() {
                 ? t(BAD_MESSAGE[r.match.reason])
                 : r.match.kind === 'no_record'
                   ? t('এই সিরিয়ালের রেকর্ড নেই')
-                  : t('একই সিরিয়াল/ধরনের আরেকটি ফাইল আগে আছে'),
+                  : r.match.kind === 'locked'
+                    ? t('ছবি আগে থেকেই আছে — বদলাতে পারেন শুধু মূল এডমিন')
+                    : t('একই সিরিয়াল/ধরনের আরেকটি ফাইল আগে আছে'),
         })
       }
     }
@@ -309,6 +316,7 @@ export function PhotoBulkPage() {
           <div className="mt-6 flex flex-wrap items-center gap-2 text-sm">
             <Badge className="bg-green-100 text-green-800">{t('মিলেছে {n}', { n: toBanglaNumber(counts.ok) })}</Badge>
             {counts.overwrite > 0 && <Badge className="bg-amber-100 text-amber-800">{t('ওভাররাইট হবে {n}', { n: toBanglaNumber(counts.overwrite) })}</Badge>}
+            {counts.locked > 0 && <Badge className="bg-red-100 text-red-800">{t('ছবি আছে, বদলানো যাবে না {n}', { n: toBanglaNumber(counts.locked) })}</Badge>}
             {counts.bad_kind > 0 && <Badge className="bg-red-100 text-red-800">{t('ভুল ছবির ঘর {n}', { n: toBanglaNumber(counts.bad_kind) })}</Badge>}
             {counts.no_record > 0 && <Badge className="bg-red-100 text-red-800">{t('রেকর্ড নেই {n}', { n: toBanglaNumber(counts.no_record) })}</Badge>}
             {counts.unparsed > 0 && <Badge className="bg-slate-200 text-slate-700">{t('ফাইলনাম বোঝা যায়নি {n}', { n: toBanglaNumber(counts.unparsed) })}</Badge>}
@@ -330,7 +338,7 @@ export function PhotoBulkPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {rows.map(({ item, match }) => (
-                  <tr key={item.id} className={match.kind === 'ok' ? '' : match.kind === 'bad_kind' ? 'bg-red-50' : 'bg-slate-50/60'}>
+                  <tr key={item.id} className={match.kind === 'ok' ? '' : match.kind === 'bad_kind' || match.kind === 'locked' ? 'bg-red-50' : 'bg-slate-50/60'}>
                     <td className="px-3 py-2 pl-4">
                       <img src={item.previewUrl} alt="" className="h-14 w-14 rounded-md object-cover" />
                     </td>
@@ -355,12 +363,17 @@ export function PhotoBulkPage() {
                       )}
                     </td>
                     <td className="px-3 py-2">
-                      {match.kind === 'ok' ? (
+                      {match.kind === 'ok' || match.kind === 'locked' ? (
                         <>
                           <p className="font-medium text-slate-900">{match.record.name}</p>
                           <p className="text-xs text-slate-500">
                             {gn(match.record.upazila)}, {gn(match.record.district)}
                           </p>
+                          {match.kind === 'locked' && (
+                            <p role="alert" className="mt-1 text-xs font-medium text-red-700">
+                              {t('ছবি আগে থেকেই আছে — বদলাতে পারেন শুধু মূল এডমিন')}
+                            </p>
+                          )}
                         </>
                       ) : match.kind === 'bad_kind' ? (
                         <span role="alert" className="font-medium text-red-700">
@@ -375,7 +388,7 @@ export function PhotoBulkPage() {
                       )}
                     </td>
                     <td className="px-3 py-2">
-                      {match.kind === 'ok' && match.record[`${match.photoKind}_photo_url`] ? (
+                      {(match.kind === 'ok' || match.kind === 'locked') && match.record[`${match.photoKind}_photo_url`] ? (
                         <div className="flex items-center gap-2">
                           <SafeImage
                             src={photoSrc(match.record[`${match.photoKind}_thumb_url`], match.record.photo_updated_at)}
@@ -383,7 +396,11 @@ export function PhotoBulkPage() {
                             className="h-14 w-14 rounded-md object-cover"
                             placeholderClassName="h-14 w-14 rounded-md"
                           />
-                          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">{t('ওভাররাইট হবে')}</span>
+                          {match.kind === 'locked' ? (
+                            <span className="rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-800">{t('বদলানো যাবে না')}</span>
+                          ) : (
+                            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">{t('ওভাররাইট হবে')}</span>
+                          )}
                         </div>
                       ) : match.kind === 'ok' ? (
                         <span className="text-xs text-slate-500">{t('নেই (নতুন)')}</span>

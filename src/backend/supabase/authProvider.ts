@@ -1,17 +1,19 @@
 import type { User } from '@supabase/supabase-js'
 import type { AuthProvider } from '../interfaces/authProvider'
-import { HousingApiError, type AdminRole, type AuthUser } from '../interfaces/types'
+import { HousingApiError, type AuthUser } from '../interfaces/types'
 import type { GetClient } from './client'
 import { mapSupabaseError } from './errors'
-import { adminRole, clearAdminCache } from './session'
+import { adminInfo, adminRole, clearAdminCache, type AdminInfo } from './session'
 
-function toAuthUser(user: User, role: AdminRole): AuthUser {
+function toAuthUser(user: User, info: AdminInfo): AuthUser {
   const meta = (user.user_metadata ?? {}) as { name?: string; full_name?: string }
   return {
     id: user.id,
     email: user.email ?? '',
     name: meta.name ?? meta.full_name ?? null,
-    role,
+    role: info.role,
+    allProjects: info.allProjects,
+    projects: info.projects,
   }
 }
 
@@ -23,12 +25,12 @@ function toAuthUser(user: User, role: AdminRole): AuthUser {
 export function createSupabaseAuthProvider(getClient: GetClient): AuthProvider {
   /** সেশনের ইউজারকে AuthUser এ রূপান্তর; এডমিন না হলে null (+ ঐচ্ছিক signOut) */
   async function resolve(user: User, signOutIfNotAdmin: boolean): Promise<AuthUser | null> {
-    const role = await adminRole(getClient, user.id)
-    if (!role) {
+    const info = await adminInfo(getClient, user.id)
+    if (!info) {
       if (signOutIfNotAdmin) await getClient().auth.signOut()
       return null
     }
-    return toAuthUser(user, role)
+    return toAuthUser(user, info)
   }
 
   return {

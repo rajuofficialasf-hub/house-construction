@@ -6,7 +6,7 @@ import { createRestAuthProvider } from './authProvider'
 // node পরিবেশে localStorage নেই, তাই কোড storage ছুঁলে এই টেস্টগুলো ভেঙে যেত।
 
 const BASE = 'http://api.test'
-const USER: AuthUser = { id: '11111111-1111-4111-8111-111111111111', email: 'admin@example.org', name: 'এডমিন', role: 'admin' }
+const USER: AuthUser = { id: '11111111-1111-4111-8111-111111111111', email: 'admin@example.org', name: 'এডমিন', role: 'admin', allProjects: true, projects: [] }
 
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })

@@ -10,6 +10,7 @@ import { formatField } from '@/features/projects/fields'
 import { ProgressBar } from '@/features/housing/components/ImageUploader'
 import { downloadText, toCsv } from '@/features/housing/utils/csvExport'
 import { adminPath, useRecordProjects } from '@/features/housing/utils/housingProjects'
+import { isMainAdmin, useAdminUser } from '../adminUser'
 import { useCategoryUsage } from '../records/useCategoryUsage'
 import { CategoryReviewPanel } from './CategoryReviewPanel'
 import { GeoFixPanel } from './GeoFixPanel'
@@ -99,14 +100,16 @@ function Importer({ project, projects, onProject }: { project: Project; projects
 
   // ---- বিশ্লেষণ ----
   const update = mode === 'update'
+  // "(মুছুন)" (মান ফাঁকা করা) শুধু মূল এডমিন — প্রকল্পের ইউজারের সারিতে ভুল (পর্ব চ; ডাটাবেসও আটকায়)
+  const canClear = isMainAdmin(useAdminUser())
   const hasSerialCol = mapping.includes('serial_no')
   // খালি সাল/বিভাগ/জেলা/উপজেলা (আর ফিল-ডাউন চালু কাস্টম ফিল্ড) → উপরের সারির মান; আপডেটে নয় (সেখানে খালি = অপরিবর্তিত)
   const fdIds = useMemo(() => fillDownFields(fields), [fields])
   const filled = useMemo(() => (sheet && useFillDown && !update ? fillDown(sheet.rows, mapping, fdIds) : { rows: sheet?.rows ?? [], filled: 0 }), [sheet, mapping, useFillDown, update, fdIds])
   const analysis: ImportAnalysis | null = useMemo(() => {
     if (!sheet) return null
-    return analyzeRows(filled.rows, mapping, fields, { mode, geoFixes, serialFromFile: hasSerialCol, startSerial: nextSerial ?? 1, unions, categoryFixes })
-  }, [sheet, filled, mapping, fields, mode, geoFixes, hasSerialCol, nextSerial, unions, categoryFixes])
+    return analyzeRows(filled.rows, mapping, fields, { mode, geoFixes, serialFromFile: hasSerialCol, startSerial: nextSerial ?? 1, unions, categoryFixes, canClear })
+  }, [sheet, filled, mapping, fields, mode, geoFixes, hasSerialCol, nextSerial, unions, categoryFixes, canClear])
 
   const missingRequired = update ? [] : fields.filter((f) => f.required && !mapping.includes(f.id))
   const modeNeedsSerial = update && !hasSerialCol
@@ -307,7 +310,11 @@ function Importer({ project, projects, onProject }: { project: Project; projects
             <ul className="mt-1 list-disc space-y-0.5 pl-5">
               <li>{t('শুধু সিরিয়াল কলাম আবশ্যক; যে কলাম ম্যাপ করবেন শুধু সেগুলোই বদলাবে।')}</li>
               <li>{t('খালি ঘর = অপরিবর্তিত (আগের মান থাকে)।')}</li>
-              <li>{t('কোনো মান মুছতে ঘরে লিখুন {token} — আবশ্যক ঘর (সাল, নাম, ঠিকানার স্তর, আবশ্যক ফিল্ড) মোছা যায় না।', { token: CLEAR_TOKEN })}</li>
+              <li>
+                {canClear
+                  ? t('কোনো মান মুছতে ঘরে লিখুন {token} — আবশ্যক ঘর (সাল, নাম, ঠিকানার স্তর, আবশ্যক ফিল্ড) মোছা যায় না।', { token: CLEAR_TOKEN })
+                  : t('মান মুছে ফাঁকা করতে পারেন শুধু মূল এডমিন — {token} লিখলে সেই সারি বাদ যাবে।', { token: CLEAR_TOKEN })}
+              </li>
             </ul>
           </div>
         )}

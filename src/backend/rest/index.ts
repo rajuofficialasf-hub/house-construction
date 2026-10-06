@@ -27,6 +27,7 @@ import {
 } from '../interfaces/types'
 import { ENDPOINTS } from './endpoints'
 import { restRequest } from './http'
+import type { AdminUsersApi } from '../interfaces/adminUsersApi'
 
 export { ENDPOINTS } from './endpoints'
 export { createRestAuthProvider } from './authProvider'
@@ -206,5 +207,13 @@ export function createRestImageStorage(_baseUrl: string): ImageStorage {
     move: async () => notImplemented('move'),
     publicUrl: () => notImplemented('publicUrl'),
     pathFromUrl: () => null,
+  }
+}
+
+/** ইউজার-ব্যবস্থাপনা (চুক্তি v১.৫ §৪.৭) — নিজস্ব সার্ভারে পরে */
+export function createRestAdminUsersApi(_baseUrl: string): AdminUsersApi {
+  return {
+    list: async () => notImplemented('adminUsers.list'), // GET  ENDPOINTS.adminUsers.list
+    save: async () => notImplemented('adminUsers.save'), // PUT  ENDPOINTS.adminUsers.save
   }
 }

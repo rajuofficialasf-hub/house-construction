@@ -19,6 +19,7 @@ import { revokeUploadItems, type UploadItem } from '@/features/housing/utils/upl
 import { ConfirmDialog } from '@/features/housing/components/ConfirmDialog'
 import { PhotoField } from '@/features/housing/components/PhotoField'
 import { photoKindsOf, photoSlotLabel } from './recordColumns'
+import { isMainAdmin, useAdminUser } from '../adminUser'
 
 interface Props {
   project: Project
@@ -84,6 +85,8 @@ interface Ctx {
   union?: FieldDef
   custom: readonly FieldDef[]
   kinds: PhotoKind[]
+  /** প্রকল্পের ইউজারের এডিটে আগের মান (পর্ব চ): ভরা ঘর ফাঁকা করা যায় না — শুধু মূল এডমিন; null = সীমা নেই */
+  noClear?: Values | null
 }
 
 function validate(v: Values, c: Ctx): Errors {
@@ -115,6 +118,17 @@ function validate(v: Values, c: Ctx): Errors {
   for (const d of c.custom) {
     const r = parseField(d, v.custom[d.key] ?? '')
     if (!r.ok) e[`custom.${d.key}`] = fieldErrorMessage(r.error)
+  }
+  // প্রকল্পের ইউজার: আগে থেকে ভরা ঘর ফাঁকা করা "মোছার সমান" — শুধু মূল এডমিন (ডাটাবেসও আটকায়; প্রশ্ন ২৪)
+  if (c.noClear) {
+    const o = c.noClear
+    const msg = t('আগের মান মুছে ফাঁকা করতে পারেন শুধু মূল এডমিন')
+    for (const k of ['father', 'union', 'address', 'prevSource', 'currentSource'] as const) {
+      if (o[k].trim() && !v[k].trim()) e[k] = msg
+    }
+    for (const d of c.custom) {
+      if ((o.custom[d.key] ?? '').trim() && !(v.custom[d.key] ?? '').trim()) e[`custom.${d.key}`] = msg
+    }
   }
   return e
 }
@@ -237,7 +251,15 @@ export function RecordForm({ project, record, onSaved, onCancel }: Props) {
   const setCustom = (key: string, v: string) => setValues((prev) => ({ ...prev, custom: { ...prev.custom, [key]: v } }))
   const setGeo = (g: GeoValue) => setValues((prev) => ({ ...prev, division: g.division, district: g.district, upazila: g.upazila, union: g.union_name }))
 
-  const ctx: Ctx = { isEdit, father, address, union, custom, kinds }
+  // প্রকল্পের ইউজার (পর্ব চ): এডিটে আগের মান — ফাঁকা করা যায় না; সিরিয়াল বদল ও থাকা ছবি বদল/মোছা শুধু মূল এডমিন
+  const mainAdmin = isMainAdmin(useAdminUser())
+  const original = useMemo(() => {
+    if (!current || mainAdmin) return null
+    const v = initial(current, customPublic)
+    if (priv.status === 'ready') for (const d of customPrivate) v.custom[d.key] = fieldSpec(d.type).toInput(priv.data[d.key] ?? null, d)
+    return v
+  }, [current, mainAdmin, customPublic, customPrivate, priv])
+  const ctx: Ctx = { isEdit, father, address, union, custom, kinds, noClear: original }
   const liveErrors = submitted ? validate(values, ctx) : errors
   const privBlocked = priv.status === 'loading' || priv.status === 'error'
 
@@ -428,15 +450,17 @@ export function RecordForm({ project, record, onSaved, onCancel }: Props) {
             <span className="rounded-md bg-slate-100 px-3 py-1.5 text-lg font-bold text-brand-800 tabular-nums">
               {toBanglaNumber(current?.serial_no ?? 0)}
             </span>
-            <span className="text-xs text-slate-500">{t('লক করা — সাধারণ এডিটে বদলায় না')}</span>
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={() => setSerialDialog(true)}
-              className="ml-auto text-xs font-medium text-amber-800 underline-offset-2 hover:underline disabled:opacity-50"
-            >
-              {t('সিরিয়াল বদলান…')}
-            </button>
+            <span className="text-xs text-slate-500">{mainAdmin ? t('লক করা — সাধারণ এডিটে বদলায় না') : t('লক করা — সিরিয়াল বদলাতে পারেন শুধু মূল এডমিন')}</span>
+            {mainAdmin && (
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => setSerialDialog(true)}
+                className="ml-auto text-xs font-medium text-amber-800 underline-offset-2 hover:underline disabled:opacity-50"
+              >
+                {t('সিরিয়াল বদলান…')}
+              </button>
+            )}
           </div>
         ) : (
           <div className="mt-2 space-y-2">
@@ -535,7 +559,8 @@ export function RecordForm({ project, record, onSaved, onCancel }: Props) {
               record={current}
               item={photos[kind]}
               onChange={(it) => setPhotos((p) => ({ ...p, [kind]: it }))}
-              onDeleteExisting={isEdit && current?.[`${kind}_photo_url`] ? () => setDeleteKind(kind) : undefined}
+              onDeleteExisting={mainAdmin && isEdit && current?.[`${kind}_photo_url`] ? () => setDeleteKind(kind) : undefined}
+              locked={!mainAdmin}
               disabled={disabled}
             />
           ))}

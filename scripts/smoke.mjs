@@ -133,6 +133,40 @@ async function firstSerial(projectType) {
 const semiFirst = await firstSerial('semi_pucca')
 const semiSerial = semiFirst?.serial_no ?? null
 
+/**
+ * M-ধাপ ১৬: ঘর নির্মাণ ছাড়া বাকি **প্রকাশিত** প্রকল্প (anon যা দেখে — খসড়া নয়) নিজে থেকে তালিকায়:
+ * একক/উপ-প্রকল্পের তালিকা-পাতা + প্রথম রেকর্ডের বিস্তারিত, গ্রুপের ল্যান্ডিং। যেমন /self-reliance, /skill-based-entrepreneur।
+ * পুরনো-ডাটাবেস মোডে নয় (সেখানে শুধু ঘর নির্মাণ)।
+ */
+async function publishedProjectPages() {
+  const url = (process.env.VITE_SUPABASE_URL ?? '').replace(/\/+$/, '')
+  const key = process.env.VITE_SUPABASE_ANON_KEY ?? ''
+  if (LEGACY || !url || !key) return []
+  try {
+    const r = await fetch(`${url}/rest/v1/projects?select=key,slug,parent_key,is_group,is_published&is_published=eq.true&order=sort_order,key`, { headers: { apikey: key, authorization: `Bearer ${key}` } })
+    const all = r.ok ? await r.json() : []
+    const pages = []
+    for (const p of all) {
+      if (['housing', 'semi_pucca', 'tin'].includes(p.key)) continue
+      const parent = all.find((x) => x.key === p.parent_key)
+      if (p.parent_key && !parent) continue // গ্রুপ অপ্রকাশিত — পাবলিক নয়
+      const path = parent ? `/${parent.slug}/${p.slug}` : `/${p.slug}`
+      if (p.is_group) {
+        pages.push({ name: `group-${p.key}`, path, expect: 'ok' })
+        continue
+      }
+      pages.push({ name: `list-${p.key}`, path, expect: 'ok' })
+      const first = await firstSerial(p.key)
+      if (first) pages.push({ name: `detail-${p.key}`, path: `${path}/${first.serial_no}`, expect: 'ok', viewportOnly: true, dialog: true })
+    }
+    return pages
+  } catch {
+    return []
+  }
+}
+const extraPages = await publishedProjectPages()
+if (extraPages.length) console.log(`প্রকাশিত অন্য প্রকল্প: ${extraPages.map((p) => p.path).join(', ')}`)
+
 /** @type {{name:string, path:string, expect:'ok'|'notfound', viewportOnly?:boolean, dialog?:boolean, expectPath?:string, expectFrom?:string, widths?:number[]}[]} */
 const PAGES = [
   { name: 'home', path: '/', expect: 'ok' },
@@ -142,6 +176,7 @@ const PAGES = [
   { name: 'list-tin', path: '/housing/tin', expect: 'ok' },
   ...(semiSerial ? [{ name: 'detail-semi', path: `/housing/semi-pucca/${semiSerial}`, expect: 'ok', viewportOnly: true, dialog: true }] : []),
   ...(semiSerial ? [{ name: 'detail-semi-year', path: `/housing/semi-pucca/${semiSerial}?year=${semiFirst.year}`, expect: 'ok', viewportOnly: true, dialog: true }] : []),
+  ...extraPages,
   { name: 'admin-login', path: '/admin/login', expect: 'ok', expectPath: '/admin/login' },
   // পুরনো এডমিন লিংক (M-ধাপ ৬): লগইন ছাড়া শেষে লগইন পেইজ; ফেরার-পাথ (state.from) = সঠিক নতুন ঠিকানা
   ...[

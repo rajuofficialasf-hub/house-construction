@@ -9,7 +9,10 @@ import {
   Lazy,
   LazyProjectDetailPage,
 } from '@/features/housing/pages/lazyPages'
-import { LazyAdminDashboardPage, LazyAdminProjectsPage, LazyActivityPage, LazyAdminRecordsPage, LazyImportPage, LazyPhotoBulkPage, LazyProjectSettingsPage, LazyProjectWizardPage, LazyRecordFormPage } from '@/features/admin/pages/lazyAdminPages'
+import { LazyAdminDashboardPage, LazyAdminUsersPage, LazyAdminProjectsPage, LazyActivityPage, LazyAdminRecordsPage, LazyImportPage, LazyPhotoBulkPage, LazyProjectSettingsPage, LazyProjectWizardPage, LazyRecordFormPage } from '@/features/admin/pages/lazyAdminPages'
+import { RoleGate } from '@/features/admin/layout/RoleGate'
+
+const SETTINGS_ROLES = ['main_admin', 'admin'] as const
 import { ProjectFrame } from './ProjectFrame'
 import { LegacyAdminRedirect } from './routeGuards'
 
@@ -76,9 +79,11 @@ export const adminRoutes = [
   <Route key="admin-login" path="admin/login" element={<HousingLoginPage />} />,
   <Route key="admin" path="admin" element={<RequireAdmin />}>
     <Route index element={<Lazy><LazyAdminDashboardPage /></Lazy>} />
-    <Route path="projects" element={<Lazy><LazyAdminProjectsPage /></Lazy>} />
-    <Route path="projects/new" element={<Lazy><LazyProjectWizardPage /></Lazy>} />
-    <Route path="projects/:key" element={<Lazy><LazyProjectSettingsPage /></Lazy>} />
+    {/* প্রকল্পের সেটিংস: মূল এডমিন ও (SQL ১৪-এর আগের) সাধারণ এডমিন; প্রকল্পের ইউজার নয় — পর্ব চ */}
+    <Route path="projects" element={<RoleGate allow={SETTINGS_ROLES}><Lazy><LazyAdminProjectsPage /></Lazy></RoleGate>} />
+    <Route path="projects/new" element={<RoleGate allow={SETTINGS_ROLES}><Lazy><LazyProjectWizardPage /></Lazy></RoleGate>} />
+    <Route path="projects/:key" element={<RoleGate allow={SETTINGS_ROLES}><Lazy><LazyProjectSettingsPage /></Lazy></RoleGate>} />
+    <Route path="users" element={<RoleGate allow={['main_admin']}><Lazy><LazyAdminUsersPage /></Lazy></RoleGate>} />
     <Route path="records/:key" element={<Lazy><LazyAdminRecordsPage /></Lazy>} />
     <Route path="records/:key/new" element={<Lazy><LazyRecordFormPage mode="new" /></Lazy>} />
     <Route path="records/:key/:serial/edit" element={<Lazy><LazyRecordFormPage mode="edit" /></Lazy>} />

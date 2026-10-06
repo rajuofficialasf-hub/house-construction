@@ -14,7 +14,7 @@ export function createMockAuthProvider(store: MockStore): AuthProvider {
       const acct = MOCK_ACCOUNTS.find((a) => a.email === email.trim().toLowerCase() && a.password === password)
       if (!acct) throw new HousingApiError('UNAUTHENTICATED', 'ইমেইল বা পাসওয়ার্ড সঠিক নয়')
       if (!acct.admin) throw new HousingApiError('FORBIDDEN', 'এই অ্যাকাউন্ট এডমিন তালিকায় নেই')
-      const user: AuthUser = { id: acct.id, email: acct.email, name: acct.name, role: acct.role ?? 'admin' }
+      const user: AuthUser = { id: acct.id, email: acct.email, name: acct.name, role: acct.role ?? 'admin', allProjects: true, projects: [] }
       store.setSession({ user, isAdmin: true })
       return user
     },

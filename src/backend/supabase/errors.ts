@@ -13,7 +13,10 @@ interface SupabaseLikeError {
 export function mapSupabaseError(err: unknown, fallback = 'সার্ভারে সমস্যা হয়েছে'): HousingApiError {
   if (HousingApiError.is(err)) return err
   const e = (err ?? {}) as SupabaseLikeError
-  const message = e.message || fallback
+  // RLS এর ইংরেজি বার্তা ("new row violates row-level security policy …") → বাংলা (পর্ব চ: প্রকল্পভিত্তিক অনুমতি)
+  const message = /row-level security/i.test(e.message ?? '')
+    ? 'এই কাজের অনুমতি আপনার নেই — নিজের প্রকল্পে যোগ ও এডিট করা যায়; মোছা, থাকা ছবি বদল, মান ফাঁকা করা ও প্রকল্পের সেটিং শুধু মূল এডমিন'
+    : e.message || fallback
   const code = String(e.code ?? e.statusCode ?? '')
   const status = Number(e.status ?? e.statusCode ?? 0)
 

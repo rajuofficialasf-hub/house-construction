@@ -59,8 +59,7 @@ export interface StatCardDef {
 export interface ProjectDisplay {
   show_map?: boolean
   geo_columns?: 'split' | 'merged'
-  /** বিতরণ চার্টের ক্যাটাগরি ফিল্ড */
-  breakdown_field?: string
+  // breakdown_field (ক্যাটাগরি-চার্ট) বাদ — ব্যবহারকারীর সিদ্ধান্ত ২০২৬-১০-০৬; পুরনো ডাটায় থাকলে উপেক্ষিত
 }
 
 export interface ProjectField {
@@ -278,6 +277,13 @@ export interface ListParams {
 
 export const DEFAULT_PAGE_SIZE = 50
 export const MAX_PAGE_SIZE = 100
+
+/**
+ * তালিকার ডিফল্ট ক্রম (পর্ব চ, M-ধাপ ১৭ — প্রশ্ন ২১): **নতুন সাল আগে**, একই সালে সিরিয়াল ছোট থেকে বড়
+ * (অ্যাডাপ্টার serial_no ছাড়া অন্য ক্রমে সবসময় সিরিয়ালকে দ্বিতীয় ক্রম হিসেবে যোগ করে)। পাবলিক ও এডমিন তালিকা দুটোতেই;
+ * CSV এক্সপোর্ট সিরিয়াল ক্রমেই থাকে (আবার ইম্পোর্টের জন্য)। ইনডেক্স (project_type, year) আছে।
+ */
+export const DEFAULT_LIST_ORDER = { sort: 'year', order: 'desc' } as const satisfies { sort: SortField; order: SortOrder }
 
 export interface PageMeta {
   page: number
@@ -507,17 +513,50 @@ export class HousingApiError extends Error implements ApiError {
 }
 
 /**
- * এডমিনের ভূমিকা (পর্ব ২, ২০২৬-১০-০৫): 'main_admin' = মূল এডমিন (একজন) — যোগ, এডিট ও মোছা;
- * 'admin' = সাধারণ এডমিন — শুধু যোগ ও এডিট। মোছার নিষেধ ডাটাবেসে (RLS/ট্রিগার) প্রয়োগ হয়।
+ * এডমিনের ভূমিকা: 'main_admin' = মূল/সুপার এডমিন (একজন) — সব, মোছা ও প্রকল্পের সেটিংসসহ;
+ * 'editor' = প্রকল্পের ইউজার (SQL ১৪, পর্ব চ) — শুধু বরাদ্দ প্রকল্পে যোগ ও এডিট; মোছা, থাকা ছবি বদল, মান ফাঁকা করা,
+ * সিরিয়াল বদল আর সেটিংস নয়; 'admin' = SQL ১৪-এর আগের সাধারণ এডমিন (পুরনো ডাটাবেসে)। সব নিষেধ ডাটাবেসে (RLS/ট্রিগার)।
  */
-export type AdminRole = 'admin' | 'main_admin'
+export type AdminRole = 'admin' | 'main_admin' | 'editor'
 
 export interface AuthUser {
   id: string
   email: string
   name: string | null
-  /** housing_admins টেবিল থেকে: main_admin (মোছা পারেন) বা admin */
+  /** housing_admins টেবিল থেকে: main_admin (মোছা ও সেটিংস পারেন), editor (প্রকল্পের ইউজার) বা পুরনো admin */
   role: AdminRole
+  /** মূল এডমিন বা "সব প্রকল্প" এর ইউজার (SQL ১৪-এর আগে সবাই) — তখন projects দেখা হয় না */
+  allProjects: boolean
+  /** যেসব প্রকল্পে যোগ/এডিট করতে পারেন (গ্রুপ-বরাদ্দে উপ-প্রকল্পসহ) — শুধু UI দেখানো/লুকানোর জন্য; নিষেধ ডাটাবেসে */
+  projects: ProjectKey[]
+}
+
+/** ইউজার-তালিকার একটি সারি (housing_admin_users; পর্ব চ) */
+export interface AdminUserRow {
+  user_id: string
+  email: string
+  role: AdminRole
+  all_projects: boolean
+  is_active: boolean
+  /** বরাদ্দ প্রকল্প/গ্রুপের key (all_projects হলে খালি) */
+  projects: ProjectKey[]
+  created_at: string
+  last_sign_in_at: string | null
+}
+
+/** ইউজার যোগ/বদল (housing_admin_user_save) */
+export interface AdminUserInput {
+  email: string
+  all_projects: boolean
+  projects: ProjectKey[]
+  is_active: boolean
+}
+
+export interface AdminUserSaveResult {
+  user_id: string
+  email: string
+  /** নতুন ইউজার (আগে এডমিন তালিকায় ছিলেন না) */
+  created: boolean
 }
 
 export interface UploadTarget {

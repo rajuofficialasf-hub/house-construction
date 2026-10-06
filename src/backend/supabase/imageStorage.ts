@@ -19,12 +19,16 @@ export function createSupabaseImageStorage(getClient: GetClient): ImageStorage {
   return {
     async upload(file, target) {
       const path = photoPath(target.project_type, target.serial_no, target.kind, target.variant)
-      const { error } = await bucket().upload(path, file, {
-        upsert: true,
-        contentType: PHOTO_SPEC.mime,
-        cacheControl: '86400',
-      })
-      if (error) throw mapSupabaseError(error, 'ছবি আপলোড ব্যর্থ হয়েছে')
+      const opts = { contentType: PHOTO_SPEC.mime, cacheControl: '86400' }
+      // আগে নতুন ফাইল হিসেবে (প্রকল্পের ইউজারও পারেন); ফাইল আগেই থাকলে তবেই ওভাররাইট — সেটি শুধু মূল এডমিন
+      // (SQL ১৪ এর Storage পলিসি; ইউজারের ক্ষেত্রে বাংলা "অনুমতি নেই")। পর্ব চ, M-ধাপ ১৮।
+      let { error } = await bucket().upload(path, file, { ...opts, upsert: false })
+      if (error && isAlreadyExists(error)) {
+        ;({ error } = await bucket().upload(path, file, { ...opts, upsert: true }))
+        if (error) throw mapSupabaseError(error, 'ছবি আপলোড ব্যর্থ হয়েছে')
+      } else if (error) {
+        throw mapSupabaseError(error, 'ছবি আপলোড ব্যর্থ হয়েছে')
+      }
       return { path, url: publicUrl(path) }
     },
 
@@ -49,4 +53,10 @@ export function createSupabaseImageStorage(getClient: GetClient): ImageStorage {
       return decodeURIComponent(rest.split('?')[0])
     },
   }
+}
+
+/** Storage এর "ফাইল আগেই আছে" (statusCode 409 / "already exists" / Duplicate) */
+function isAlreadyExists(err: unknown): boolean {
+  const e = (err ?? {}) as { statusCode?: string | number; message?: string; error?: string }
+  return String(e.statusCode ?? '') === '409' || /already exists|duplicate/i.test(`${e.message ?? ''} ${e.error ?? ''}`)
 }

@@ -4,6 +4,7 @@
  */
 import type { Project, ProjectKey } from '@/backend'
 import { childrenOf, housingProjects, leafProjects, useProjects, HOUSING_GROUP_KEY } from '@/features/projects/registry'
+import { canEditProject, useAdminUser } from '@/features/admin/adminUser'
 
 export { projectPath } from '@/features/projects/registry'
 
@@ -37,8 +38,11 @@ export function useHousingProjectByKey(key: string | undefined): Project | undef
  */
 export function useRecordProjects(): Project[] {
   const all = useProjects()
+  const me = useAdminUser()
   const housing = housingProjects(all)
-  return [...housing, ...leafProjects(all).filter((p) => !housing.includes(p))]
+  const list = [...housing, ...leafProjects(all).filter((p) => !housing.includes(p))]
+  // এডমিন প্যানেলে: শুধু যেসব প্রকল্পে এই ইউজার যোগ/এডিট পারেন (পর্ব চ — প্রকল্পের ইউজার); প্যানেলের বাইরে সব
+  return me ? list.filter((p) => canEditProject(me, p.key)) : list
 }
 
 /** এডমিন URL-এর key থেকে রেকর্ডের প্রকল্প (যেকোনো, গ্রুপ নয়); না মিললে undefined (তখন পেইজ 404) */

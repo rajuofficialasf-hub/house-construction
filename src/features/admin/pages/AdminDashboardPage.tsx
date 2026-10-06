@@ -13,6 +13,7 @@ import { projectPath, useProjects } from '@/features/projects/registry'
 import { ErrorNotice } from '@/features/housing/components/ErrorNotice'
 import { ACTION_CLASS, ACTION_LABEL, formatDateTime } from '@/features/housing/utils/activityLabels'
 import { adminPath, useRecordProjects } from '@/features/housing/utils/housingProjects'
+import { canEditProject, useAdminUser } from '../adminUser'
 import { formatBanglaNumber, toBanglaNumber } from '@/lib/banglaNumber'
 import { formatTaka } from '@/lib/money'
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
@@ -40,6 +41,9 @@ export function AdminDashboardPage() {
   const [reload, setReload] = useState(0)
   const recordKeys = new Set(useRecordProjects().map((p) => p.key))
   const projects = useProjects()
+  const me = useAdminUser()
+  // প্রকল্পের ইউজার: শুধু নিজের প্রকল্প, সেটিংস/নতুন প্রকল্পের বোতাম নেই (পর্ব চ)
+  const settings = me?.role !== 'editor'
 
   useEffect(() => {
     let alive = true
@@ -84,7 +88,7 @@ export function AdminDashboardPage() {
   }
 
   const { overview, activity } = state
-  const items = overview.projects
+  const items = overview.projects.filter((x) => canEditProject(me, x.key))
   // গ্রুপের পরে তার উপ-প্রকল্প, তারপর পরের শীর্ষ-স্তর
   const ordered = items
     .filter((x) => !x.parent_key)
@@ -104,9 +108,11 @@ export function AdminDashboardPage() {
             })}
           </p>
         </div>
-        <Link to="/admin/projects/new" className="inline-flex h-11 items-center gap-1.5 rounded-md bg-brand-700 px-5 text-sm font-semibold text-white hover:bg-brand-600">
-          <span aria-hidden="true">+</span> {t('নতুন প্রকল্প')}
-        </Link>
+        {settings && (
+          <Link to="/admin/projects/new" className="inline-flex h-11 items-center gap-1.5 rounded-md bg-brand-700 px-5 text-sm font-semibold text-white hover:bg-brand-600">
+            <span aria-hidden="true">+</span> {t('নতুন প্রকল্প')}
+          </Link>
+        )}
       </div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -148,9 +154,11 @@ export function AdminDashboardPage() {
                     {t('রেকর্ড')}
                   </Link>
                 )}
-                <Link to={`/admin/projects/${encodeURIComponent(item.key)}`} className="inline-flex min-h-11 items-center rounded-md border border-slate-300 px-3 text-sm font-medium text-slate-700 hover:border-brand-400 hover:text-brand-700">
-                  {t('সেটিংস')}
-                </Link>
+                {settings && (
+                  <Link to={`/admin/projects/${encodeURIComponent(item.key)}`} className="inline-flex min-h-11 items-center rounded-md border border-slate-300 px-3 text-sm font-medium text-slate-700 hover:border-brand-400 hover:text-brand-700">
+                    {t('সেটিংস')}
+                  </Link>
+                )}
                 {project && (
                   <Link to={projectPath(project, projects)} className="inline-flex min-h-11 items-center rounded-md border border-slate-300 px-3 text-sm font-medium text-slate-700 hover:border-brand-400 hover:text-brand-700">
                     {draft ? t('প্রিভিউ') : t('পাবলিক পেইজ')}

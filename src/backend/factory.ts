@@ -7,14 +7,17 @@ import type { AuthProvider } from './interfaces/authProvider'
 import type { HousingApi } from './interfaces/housingApi'
 import type { ImageStorage } from './interfaces/imageStorage'
 import type { ProjectsApi } from './interfaces/projectsApi'
+import type { AdminUsersApi } from './interfaces/adminUsersApi'
+import { HousingApiError } from './interfaces/types'
 import {
+  createSupabaseAdminUsersApi,
   createSupabaseAuthProvider,
   createSupabaseHousingApi,
   createSupabaseImageStorage,
   createSupabaseProjectsApi,
 } from './supabase'
 import { getSupabase } from './supabase/client'
-import { createRestAuthProvider, createRestHousingApi, createRestImageStorage, createRestProjectsApi } from './rest'
+import { createRestAdminUsersApi, createRestAuthProvider, createRestHousingApi, createRestImageStorage, createRestProjectsApi } from './rest'
 
 export type BackendKind = 'supabase' | 'rest' | 'mock'
 
@@ -46,6 +49,7 @@ interface Backend {
   projectsApi: ProjectsApi
   authProvider: AuthProvider
   imageStorage: ImageStorage
+  adminUsersApi: AdminUsersApi
 }
 
 let cached: Backend | null = null
@@ -89,7 +93,12 @@ function buildMockBackend(): Backend {
     },
     pathFromUrl: () => null,
   }
-  return { housingApi, projectsApi, authProvider, imageStorage }
+  // ইউজার-ব্যবস্থাপনা (পর্ব চ) মকে নেই — প্যারিটি a8e2154 এ স্থির, REST অ্যাডাপ্টারের মতোই NOT_IMPLEMENTED
+  const notInMock = async (): Promise<never> => {
+    throw new HousingApiError('NOT_IMPLEMENTED', 'মক ব্যাকএন্ডে ইউজার-ব্যবস্থাপনা নেই')
+  }
+  const adminUsersApi: AdminUsersApi = { list: notInMock, save: notInMock }
+  return { housingApi, projectsApi, authProvider, imageStorage, adminUsersApi }
 }
 
 function buildBackend(): Backend {
@@ -102,6 +111,7 @@ function buildBackend(): Backend {
       projectsApi: createRestProjectsApi(base),
       authProvider: createRestAuthProvider(base),
       imageStorage: createRestImageStorage(base),
+      adminUsersApi: createRestAdminUsersApi(base),
     }
   }
   // lazy: env না থাকলে মেথড কলে CONFIG_ERROR, ইমপোর্ট/রেন্ডারে ক্র্যাশ নয়
@@ -113,6 +123,7 @@ function buildBackend(): Backend {
     projectsApi,
     authProvider: createSupabaseAuthProvider(getSupabase),
     imageStorage,
+    adminUsersApi: createSupabaseAdminUsersApi(getSupabase),
   }
 }
 
@@ -135,4 +146,9 @@ export function getAuthProvider(): AuthProvider {
 
 export function getImageStorage(): ImageStorage {
   return backend().imageStorage
+}
+
+/** ইউজার-ব্যবস্থাপনা (শুধু মূল এডমিন; পর্ব চ) */
+export function getAdminUsersApi(): AdminUsersApi {
+  return backend().adminUsersApi
 }

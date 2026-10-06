@@ -4,19 +4,19 @@ import { Link, NavLink, useParams, useSearchParams } from 'react-router'
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import { useToast } from '@/components/useToast'
 import { formatBanglaNumber, toBanglaNumber } from '@/lib/banglaNumber'
-import { DEFAULT_PAGE_SIZE, getHousingApi, HousingApiError, type HousingRecord, type ListParams, type Project } from '@/backend'
+import { DEFAULT_LIST_ORDER, DEFAULT_PAGE_SIZE, getHousingApi, HousingApiError, type HousingRecord, type ListParams, type Project } from '@/backend'
 import { useProjects } from '@/features/projects/registry'
 import { downloadText } from '@/features/housing/utils/csvExport'
 import { ConfirmDialog } from '@/features/housing/components/ConfirmDialog'
 import { ErrorNotice } from '@/features/housing/components/ErrorNotice'
 import { HousingFilters } from '@/features/housing/components/HousingFilters'
 import { Pagination } from '@/features/housing/components/Pagination'
-import { useAuth } from '@/features/housing/hooks/useAuth'
 import { useHousingList } from '@/features/housing/hooks/useHousingList'
 import { applyFiltersToSearchParams, filtersEqual, filtersFromSearchParams, hasActiveFilters, type HousingFilters as Filters } from '@/features/housing/utils/filters'
 import { adminPath, useRecordProjectByKey } from '@/features/housing/utils/housingProjects'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { AdminRecordsTable } from './AdminRecordsTable'
+import { canEditProject, isMainAdmin, useAdminUser } from '../adminUser'
 import { CategoryValuesPanel } from './CategoryValuesPanel'
 import { adminLayout } from './recordColumns'
 import { csvFilename, exportRecordsCsv, hasPrivateFields } from './recordsCsv'
@@ -42,9 +42,11 @@ function RecordsManager({ project }: { project: Project }) {
   const all = useProjects()
   const parent = project.parent_key ? all.find((p) => p.key === project.parent_key) : undefined
   // একই গ্রুপের প্রকল্প (ঘর নির্মাণ: সেমিপাকা, টিন) — একক প্রকল্পে ট্যাব নেই
-  const tabs = project.parent_key ? all.filter((p) => p.parent_key === project.parent_key && !p.is_group) : []
+  const me = useAdminUser()
+  // প্রকল্পের ইউজার শুধু নিজের বরাদ্দ প্রকল্পের ট্যাব দেখেন (পর্ব চ)
+  const tabs = project.parent_key ? all.filter((p) => p.parent_key === project.parent_key && !p.is_group && canEditProject(me, p.key)) : []
   const toast = useToast()
-  const mainAdmin = useAuth().user?.role === 'main_admin'
+  const mainAdmin = isMainAdmin(me)
   const layout = useMemo(() => adminLayout(project), [project])
   const catFilters = useMemo(() => categoryFields(project).filter((f) => f.filterable), [project])
   const [searchParams, setSearchParams] = useSearchParams()
@@ -72,8 +74,7 @@ function RecordsManager({ project }: { project: Project }) {
       project_type: projectType,
       page,
       page_size: DEFAULT_PAGE_SIZE,
-      sort: 'serial_no',
-      order: 'asc',
+      ...DEFAULT_LIST_ORDER, // নতুন সাল আগে, একই সালে সিরিয়াল ক্রমে (M-ধাপ ১৭)
       year: filters.year ?? undefined,
       division: filters.division || undefined,
       district: filters.district || undefined,

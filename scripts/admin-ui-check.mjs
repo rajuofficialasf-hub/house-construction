@@ -40,6 +40,12 @@ const SB = env.VITE_SUPABASE_URL.replace(/\/+$/, '')
 const ANON = env.VITE_SUPABASE_ANON_KEY
 const REF = new URL(SB).hostname.split('.')[0]
 const now = Math.floor(Date.now() / 1000)
+/** লাইভের প্রকাশিত প্রকল্প (anon) — প্রত্যাশা এখান থেকে, যাতে আপনি নতুন প্রকল্প প্রকাশ করলেও পরীক্ষা চলে */
+const LIVE = await fetch(`${SB}/rest/v1/rpc/projects_overview`, { method: 'POST', headers: { apikey: ANON, authorization: `Bearer ${ANON}`, 'content-type': 'application/json' }, body: '{}' }).then((r) => r.json())
+const bnNum = (n) => Number(n).toLocaleString('en-IN').replace(/\d/g, (d) => '০১২৩৪৫৬৭৮৯'[d])
+/** ঘর নির্মাণের বাইরে লাইভে প্রকাশিত প্রকল্পের বাংলা নাম */
+const OTHER_LIVE = LIVE.projects.filter((x) => !['housing', 'semi_pucca', 'tin'].includes(x.key)).map((x) => x.name_bn)
+const HOUSING3 = 'ঘর নির্মাণ প্রকল্প|সেমিপাকা ঘর নির্মাণ|টিনের ঘর নির্মাণ'
 const USER = { id: '00000000-0000-0000-0000-0000000000aa', email: 'ui-test@example.org', aud: 'authenticated', role: 'authenticated', app_metadata: {}, user_metadata: {} }
 const SESSION = { access_token: 'fake-token', refresh_token: 'fake-refresh', token_type: 'bearer', expires_in: 36000, expires_at: now + 36000, user: USER }
 
@@ -64,6 +70,9 @@ const overviewExtra = []
 
 // ---- নকল রেকর্ড-ভাণ্ডার (M-ধাপ ১০): খসড়া demo প্রকল্পের রেকর্ড, গোপন মান, ক্যাটাগরির মান — সব এখানেই, লাইভে কিছু নয়
 let adminRole = 'main_admin'
+let adminExtra = {} // SQL ১৪ এর পর housing_current_admin এর বাড়তি ঘর (all_projects, projects) — {} = ১৪-এর আগের উত্তর
+let usersMode = 'ok' // 'ok' | 'missing' (SQL ১৪ চালানো হয়নি → PGRST202)
+const fakeUsers = [] // housing_admin_users এর নকল সারি (M-ধাপ ১৯)
 const fakeLog = [] // housing_activity_log এর নকল সারি (একটিভিটি পাতার পরীক্ষা)
 const logEvents = [] // housing_log_event (ক্লায়েন্ট-ইভেন্ট) এর body
 const demoRecs = [] // housing_beneficiaries এর সারি (project_type = demo)
@@ -203,7 +212,15 @@ async function fakeRecords(u, method, req, respond0) {
       const want = JSON.parse(cs)
       rows = rows.filter((r) => Object.entries(want).every(([k, v]) => r.extra?.[k] === v))
     }
-    rows = [...rows].sort((a, b) => a.serial_no - b.serial_no)
+    // PostgREST এর order=year.desc,serial_no.asc (M-ধাপ ১৭) — না থাকলে সিরিয়াল ক্রম
+    const orderBy = (u.searchParams.get('order') ?? 'serial_no.asc').split(',').map((x) => x.split('.'))
+    rows = [...rows].sort((a, b) => {
+      for (const [col, dir] of orderBy) {
+        const d = a[col] < b[col] ? -1 : a[col] > b[col] ? 1 : 0
+        if (d) return dir === 'desc' ? -d : d
+      }
+      return 0
+    })
     // পেজিনেশন (supabase-js range → offset/limit) — M-ধাপ ১৪: পাতা পেরিয়ে ←/→
     const off = Number(u.searchParams.get('offset') ?? 0)
     const lim = u.searchParams.get('limit')
@@ -268,7 +285,7 @@ async function handle(req) {
     if (u.pathname.endsWith('/logout')) return respond(204, '')
     return respond(200, SESSION)
   }
-  if (u.pathname === '/rest/v1/rpc/housing_current_admin') return respond(200, [{ role: adminRole, email: USER.email }])
+  if (u.pathname === '/rest/v1/rpc/housing_current_admin') return respond(200, [{ role: adminRole, email: USER.email, ...adminExtra }])
   if (await fakeRecords(u, method, req, respond)) return
   if (u.pathname === '/rest/v1/housing_activity_log') return respond(200, fakeLog, { 'content-range': fakeLog.length ? `0-${fakeLog.length - 1}/${fakeLog.length}` : '*/0' })
   if (u.pathname === '/rest/v1/rpc/housing_log_event') {
@@ -339,6 +356,19 @@ async function handle(req) {
     return accept.includes('vnd.pgrst.object') ? respond(200, { key }) : respond(200, [{ key }])
   }
   if (u.pathname === '/rest/v1/rpc/projects_reorder') return respond(200, '3')
+  // ---- ইউজার-ব্যবস্থাপনা (M-ধাপ ১৯): নকল RPC; usersMode = 'missing' হলে SQL ১৪ না-চালানো ডাটাবেসের মতো 404
+  if (u.pathname === '/rest/v1/rpc/housing_admin_users' || u.pathname === '/rest/v1/rpc/housing_admin_user_save') {
+    if (usersMode === 'missing') return respond(404, { code: 'PGRST202', message: 'Could not find the function', details: null, hint: null })
+    if (u.pathname.endsWith('/housing_admin_users')) return respond(200, fakeUsers)
+    const known = { 'new-user@example.org': '00000000-0000-0000-0000-0000000000c1', 'editor@example.org': '00000000-0000-0000-0000-0000000000c2' }
+    const em = String(body.p_email).toLowerCase()
+    if (!known[em]) return respond(400, { code: 'P0002', message: `«${body.p_email}» ইমেইলে কোনো অ্যাকাউন্ট নেই — আগে Supabase → Authentication → Add user দিয়ে অ্যাকাউন্ট খুলুন`, details: 'email', hint: null })
+    let row = fakeUsers.find((x) => x.email === em)
+    const createdNow = !row
+    if (!row) fakeUsers.push((row = { user_id: known[em], email: em, role: 'editor', created_at: new Date().toISOString(), last_sign_in_at: null }))
+    Object.assign(row, { all_projects: body.p_all_projects, projects: body.p_projects, is_active: body.p_active })
+    return respond(200, { user_id: row.user_id, email: em, created: createdNow })
+  }
   // ---- ফিল্ড বিল্ডার (M-ধাপ ৮): নকল ফিল্ড-অবস্থা (created.fields + addedFields), GET এ ফেরত আসে
   if (u.pathname === '/rest/v1/rpc/project_field_usage') return respond(200, usageOf(body.p_key))
   if (u.pathname === '/rest/v1/rpc/project_fields_reorder') {
@@ -423,10 +453,11 @@ async function typeInto(p, labelText, value) {
   await settle(p)
   const s = await text(p)
   const cards = await p.$$eval('article h2', (h) => h.map((x) => x.textContent))
-  ok('ড্যাশবোর্ড খোলে (নকল মূল এডমিন), প্রতিটি প্রকল্পের কার্ড', p.url().endsWith('/admin') && cards.join('|') === 'ঘর নির্মাণ প্রকল্প|সেমিপাকা ঘর নির্মাণ|টিনের ঘর নির্মাণ', cards.join('|'))
+  ok('ড্যাশবোর্ড খোলে (নকল মূল এডমিন), প্রতিটি প্রকল্পের কার্ড (ঘর নির্মাণ আগে; লাইভের অন্য প্রকল্পও)', p.url().endsWith('/admin') && cards.slice(0, 3).join('|') === HOUSING3 && OTHER_LIVE.every((n) => cards.includes(n)), cards.join('|'))
   const nums = await p.$$eval('article dd', (d) => d.map((x) => x.textContent.trim()))
   ok('ড্যাশবোর্ডের সংখ্যা: ঘর নির্মাণ ১০, সেমিপাকা ১০, টিন ০ রেকর্ড; টাকা "—"', nums[0] === '১০' && nums[3] === '১০' && nums[6] === '০' && nums[1] === '—', nums.join(' '))
-  ok('প্রকাশিত সারাংশ: ২টি প্রকল্প · ১০ জন · ১টি জেলা', s.includes('প্রকাশিত: ২টি প্রকল্প · ১০ জন উপকারভোগী · ১টি জেলা'))
+  const sumLine = `প্রকাশিত: ${bnNum(LIVE.global.projects)}টি প্রকল্প · ${bnNum(LIVE.global.total)} জন উপকারভোগী · ${bnNum(LIVE.global.districts)}টি জেলা`
+  ok('প্রকাশিত সারাংশ = লাইভের ওভারভিউ: ' + sumLine, s.includes(sumLine), s.match(/প্রকাশিত:[^\n]*/)?.[0])
   ok('সাইডবারে মেনু ও "মূল এডমিন"', s.includes('ড্যাশবোর্ড') && s.includes('প্রকল্পসমূহ') && s.includes('মূল এডমিন') && s.includes('সেমিপাকা ঘর নির্মাণ'))
   await p.screenshot({ path: '.smoke/admin-dashboard.png', fullPage: true })
   ok('ড্যাশবোর্ডে কোনো page error নেই', p.errors.length === 0, p.errors.join(' | '))
@@ -439,7 +470,7 @@ async function typeInto(p, labelText, value) {
   await p.goto(BASE + '/admin/projects', { waitUntil: 'domcontentloaded' })
   await settle(p)
   const rows = await p.$$eval('ul li a[href^="/admin/projects/"]', (a) => a.filter((x) => x.classList.contains('font-bold')).map((x) => x.textContent))
-  ok('প্রকল্পের তালিকা: গ্রুপ, তারপর তার উপ-প্রকল্প', rows.join('|') === 'ঘর নির্মাণ প্রকল্প|সেমিপাকা ঘর নির্মাণ|টিনের ঘর নির্মাণ', rows.join('|'))
+  ok('প্রকল্পের তালিকা: গ্রুপ, তারপর তার উপ-প্রকল্প (লাইভের অন্য প্রকল্পও আছে)', rows.slice(0, 3).join('|') === HOUSING3 && OTHER_LIVE.every((n) => rows.includes(n)), rows.join('|'))
   const before = writes.length
   await p.evaluate(() => [...[...document.querySelectorAll('ul.divide-y > li')][0].querySelectorAll('button')].find((x) => x.textContent.trim() === 'অপ্রকাশ করুন')?.click())
   await sleep(400)
@@ -489,6 +520,11 @@ async function typeInto(p, labelText, value) {
   ok('project_create এর ইনপুট: key/slug demo, শুধু-পরে, ইউনিয়ন, প্রিফিক্স demo, খসড়া', pp.key === 'demo' && pp.slug === 'demo' && pp.photo_mode === 'after_only' && pp.geo_depth === 'union' && pp.file_prefix === 'demo' && !pp.is_published && pp.parent_key === null, JSON.stringify(pp).slice(0, 200))
   ok('টেমপ্লেটের ৩টি ফিল্ড (ক্যাটাগরি, উপকরণের নাম, টাকা) ও ৫টি কার্ড', (w?.body?.p_fields ?? []).map((f) => f.key).join(',') === 'category,item_name,amount' && pp.stat_cards?.length === 5)
   ok('তৈরির পর সেটিংস পেইজে যায় (/admin/projects/demo), "খসড়া" দেখায়', p.url().endsWith('/admin/projects/demo') && (await text(p)).includes('খসড়া'), p.url())
+  ok('টেমপ্লেটে ক্যাটাগরি-চার্টের সেটিং নেই (চার্ট বাদ, ২০২৬-১০-০৬)', !('breakdown_field' in (pp.display ?? {})), JSON.stringify(pp.display))
+  await p.goto(BASE + '/admin/projects/demo?tab=display', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  const disp = await text(p)
+  ok('সেটিংস → প্রদর্শন: মানচিত্র ও ঠিকানার কলাম আছে, "বিতরণ চার্টের ফিল্ড" নেই', disp.includes('মানচিত্র') && !disp.includes('বিতরণ চার্ট'), disp.match(/প্রদর্শন[\s\S]{0,200}/)?.[0]?.replace(/\s+/g, ' '))
   ok('উইজার্ডে কোনো page error নেই', p.errors.length === 0, p.errors.join(' | '))
   await p.close()
 }
@@ -1163,12 +1199,15 @@ for (const [w, mobile] of [[1280, false], [390, true]]) {
   ok('/demo (খসড়া, এডমিন প্রিভিউ): নাম ও খসড়া-ব্যানার; গ্রুপ নয় তাই সাব-নেভ নেই', s.includes('পরীক্ষা প্রকল্প') && s.includes('খসড়া') && !s.includes('সেমিপাকা ঘর নির্মাণ'))
   const moneyTxt = s.match(/মোট টাকা\s+([^\n]+)/)?.[1]
   ok('স্ট্যাট কার্ড: মোট টাকা ৳ (সব রেকর্ডের যোগফল), মোট ক্যাটাগরি ৭, মোট উপকারভোগী ১০', moneyTxt?.includes('৳') && Number(ascii(moneyTxt)) === total && /মোট ক্যাটাগরি\s+৭/.test(s) && /মোট উপকারভোগী\s+১০/.test(s), `${moneyTxt} (চাই ${total})`)
-  const bd = await p.evaluate(() => { const sec = document.querySelector('section[aria-label="উপকরণের ক্যাটাগরি অনুযায়ী"]'); return sec ? { rows: [...sec.querySelectorAll('li')].map((li) => li.innerText.replace(/\s+/g, ' ')), text: sec.innerText } : null })
-  ok('ক্যাটাগরি চার্ট: ৬টি সারি (বেশি থেকে কম), "আরো দেখুন (১)"; প্রতিটিতে সংখ্যা ও টাকা', bd?.rows.length === 6 && bd.rows[0].startsWith('গাভী ৩') && bd.rows[0].includes('৳') && bd.text.includes('আরো দেখুন (১)'), bd?.rows.length + ' সারি; ' + bd?.rows.slice(0, 2).join(' | '))
-  await clickText(p, 'button', 'আরো দেখুন (১)')
-  await sleep(200)
-  ok('"আরো দেখুন" → ৭টি সারি, "কম দেখান"', (await p.evaluate(() => document.querySelectorAll('section[aria-label="উপকরণের ক্যাটাগরি অনুযায়ী"] li').length)) === 7 && (await text(p)).includes('কম দেখান'))
+  // ক্যাটাগরি-চার্ট ব্যবহারকারীর সিদ্ধান্তে বাদ (২০২৬-১০-০৬)
+  ok('ক্যাটাগরি-চার্ট নেই ("… অনুযায়ী" অংশ বা "আরো দেখুন (n)" নেই)', !(await p.$('section[aria-label$="অনুযায়ী"]')) && !/অনুযায়ী\n|আরো দেখুন \(/.test(s))
   const headers = await p.evaluate(() => [...document.querySelectorAll('table thead th')].map((th) => th.innerText.trim()))
+  // M-ধাপ ১৭: ডিফল্ট ক্রম — নতুন সাল আগে, একই সালে সিরিয়াল (বিজোড় সিরিয়াল ২০২৫, জোড় ২০২৪)
+  const order1 = await p.evaluate(() => [...document.querySelectorAll('table tbody tr')].map((tr) => tr.children[2]?.innerText.trim()))
+  const wantOrder = [...demoRecs].sort((a, b) => b.year - a.year || a.serial_no - b.serial_no).map((r) => r.name)
+  ok('ডিফল্ট ক্রম: নতুন সাল আগে (২০২৫ → ২০২৪), একই সালে সিরিয়াল ক্রমে', order1.join(',') === wantOrder.join(','), order1.join(', '))
+  const lastList = calls.filter((c) => c.includes('housing_beneficiaries')).at(-1) ?? ''
+  ok('তালিকার অনুরোধে order=year.desc,serial_no.asc', decodeURIComponent(lastList).includes('order=year.desc,serial_no.asc'), decodeURIComponent(lastList).slice(0, 160))
   ok('টেবিলের কলাম কনফিগ থেকে: অনুদানের সাল, ঠিকানা (মেলানো), ক্যাটাগরি, টাকা, উপকরণসহ ছবি', ['অনুদানের সাল', 'ঠিকানা', 'উপকরণের ক্যাটাগরি', 'টাকা', 'উপকরণসহ ছবি'].every((h) => headers.includes(h)), headers.join(' | '))
   ok('ঠিকানায় ইউনিয়ন (ডাটায় ইউনিয়ন আছে); টাকার ঘরে ৳', (await p.evaluate(() => document.querySelector('table tbody')?.innerText ?? '')).includes('করেরহাট') && (await p.evaluate(() => document.querySelector('table tbody')?.innerText ?? '')).includes('৳'))
   ok('মানচিত্র-প্যানেলের শিরোনামে প্রকল্পের একক ("উপকারভোগী কোথায় কোথায়")', s.includes('উপকারভোগী কোথায় কোথায়'), s.match(/[^\n]*কোথায় কোথায়[^\n]*/)?.[0])
@@ -1176,13 +1215,13 @@ for (const [w, mobile] of [[1280, false], [390, true]]) {
   ok('API কল শুধু ২ ধরনের: list (housing_beneficiaries) আর project_stats — আলাদা years/stats কল নেই', kinds.sort().join(',') === 'GET /rest/v1/housing_beneficiaries,POST /rest/v1/rpc/project_stats', kinds.join(', '))
   ok('একই অনুরোধ একবারই (StrictMode এর দ্বিগুণ বাদে): list ১, stats ১', new Set(calls.filter((c) => c.includes('housing_beneficiaries'))).size === 1 && new Set(calls.filter((c) => c.includes('project_stats'))).size === 1, calls.filter((c) => /housing_beneficiaries|project_stats/.test(c)).map((c) => c.slice(0, 90)).join(' || '))
 
-  // চার্টের সারিতে ক্লিক → ?f_category=
-  await p.evaluate(() => [...document.querySelectorAll('section[aria-label="উপকরণের ক্যাটাগরি অনুযায়ী"] li button')].find((b) => b.innerText.startsWith('ছাগল'))?.click())
-  await settle(p)
-  ok('চার্টে "ছাগল" চাপলে ?f_category=ছাগল, তালিকায় ২ জন; ক্যাটাগরি-ড্রপডাউনেও "ছাগল"', params(p).f_category === 'ছাগল' && (await rows(p)) === 2 && (await p.evaluate(() => { const l = [...document.querySelectorAll('label')].find((e) => e.textContent.trim() === 'উপকরণের ক্যাটাগরি'); return document.getElementById(l?.htmlFor)?.value })) === 'ছাগল', `${JSON.stringify(params(p))} rows=${await rows(p)}`)
-  await p.evaluate(() => [...document.querySelectorAll('section[aria-label="উপকরণের ক্যাটাগরি অনুযায়ী"] li button')].find((b) => b.getAttribute('aria-pressed') === 'true')?.click())
-  await settle(p)
-  ok('আবার চাপলে ফিল্টার ওঠে (১০ জন)', !('f_category' in params(p)) && (await rows(p)) === 10)
+  // ক্যাটাগরি-ড্রপডাউন → ?f_category=
+  const catOpts = await optionsOf(p, 'উপকরণের ক্যাটাগরি')
+  ok('ক্যাটাগরি-ড্রপডাউনে ডাটার ৭টি মান', catOpts?.opts.length === 8, JSON.stringify(catOpts?.opts))
+  await selectByLabel(p, 'উপকরণের ক্যাটাগরি', 'ছাগল')
+  ok('ড্রপডাউনে "ছাগল" → ?f_category=ছাগল, তালিকায় ২ জন', params(p).f_category === 'ছাগল' && (await rows(p)) === 2, `${JSON.stringify(params(p))} rows=${await rows(p)}`)
+  await selectByLabel(p, 'উপকরণের ক্যাটাগরি', '')
+  ok('"সব" বাছলে ফিল্টার ওঠে (১০ জন)', !('f_category' in params(p)) && (await rows(p)) === 10)
 
   // ইউনিয়ন ফিল্টার: উপজেলা না বাছা পর্যন্ত বন্ধ; বিকল্প by_union থেকে
   let un = await optionsOf(p, 'ইউনিয়ন/পৌরসভা')
@@ -1213,7 +1252,7 @@ for (const [w, mobile] of [[1280, false], [390, true]]) {
     await sleep(1200)
     const over = await q.evaluate(() => ({ sw: document.documentElement.scrollWidth, w: window.innerWidth, table: (() => { const t = document.querySelector('table'); const w = t?.parentElement; return w ? w.scrollWidth - w.clientWidth : 0 })() }))
     const qs = await text(q)
-    const words = lang === 'en' ? ['Total amount', 'Total categories', 'By Item category', 'Amount', 'Korerhat, Mirsharai'] : ['মোট টাকা', 'উপকরণের ক্যাটাগরি অনুযায়ী', 'করেরহাট, মীরসরাই']
+    const words = lang === 'en' ? ['Total amount', 'Total categories', 'Item category', 'Amount', 'Korerhat, Mirsharai'] : ['মোট টাকা', 'উপকরণের ক্যাটাগরি', 'করেরহাট, মীরসরাই']
     ok(`১০২৪px (${lang}): পেইজ ও টেবিলে অনুভূমিক স্ক্রল নেই; লেখা ঠিক ভাষায়`, over.sw <= over.w + 1 && over.table <= 1 && words.every((x) => qs.includes(x)), `${JSON.stringify(over)} ${words.filter((x) => !qs.includes(x)).join(',')}`)
     await q.screenshot({ path: `.smoke/list-demo-1024-${lang}.png`, fullPage: true })
     ok(`১০২৪px (${lang}): কোনো page error নেই`, q.errors.length === 0, q.errors.join(' | '))
@@ -1235,6 +1274,27 @@ for (const [w, mobile] of [[1280, false], [390, true]]) {
   ok('৩৯০px: অনুভূমিক ওভারফ্লো নেই', !(await m.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)))
   await m.screenshot({ path: '.smoke/list-demo-390.png', fullPage: true })
   await m.close()
+
+  // M-ধাপ ১৭: বিস্তারিতের ←/→ আর এডমিন তালিকাও একই ক্রমে
+  const sorted = [...demoRecs].sort((a, b) => b.year - a.year || a.serial_no - b.serial_no)
+  const dn = await newPage(1280)
+  await dn.goto(BASE + `/demo/${sorted[0].serial_no}`, { waitUntil: 'domcontentloaded' })
+  await settle(dn)
+  await dn.keyboard.press('ArrowRight')
+  const nextOk = await dn.waitForFunction((s) => location.pathname === s, { timeout: 10000 }, `/demo/${sorted[1].serial_no}`).then(() => true).catch(() => false)
+  const at = sorted.findIndex((r) => r.year !== sorted[0].year) // প্রথম পুরনো-সালের রেকর্ড
+  await dn.goto(BASE + `/demo/${sorted[at - 1].serial_no}`, { waitUntil: 'domcontentloaded' })
+  await settle(dn)
+  await dn.keyboard.press('ArrowRight')
+  const crossOk = await dn.waitForFunction((s) => location.pathname === s, { timeout: 10000 }, `/demo/${sorted[at].serial_no}`).then(() => true).catch(() => false)
+  ok(`বিস্তারিতে → তালিকার ক্রমে: #${sorted[0].serial_no} → #${sorted[1].serial_no}; সালের সীমা পেরিয়ে #${sorted[at - 1].serial_no} (${sorted[at - 1].year}) → #${sorted[at].serial_no} (${sorted[at].year})`, nextOk && crossOk, new URL(dn.url()).pathname)
+  await dn.goto(BASE + '/admin/records/demo', { waitUntil: 'domcontentloaded' })
+  await settle(dn)
+  const adminRows = await dn.evaluate(() => [...document.querySelectorAll('table tbody tr')].map((tr) => tr.innerText))
+  const adminOrder = adminRows.map((t) => sorted.find((r) => t.includes(r.name))?.serial_no)
+  ok('এডমিন রেকর্ড-তালিকাও নতুন সাল আগে, একই সালে সিরিয়াল ক্রমে', adminOrder.join(',') === sorted.map((r) => r.serial_no).join(','), adminOrder.join(','))
+  ok('ক্রম-পরীক্ষায় page error নেই', dn.errors.length === 0, dn.errors.join(' | '))
+  await dn.close()
   demoRecs.length = 0
 }
 
@@ -1402,14 +1462,14 @@ for (const [w, mobile] of [[1280, false], [390, true]]) {
   await settle(p)
   await sleep(1500) // count-up
   const cards = await p.evaluate(() => [...document.querySelectorAll('[data-project-card]')].map((c) => ({ key: c.getAttribute('data-project-card'), text: c.innerText.replace(/\s+/g, ' '), img: c.querySelector('img')?.getAttribute('src') ?? null, fallback: !!c.querySelector('[data-cover-fallback]'), chips: [...c.querySelectorAll(':scope ul a')].map((a) => a.textContent), href: [...c.querySelectorAll('a')].at(-1)?.getAttribute('href') })))
-  ok('হোম: কার্ড শুধু শীর্ষ-স্তরের প্রকাশিত ও "হোমে" চালু প্রকল্প — ঘর নির্মাণ (গ্রুপ) ও স্বাবলম্বী; খসড়া/হোমে-বন্ধ নেই, উপ-প্রকল্প আলাদা কার্ড নয়', cards.map((c) => c.key).join(',') === 'housing,sr_test', cards.map((c) => c.key).join(','))
+  ok('হোম: কার্ড শুধু শীর্ষ-স্তরের প্রকাশিত ও "হোমে" চালু প্রকল্প — ঘর নির্মাণ (গ্রুপ) ও স্বাবলম্বী; খসড়া/হোমে-বন্ধ নেই, উপ-প্রকল্প আলাদা কার্ড নয়', cards.map((c) => c.key).sort().join(',') === [...LIVE.projects.filter((x) => !x.parent_key && x.is_published && x.show_on_home).map((x) => x.key), 'sr_test'].sort().join(',') && !cards.some((c) => ['draft_test', 'nohome_test', 'semi_pucca', 'tin'].includes(c.key)), cards.map((c) => c.key).join(','))
   const h = cards.find((c) => c.key === 'housing')
   ok('গ্রুপ-কার্ড: উপ-প্রকল্পের চিপ (সেমিপাকা · টিন), "মোট ঘর নির্মাণ"/"মোট জেলা কভার"/"মোট উপজেলা কভার", সর্বশেষ রেকর্ডের থাম্ব (কভার নেই)', h && h.chips.join('|') === 'সেমিপাকা ঘর নির্মাণ|টিনের ঘর নির্মাণ' && h.text.includes('মোট ঘর নির্মাণ') && h.text.includes('মোট জেলা কভার') && h.text.includes('মোট উপজেলা কভার') && /current_thumb\.webp/.test(h.img ?? '') && h.href === '/housing', JSON.stringify(h)?.slice(0, 300))
   const s = cards.find((c) => c.key === 'sr_test')
   ok('একক কার্ড: কভার/ছবি না থাকলে রঙের গ্রেডিয়েন্ট + আইকন; "মোট টাকা ৳ ১২,৫০,০০০", "মোট ক্যাটাগরি ৪"; home নয় এমন কার্ড (জেলা) নেই', s && s.fallback && !s.img && s.text.includes('৳ ১২,৫০,০০০ মোট টাকা') && s.text.includes('৪ মোট ক্যাটাগরি') && !s.text.includes('জেলা কভার') && s.text.includes('প্রকল্প দেখুন'), s?.text)
   const hero = await p.evaluate(() => [...document.querySelectorAll('section dl dd')].slice(0, 3).map((d) => d.textContent))
   const bn = (n) => String(n).replace(/\d/g, (d) => '০১২৩৪৫৬৭৮৯'[d])
-  ok('হিরো: আস-সুন্নাহ ফাউন্ডেশন — "আমাদের সেবা প্রকল্পসমূহ"; মোট প্রকল্প/উপকারভোগী/জেলা = ওভারভিউর global', (await text(p)).includes('আমাদের সেবা প্রকল্পসমূহ') && hero.join(',') === [live.global.projects, live.global.total, live.global.districts].map(bn).join(','), `${hero.join(',')} ↔ ${JSON.stringify(live.global)}`)
+  ok('হিরো: আস-সুন্নাহ ফাউন্ডেশন — "আমাদের কার্যক্রমসমূহ"; মোট প্রকল্প/উপকারভোগী/জেলা = ওভারভিউর global', (await text(p)).includes('আমাদের কার্যক্রমসমূহ') && hero.join(',') === [live.global.projects, live.global.total, live.global.districts].map(bn).join(','), `${hero.join(',')} ↔ ${JSON.stringify(live.global)}`)
   const dataCalls = [...calls].map((c) => c.split(' ')[1].split('?')[0].replace('/rest/v1/', ''))
   ok('হোমে API কল ২টি: রেজিস্ট্রি (projects + ফিল্ড embed, এক কলে) আর projects_overview', calls.size === 2 && dataCalls.sort().join(',') === 'projects,rpc/projects_overview' && [...calls].some((c) => decodeURIComponent(c).includes('project_fields(*)')), [...calls].map((c) => c.slice(0, 90)).join(' || '))
   const cols = async (q) => q.evaluate(() => getComputedStyle(document.querySelector('[data-project-card]').closest('ul')).gridTemplateColumns.split(' ').length)
@@ -1426,7 +1486,7 @@ for (const [w, mobile] of [[1280, false], [390, true]]) {
     const over = await q.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)
     const c = await cols(q)
     const t2 = await text(q)
-    const words = lang === 'en' ? ['Our service projects', 'View project', 'Total amount'] : ['আমাদের সেবা প্রকল্পসমূহ', 'প্রকল্প দেখুন']
+    const words = lang === 'en' ? ['Our activities', 'View project', 'Total amount'] : ['আমাদের কার্যক্রমসমূহ', 'প্রকল্প দেখুন']
     ok(`${w}px (${lang}): অনুভূমিক ওভারফ্লো নেই, ${want} কলাম, লেখা ঠিক ভাষায়`, !over && c === want && words.every((x) => t2.includes(x)), `over=${over} cols=${c} ${words.filter((x) => !t2.includes(x)).join(',')}`)
     await q.screenshot({ path: `.smoke/home-${w}-${lang}.png`, fullPage: true })
     await q.close()
@@ -1468,6 +1528,202 @@ for (const [w, mobile] of [[1280, false], [390, true]]) {
   await cv2.close()
   created.project.cover_path = null
   adminRole = 'main_admin'
+}
+
+// ---------------------------------------------------------------- Q. প্রকল্পের ইউজার ও ইউজার-পাতা (পর্ব চ, M-ধাপ ১৯) — সব নকল
+{
+  const ts = new Date().toISOString()
+  const demoName = created.project.name_bn
+  const rec = (serial, name, extra = {}) => ({ id: `00000000-0000-0000-0000-00000000f${String(serial).padStart(3, '0')}`, project_type: 'demo', serial_no: serial, year: 2025, name, father_or_husband_name: `পিতা ${serial}`, division: 'চট্টগ্রাম', district: 'চট্টগ্রাম', upazila: 'মীরসরাই', union_name: '', address: '', extra: { category: 'গাভী', amount: 1, item_name: 'দুগ্ধবতী' }, prev_photo_url: null, prev_thumb_url: null, current_photo_url: null, current_thumb_url: null, prev_photo_source: null, current_photo_source: null, photo_updated_at: null, created_at: ts, updated_at: ts, ...extra })
+  demoRecs.length = 0
+  demoRecs.push(rec(1, 'রহিমা', { current_photo_url: `${SB}/storage/v1/object/public/housing-photos/housing/demo/0001/current.webp`, current_thumb_url: `${SB}/storage/v1/object/public/housing-photos/housing/demo/0001/current_thumb.webp`, photo_updated_at: ts }), rec(2, 'করিম'))
+
+  // --- প্রকল্পের ইউজার (editor, শুধু demo)
+  adminRole = 'editor'
+  adminExtra = { all_projects: false, projects: ['demo'] }
+  const p = await newPage()
+  await p.goto(BASE + '/admin', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  const nav = await p.evaluate(() => document.querySelector('nav[aria-label="এডমিন মেনু"]')?.innerText ?? '')
+  const navHrefs = await p.evaluate(() => [...document.querySelectorAll('nav[aria-label="এডমিন মেনু"] a')].map((a) => a.getAttribute('href')))
+  ok('প্রকল্পের ইউজার: মেনুতে "প্রকল্পসমূহ" ও "ইউজার" নেই; রেকর্ডে শুধু নিজের প্রকল্প; ভূমিকা "প্রকল্পের ইউজার"', !nav.includes('প্রকল্পসমূহ') && !navHrefs.includes('/admin/users') && navHrefs.includes('/admin/records/demo') && !navHrefs.some((h) => /\/admin\/records\/(semi_pucca|tin)/.test(h)) && (await text(p)).includes('প্রকল্পের ইউজার'), navHrefs.join(' '))
+  let s = await text(p)
+  const dashHrefs = await p.evaluate(() => [...document.querySelectorAll('main a')].map((a) => a.getAttribute('href')))
+  ok('ড্যাশবোর্ড: "নতুন প্রকল্প"/সেটিংস লিংক নেই, অন্য প্রকল্পের রেকর্ড-লিংক নেই', !s.includes('নতুন প্রকল্প') && !dashHrefs.some((h) => h?.startsWith('/admin/projects')) && !dashHrefs.some((h) => /\/admin\/records\/(semi_pucca|tin)/.test(h ?? '')), dashHrefs.join(' '))
+  for (const path of ['/admin/projects', '/admin/projects/demo', '/admin/users']) {
+    await p.goto(BASE + path, { waitUntil: 'domcontentloaded' })
+    await settle(p)
+    s = await text(p)
+    ok(`${path} → "এই অংশ শুধু মূল এডমিনের" বার্তা (পাতা খোলে না)`, s.includes('এই অংশ শুধু মূল এডমিনের') && !s.includes('নতুন ইউজার যোগ') && !s.includes('প্রকল্পের ক্রম'))
+  }
+  await p.goto(BASE + '/admin/records/semi_pucca', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  ok('অন্য প্রকল্পের রেকর্ড-পাতা (semi_pucca) → ৪০৪', /৪০৪|পাওয়া যায়নি/.test(await text(p)), (await text(p)).slice(0, 120))
+
+  // রেকর্ড এডিট: সিরিয়াল-বোতাম নেই, থাকা ছবি লক, আগের মান ফাঁকা করা যায় না
+  await p.goto(BASE + '/admin/records/demo/1/edit', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  s = await text(p)
+  const delPhoto = await p.evaluate(() => [...document.querySelectorAll('button')].some((b) => /ছবি মুছুন/.test(b.textContent)))
+  ok('এডিট: "সিরিয়াল বদলান…" নেই, লেখা "সিরিয়াল বদলাতে পারেন শুধু মূল এডমিন"; থাকা ছবি লক (মোছার বোতাম নেই)', !s.includes('সিরিয়াল বদলান…') && s.includes('লক করা — সিরিয়াল বদলাতে পারেন শুধু মূল এডমিন') && s.includes('ছবি আগে থেকেই আছে — বদলাতে বা মুছতে পারেন শুধু মূল এডমিন') && !delPhoto, s.match(/লক করা[^\n]*/)?.[0])
+  const father = await p.evaluateHandle(() => [...document.querySelectorAll('input')].find((i) => i.value === 'পিতা 1' || i.value === 'পিতা ১') ?? null)
+  let before = writes.length
+  if (father.asElement()) {
+    await clearInput(p, father.asElement())
+    await clickText(p, 'button', 'সংরক্ষণ করুন')
+    await sleep(400)
+  }
+  s = await text(p)
+  ok('ভরা ঘর ফাঁকা করে সংরক্ষণ → "আগের মান মুছে ফাঁকা করতে পারেন শুধু মূল এডমিন", কিছু পাঠানো হয় না', !!father.asElement() && s.includes('আগের মান মুছে ফাঁকা করতে পারেন শুধু মূল এডমিন') && writes.length === before)
+
+  // ইম্পোর্ট: "(মুছুন)" → ভুল সারি
+  fs.writeFileSync('.smoke/import-editor.csv', '﻿' + ['সিরিয়াল,উপকরণের নাম/বিবরণ', '1,(মুছুন)', '2,নতুন বিবরণ'].join('\r\n') + '\r\n')
+  await p.goto(BASE + '/admin/import?project=demo', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  const impOpts = await p.$eval('#imp-project', (x) => [...x.options].map((o) => o.value))
+  await p.evaluate(() => [...document.querySelectorAll('input[name="mode"]')][1].click())
+  await sleep(100)
+  s = await text(p)
+  ok('ইম্পোর্ট: প্রকল্প-তালিকায় শুধু demo; আপডেট-নিয়মে "মান মুছে ফাঁকা করতে পারেন শুধু মূল এডমিন"', impOpts.join() === 'demo' && s.includes('মান মুছে ফাঁকা করতে পারেন শুধু মূল এডমিন'), impOpts.join())
+  await (await p.$('#imp-file')).uploadFile('.smoke/import-editor.csv')
+  await settle(p)
+  s = await text(p)
+  ok('ইম্পোর্ট: "(মুছুন)" সারি → ভুল ("মুছতে পারেন শুধু মূল এডমিন"), বাকিটা চলে', s.includes('মুছতে পারেন শুধু মূল এডমিন — "(মুছুন)" সরান') && s.includes('ভুল ১ (বাদ যাবে)'), s.match(/মুছতে[^\n]*/)?.[0])
+
+  // ছবি বাল্ক: থাকা ছবিতে ওভাররাইট আটকানো; নতুন ছবি চলে
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
+  fs.mkdirSync('.smoke/photos/editor', { recursive: true })
+  const files = ['demo_0001.jpg', 'demo_0002.jpg'].map((n) => {
+    fs.writeFileSync(`.smoke/photos/editor/${n}`, png)
+    return `.smoke/photos/editor/${n}`
+  })
+  await p.goto(BASE + '/admin/photos?project=demo', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  await (await p.$('input[type="file"]')).uploadFile(...files)
+  await settle(p)
+  s = await text(p)
+  const row1 = await p.evaluate(() => [...document.querySelectorAll('tbody tr')].find((tr) => tr.textContent.includes('demo_0001.jpg'))?.innerText.replace(/\s+/g, ' ') ?? '')
+  const btn = await p.evaluate(() => [...document.querySelectorAll('button')].map((b) => b.textContent.trim()).find((x) => /আপলোড/.test(x)) ?? '')
+  ok('ছবি বাল্ক: থাকা ছবি (#১) → "বদলাতে পারেন শুধু মূল এডমিন", গণনায় "ছবি আছে, বদলানো যাবে না ১"; ওভাররাইট নেই, বোতাম "১টি ছবি আপলোড করুন"', row1.includes('বদলাতে পারেন শুধু মূল এডমিন') && s.includes('ছবি আছে, বদলানো যাবে না ১') && s.includes('মিলেছে ১') && !s.includes('ওভাররাইট হবে') && btn === '১টি ছবি আপলোড করুন', `${row1} · ${btn}`)
+  before = writes.length
+  await clickText(p, 'button', '১টি ছবি আপলোড করুন')
+  await p.waitForFunction(() => document.body.innerText.includes('সফল ১'), { timeout: 20000 }).catch(() => {})
+  await settle(p)
+  const w = writes.slice(before).map((x) => x.path)
+  ok('আপলোড: শুধু #২ (নতুন ছবি); #১ এর ছবিতে কোনো লেখা নয়', w.some((x) => x.includes('/housing/demo/0002/current')) && !w.some((x) => x.includes('/housing/demo/0001/')), w.join(', '))
+  ok('প্রকল্পের ইউজারের পাতাগুলোতে কোনো page error নেই', p.errors.length === 0, p.errors.join(' | '))
+  await p.close()
+
+  // --- ১৪-এর আগের "admin" (all_projects ঘর নেই) — আগের মতোই সব প্রকল্প ও সেটিংস
+  adminRole = 'admin'
+  adminExtra = {}
+  const a = await newPage()
+  await a.goto(BASE + '/admin/projects', { waitUntil: 'domcontentloaded' })
+  await settle(a)
+  s = await text(a)
+  const aHrefs = await a.evaluate(() => [...document.querySelectorAll('nav[aria-label="এডমিন মেনু"] a')].map((x) => x.getAttribute('href')))
+  ok('১৪-এর আগের এডমিন: প্রকল্পসমূহ খোলে, সব প্রকল্পের রেকর্ড-লিংক, "ইউজার" নেই', !s.includes('এই অংশ শুধু মূল এডমিনের') && aHrefs.includes('/admin/projects') && aHrefs.includes('/admin/records/semi_pucca') && aHrefs.includes('/admin/records/demo') && !aHrefs.includes('/admin/users'), aHrefs.join(' '))
+  await a.close()
+
+  // --- মূল এডমিন: ইউজার-পাতা
+  adminRole = 'main_admin'
+  adminExtra = { all_projects: true, projects: [] }
+  fakeUsers.length = 0
+  fakeUsers.push(
+    { user_id: USER.id, email: USER.email, role: 'main_admin', all_projects: true, is_active: true, projects: [], created_at: ts, last_sign_in_at: ts },
+    { user_id: '00000000-0000-0000-0000-0000000000c2', email: 'editor@example.org', role: 'editor', all_projects: false, is_active: true, projects: ['housing'], created_at: ts, last_sign_in_at: null },
+  )
+  const m = await newPage()
+  await m.goto(BASE + '/admin/users', { waitUntil: 'domcontentloaded' })
+  await settle(m)
+  s = await text(m)
+  const mNav = await m.evaluate(() => [...document.querySelectorAll('nav[aria-label="এডমিন মেনু"] a')].map((x) => x.getAttribute('href')))
+  ok('মূল এডমিন: মেনুতে "ইউজার"; তালিকায় ২ জন — মূল এডমিন "সব প্রকল্প", editor "ঘর নির্মাণ প্রকল্প"', mNav.includes('/admin/users') && s.includes('মোট ২ জন') && /editor@example\.org\s+প্রকল্পের ইউজার\s+ঘর নির্মাণ প্রকল্প/.test(s) && s.includes('নতুন ইউজার যোগ') && s.includes('Authentication → Users → Add user'), s.match(/editor@example[^\n]*/)?.[0])
+  // গ্রুপ বাছলে উপ-প্রকল্প নিজে টিক ও বন্ধ
+  await clickText(m, 'button', 'বদলান')
+  await sleep(200)
+  const semi = await m.evaluate(() => { const l = [...document.querySelectorAll('form label')].find((x) => x.textContent.includes('সেমিপাকা')); const i = l?.querySelector('input'); return i ? { checked: i.checked, disabled: i.disabled } : null })
+  ok('এডিট-ফর্ম: ইমেইল বদলানো যায় না; গ্রুপ "ঘর নির্মাণ" বাছা → সেমিপাকা টিক ও বন্ধ', (await m.$eval('#user-email', (x) => x.readOnly && x.value)) === 'editor@example.org' && semi?.checked && semi?.disabled, JSON.stringify(semi))
+  await clickText(m, 'button', 'বাতিল — নতুন ইউজার')
+  await sleep(100)
+  const tick = (n) => m.evaluate((x) => [...document.querySelectorAll('form label')].find((l) => l.textContent.includes(x))?.querySelector('input')?.click(), n)
+  // অচেনা ইমেইল → বাংলা বার্তা
+  await (await m.$('#user-email')).type('nobody@example.org')
+  await tick(demoName)
+  let wb = writes.length
+  await clickText(m, 'button', 'সংরক্ষণ')
+  await settle(m)
+  s = await text(m)
+  ok('অচেনা ইমেইল → "ইমেইলে কোনো অ্যাকাউন্ট নেই — আগে Supabase → Authentication → Add user"', s.includes('ইমেইলে কোনো অ্যাকাউন্ট নেই') && writes.slice(wb).some((x) => x.path.endsWith('/housing_admin_user_save')))
+  // প্রকল্প না বেছে → ক্লায়েন্টেই আটকায়
+  await tick(demoName)
+  await clearInput(m, await m.$('#user-email'))
+  await (await m.$('#user-email')).type('new-user@example.org')
+  wb = writes.length
+  await clickText(m, 'button', 'সংরক্ষণ')
+  await settle(m)
+  s = await text(m)
+  ok('প্রকল্প না বেছে সংরক্ষণ → "অন্তত একটি প্রকল্প বাছুন", কিছু পাঠানো হয় না', s.includes('অন্তত একটি প্রকল্প বাছুন') && !writes.slice(wb).some((x) => x.path.endsWith('/housing_admin_user_save')))
+  await tick(demoName)
+  wb = writes.length
+  await clickText(m, 'button', 'সংরক্ষণ')
+  await settle(m)
+  s = await text(m)
+  const sent = writes.slice(wb).find((x) => x.path.endsWith('/housing_admin_user_save'))?.body
+  ok('নতুন ইউজার সংরক্ষণ → RPC এ {email, all_projects:false, projects:[demo], active:true}; "যোগ হয়েছে", তালিকায় ৩ জন', JSON.stringify(sent) === JSON.stringify({ p_email: 'new-user@example.org', p_all_projects: false, p_projects: ['demo'], p_active: true }) && s.includes('new-user@example.org যোগ হয়েছে') && s.includes('মোট ৩ জন'), JSON.stringify(sent))
+  await m.screenshot({ path: '.smoke/admin-users.png', fullPage: true })
+  ok('ইউজার-পাতায় কোনো page error নেই', m.errors.length === 0, m.errors.join(' | '))
+  await m.close()
+
+  // SQL ১৪ চালানো হয়নি → স্পষ্ট নির্দেশনা, ফর্ম নেই
+  usersMode = 'missing'
+  const mm = await newPage()
+  await mm.goto(BASE + '/admin/users', { waitUntil: 'domcontentloaded' })
+  await settle(mm)
+  s = await text(mm)
+  ok('SQL ১৪ না থাকলে: "আগে ডাটাবেসে SQL ১৪ চালাতে হবে (চেকলিস্ট সারি ৩৫…)", ফর্ম নেই', s.includes('SQL ১৪ চালাতে হবে') && s.includes('সারি ৩৫') && !s.includes('নতুন ইউজার যোগ'))
+  await mm.close()
+  usersMode = 'ok'
+  adminExtra = {}
+  demoRecs.length = 0
+}
+
+// ---------------------------------------------------------------- R. ফোনে (৩৯০px) প্রকল্পের ইউজার ও ইউজার-পাতা (M-ধাপ ২০)
+{
+  adminRole = 'editor'
+  adminExtra = { all_projects: false, projects: ['demo'] }
+  const p = await newPage(390, true)
+  await p.goto(BASE + '/admin', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  const over = await p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)
+  await clickText(p, 'button', 'এডমিন মেনু')
+  await sleep(300)
+  const drawer = await p.evaluate(() => document.querySelector('[role="dialog"][aria-modal="true"]')?.innerText ?? '')
+  const dHrefs = await p.evaluate(() => [...document.querySelectorAll('[role="dialog"] a')].map((a) => a.getAttribute('href')))
+  ok('৩৯০px প্রকল্পের ইউজার: ওভারফ্লো নেই; ড্রয়ারে "প্রকল্পসমূহ"/"ইউজার" নেই, শুধু নিজের প্রকল্প, "প্রকল্পের ইউজার"', !over && drawer.includes('প্রকল্পের ইউজার') && !dHrefs.includes('/admin/projects') && !dHrefs.includes('/admin/users') && dHrefs.includes('/admin/records/demo') && !dHrefs.some((h) => /\/admin\/records\/(semi_pucca|tin)/.test(h)), dHrefs.join(' '))
+  await p.goto(BASE + '/admin/projects', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  const gateOver = await p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)
+  const back = await p.evaluate(() => [...document.querySelectorAll('[role="alert"] a')].find((a) => a.textContent.includes('ড্যাশবোর্ডে ফিরুন'))?.getBoundingClientRect().height ?? 0)
+  ok('৩৯০px: "এই অংশ শুধু মূল এডমিনের" বার্তা, ওভারফ্লো নেই, "ড্যাশবোর্ডে ফিরুন" ≥ ৪৪px', (await text(p)).includes('এই অংশ শুধু মূল এডমিনের') && !gateOver && back >= 43.5, String(back))
+  ok('৩৯০px প্রকল্পের ইউজার: কোনো page error নেই', p.errors.length === 0, p.errors.join(' | '))
+  await p.close()
+
+  adminRole = 'main_admin'
+  adminExtra = { all_projects: true, projects: [] }
+  const m = await newPage(390, true)
+  await m.goto(BASE + '/admin/users', { waitUntil: 'domcontentloaded' })
+  await settle(m)
+  const pageOver = await m.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)
+  const s = await text(m)
+  const btn = await m.evaluate(() => [...document.querySelectorAll('form button[type="submit"]')].map((b) => b.getBoundingClientRect().height)[0] ?? 0)
+  ok('৩৯০px ইউজার-পাতা: পাতায় অনুভূমিক ওভারফ্লো নেই, তালিকা (কার্ড) ও ফর্ম দেখা যায়', !pageOver && s.includes('নতুন ইউজার যোগ') && s.includes('editor@example.org') && btn >= 40, String(btn))
+  const edits = await m.evaluate(() => [...document.querySelectorAll('ul[aria-label="ইউজার"] button')].map((b) => { const r = b.getBoundingClientRect(); return { h: r.height, right: r.right, vis: r.width > 0 } }))
+  ok('৩৯০px: প্রতিটি editor-কার্ডে "বদলান" পর্দার ভেতরে, ≥ ৪৪px; টেবিল লুকানো', edits.length === 2 && edits.every((e) => e.vis && e.h >= 43.5 && e.right <= 390) && !(await m.evaluate(() => document.querySelector('table')?.getBoundingClientRect().width)), JSON.stringify(edits))
+  await m.screenshot({ path: '.smoke/admin-users-390.png', fullPage: true })
+  ok('৩৯০px ইউজার-পাতা: কোনো page error নেই', m.errors.length === 0, m.errors.join(' | '))
+  await m.close()
+  adminExtra = {}
 }
 
 // ---------------------------------------------------------------- E. ফোনে ড্রয়ার
