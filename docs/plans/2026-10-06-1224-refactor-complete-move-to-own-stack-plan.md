@@ -1775,7 +1775,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** P4. Run `ae-plan` on this file to add P4's units (project and field writes, `0015`, covers, config activity log), then `ae-work`.
+- **Next:** P5. Run `ae-plan` on this file to add P5's units (stats and overview, `0016`, OpenAPI complete, dev seed with a draft project), then `ae-work`.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
@@ -1899,3 +1899,12 @@ Run these at the end of P1:
     - `requireMainAdminForCovers` landed with U22, because that unit's guard-coverage test names it.
     - The cover visibility tests live in `projects-cover.test.ts`, not `photos.test.ts`, so the cover setup stays in one file.
     - A field created without `sort_order` goes after the project's last field (max + 10).
+  - **P4 done (2026-10-06):** U19–U25 are committed (096f9cf..2cddd4c).
+    - **Full run:** server 1036, UI 165, contract 40, admin-rest 35, `test:all` 53. Typecheck and lint are clean.
+    - **`ae-simplify`** applied 8 changes: `privateNoStore` and one `RateLimit` type moved into `shared.ts`, the cover upload checks the project with one light query, and usage and rename rely on the functions' own not-found.
+    - **`ae-review`** ran correctness, standards, security, database and testing reviewers. There were no P0 or P1 findings. The P2s were fixed in 2cddd4c: the field guard now scans for values only on a delete or an identity change, plus the missing tests for the `is_group` arms, a missing counter, private-only values, a PATCH guard refusal and cover cleanup.
+    - **`0015` was edited after it first ran,** on the local dev and test databases only, with nothing pushed. Re-apply it with `npm --prefix server run db:rollback` then `db:migrate`.
+    - **Left for later chunks:**
+      - The field delete guard's "has values" check takes no lock, so a record insert at the same moment could keep a value for a field being deleted.
+      - `If-Match` is optional, as the contract says. P6 decides whether the adapter always sends it.
+      - The points for P9's contract rewrite are listed under "Definition of done (P4)".
