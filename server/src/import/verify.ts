@@ -1,4 +1,5 @@
-// Proves the import is exact (docs/plans/2026-10-06-1035-migrate-c7-cutover-plan.md, roadmap R16):
+// Proves the import is exact (docs/plans/2026-10-06-1035-migrate-c7-cutover-plan.md; R16 of
+// docs/plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md):
 // the same queries run on Supabase and on this database, and every difference fails a named check.
 // Rows are compared by an md5 of each row's to_jsonb text, keyed by id, so a failure names the
 // differing ids and never prints a value.

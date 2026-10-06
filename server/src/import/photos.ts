@@ -62,7 +62,11 @@ export function photoSource(raw: string, base: URL): { url: string; objectPath: 
   if (url.username || url.password || url.origin !== base.origin || !url.pathname.startsWith(base.pathname)) return undefined;
   const objectPath = url.pathname.slice(base.pathname.length);
   if (!objectPath || objectPath.split('/').some((segment) => segment === '' || segment === '.')) return undefined;
-  return { url: `${url.origin}${url.pathname}`, objectPath: decodeURIComponent(objectPath) };
+  try {
+    return { url: `${url.origin}${url.pathname}`, objectPath: decodeURIComponent(objectPath) };
+  } catch {
+    return undefined; // a malformed %-escape: not a plain bucket path either
+  }
 }
 
 export interface PhotoCopyOptions {
@@ -98,13 +102,12 @@ async function saveCapped(body: Readable, file: string, limit: number): Promise<
   await pipeline(body, cap, createWriteStream(file, { mode: 0o600 }));
 }
 
-/** True when the WebP's RIFF header covers the whole file, so no bytes ride along after the image. */
-async function riffCoversFile(file: string, size: number): Promise<boolean> {
+async function readHead(file: string): Promise<Buffer> {
   const handle = await open(file, 'r');
   try {
     const head = Buffer.alloc(12);
     await handle.read(head, 0, 12, 0);
-    return sniffImage(head) === 'webp' && head.readUInt32LE(4) + 8 === size;
+    return head;
   } finally {
     await handle.close();
   }
@@ -134,7 +137,12 @@ export async function copyPhotos(records: readonly SourceRecord[], options: Phot
         throw new CliError(`${where}: could not fetch the photo (${err instanceof Error ? err.message : String(err)})`);
       }
       // Supabase answers a missing public object with 400 and a "not found" body.
-      if (res.status === 404 || (res.status === 400 && /not.?found/i.test(await res.text()))) throw new NotFound();
+      if (res.status === 404) throw new NotFound();
+      if (res.status === 400) {
+        // The body is read here, so it must not be cancelled below.
+        if (/not.?found/i.test(await res.text())) throw new NotFound();
+        throw new CliError(`${where}: the photo answered HTTP 400`);
+      }
       if (res.status >= 500 && attempt < retries) {
         await res.body?.cancel();
         await sleep(retryDelayMs * 2 ** attempt);
@@ -153,16 +161,24 @@ export async function copyPhotos(records: readonly SourceRecord[], options: Phot
     }
   }
 
-  /** True when `file` decodes fully and is already a clean WebP that can be stored byte for byte. */
+  /**
+   * True when `file` is already a clean WebP that can be stored byte for byte. Only the formats an
+   * upload may be (sniffed from the bytes, NS-03) reach the decoder, and every pixel is decoded, so a
+   * broken or foreign file fails here.
+   */
   async function isCleanWebp(file: string, where: string): Promise<boolean> {
+    const head = await readHead(file);
+    const format = sniffImage(head);
+    if (!format) throw new CliError(`${where}: not a JPEG, PNG or WebP image`);
     try {
       const meta = await sharp(file, decodeOptions).metadata();
-      await sharp(file, decodeOptions).stats(); // decodes every pixel: a broken image fails here
+      await sharp(file, decodeOptions).stats();
       return (
+        format === 'webp' &&
         meta.format === 'webp' &&
         (meta.pages ?? 1) === 1 &&
         !meta.exif && !meta.xmp && !meta.iptc && !meta.icc &&
-        (await riffCoversFile(file, (await stat(file)).size))
+        head.readUInt32LE(4) + 8 === (await stat(file)).size // nothing rides along after the image
       );
     } catch {
       throw new CliError(`${where}: not a readable image`);

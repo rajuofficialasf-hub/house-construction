@@ -565,14 +565,15 @@ import_supabase() {
 
 - It prints the target database and the photo bucket with the access key id it will use; stop if either is wrong.
 - It asks for the Supabase database URL at a hidden prompt. Paste it there, never on a command line.
-- `--report <file>` must be a new file. It holds record and admin ids only, mode 600. Delete it with the checklist.
+- `--report <file>` must be a new file; the import creates it before copying anything and removes it again if nothing was written. It holds record and admin ids only, mode 600. Delete it with the checklist.
+- It waits at most 10 seconds for its table locks; if something holds them (a stuck session, a manual `psql`), it stops instead of queueing the site behind it.
 - The command exits non-zero when anything is refused or any verify check fails.
 
 | Flag | Use |
 |---|---|
 | `--photo-base https://<ref>.supabase.co/storage/v1/object/public/housing-photos/` | Required for `import`; only photo URLs inside it are fetched |
 | `--source-ca <file>` | Supabase's CA certificate (Dashboard → Project Settings → Database → SSL configuration → Download certificate) |
-| `--replace --confirm-db housing` | Wipe a non-empty target first (staging rehearsals, a second cutover) |
+| `--replace --confirm-db <host:port/db>` | Wipe a non-empty target first (staging rehearsals, a second cutover). The value is the target the command printed: `127.0.0.1:5433/housing` on staging, `127.0.0.1:5432/housing` on production, so a staging command run with production's env files is refused |
 | `--discard-new-writes` | Also wipe a target whose activity log is newer than Supabase's |
 | `--without-passwords` | Staging only: no real hash is copied; every admin arrives disabled |
 | `verify --report <file> --photos --photos-via <origin>` | Re-check everything and GET every photo through `<origin>` |
@@ -614,7 +615,7 @@ Production's personal data sits on staging for this day only, without password h
 
    ```sh
    import_supabase import --report ~/rehearsal-report.json --without-passwords \
-     --replace --confirm-db housing --discard-new-writes \
+     --replace --confirm-db 127.0.0.1:5433/housing --discard-new-writes \
      --photo-base https://<ref>.supabase.co/storage/v1/object/public/housing-photos/ --source-ca ~/supabase-ca.crt
    ```
 
@@ -623,7 +624,14 @@ Production's personal data sits on staging for this day only, without password h
 6. **Read the report** with the Supabase owner:
    - `photo_gaps`: each is a photo already broken on Supabase. Admins re-upload those in the Supabase UI before the cutover.
    - `admins_disabled`: with `--without-passwords` it lists everyone; the reasons other than `without_passwords` matter.
-7. **Speed**: `psql "$(grep ^DATABASE_URL= /etc/housing/staging/api.env | cut -d= -f2-)" -v q='<a common name fragment>' -f deploy/sql/perf-check.sql`. Any `Execution Time` over 50 ms is a finding to fix before the cutover.
+7. **Speed**, in a subshell so the URL never reaches `psql`'s command line or your shell:
+
+   ```sh
+   ( source deploy/lib.sh; load_env_file /etc/housing/staging/api.env; export_pg_env DATABASE_URL
+     psql -v q='<a common name fragment>' -f deploy/sql/perf-check.sql )
+   ```
+
+   Any `Execution Time` over 50 ms is a finding to fix before the cutover.
 8. **Read-only checks** from an operator IP (verifier):
 
    ```sh
@@ -761,17 +769,17 @@ Freeze length = steps 1–8.
 
 ### 19.6 After the cutover
 
-- **Final Supabase dump** (the same day; Supabase is frozen, so it holds what was imported). On the box as the production user, in memory only:
+- **Final Supabase dump** (the same day; Supabase is frozen, so it holds what was imported). On the box as the production user. The subshell keeps the password and `deploy.env`'s secrets out of your shell, the dump is encrypted as it streams (no plaintext file), and the encrypted file is uploaded only after the whole pipeline succeeded ([../learnings/tooling/streamed-backup-uploads-truncated-dump-on-failure.md](../learnings/tooling/streamed-backup-uploads-truncated-dump-on-failure.md)):
 
   ```sh
-  umask 077; d=$(mktemp -d /dev/shm/supabase-final.XXXXXX)
-  read -rs PGPASSWORD; export PGPASSWORD   # the export role's password
-  PGSSLMODE=verify-full PGSSLROOTCERT=~/supabase-ca.crt \
-    pg_dump -Fc -h <pooler host> -p 5432 -U housing_export.<ref> -d postgres -t 'public.housing_*' -f "$d/dump"
-  set -a; . /etc/housing/production/deploy.env; set +a
-  age -r "$AGE_RECIPIENT" -o "$d/dump.age" "$d/dump"
-  aws s3 cp "$d/dump.age" "s3://$BACKUP_BUCKET/production/supabase-final-$(date -u +%Y%m%dT%H%M%SZ).pgdump.age"
-  rm -rf "$d"; unset PGPASSWORD
+  ( set -euo pipefail; umask 077
+    d=$(mktemp -d /dev/shm/supabase-final.XXXXXX); trap 'rm -rf "$d"' EXIT
+    read -rsp 'export role password: ' PGPASSWORD; echo; export PGPASSWORD
+    source deploy/lib.sh; load_env_file /etc/housing/production/deploy.env
+    PGSSLMODE=verify-full PGSSLROOTCERT=~/supabase-ca.crt \
+      pg_dump -Fc -h <pooler host> -p 5432 -U housing_export.<ref> -d postgres -t 'public.housing_*' \
+      | age -r "$AGE_RECIPIENT" > "$d/dump.age"
+    aws s3 cp "$d/dump.age" "s3://$BACKUP_BUCKET/production/supabase-final-$(date -u +%Y%m%dT%H%M%SZ).pgdump.age" )
   ```
 
   - The `.pgdump.age` suffix keeps the restore drill from taking it for the newest backup.
@@ -783,7 +791,7 @@ Freeze length = steps 1–8.
 
 ### 19.7 Rollback
 
-**Before step 6** nothing public changed. Unfreeze Supabase (run the definition saved in step 1), fix the problem, and repeat from step 1 another day with `import --replace --confirm-db housing`.
+**Before step 6** nothing public changed. Unfreeze Supabase (run the definition saved in step 1), fix the problem, and repeat from step 1 another day with `import --replace --confirm-db 127.0.0.1:5432/housing`.
 
 **After step 6, within 72 hours of the cutover time:**
 1. Stop writes on the new stack: `admin.js disable --email …` for every admin (it also ends their sessions).
@@ -799,7 +807,7 @@ Freeze length = steps 1–8.
 3. Switch nginx back: remove `/etc/nginx/conf.d/housing-production.conf`, move the Supabase UI file back from `supabase-ui.conf.disabled`, `nginx -t`, reload. Purge the Cloudflare cache.
 4. Unfreeze Supabase with the saved definition.
 5. Admins re-enter the listed changes in the old UI, **in the same order**: Supabase's counters stand where the import found them, so creates entered in order get the same serials. Photos are uploaded again. Password changes made on the new stack don't carry back.
-6. A later cutover starts again at 19.4, with `import --replace --confirm-db housing --discard-new-writes`.
+6. A later cutover starts again at 19.4, with `import --replace --confirm-db 127.0.0.1:5432/housing --discard-new-writes`.
 
 **After 72 hours**: fix forward on the new stack. Supabase stays frozen until C8 as a read-only reference.
 

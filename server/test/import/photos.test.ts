@@ -183,6 +183,7 @@ describe('copyPhotos', () => {
       `${base}housing/../../../../evil`,
       `${base}housing/%2e%2e/%2e%2e/evil`,
       `${base}housing%2f..%2fevil`,
+      `${base}housing/bad%zzescape.webp`,
       `http://user:pw@127.0.0.1:${port}${BUCKET}housing/a.webp`,
       `${elsewhereUrl}${BUCKET}housing/a.webp`,
       `http://localhost:${port}${BUCKET}housing/a.webp`,
@@ -207,7 +208,14 @@ describe('copyPhotos', () => {
   it.each([
     ['a server error after retries', (res: import('node:http').ServerResponse) => void res.writeHead(503).end(), /HTTP 503/],
     ['a body over 5 MB', (res: import('node:http').ServerResponse) => void res.writeHead(200).end(Buffer.alloc(6 * 1024 * 1024, 1)), /larger than/],
-    ['a body that is not an image', (res: import('node:http').ServerResponse) => void res.writeHead(200).end('<html>hi</html>'), /not a readable image/],
+    ['a body that is not an image', (res: import('node:http').ServerResponse) => void res.writeHead(200).end('<html>hi</html>'), /not a JPEG, PNG or WebP/],
+    [
+      'an SVG, which sharp could decode but an upload may not be',
+      (res: import('node:http').ServerResponse) => void res.writeHead(200).end('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>'),
+      /not a JPEG, PNG or WebP/,
+    ],
+    ['a WebP header with broken pixels', (res: import('node:http').ServerResponse) => void res.writeHead(200).end(Buffer.concat([Buffer.from('RIFF\x10\x00\x00\x00WEBPVP8 ', 'latin1'), Buffer.alloc(20)])), /not a readable image/],
+    ['an HTTP 400 that is not "not found"', (res: import('node:http').ServerResponse) => void res.writeHead(400).end('{"error":"bad request"}'), /HTTP 400/],
   ])('stops on %s and removes every file it wrote', async (_what, handler, message) => {
     serve('housing/ok.webp', cleanWebp);
     routes.set('housing/bad.webp', handler);

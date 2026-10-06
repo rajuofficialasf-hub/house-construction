@@ -89,7 +89,7 @@ Everything the new stack needs exists on staging and is prepared for production 
 - The live `housing_log_record_change()` check (`array_append`, C1 note) is a runbook pre-check SQL line, not CLI code.
 
 **What it copies, in which order**
-1. **Guards on the target**: required tables exist (migrations through 0010 applied), and the target is empty: no rows in `housing_beneficiaries`, `housing_files`, `housing_serial_changes`, `housing_activity_log` or `housing_admins`, and both counters at 0. Otherwise it refuses, unless `--replace --confirm-db <target database name>` is given:
+1. **Guards on the target**: required tables exist (migrations through 0010 applied), and the target is empty: no rows in `housing_beneficiaries`, `housing_files`, `housing_serial_changes`, `housing_activity_log` or `housing_admins`, and both counters at 0. Otherwise it refuses, unless `--replace --confirm-db <host:port/database>` is given (the target the CLI prints, so staging's `127.0.0.1:5433/housing` and production's `127.0.0.1:5432/housing` differ):
    - `--replace` truncates those tables with `restart identity cascade` and zeroes the counters inside the import transaction; the live `housing_files` keys it removed are deleted from storage after commit (`DB-TX-02`).
    - It refuses when the target's activity log has rows newer than the newest row the source has (new-stack writes exist), unless `--discard-new-writes` is also given. That flag is only for a second cutover after a rollback, once those writes were re-entered on Supabase (runbook).
    - It is used by every staging rehearsal run (staging has its own admins and photos) and by a second cutover attempt.
@@ -180,7 +180,7 @@ Everything the new stack needs exists on staging and is prepared for production 
 - Real Supabase shape: `scripts/import-supabase-local.mjs` (`npm run test:import:supabase-local`) starts the local Supabase stack (ports 55420-55429), creates two admins with known passwords through its auth admin API (refusing any non-localhost URL, as `contract-supabase-local.mjs` does), uploads photos for a few seeded records through Storage, changes one serial, then imports into a scratch database `housing_import_check` on the compose cluster (created and dropped through the compose superuser) with `STORAGE_DRIVER=nas`, runs `verify --photos`, and logs both admins in through the new login service. This is the proof that real GoTrue bcrypt hashes work (R2), since the rehearsal imports none. It needs Docker and the Supabase CLI, so it isn't in CI; it also times a run.
 
 **The rehearsal (staging, hardened)**
-- The same CLI, against live Supabase (read-only; no freeze), into staging's database and bucket, with staging's `PUBLIC_API_URL`: `import --replace --confirm-db housing --without-passwords …`. `--replace` wipes staging's own admins and photos; they are recreated afterwards.
+- The same CLI, against live Supabase (read-only; no freeze), into staging's database and bucket, with staging's `PUBLIC_API_URL`: `import --replace --confirm-db 127.0.0.1:5433/housing --discard-new-writes --without-passwords …`. `--replace` wipes staging's own admins and photos; they are recreated afterwards.
 - Production's personal data stays on staging for that day only, under these controls:
   - **Access**: before the run, a Cloudflare WAF rule blocks the staging host for everyone but the operators' IPs; only the operator has a shell on the box that day. Removed after the wipe.
   - **No copies**: stop `housing-backup-staging` and `housing-sweep-staging` (`pm2 stop`); no manual `pg_dump`; confirm the staging cluster has no WAL archiving (`show archive_mode`); the importer's logs carry ids and counts only.
@@ -215,14 +215,14 @@ Everything the new stack needs exists on staging and is prepared for production 
   - Watch `pm2 logs`, the uptime monitor and the activity log daily for the first week. Supabase stays frozen until C8 (14 days).
 
 **Rollback during the window** (runbook section 19)
-- **Before step 6** nothing public has changed: unfreeze Supabase (restore the definition saved in step 1), fix, and retry later with `import --replace --confirm-db housing`.
+- **Before step 6** nothing public has changed: unfreeze Supabase (restore the definition saved in step 1), fix, and retry later with `import --replace --confirm-db 127.0.0.1:5432/housing`.
 - **After step 6, within 72 hours**:
   1. Stop new-stack writes: `admin disable` for each admin (it also ends their sessions).
   2. List what changed since the cutover: a runbook SQL query over `housing_activity_log where at > <cutover time>` (creates, updates, deletes, serial changes and photo changes, with record ids and serials).
   3. Restore the Supabase UI server block, `nginx -t`, reload, purge the Cloudflare cache.
   4. Unfreeze Supabase (the saved definition).
   5. Admins re-enter the listed changes in the Supabase UI, in the same order. Supabase's counters are where the import left them, so creates entered in the same order get the same serials; photos are re-uploaded. Password changes made on the new stack don't carry back.
-  6. A second cutover later starts from `import --replace --confirm-db housing --discard-new-writes`.
+  6. A second cutover later starts from `import --replace --confirm-db 127.0.0.1:5432/housing --discard-new-writes`.
 - **After 72 hours**: fix forward on the new stack. Supabase stays frozen as a read-only reference until C8.
 
 **What needs a person vs what the repo does**
@@ -380,7 +380,7 @@ Server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$PATH`
 ## Progress
 - **Branch:** `migrate/c7-cutover`
 - **Updated:** 2026-10-06 11:10
-- **Next:** finish: ae-test (full), simplify, review
+- **Next:** ae-compound, then set the plan to done
 - **Uncommitted:** none
 - **Notes:**
   - `origin/main` was not ahead; `dev-forhad` already equals `migrate/c6-deploy` (`7397bbb`), so there was nothing to merge or port.
@@ -394,3 +394,4 @@ Server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$PATH`
   - U6: the read contract has one test that sends writes without a session; the new `writeProbes: false` option skips it for real-data runs. `readonlyFetch` also waits out a 429 (the site's read limit is per IP). The browser guard aborts every non-read request in `public-rest` and `edge-rest`, on any origin. `test:e2e:edge` wasn't run locally (it needs a freshly seeded database, which would wipe the dev data); CI runs it.
   - U7: the plugin's stack guard blocks new `@supabase/supabase-js` imports, so the script calls Supabase's auth, REST and storage HTTP APIs with `fetch` (it also survives C8). Confirmed on the local stack: a missing public object answers HTTP 400 `{"statusCode":"404","error":"not_found"}`. Local baseline on 20 records: import 0.5 s, verify with photos 0.3 s.
   - U8: the final Supabase dump goes under the backup bucket's `production/` prefix (the backup IAM user can only write there) with a `.pgdump.age` suffix, because `restore-drill.sh` takes the newest `*.dump.age` by sorted name and `supabase-final-…` would sort after every `housing-…` backup. Checked on Node 22.20: with two `--env-file` flags the later file wins, and a shell variable beats both (hence `env -u` in the runbook).
+  - Review (2026-10-06): no P0 or P1. Fixed: the report file is created (`wx`) before anything is copied and removed again when nothing committed, and a failed post-commit write prints the report (P2); verify's missing-record, admin and photo-slot checks now have failing cases, and `useAuth`'s error decision is a tested pure function (P2s); P3s: `--confirm-db` takes `host:port/database`, a non-"not found" 400 no longer cancels a read body, a malformed `%` escape is a gap, `lock_timeout` 10 s, the wipe names `housing_admin_sessions` instead of cascading, only JPEG/PNG/WebP reach sharp, the runbook's final dump and `perf-check` keep secrets out of argv and the shell, the `R16` citation names the roadmap, the broadcast test waits on a signal. Left: the retry button reloads the page (works, tested), a non-UNAUTHENTICATED 401 from `/auth/me` (the server only sends UNAUTHENTICATED there), zod for the report file and the jsonb snapshot (both written by this CLI, and schema parity is checked first).

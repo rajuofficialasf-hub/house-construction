@@ -22,7 +22,8 @@ import { appDb, ownerDb, resetTestData } from '../support/db.js';
 import { importCli } from '../support/import-cli.js';
 import { insertSourceRecord, insertSourceUser, resetSource, setSourceCounter, sourceDb, testSourceUrl } from '../support/source.js';
 
-// import-supabase verify (docs/plans/2026-10-06-1035-migrate-c7-cutover-plan.md, roadmap R16): after a real
+// import-supabase verify (docs/plans/2026-10-06-1035-migrate-c7-cutover-plan.md; R16 of
+// docs/plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md): after a real
 // import every check passes, and each kind of drift fails the check that names it, by id only.
 
 const BUCKET = '/storage/v1/object/public/housing-photos/';
@@ -165,12 +166,31 @@ describe('verifyImport', () => {
       ['photo URLs have a live file', 'live files = photo URLs'],
     ],
     ['a source write after the import', () => src`insert into public.housing_activity_log (action) values ('logout')`, ['activity log max id', 'activity log per action', 'activity log']],
+    [
+      'a missing record',
+      () =>
+        owner.begin(async (tx) => {
+          await tx`alter table public.housing_beneficiaries disable trigger housing_beneficiaries_activity_log`;
+          await tx`delete from public.housing_beneficiaries where project_type = 'tin'`;
+          await tx`alter table public.housing_beneficiaries enable trigger housing_beneficiaries_activity_log`;
+        }),
+      ['records per project', 'records'],
+    ],
+    ['a missing admin', () => owner`delete from public.housing_admins`, ['admins']],
+    ['a changed admin email', () => owner`update public.housing_admins set email = 'someone-else@example.org'`, ['admin emails']],
+    [
+      'a report that hides a photo gap',
+      async ({ report }) => {
+        report.photo_gaps = [];
+      },
+      ['photo slots (source + generated = target + gaps)'],
+    ],
   ])('fails on %s, naming ids and never values', async (_what, drift, expected) => {
     const report = await imported();
     await drift({ report });
     const checks = await run(report);
     expect(failed(checks)).toEqual(expected);
-    expect(JSON.stringify(checks)).not.toMatch(new RegExp(`${NAME}|অন্য|\\$2b\\$`));
+    expect(JSON.stringify(checks)).not.toMatch(new RegExp(`${NAME}|অন্য|someone-else|\\$2b\\$`));
   });
 
   it('accepts an admin hash replaced by a login, and fails on a stored photo that is gone', async () => {

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { Readable } from 'node:stream';
@@ -34,6 +34,7 @@ afterAll(() => Promise.all([app.end(), owner.end(), src.end()]));
 
 const reportPath = () => path.join(work, `report-${randomUUID()}.json`);
 const nasEnv = () => ({ STORAGE_ROOT: path.join(work, 'storage') });
+const TARGET = '127.0.0.1:5432/housing_test';
 const NO_PHOTO_BASE = 'http://127.0.0.1:9/storage/v1/object/public/housing-photos/';
 const runImport = (extra: string[] = [], stdin = `${testSourceUrl}\n`) =>
   importCli(['import', '--report', reportPath(), '--photo-base', NO_PHOTO_BASE, ...extra], stdin, nasEnv());
@@ -217,15 +218,20 @@ describe('import-supabase refusals', () => {
     await owner`insert into public.housing_files (record_id, kind, variant, storage_key, storage_driver, content_type, size_bytes)
                 values (${record.id}, 'prev', 'photo', 'housing/old.webp', 'nas', 'image/webp', 3)`;
 
-    const wrongName = await runImport(['--replace', '--confirm-db', 'housing']);
+    // The database name alone isn't enough: staging and production are both "housing".
+    const wrongName = await runImport(['--replace', '--confirm-db', 'housing_test']);
     expect(wrongName.code).not.toBe(0);
-    expect(wrongName.stderr).toContain('--confirm-db housing_test');
+    expect(wrongName.stderr).toContain(`--confirm-db ${TARGET}`);
     expect(await owner`select 1 from public.housing_beneficiaries where serial_no = 40`).toHaveLength(1);
-    expect((await runImport(['--replace'])).code).not.toBe(0);
+    const unconfirmed = await runImport(['--replace']);
+    expect(unconfirmed.code).not.toBe(0);
+    expect(unconfirmed.stderr).toContain(`--confirm-db ${TARGET}`);
+    expect(await owner`select 1 from public.housing_beneficiaries where serial_no = 40`).toHaveLength(1);
+    expect((await storage.get('housing/old.webp')).readable).toBe(true);
 
     // The target's own record wrote a log row newer than the source's, as staging's data does.
-    expect((await runImport(['--replace', '--confirm-db', 'housing_test'])).stderr).toContain('newer than the source');
-    const res = await runImport(['--replace', '--confirm-db', 'housing_test', '--discard-new-writes']);
+    expect((await runImport(['--replace', '--confirm-db', TARGET])).stderr).toContain('newer than the source');
+    const res = await runImport(['--replace', '--confirm-db', TARGET, '--discard-new-writes']);
     expect(res.stderr).toBe('');
     expect(res.code).toBe(0);
     expect(await owner`select 1 from public.housing_beneficiaries where serial_no = 40`).toHaveLength(0);
@@ -266,6 +272,23 @@ describe('import-supabase refusals', () => {
       expect(out).not.toContain('secret-pw');
       expect(out).not.toContain('housing_owner_local');
     }
+  });
+
+  it('refuses an existing report file before reading anything, and leaves no report after a refused run', async () => {
+    await seedSource();
+    const report = reportPath();
+    await writeFile(report, 'an earlier run');
+    const existing = await importCli(['import', '--report', report, '--photo-base', NO_PHOTO_BASE], `${testSourceUrl}\n`, nasEnv());
+    expect(existing.code).not.toBe(0);
+    expect(existing.stderr).toContain('already exists');
+    expect(await readFile(report, 'utf8')).toBe('an earlier run');
+    expect(await owner`select 1 from public.housing_beneficiaries`).toHaveLength(0);
+
+    await insertRecord(owner);
+    const fresh = reportPath();
+    const refused = await importCli(['import', '--report', fresh, '--photo-base', NO_PHOTO_BASE], `${testSourceUrl}\n`, nasEnv());
+    expect(refused.stderr).toContain('not empty');
+    await expect(stat(fresh)).rejects.toMatchObject({ code: 'ENOENT' });
   });
 
   it('needs --report and a source URL on stdin', async () => {

@@ -11,6 +11,11 @@ export interface AuthState {
 
 const INITIAL: AuthState = { status: 'loading', user: null, isAdmin: false }
 
+/** ব্যাকএন্ড কনফিগ না থাকা মানে লগইন নেই (ready); অন্য এরর মানে সার্ভারে পৌঁছানো যায়নি, অবস্থা অজানা (error) */
+export function statusAfterError(err: unknown): AuthState['status'] {
+  return err instanceof HousingApiError && err.code === 'CONFIG_ERROR' ? 'ready' : 'error'
+}
+
 /**
  * বর্তমান লগইন অবস্থা (AuthProvider.currentUser + isAdmin), সেশন বদলালে আপডেট।
  * শুধু UI দেখানো/লুকানোর জন্য; প্রকৃত অনুমতি ব্যাকএন্ডে যাচাই হয়।
@@ -30,8 +35,7 @@ export function useAuth(): AuthState {
         const isAdmin = user ? await auth.isAdmin() : false
         if (alive) setState({ status: 'ready', user, isAdmin })
       } catch (err) {
-        const configMissing = err instanceof HousingApiError && err.code === 'CONFIG_ERROR'
-        if (alive) setState({ status: configMissing ? 'ready' : 'error', user: null, isAdmin: false })
+        if (alive) setState({ status: statusAfterError(err), user: null, isAdmin: false })
       }
     }
 

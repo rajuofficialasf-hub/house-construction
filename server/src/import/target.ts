@@ -9,7 +9,16 @@ import { CliError } from '../cli/prompt.js';
 import type { TargetAdmin } from './admins.js';
 import { URL_COLUMNS, type Snapshot, type UrlColumn } from './source.js';
 
-const WIPED_TABLES = ['housing_beneficiaries', 'housing_files', 'housing_serial_changes', 'housing_activity_log', 'housing_admins'] as const;
+// Every table that holds imported data or points at it. The truncate names them all instead of
+// cascading, so a table added later that references them stops the wipe instead of being emptied.
+const WIPED_TABLES = [
+  'housing_beneficiaries',
+  'housing_files',
+  'housing_serial_changes',
+  'housing_activity_log',
+  'housing_admins',
+  'housing_admin_sessions',
+] as const;
 
 /** A housing_files row for a copied photo, written in the same transaction as its record. */
 export interface ImportedFile {
@@ -55,6 +64,7 @@ async function targetState(sql: Sql | Tx): Promise<TargetState> {
       (select count(*)::int from public.housing_serial_changes) as housing_serial_changes,
       (select count(*)::int from public.housing_activity_log) as housing_activity_log,
       (select count(*)::int from public.housing_admins) as housing_admins,
+      (select count(*)::int from public.housing_admin_sessions) as housing_admin_sessions,
       (select coalesce(sum(last_serial), 0)::int from public.housing_serial_counters) as counters,
       (select max(at)::text from public.housing_activity_log) as activity_max_at`;
   const rows = Object.fromEntries(WIPED_TABLES.map((t) => [t, Number(row![t])])) as TargetState['rows'];
@@ -93,7 +103,7 @@ export async function checkTarget(sql: Sql | Tx, options: TargetOptions): Promis
 /** Wipes the target's data inside the transaction and returns every storage key its file rows held. */
 async function wipe(tx: Tx): Promise<string[]> {
   const keys = await tx<{ storage_key: string }[]>`select storage_key from public.housing_files`;
-  await tx`truncate ${tx(WIPED_TABLES.map((t) => `public.${t}`))} restart identity cascade`;
+  await tx`truncate ${tx(WIPED_TABLES.map((t) => `public.${t}`))} restart identity`;
   await tx`update public.housing_serial_counters set last_serial = 0`;
   return keys.map((k) => k.storage_key);
 }
@@ -119,6 +129,8 @@ export async function writeImport(owner: Sql, input: ImportInput, options: Targe
   const { snapshot, admins, photos } = input;
   return (await owner.begin(async (tx) => {
     await tx`set local statement_timeout = 0`;
+    // A running API holding these tables makes the import fail fast instead of queueing every reader behind it.
+    await tx`set local lock_timeout = '10s'`;
     await tx`lock table ${tx(WIPED_TABLES.map((t) => `public.${t}`))}, public.housing_serial_counters in access exclusive mode`;
     const { empty } = await checkTarget(tx, options);
     const wipedKeys = empty ? [] : await wipe(tx);

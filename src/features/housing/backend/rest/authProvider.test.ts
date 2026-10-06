@@ -81,8 +81,12 @@ describe('createRestAuthProvider', () => {
   // Vitest fails the run on an unhandled rejection, so this also proves the failed /me is caught.
   it('ignores a message from another tab while the server is unreachable', async () => {
     let down = false
+    let failedCalls = 0
     stubFetch((url) => {
-      if (down) throw new TypeError('offline')
+      if (down) {
+        failedCalls++
+        throw new TypeError('offline')
+      }
       return url.endsWith('/login') ? json(200, { data: { expires_at: '2026-10-12T08:00:00.000Z', user: USER } }) : json(200, { data: USER })
     })
     const otherTab = createRestAuthProvider(BASE)
@@ -94,7 +98,9 @@ describe('createRestAuthProvider', () => {
     down = true
     // A second announcement from this tab reaches the other tab while the server is down.
     new BroadcastChannel('housing-auth').postMessage('changed')
-    await new Promise((resolve) => setTimeout(resolve, 50))
+    // Wait for the other tab's /me to fail, then one more turn for its handler to settle.
+    await vi.waitFor(() => expect(failedCalls).toBeGreaterThan(0))
+    await new Promise((resolve) => setTimeout(resolve, 0))
     expect(seen).not.toContain(null)
     down = false
     expect(await otherTab.currentUser()).toEqual(USER)

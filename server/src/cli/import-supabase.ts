@@ -14,7 +14,7 @@ import { z } from 'zod';
 import { baseUrl, storageSchema } from '../config.js';
 import type { Sql } from '../db.js';
 import { mapAdmins } from '../import/admins.js';
-import { readReport, writeReport, type ImportReport } from '../import/report.js';
+import { createReportFile, readReport, type ImportReport } from '../import/report.js';
 import { checkSource, describeDatabase, openSource, readSnapshot } from '../import/source.js';
 import { copyPhotos, parsePhotoBase, removeAll } from '../import/photos.js';
 import { checkTarget, writeImport, type TargetOptions } from '../import/target.js';
@@ -59,20 +59,35 @@ async function runImport(values: Values): Promise<void> {
   if (!values['photo-base']) throw new CliError(`--photo-base <bucket URL> is required\n${USAGE}`);
   const photoBase = parsePhotoBase(values['photo-base']);
   const env = parseEnv(importEnv);
-  const targetName = new URL(env.DATABASE_MIGRATION_URL).pathname.slice(1);
-  if (values.replace && values['confirm-db'] !== targetName) {
-    throw new CliError(`--replace wipes the target; confirm it with --confirm-db ${targetName}`);
+  // host:port/database, so a staging command pointed at production's env file can't pass the check.
+  const target = describeDatabase(env.DATABASE_MIGRATION_URL);
+  if (values.replace && values['confirm-db'] !== target) {
+    throw new CliError(`--replace wipes the target; confirm it with --confirm-db ${target}`);
   }
   if (values['source-ca']) accessSync(values['source-ca'], constants.R_OK);
-  console.log(`target: ${describeDatabase(env.DATABASE_MIGRATION_URL)}`);
+  console.log(`target: ${target}`);
   console.log(`photos: ${describeStorage(env)}, URLs under ${env.PUBLIC_API_URL}`);
 
-  const sourceUrl = await readSourceUrl(env.DATABASE_MIGRATION_URL);
-  const source = openSource(sourceUrl, values['source-ca']);
-  const target = postgres(env.DATABASE_MIGRATION_URL, { max: 1, onnotice: () => {} });
-  const storage = createStorage(env);
+  const reportFile = await createReportFile(values.report).catch((err: NodeJS.ErrnoException) => {
+    throw new CliError(err.code === 'EEXIST' ? `${values.report} already exists; give a new --report file` : `can't create ${values.report}: ${err.message}`);
+  });
+  let committed = false;
+  let source: Sql | undefined;
+  let targetDb: Sql | undefined;
   try {
-    await checkSource(source, target);
+    const sourceUrl = await readSourceUrl(env.DATABASE_MIGRATION_URL);
+    source = openSource(sourceUrl, values['source-ca']);
+    targetDb = postgres(env.DATABASE_MIGRATION_URL, { max: 1, onnotice: () => {} });
+    await runImportSteps(sourceUrl, source, targetDb);
+  } finally {
+    // An import that changed nothing leaves no empty report behind, so the same name works next time.
+    if (!committed) await reportFile.discard().catch(() => undefined);
+    await Promise.all([source?.end(), targetDb?.end()]);
+  }
+
+  async function runImportSteps(sourceUrl: string, source: Sql, targetDb: Sql): Promise<void> {
+    const storage = createStorage(env);
+    await checkSource(source, targetDb);
     const snapshot = await readSnapshot(source);
     console.log(`source: ${describeDatabase(sourceUrl)} (time zone ${snapshot.timeZone})`);
     const options: TargetOptions = {
@@ -80,33 +95,38 @@ async function runImport(values: Values): Promise<void> {
       discardNewWrites: values['discard-new-writes'] ?? false,
       sourceActivityMaxAt: snapshot.activityMaxAt,
     };
-    await checkTarget(target, options);
+    await checkTarget(targetDb, options);
 
     const { admins, disabled } = mapAdmins(snapshot.users, { withoutPasswords: values['without-passwords'] ?? false, now: new Date() });
     const photos = await copyPhotos(snapshot.records, { storage, publicApiUrl: env.PUBLIC_API_URL, photoBase });
     let wipedKeys: string[];
     try {
-      ({ wipedKeys } = await writeImport(target, { snapshot, admins, photos: photos.result }, options));
+      ({ wipedKeys } = await writeImport(targetDb, { snapshot, admins, photos: photos.result }, options));
     } catch (err) {
       await removeAll(storage, photos.writtenKeys);
       throw err;
     }
+    committed = true;
     await removeAll(storage, wipedKeys);
 
     const report: ImportReport = {
       created_at: new Date().toISOString(),
       source: describeDatabase(sourceUrl),
-      target: describeDatabase(env.DATABASE_MIGRATION_URL),
+      target,
       photo_gaps: photos.gaps,
       generated_thumbs: photos.generated,
       admins_disabled: disabled,
     };
-    await writeReport(values.report, report);
-    await printSummary(target, report);
-    console.log(`report: ${values.report}`);
-    printChecks(await verifyImport(source, target, report));
-  } finally {
-    await Promise.all([source.end(), target.end()]);
+    try {
+      await reportFile.write(report);
+      console.log(`report: ${values.report}`);
+    } catch {
+      // The import has committed; the report must not be lost with the file.
+      console.error(`the import committed but ${values.report} could not be written; the report:\n${JSON.stringify(report)}`);
+      process.exitCode = 1;
+    }
+    await printSummary(targetDb, report);
+    printChecks(await verifyImport(source, targetDb, report));
   }
 }
 
