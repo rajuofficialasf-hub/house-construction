@@ -107,6 +107,7 @@ let sample = null
 // প্রকল্পের key আসে ডাটাবেস থেকে (হার্ডকোড নয়)। projects টেবিল না থাকলে পুরনো key ('tin') দিয়ে চলে।
 let LEAF = 'tin'
 let GROUP = null
+let LEAVES = [] // সব প্রকাশিত রেকর্ড-প্রকল্প (M-ধাপ ২০)
 {
   const r = await rest('projects?select=key,is_group,parent_key,is_published,slug&order=sort_order')
   const body = await r.text()
@@ -116,6 +117,7 @@ let GROUP = null
     const rows = safeJson(body) ?? []
     LEAF = rows.find((p) => !p.is_group)?.key ?? LEAF
     GROUP = rows.find((p) => p.is_group)?.key ?? null
+    LEAVES = rows.filter((p) => !p.is_group).map((p) => p.key)
     ok('anon: প্রকল্প-তালিকায় শুধু প্রকাশিত প্রকল্প (খসড়া দেখা যায় না)', r.ok && rows.length > 0 && rows.every((p) => p.is_published),
       `${status(r)}, ${rows.map((p) => p.key).join(', ')}`)
     const r2 = await rest('projects?select=key&is_published=eq.false')
@@ -244,6 +246,26 @@ if (sample) {
     const body = await r.text()
     if (isMissing(r, body)) skip(`anon: ${name} RPC নিষিদ্ধ`, why14)
     else ok(`anon: ${name} RPC নিষিদ্ধ`, !r.ok, `${status(r)} ${body.slice(0, 70)}`)
+  }
+  // M-ধাপ ২০: প্রতিটি প্রকল্পে anon এর "এডিট পারে?" = false; নিজের এডমিন-তথ্য নেই; বরাদ্দ-টেবিলে লেখা নয়
+  const leafKeys = [...new Set(['semi_pucca', 'tin', LEAF, ...LEAVES])]
+  for (const key of leafKeys) {
+    const r = await fetch(`${URL_}/rest/v1/rpc/housing_can_edit_project`, { method: 'POST', headers: H, body: JSON.stringify({ p_key: key }) })
+    const body = await r.text()
+    if (isMissing(r, body)) skip(`anon: housing_can_edit_project('${key}') = false`, why14)
+    else ok(`anon: housing_can_edit_project('${key}') = false`, !r.ok || body.trim() === 'false', `${status(r)} ${body.slice(0, 40)}`)
+  }
+  {
+    const r = await fetch(`${URL_}/rest/v1/rpc/housing_current_admin`, { method: 'POST', headers: H, body: '{}' })
+    const body = await r.text()
+    ok('anon: housing_current_admin — কোনো এডমিন-তথ্য নেই (খালি বা ৪০x)', !r.ok || body.trim() === '[]', `${status(r)} ${body.slice(0, 60)}`)
+  }
+  {
+    // অচেনা user_id — নিষেধ না থাকলেও FK তে ব্যর্থ হতো; তাই লাইভে কিছু ঢোকার পথ নেই
+    const r = await fetch(`${URL_}/rest/v1/housing_admin_projects`, { method: 'POST', headers: { ...H, prefer: 'return=minimal' }, body: JSON.stringify({ user_id: '00000000-0000-0000-0000-00000000dead', project_key: 'semi_pucca' }) })
+    const body = await r.text()
+    if (isMissing(r, body)) skip('anon: বরাদ্দ-টেবিলে লেখা নিষিদ্ধ', why14)
+    else ok('anon: বরাদ্দ-টেবিলে লেখা নিষিদ্ধ', !r.ok && r.status !== 409, `${status(r)} ${body.slice(0, 70)}`)
   }
   const ap = await fetch(`${URL_}/rest/v1/housing_admin_projects?select=*`, { headers: H })
   const apBody = await ap.text()

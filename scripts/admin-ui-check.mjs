@@ -1688,6 +1688,44 @@ for (const [w, mobile] of [[1280, false], [390, true]]) {
   demoRecs.length = 0
 }
 
+// ---------------------------------------------------------------- R. ফোনে (৩৯০px) প্রকল্পের ইউজার ও ইউজার-পাতা (M-ধাপ ২০)
+{
+  adminRole = 'editor'
+  adminExtra = { all_projects: false, projects: ['demo'] }
+  const p = await newPage(390, true)
+  await p.goto(BASE + '/admin', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  const over = await p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)
+  await clickText(p, 'button', 'এডমিন মেনু')
+  await sleep(300)
+  const drawer = await p.evaluate(() => document.querySelector('[role="dialog"][aria-modal="true"]')?.innerText ?? '')
+  const dHrefs = await p.evaluate(() => [...document.querySelectorAll('[role="dialog"] a')].map((a) => a.getAttribute('href')))
+  ok('৩৯০px প্রকল্পের ইউজার: ওভারফ্লো নেই; ড্রয়ারে "প্রকল্পসমূহ"/"ইউজার" নেই, শুধু নিজের প্রকল্প, "প্রকল্পের ইউজার"', !over && drawer.includes('প্রকল্পের ইউজার') && !dHrefs.includes('/admin/projects') && !dHrefs.includes('/admin/users') && dHrefs.includes('/admin/records/demo') && !dHrefs.some((h) => /\/admin\/records\/(semi_pucca|tin)/.test(h)), dHrefs.join(' '))
+  await p.goto(BASE + '/admin/projects', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  const gateOver = await p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)
+  const back = await p.evaluate(() => [...document.querySelectorAll('[role="alert"] a')].find((a) => a.textContent.includes('ড্যাশবোর্ডে ফিরুন'))?.getBoundingClientRect().height ?? 0)
+  ok('৩৯০px: "এই অংশ শুধু মূল এডমিনের" বার্তা, ওভারফ্লো নেই, "ড্যাশবোর্ডে ফিরুন" ≥ ৪৪px', (await text(p)).includes('এই অংশ শুধু মূল এডমিনের') && !gateOver && back >= 43.5, String(back))
+  ok('৩৯০px প্রকল্পের ইউজার: কোনো page error নেই', p.errors.length === 0, p.errors.join(' | '))
+  await p.close()
+
+  adminRole = 'main_admin'
+  adminExtra = { all_projects: true, projects: [] }
+  const m = await newPage(390, true)
+  await m.goto(BASE + '/admin/users', { waitUntil: 'domcontentloaded' })
+  await settle(m)
+  const pageOver = await m.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)
+  const s = await text(m)
+  const btn = await m.evaluate(() => [...document.querySelectorAll('form button[type="submit"]')].map((b) => b.getBoundingClientRect().height)[0] ?? 0)
+  ok('৩৯০px ইউজার-পাতা: পাতায় অনুভূমিক ওভারফ্লো নেই, তালিকা (কার্ড) ও ফর্ম দেখা যায়', !pageOver && s.includes('নতুন ইউজার যোগ') && s.includes('editor@example.org') && btn >= 40, String(btn))
+  const edits = await m.evaluate(() => [...document.querySelectorAll('ul[aria-label="ইউজার"] button')].map((b) => { const r = b.getBoundingClientRect(); return { h: r.height, right: r.right, vis: r.width > 0 } }))
+  ok('৩৯০px: প্রতিটি editor-কার্ডে "বদলান" পর্দার ভেতরে, ≥ ৪৪px; টেবিল লুকানো', edits.length === 2 && edits.every((e) => e.vis && e.h >= 43.5 && e.right <= 390) && !(await m.evaluate(() => document.querySelector('table')?.getBoundingClientRect().width)), JSON.stringify(edits))
+  await m.screenshot({ path: '.smoke/admin-users-390.png', fullPage: true })
+  ok('৩৯০px ইউজার-পাতা: কোনো page error নেই', m.errors.length === 0, m.errors.join(' | '))
+  await m.close()
+  adminExtra = {}
+}
+
 // ---------------------------------------------------------------- E. ফোনে ড্রয়ার
 {
   const p = await newPage(390, true)

@@ -1,5 +1,5 @@
 import { lt, t } from '@/i18n'
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import { toBanglaNumber } from '@/lib/banglaNumber'
@@ -18,6 +18,14 @@ interface Draft {
 }
 
 const EMPTY: Draft = { email: '', all_projects: false, projects: [], is_active: true, existing: false }
+
+function StatusBadge({ active }: { active: boolean }) {
+  return active ? (
+    <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-green-800">{t('চালু')}</span>
+  ) : (
+    <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-slate-700">{t('বন্ধ')}</span>
+  )
+}
 
 /** CONFIG_ERROR এ ErrorNotice ".env.local" ইঙ্গিত দেখায় — এখানে আসল কারণ (SQL ১৪ চালানো হয়নি) দেখানো দরকার */
 function UsersError({ title, error }: { title: string; error: HousingApiError }) {
@@ -47,6 +55,7 @@ export function AdminUsersPage() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<HousingApiError | null>(null)
   const [saved, setSaved] = useState<string | null>(null)
+  const formRef = useRef<HTMLFormElement>(null)
 
   const load = useCallback(async () => {
     try {
@@ -72,6 +81,7 @@ export function AdminUsersPage() {
     setDraft({ email: r.email, all_projects: r.all_projects, projects: r.projects, is_active: r.is_active, existing: true })
     setSaveError(null)
     setSaved(null)
+    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   const toggle = (key: ProjectKey, on: boolean) =>
@@ -145,7 +155,36 @@ export function AdminUsersPage() {
           <UsersError title={t('ইউজার-তালিকা আনা যায়নি')} error={listError} />
         </div>
       ) : (
-        <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          {/* ফোনে কার্ড (টেবিল পাশে স্ক্রল হলে "বদলান" চোখে পড়ে না) — M-ধাপ ২০ */}
+          <ul className="divide-y divide-slate-100 sm:hidden" aria-label={t('ইউজার')}>
+            {rows === null ? (
+              <li className="px-4 py-6 text-center text-sm text-slate-500">{t('লোড হচ্ছে…')}</li>
+            ) : (
+              rows.map((r) => (
+                <li key={r.user_id} className={`px-4 py-3 text-sm ${r.is_active ? '' : 'bg-slate-50 text-slate-500'}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="font-medium break-all">{r.email}</p>
+                    <StatusBadge active={r.is_active} />
+                  </div>
+                  <p className="mt-1 text-slate-600">
+                    {r.role === 'main_admin' ? t('মূল এডমিন') : t('প্রকল্পের ইউজার')} · {projectNames(r)}
+                  </p>
+                  <div className="mt-1 flex items-center justify-between gap-3">
+                    <p className="text-xs text-slate-500">
+                      {t('শেষ লগইন')}: {r.last_sign_in_at ? formatDateTime(r.last_sign_in_at) : '—'}
+                    </p>
+                    {r.role !== 'main_admin' && (
+                      <button type="button" onClick={() => edit(r)} className="inline-flex min-h-11 items-center px-2 text-sm font-medium text-brand-700 underline-offset-2 hover:underline">
+                        {t('বদলান')}
+                      </button>
+                    )}
+                  </div>
+                </li>
+              ))
+            )}
+          </ul>
+          <div className="hidden overflow-x-auto sm:block">
           <table className="w-full min-w-[720px] text-sm">
             <thead className="bg-brand-50 text-left text-xs font-semibold text-brand-900 uppercase">
               <tr>
@@ -171,11 +210,7 @@ export function AdminUsersPage() {
                     <td className="px-3 py-2 whitespace-nowrap">{r.role === 'main_admin' ? t('মূল এডমিন') : t('প্রকল্পের ইউজার')}</td>
                     <td className="px-3 py-2">{projectNames(r)}</td>
                     <td className="px-3 py-2 whitespace-nowrap">
-                      {r.is_active ? (
-                        <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">{t('চালু')}</span>
-                      ) : (
-                        <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">{t('বন্ধ')}</span>
-                      )}
+                      <StatusBadge active={r.is_active} />
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">{r.last_sign_in_at ? formatDateTime(r.last_sign_in_at) : '—'}</td>
                     <td className="px-3 py-2 pr-4 text-right">
@@ -190,12 +225,13 @@ export function AdminUsersPage() {
               )}
             </tbody>
           </table>
+          </div>
           {rows && <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-500">{t('মোট {n} জন', { n: toBanglaNumber(rows.length) })}</p>}
         </div>
       )}
 
       {!(listError?.code === 'CONFIG_ERROR') && (
-        <form onSubmit={(e) => void submit(e)} className="mt-8 max-w-2xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="user-form-title">
+        <form ref={formRef} onSubmit={(e) => void submit(e)} className="mt-8 max-w-2xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="user-form-title">
           <h2 id="user-form-title" className="text-lg font-semibold text-slate-900">
             {draft.existing ? t('ইউজার বদলান') : t('নতুন ইউজার যোগ')}
           </h2>
