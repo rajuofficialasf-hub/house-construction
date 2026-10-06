@@ -2374,7 +2374,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** the P6 verification (all suites, local-Supabase contract, build, `docker compose up` check), then P7 from U36.
+- **Next:** P7, U36 (unit tests for `importFields.ts` and `importAnalyze.ts`), then U37.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
@@ -2579,3 +2579,8 @@ Run these at the end of P1:
         - a visitor's next serial for a draft is `null` (Supabase's adapter says 1)
         - the Supabase adapter's project cache across a logout
       - **Counts:** REST contract 62 passed plus 1 known gap; local Supabase 57 passed plus 8 known gaps; mock unchanged.
+  - **P6 done (2026-10-06):** U30–U35 are committed (57e14d5..046f020, plus the spec fix d9e8ec0). There is no per-chunk simplify or review; they run over P5–P7.
+    - **Full run:** server 1067, UI 187, contract REST 62 plus 1 known gap, contract local Supabase 57 plus 8 known gaps, admin-rest 35, public-rest 18 (2 skipped), `test:all` 53. Typecheck, lint, build and `check:prod-bundle` are clean.
+    - `docker compose up` serves the UI with `VITE_HOUSING_BACKEND=rest` against `http://localhost:3001`, and the API's overview lists the seeded projects.
+    - **public-rest found a stale spec:** `e2e/live/detail.spec.ts` read the serial from the list's first column, which `main`'s newest-year-first default (M-step 17) turned into the row's place ("ক্রম"). On the mock, row 1 happens to be serial 1, which hid it. The spec now reads the serial from the row's detail link.
+    - `main` had not moved at the end of P6.
