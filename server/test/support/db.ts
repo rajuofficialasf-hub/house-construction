@@ -77,12 +77,16 @@ export interface AdminInput {
   name?: string | null;
   passwordHash?: string;
   disabled?: boolean;
+  role?: AdminRole;
 }
+
+export type AdminRole = 'admin' | 'main_admin';
 
 export interface InsertedAdmin {
   id: string;
   email: string;
   name: string | null;
+  role: AdminRole;
 }
 
 /** Inserts an admin as the owner, the way the admin CLI does. The default hash matches no password. */
@@ -92,9 +96,10 @@ export async function insertAdmin(owner: Sql, input: AdminInput = {}): Promise<I
     name: input.name === undefined ? 'এডমিন' : input.name,
     password_hash: input.passwordHash ?? 'not-a-hash',
     disabled_at: input.disabled ? new Date() : null,
+    role: input.role ?? 'admin',
   };
   const [inserted] = await owner<InsertedAdmin[]>`
-    insert into public.housing_admins ${owner(row)} returning id, email, name`;
+    insert into public.housing_admins ${owner(row)} returning id, email, name, role`;
   if (!inserted) throw new Error('insert returned no row');
   return inserted;
 }

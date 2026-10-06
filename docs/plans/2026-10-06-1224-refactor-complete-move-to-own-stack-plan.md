@@ -303,7 +303,7 @@ Only P1 is planned in full below. Each later chunk gets its own units from `ae-p
   - `housing_app` cannot update `role` (42501)
 - **Done when:** the tests pass and `npm --prefix server run db:migrate` works on the dev database.
 - **Depends on:** none (independent of U2)
-- **Status:** todo
+- **Status:** done
 
 ### U4. Role through the session and a `main_admin` guard on deletes
 - **Goal:** The API knows each admin's role, reports it at login and in `/auth/me`, and refuses every delete from a plain admin.
@@ -431,7 +431,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** P1 U3, migration `0012_admin_roles.sql` (role column, CHECK, one-`main_admin` index).
+- **Next:** P1 U4, carry `role` through the session (`server/src/auth/session.ts`) and add `requireMainAdmin`.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
