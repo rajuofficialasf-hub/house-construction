@@ -21,7 +21,7 @@ import {
 import { bulkInsertRecords, bulkUpdateRecords, changeRecordSerial, createProjectRecord, patchRecord } from '../../records/writes.js';
 import type { StorageDriver } from '../../storage/index.js';
 import { privateNoStore } from './projects.js';
-import { actorOf, bulkJson, checkRowCount, DEFAULT_WRITE_RATE_LIMIT, writeRateLimiter, type WriteRateLimit } from './housing-admin.js';
+import { actorOf, bulkJson, checkRowCount, DEFAULT_WRITE_RATE_LIMIT, writeRateLimiter, type WriteRateLimit } from './shared.js';
 
 // The single-record admin routes (docs/api/PROJECTS_API_CONTRACT.md §4.4.4–§4.4.6). Mounted at
 // /api/v1 with full paths and no router.use(), so each route names its own guard: the admin check

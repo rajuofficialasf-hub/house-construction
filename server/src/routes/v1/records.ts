@@ -11,7 +11,7 @@ import {
   recordProject,
 } from '../../records/reads.js';
 import { fieldFilters, idParams, projectRecordsParams, projectSerialParams, recordListQuery, serialsQuery } from '../../records/schemas.js';
-import { DEFAULT_READ_RATE_LIMIT, readRateLimiter, type ReadRateLimit } from './housing.js';
+import { DEFAULT_READ_RATE_LIMIT, readRateLimiter, type ReadRateLimit } from './shared.js';
 import { sessionAwareCaching, viewerOf } from './projects.js';
 
 // The record reads (docs/api/PROJECTS_API_CONTRACT.md §4.3, §4.4.1–§4.4.3). Mounted at /api/v1 with

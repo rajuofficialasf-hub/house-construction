@@ -1,5 +1,4 @@
-import { Router, type RequestHandler } from 'express';
-import { rateLimit } from 'express-rate-limit';
+import { Router } from 'express';
 import type { Sql } from '../../db.js';
 import { AppError } from '../../errors.js';
 import {
@@ -21,32 +20,10 @@ import {
   serialsParams,
   serialsQuery,
 } from '../../housing/schemas.js';
+import { DEFAULT_READ_RATE_LIMIT, readRateLimiter, type ReadRateLimit } from './shared.js';
 
 // The public housing reads (docs/api/API_CONTRACT.md §4). Anyone may call them, so nothing here
 // looks at req.admin. Literal paths come before /:id, which would otherwise swallow them.
-
-export interface ReadRateLimit {
-  windowMs: number;
-  limit: number;
-}
-
-// Per-IP cap on the public reads (NE-SEC-04). Search and stats scan the table and other origins
-// can call them; 300 a minute is far above what one visitor's pages need. The counter is in
-// memory, which is exact while the API runs as one process.
-export const DEFAULT_READ_RATE_LIMIT: ReadRateLimit = { windowMs: 60_000, limit: 300 };
-
-/** A per-IP limit on public reads that answers the contract's 429 and logs which reads hit it. */
-export function readRateLimiter(limits: ReadRateLimit, logMessage: string): RequestHandler {
-  return rateLimit({
-    ...limits,
-    standardHeaders: 'draft-8',
-    legacyHeaders: false,
-    handler: (req, _res, next) => {
-      req.log.warn(logMessage);
-      next(new AppError('RATE_LIMITED', 'অনেক বেশি অনুরোধ হয়েছে, কিছুক্ষণ পরে আবার চেষ্টা করুন'));
-    },
-  });
-}
 
 const notFound = () => new AppError('NOT_FOUND', 'রেকর্ড পাওয়া যায়নি');
 

@@ -5,7 +5,7 @@ import { AppError } from '../../errors.js';
 import { idParams } from '../../housing/schemas.js';
 import { findLiveFile } from '../../photos/serve.js';
 import { StorageNotFoundError, type StorageDriver } from '../../storage/index.js';
-import { readRateLimiter, type ReadRateLimit } from './housing.js';
+import { readRateLimiter, type ReadRateLimit } from './shared.js';
 import { viewerOf } from './projects.js';
 
 // GET /api/v1/photos/:id: every photo the site shows comes through here, whichever driver holds

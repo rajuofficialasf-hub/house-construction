@@ -3,8 +3,15 @@ import { requireAdmin } from '../../auth/middleware.js';
 import type { Sql } from '../../db.js';
 import { listActivity, logEvent } from '../../housing/activity.js';
 import { projectActivityBody, projectActivityQuery } from '../../housing/schemas.js';
-import { actorOf, DEFAULT_WRITE_RATE_LIMIT, writeRateLimiter, type WriteRateLimit } from './housing-admin.js';
-import { DEFAULT_READ_RATE_LIMIT, readRateLimiter, type ReadRateLimit } from './housing.js';
+import {
+  actorOf,
+  DEFAULT_READ_RATE_LIMIT,
+  DEFAULT_WRITE_RATE_LIMIT,
+  readRateLimiter,
+  writeRateLimiter,
+  type ReadRateLimit,
+  type WriteRateLimit,
+} from './shared.js';
 import { privateNoStore } from './projects.js';
 
 // The activity log (docs/api/PROJECTS_API_CONTRACT.md §4.5): admin-only, reads included, and never on

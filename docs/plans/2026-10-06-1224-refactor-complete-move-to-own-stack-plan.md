@@ -1315,7 +1315,7 @@ These settle what P4's research turned up. They add to Technical decisions, the 
 - **Tests:** none new. The whole server suite is the check, including the 429 cases in `p3-admin-auth.test.ts` and the old `housing-*` suites.
 - **Done when:** `npm --prefix server run typecheck` and `npm --prefix server test` are green, and `grep -rn "housing-admin\|routes/v1/housing\." server/src` shows only `app.ts` mounting the old routers (and `BULK_PATH`).
 - **Depends on:** none
-- **Status:** todo
+- **Status:** done
 
 ### U20. Migration `0015_project_guards`
 - **Goal:** The database keeps every project and field rule the contract lists (§5.5), creates a project's serial counter, logs every config change, and can store a project's cover file.
