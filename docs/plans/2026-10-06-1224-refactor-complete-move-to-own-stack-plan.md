@@ -253,7 +253,7 @@ Only P1 is planned in full below. Each later chunk gets its own units from `ae-p
 - **Tests:** none (docs). Check that every command named exists in a `package.json`.
 - **Done when:** `CLAUDE.md` exists with the profile and no command it names is missing.
 - **Depends on:** none
-- **Status:** todo
+- **Status:** done
 
 ### U2. Migration `0011_projects_registry`
 - **Goal:** The database holds projects, project fields and private values, and records carry `union_name` and `extra` and belong to a registered project.
@@ -431,7 +431,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** P1 U1, write `CLAUDE.md` with the stack profile.
+- **Next:** P1 U2, write migration `0011_projects_registry.sql` from `supabase/sql/10_projects.sql`.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
