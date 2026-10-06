@@ -328,7 +328,7 @@ Migrations are not rolled back automatically. After the first staging run they a
   - `check:prod-bundle` still passes.
 - **Done when:** The audit is clean, and the import tests and e2e specs are green.
 - **Depends on:** none
-- **Status:** todo
+- **Status:** done
 
 ## Verification
 - `npm run lint`, `npm run build`, `npm --prefix server run typecheck`, `npm run i18n-check`
@@ -367,6 +367,6 @@ All server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$P
 ## Progress
 - **Branch:** `migrate/c6-deploy`
 - **Updated:** 2026-10-06 09:55
-- **Next:** U7, install SheetJS 0.20.3 from the CDN tarball and run the import tests
+- **Next:** U3, make `01-init.sh` runnable in CI, then write `.github/workflows/ci.yml`
 - **Uncommitted:** none
 - **Notes:** Unit order: U1, U2, U7, U3, U4, U5, U6 (U3 depends on U7 for a clean audit).
