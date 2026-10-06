@@ -30,6 +30,9 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 const notFound = () => new AppError('NOT_FOUND', 'রেকর্ড পাওয়া যায়নি');
 
+/** The activity log's path inside this router; its POST isn't counted by the write limit. */
+const ACTIVITY_PATH = '/activity';
+
 export interface WriteRateLimit {
   windowMs: number;
   limit: number;
@@ -104,14 +107,14 @@ export function housingAdminRouter({
   // its own events there.
   router.use((req, res, next) => (SAFE_METHODS.has(req.method) ? next() : requireAdmin(req, res, next)));
   router.use((req, res, next) =>
-    SAFE_METHODS.has(req.method) || req.path.toLowerCase() === '/activity' ? next() : limitWrites(req, res, next),
+    SAFE_METHODS.has(req.method) || req.path.toLowerCase() === ACTIVITY_PATH ? next() : limitWrites(req, res, next),
   );
 
-  router.get('/activity', requireAdmin, async (req, res) => {
+  router.get(ACTIVITY_PATH, requireAdmin, async (req, res) => {
     res.json(await listActivity(sql, activityQuery.parse(req.query)));
   });
 
-  router.post('/activity', requireAdmin, async (req, res) => {
+  router.post(ACTIVITY_PATH, requireAdmin, async (req, res) => {
     res.status(201).json({ data: { id: await logEvent(sql, actorOf(req), activityBody.parse(req.body)) } });
   });
 

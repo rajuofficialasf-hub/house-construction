@@ -14,11 +14,8 @@
 # below are substituted, so nginx's own $variables stay as they are.
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
-
-die() {
-  echo "render-nginx.sh: $*" >&2
-  exit 1
-}
+# shellcheck source=deploy/lib.sh
+source "$here/lib.sh"
 
 target=${1:-}
 out=${2:-}

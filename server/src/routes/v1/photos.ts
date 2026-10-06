@@ -10,7 +10,7 @@ import { readRateLimiter, type ReadRateLimit } from './housing.js';
 // GET /api/v1/photos/:id: every photo the site shows comes through here, whichever driver holds
 // it, so the browser never sees a bucket URL or storage key (NS-10, NS-41; contract §5).
 
-// A list page shows up to 50 thumbnails and the responses are cached for a year, so this sits well
+// A list page shows up to 50 thumbnails and the responses are cached for a day, so this sits well
 // above the 300 a minute of the housing reads. In memory, exact while the API runs as one process.
 export const DEFAULT_PHOTO_RATE_LIMIT: ReadRateLimit = { windowMs: 60_000, limit: 1200 };
 
