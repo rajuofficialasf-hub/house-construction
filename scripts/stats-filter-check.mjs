@@ -95,7 +95,12 @@ for (const p of projects) {
     for (const v of [...new Set(all.map((r) => r.extra?.[c.key]).filter((v) => typeof v === 'string' && v))].slice(0, 15)) filters.push({ fields: { [c.key]: v } })
   }
   const nameRow = await fetch(`${URL_}/rest/v1/housing_beneficiaries?select=name&project_type=eq.${p.key}&limit=1`, { headers: H }).then((r) => r.json())
-  if (nameRow[0]?.name?.length >= 3) filters.push({ q: nameRow[0].name.slice(0, 3) })
+  // অ্যাপ সার্চের লেখা যেভাবে পরিষ্কার করে পাঠায় (housingApi.ts › sanitizeSearch) — তালিকা ও পরিসংখ্যান দুটোতেই একই মান যায়
+  const sanitizeSearch = (s) => s.trim().normalize('NFC').replace(/[,()%\\]/g, ' ').replace(/\s+/g, ' ').trim()
+  for (const len of [3, 5]) {
+    const q = sanitizeSearch(nameRow[0]?.name?.slice(0, len) ?? '')
+    if (q.length >= 2) filters.push({ q })
+  }
   const bad = []
   for (const f of filters) {
     const want = countFrom(await rowsFor(p.key, f, pub), pub)
