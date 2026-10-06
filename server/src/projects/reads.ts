@@ -78,3 +78,20 @@ export async function listProjectFields(sql: Sql, key: string, viewer: Viewer): 
     where key = ${key} and (${viewer.admin} or key = any(public.housing_public_project_keys()))`;
   return visible ? fieldsOf(sql, [key], viewer) : null;
 }
+
+export interface FieldUsage {
+  count: number;
+  values: { value: string; n: number }[];
+}
+
+/**
+ * How many of the project's records hold a value for the field, with a public field's 100 most common
+ * values; a private field's values are never listed. Null when the project has no such field.
+ */
+export async function fieldUsage(sql: Sql, projectKey: string, fieldKey: string): Promise<FieldUsage | null> {
+  const [found] = await sql`select 1 from public.housing_project_fields where project_key = ${projectKey} and key = ${fieldKey}`;
+  if (!found) return null;
+  const [row] = await sql<{ usage: FieldUsage }[]>`select public.housing_project_field_usage(${projectKey}, ${fieldKey}) as usage`;
+  if (!row) throw new Error('housing_project_field_usage returned no row');
+  return row.usage;
+}

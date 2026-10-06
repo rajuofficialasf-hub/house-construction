@@ -1641,7 +1641,7 @@ These settle what P4's research turned up. They add to Technical decisions, the 
   - **Auth:** two rows in `p3-admin-auth.test.ts`. A plain admin may rename (contract: every admin edits).
 - **Done when:** the tests pass.
 - **Depends on:** U20, U22
-- **Status:** todo
+- **Status:** done
 
 ### U25. Project covers
 - **Goal:** Admins upload or replace a project's cover through the same safe photo path as records. Only a `main_admin` removes it. A visitor can't fetch a draft's cover. A project delete leaves no cover file behind.

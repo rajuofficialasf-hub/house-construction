@@ -2,10 +2,11 @@ import { Router, type Request } from 'express';
 import { requireAdmin, requireMainAdmin } from '../../auth/middleware.js';
 import type { Sql } from '../../db.js';
 import { AppError } from '../../errors.js';
-import { getProject } from '../../projects/reads.js';
+import { fieldUsage, getProject } from '../../projects/reads.js';
 import {
   fieldCreateBody,
   fieldIdParams,
+  fieldKeyParams,
   fieldOrderBody,
   fieldPatchBody,
   ifMatch,
@@ -13,6 +14,7 @@ import {
   projectKeyParams,
   projectOrderBody,
   projectPatchBody,
+  renameValueBody,
 } from '../../projects/schemas.js';
 import {
   createField,
@@ -21,10 +23,20 @@ import {
   deleteProject,
   reorderFields,
   reorderProjects,
+  renameFieldValue,
   updateField,
   updateProject,
 } from '../../projects/writes.js';
-import { actorOf, DEFAULT_WRITE_RATE_LIMIT, writeRateLimiter, type WriteRateLimit } from './shared.js';
+import { privateNoStore } from './projects.js';
+import {
+  actorOf,
+  DEFAULT_READ_RATE_LIMIT,
+  DEFAULT_WRITE_RATE_LIMIT,
+  readRateLimiter,
+  writeRateLimiter,
+  type ReadRateLimit,
+  type WriteRateLimit,
+} from './shared.js';
 
 // The project registry admin routes (docs/api/PROJECTS_API_CONTRACT.md §4.1, §4.2). Mounted at /api/v1
 // with full paths and no router.use(), before the projects read router, so each route names its own
@@ -33,6 +45,7 @@ import { actorOf, DEFAULT_WRITE_RATE_LIMIT, writeRateLimiter, type WriteRateLimi
 
 export interface ProjectsAdminDeps {
   sql: Sql;
+  readRateLimit?: ReadRateLimit;
   writeRateLimit?: WriteRateLimit;
 }
 
@@ -55,8 +68,13 @@ async function adminProject(sql: Sql, key: string) {
   return project;
 }
 
-export function projectsAdminRouter({ sql, writeRateLimit = DEFAULT_WRITE_RATE_LIMIT }: ProjectsAdminDeps): Router {
+export function projectsAdminRouter({
+  sql,
+  readRateLimit = DEFAULT_READ_RATE_LIMIT,
+  writeRateLimit = DEFAULT_WRITE_RATE_LIMIT,
+}: ProjectsAdminDeps): Router {
   const router = Router();
+  const limitReads = readRateLimiter(readRateLimit, 'project admin reads rate-limited');
   const limitWrites = writeRateLimiter(writeRateLimit);
 
   router.post('/projects', requireAdmin, limitWrites, async (req, res) => {
@@ -109,6 +127,22 @@ export function projectsAdminRouter({ sql, writeRateLimit = DEFAULT_WRITE_RATE_L
     const { id } = fieldIdParams.parse(req.params);
     if (!(await deleteField(sql, actorOf(req), id))) throw fieldNotFound();
     res.status(204).end();
+  });
+
+  // Admin-only, so never cached and never on the public-read CORS list.
+  router.get('/projects/:key/fields/:field_key/usage', privateNoStore, requireAdmin, limitReads, async (req, res) => {
+    const { key, field_key: fieldKey } = fieldKeyParams.parse(req.params);
+    const usage = await fieldUsage(sql, key, fieldKey);
+    if (!usage) throw fieldNotFound();
+    res.json({ data: usage });
+  });
+
+  router.post('/projects/:key/fields/:field_key/rename-value', requireAdmin, limitWrites, async (req, res) => {
+    const { key, field_key: fieldKey } = fieldKeyParams.parse(req.params);
+    const { from, to } = renameValueBody.parse(req.body);
+    const updated = await renameFieldValue(sql, actorOf(req), key, fieldKey, from, to);
+    if (updated === null) throw fieldNotFound();
+    res.json({ data: { updated } });
   });
 
   return router;

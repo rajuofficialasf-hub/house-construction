@@ -244,6 +244,11 @@ export type ProjectPatchBody = z.infer<typeof projectPatchBody>;
 
 export const fieldIdParams = z.object({ id: z.uuid() });
 
+export const fieldKeyParams = z.object({ key: projectKey, field_key: fieldKey });
+
+/** from must match a stored value exactly; to is normalised by the database the way values are stored. */
+export const renameValueBody = z.strictObject({ from: z.string().min(1).max(100), to: z.string().min(1).max(100) });
+
 /** A project has at most 40 fields. */
 export const fieldOrderBody = z.strictObject({ ids: z.array(z.uuid()).min(1).max(40) });
 

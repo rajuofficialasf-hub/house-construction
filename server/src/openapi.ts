@@ -40,6 +40,7 @@ import {
   project,
   fieldCreateBody,
   fieldIdParams,
+  fieldKeyParams,
   fieldOrderBody,
   fieldPatchBody,
   projectCreateBody,
@@ -48,6 +49,7 @@ import {
   projectListQuery,
   projectOrderBody,
   projectPatchBody,
+  renameValueBody,
 } from './projects/schemas.js';
 import {
   bulkCreateBody,
@@ -400,6 +402,32 @@ export function buildOpenApiDocument(): OpenApiDocument {
           parameters: parameters(projectKeyParams, 'path'),
           requestBody: body(fieldOrderBody),
           responses: { 204: { description: 'Reordered' }, ...errors(400, 401, 403, 404, 429, 500) },
+        }, 'projects-admin'),
+      },
+      '/projects/{key}/fields/{field_key}/usage': {
+        get: admin('How many records hold a value for the field, with a public field\'s 100 most common values (none for a private field); never cached', {
+          parameters: parameters(fieldKeyParams, 'path'),
+          responses: {
+            200: ok('The usage', {
+              type: 'object',
+              required: ['count', 'values'],
+              properties: {
+                count: { type: 'integer' },
+                values: { type: 'array', items: { type: 'object', required: ['value', 'n'], properties: { value: { type: 'string' }, n: { type: 'integer' } } } },
+              },
+            }),
+            ...errors(400, 401, 404, 429, 500),
+          },
+        }, 'projects-admin'),
+      },
+      '/projects/{key}/fields/{field_key}/rename-value': {
+        post: admin('Merge one spelling of a public category value into another across the project; exact matches of from change, and each record is logged as an update', {
+          parameters: parameters(fieldKeyParams, 'path'),
+          requestBody: body(renameValueBody),
+          responses: {
+            200: ok('How many records changed', { type: 'object', required: ['updated'], properties: { updated: { type: 'integer' } } }),
+            ...errors(400, 401, 403, 404, 429, 500),
+          },
         }, 'projects-admin'),
       },
       '/fields/{id}': {

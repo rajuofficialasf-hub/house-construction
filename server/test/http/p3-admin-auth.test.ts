@@ -63,6 +63,8 @@ const ROUTES: AdminRoute[] = [
   // Any uuid serves for the auth checks; ID is a record's.
   { method: 'patch', path: '/api/v1/fields/ID', body: { label_bn: 'ক' } },
   { method: 'delete', path: '/api/v1/fields/ID' },
+  { method: 'get', path: `/api/v1/projects/${P}/fields/tribe/usage` },
+  { method: 'post', path: `/api/v1/projects/${P}/fields/tribe/rename-value`, body: { from: 'ক', to: 'খ' } },
 ];
 
 let id = '';
@@ -89,8 +91,8 @@ describe.each(ROUTES.map((r) => [name(r), r] as const))('%s', (_name, route) => 
   it('refuses a caller with no session with 401', async () => {
     const res = await call(route);
     expect(res.status).toBe(401);
-    // The activity log is never cached, refusals included.
-    if (route.path.includes('/activity')) expect(res.headers['cache-control']).toBe('private, no-store');
+    // The activity log and field usage are never cached, refusals included.
+    if (route.method === 'get') expect(res.headers['cache-control']).toBe('private, no-store');
   });
 
   it("refuses a disabled admin's cookie with 401", async () => {

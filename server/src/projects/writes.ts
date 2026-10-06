@@ -107,3 +107,18 @@ export async function reorderFields(sql: Sql, actor: Actor, projectKey: string, 
     return true;
   });
 }
+
+/**
+ * Merges one spelling of a public category value into another across the project; each changed
+ * record is logged as an update. Null when the project has no such field.
+ */
+export async function renameFieldValue(sql: Sql, actor: Actor, projectKey: string, fieldKey: string, from: string, to: string): Promise<number | null> {
+  return withActor(sql, actor, async (tx) => {
+    const [found] = await tx`select 1 from public.housing_project_fields where project_key = ${projectKey} and key = ${fieldKey}`;
+    if (!found) return null;
+    const [row] = await tx<{ updated: number }[]>`
+      select public.housing_project_field_rename_value(${projectKey}, ${fieldKey}, ${from}, ${to}) as updated`;
+    if (!row) throw new Error('housing_project_field_rename_value returned no row');
+    return row.updated;
+  });
+}
