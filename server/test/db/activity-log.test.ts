@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { withActor } from '../../src/db.js';
-import { appDb, insertRecord, ownerDb, resetTestData } from '../support/db.js';
+import { appDb, insertField, insertPrivate, insertProject, insertRecord, ownerDb, resetTestData } from '../support/db.js';
 
 const app = appDb();
 const owner = ownerDb();
@@ -84,5 +84,76 @@ describe('housing_log_event', () => {
   it('refuses an action name that is not lowercase letters and underscores', async () => {
     await expect(app`select public.housing_log_event('Login', '{}'::jsonb, null)`).rejects.toMatchObject({ code: '22023' });
     await expect(app`select public.housing_log_event(${'a'.repeat(41)}, '{}'::jsonb, null)`).rejects.toMatchObject({ code: '22023' });
+  });
+});
+
+describe('activity log v2: custom and private values', () => {
+  const P = 'log_p';
+  const PHONE = '01799999999';
+
+  beforeEach(async () => {
+    await insertProject(owner, { key: P });
+    await insertField(owner, { project_key: P, key: 'amount', type: 'money' });
+    await insertField(owner, { project_key: P, key: 'phone', type: 'phone', visibility: 'admin' });
+    await insertField(owner, { project_key: P, key: 'nid', type: 'text', visibility: 'admin' });
+  });
+
+  async function logOf(action: string) {
+    return app`select actor_email, project_type, record_id, serial_no, record_name, details
+               from public.housing_activity_log where action = ${action} order by id`;
+  }
+
+  it('snapshots union_name and extra on create', async () => {
+    await insertRecord(app, { project_type: P, union_name: 'ধামশ্রেণী', extra: { amount: 500 } });
+    const [entry] = await logOf('create');
+    expect(entry?.details).toMatchObject({ union_name: 'ধামশ্রেণী', extra: { amount: 500 } });
+  });
+
+  it('logs an extra-only change per key, and a union_name-only change', async () => {
+    const rec = await insertRecord(app, { project_type: P, extra: { amount: 10000 } });
+    await withActor(app, admin, async (tx) => {
+      await tx`update public.housing_beneficiaries set extra = '{"amount": 12000}'::jsonb where id = ${rec.id}`;
+      await tx`update public.housing_beneficiaries set union_name = 'ধামশ্রেণী' where id = ${rec.id}`;
+    });
+    expect((await logOf('update')).map((e) => [e.actor_email, e.details])).toEqual([
+      [admin.email, { changes: { 'extra.amount': { old: 10000, new: 12000 } }, photo_kinds: [] }],
+      [admin.email, { changes: { union_name: { old: '', new: 'ধামশ্রেণী' } }, photo_kinds: [] }],
+    ]);
+  });
+
+  it('logs a private insert and update by key name only', async () => {
+    const rec = await insertRecord(app, { project_type: P, name: 'রহিম' });
+    await withActor(app, admin, async (tx) => {
+      await insertPrivate(tx, rec.id, { phone: PHONE });
+      await tx`update public.housing_beneficiary_private set data = '{"phone": "01799999999", "nid": "12345"}'::jsonb
+               where record_id = ${rec.id}`;
+    });
+    expect(await logOf('private_update')).toEqual([
+      { actor_email: admin.email, project_type: P, record_id: rec.id, serial_no: rec.serial_no, record_name: 'রহিম',
+        details: { fields: ['phone'], masked: true } },
+      { actor_email: admin.email, project_type: P, record_id: rec.id, serial_no: rec.serial_no, record_name: 'রহিম',
+        details: { fields: ['nid'], masked: true } },
+    ]);
+    const [{ hits } = { hits: -1 }] = await app<{ hits: number }[]>`
+      select count(*)::int as hits from public.housing_activity_log where details::text like ${'%' + PHONE + '%'}`;
+    expect(hits).toBe(0);
+  });
+
+  it('writes no private row when the data does not change', async () => {
+    const rec = await insertRecord(app, { project_type: P });
+    await insertPrivate(app, rec.id, { phone: PHONE });
+    await app`update public.housing_beneficiary_private set data = data where record_id = ${rec.id}`;
+    expect(await logOf('private_update')).toHaveLength(1);
+  });
+
+  it('writes a delete and no private row when a record with private values is deleted', async () => {
+    const rec = await insertRecord(app, { project_type: P });
+    await insertPrivate(app, rec.id, { phone: PHONE });
+    await app`delete from public.housing_beneficiaries where id = ${rec.id}`;
+    expect((await app`select action from public.housing_activity_log order by id`).map((e) => e.action)).toEqual([
+      'create',
+      'private_update',
+      'delete',
+    ]);
   });
 });

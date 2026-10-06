@@ -934,7 +934,7 @@ These settle what P3's research turned up. They add to Technical decisions, the 
   - `npm --prefix server test` is green, including the global setup's up, down, up cycle and the old `housing-bulk` and `housing-activity` suites
   - `npm --prefix server run db:migrate`, `db:rollback`, `db:migrate` and `db:seed` work on the dev database
 - **Depends on:** none
-- **Status:** todo
+- **Status:** done
 
 ### U14. Bulk insert and update routes v2
 - **Goal:** Admins import and update a project's records in batches of up to 500, with custom and private values, all or nothing. A failure names the row and the field.

@@ -79,6 +79,23 @@ describe('function privileges', () => {
     expect(row).toEqual({ ok: true });
   });
 
+  it('lets housing_app run the bulk insert and the leaf-keys lookup', async () => {
+    const [row] = await app`
+      select has_function_privilege('public.housing_bulk_insert_records(text, jsonb, boolean)', 'execute') as insert,
+             has_function_privilege('public.housing_project_leaf_keys(text)', 'execute') as leaves`;
+    expect(row).toEqual({ insert: true, leaves: true });
+  });
+
+  it('runs the log triggers as the owner with a fixed search_path', async () => {
+    const rows = await owner`
+      select proname, prosecdef, proconfig from pg_proc
+      where proname in ('housing_log_record_change', 'housing_log_private_change') order by proname`;
+    expect(rows).toEqual([
+      { proname: 'housing_log_private_change', prosecdef: true, proconfig: ['search_path=public'] },
+      { proname: 'housing_log_record_change', prosecdef: true, proconfig: ['search_path=public'] },
+    ]);
+  });
+
   it('keeps functions added by later migrations away from PUBLIC', async () => {
     await expect(
       owner.begin(async (tx) => {

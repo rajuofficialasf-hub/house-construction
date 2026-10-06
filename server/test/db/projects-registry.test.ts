@@ -109,3 +109,18 @@ describe('housing_public_project_keys', () => {
     expect(await publicKeys()).toEqual(['housing', 'semi_pucca', 'tin']);
   });
 });
+
+describe('housing_project_leaf_keys (0014)', () => {
+  const leaves = async (key: string) =>
+    (await app<{ k: string[] }[]>`select public.housing_project_leaf_keys(${key}) as k`)[0]?.k;
+
+  it('returns a group\'s children in sort order, a leaf itself, and nothing for an unknown key', async () => {
+    await insertProject(owner, { key: 'grp', is_group: true });
+    await insertProject(owner, { key: 'grp_b', parent_key: 'grp', sort_order: 1 });
+    await insertProject(owner, { key: 'grp_a', parent_key: 'grp', sort_order: 1 });
+    await insertProject(owner, { key: 'grp_c', parent_key: 'grp', sort_order: 0, is_published: false });
+    expect(await leaves('grp')).toEqual(['grp_c', 'grp_a', 'grp_b']);
+    expect(await leaves('grp_a')).toEqual(['grp_a']);
+    expect(await leaves('nope')).toEqual([]);
+  });
+});
