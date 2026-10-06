@@ -2116,7 +2116,7 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
   - `supabase` still selects Supabase
 - **Done when:** `npm run build` and `npm run check:prod-bundle` pass, and `docker compose up` serves the UI against the local API with the seeded projects.
 - **Depends on:** U35 (the default flips only after the contract proves the adapter)
-- **Status:** todo
+- **Status:** done
 
 ### U35. Contract suite: `ProjectsApi` and every new `HousingApi` method
 - **Goal:** One shared suite proves the REST adapter against the server and against local Supabase as the parity reference.
@@ -2374,7 +2374,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** U34 (REST is the default backend), then the P6 verification.
+- **Next:** the P6 verification (all suites, local-Supabase contract, build, `docker compose up` check), then P7 from U36.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.

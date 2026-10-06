@@ -1,14 +1,18 @@
 # আস-সুন্নাহ ফাউন্ডেশন — প্রকল্প-প্ল্যাটফর্ম (ঘর নির্মাণ, স্বাবলম্বী, দক্ষতা ভিত্তিক …)
 
 React 19 + TypeScript + Vite 8 + Tailwind CSS 4 + React Router 8। প্রকল্প, তাদের ফিল্ড ও স্ট্যাট কার্ড এডমিন প্যানেল থেকে তৈরি হয় — নতুন প্রকল্পে কোড লাগে না।
-ব্যাকএন্ড অ্যাডাপ্টার-ভিত্তিক: এখন Supabase, পরে নিজস্ব REST সার্ভার (`VITE_HOUSING_BACKEND`; চুক্তি `docs/API_CONTRACT.md`)।
+ব্যাকএন্ড অ্যাডাপ্টার-ভিত্তিক: ডিফল্ট নিজস্ব REST সার্ভার (`server/`), dev-এ মক; Supabase মোড পর্ব P9 এ সরবে (`VITE_HOUSING_BACKEND`; চুক্তি `docs/api/PROJECTS_API_CONTRACT.md`)।
 
 ## চালানো
 
 ```bash
 npm install
-cp .env.example .env.local        # তারপর Supabase URL ও anon key বসান (শুধু VITE_ দুটি; service_role কখনো নয়)
-npm run dev                       # http://localhost:5173
+cp .env.example .env.local        # ডিফল্ট: REST ব্যাকএন্ড, API http://localhost:3001
+docker compose up -d db           # PostgreSQL
+npm --prefix server install && npm --prefix server run db:migrate && npm --prefix server run db:seed
+npm --prefix server run dev       # API http://localhost:3001 (আলাদা টার্মিনালে)
+npm run dev                       # http://localhost:5173 (API না চললে "সার্ভারে সংযোগ করা যায়নি")
+npm run dev:mock                  # সার্ভার ছাড়া, ইন-মেমরি মক ব্যাকএন্ডে
 npm run build                     # টাইপ-চেক + প্রোডাকশন বিল্ড (dist/)
 npm run preview                   # বিল্ড করা সাইট দেখা
 npm run lint
@@ -46,7 +50,7 @@ npm run build-map -- --in gadm41_BGD_3.json   # উপজেলা মানচ�
 
 ```bash
 docker compose up                 # UI http://localhost:5173 , API http://localhost:3001/api/v1/readyz
-VITE_HOUSING_BACKEND=rest docker compose up   # UI কে লোকাল API তে চালাতে (পড়া, লেখা ও ছবি; ডিফল্ট mock)
+VITE_HOUSING_BACKEND=mock docker compose up   # UI কে API ছাড়া মক ব্যাকএন্ডে চালাতে (ডিফল্ট rest: লোকাল API)
 ```
 
 ছবি NAS ড্রাইভারে `housing-storage` ভলিউমে থাকে (`docker compose down -v` এ মুছে যায়)। প্রথমবার কন্টেইনারে `npm ci` চলে বলে একটু সময় লাগে; package-lock বদলালে আবার চলে। কন্টেইনার কোনো `.env` ফাইল পড়ে না এবং সোর্স শুধু পড়তে পারে; তাই এখানে Supabase মোড চলে না, সেটি হোস্টে `npm run dev` দিয়ে চালান।

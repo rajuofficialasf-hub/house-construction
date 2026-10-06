@@ -21,7 +21,7 @@ import { createRestAdminUsersApi, createRestAuthProvider, createRestHousingApi, 
 
 export type BackendKind = 'supabase' | 'rest' | 'mock'
 
-const DEFAULT_BACKEND: BackendKind = 'supabase'
+const DEFAULT_BACKEND: BackendKind = 'rest'
 
 export function getBackendKind(): BackendKind {
   const raw = (import.meta.env.VITE_HOUSING_BACKEND ?? '').trim().toLowerCase()

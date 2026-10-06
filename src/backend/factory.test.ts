@@ -28,11 +28,26 @@ describe('adapter factory', () => {
     vi.stubEnv('VITE_HOUSING_BACKEND', 'mock')
     vi.stubEnv('DEV', false)
     const f = await import('./factory')
-    expect(f.getBackendKind()).toBe('supabase')
+    expect(f.getBackendKind()).toBe('rest')
+  })
+
+  test('with no backend set, the UI uses the REST backend', async () => {
+    vi.stubEnv('VITE_HOUSING_BACKEND', '')
+    expect((await import('./factory')).getBackendKind()).toBe('rest')
+  })
+
+  test('an unknown backend name falls back to REST', async () => {
+    vi.stubEnv('VITE_HOUSING_BACKEND', 'firebase')
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    expect((await import('./factory')).getBackendKind()).toBe('rest')
+    warn.mockRestore()
   })
 
   test('supabase and rest remain selectable', async () => {
     vi.stubEnv('VITE_HOUSING_BACKEND', 'rest')
     expect((await import('./factory')).getBackendKind()).toBe('rest')
+    vi.resetModules()
+    vi.stubEnv('VITE_HOUSING_BACKEND', 'supabase')
+    expect((await import('./factory')).getBackendKind()).toBe('supabase')
   })
 })

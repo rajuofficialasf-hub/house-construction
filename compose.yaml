@@ -2,7 +2,7 @@
 #   docker compose up        database + API (http://localhost:3001) + UI (http://localhost:5173)
 #   docker compose up -d db  database only, for running the API or UI on the host
 # Every port is bound to 127.0.0.1 so nothing is reachable from the network (DB-ROLE-03).
-# The UI uses the mock backend by default; VITE_HOUSING_BACKEND=rest points it at the local API.
+# The UI uses the local API (the REST backend) by default; VITE_HOUSING_BACKEND=mock runs it without one.
 # api and web run the host's source with their own node_modules volumes; see scripts/docker-dev-entry.sh.
 # Only the files each one needs are mounted, read-only: dependency code never sees .env files and
 # can't write to the checkout. init: true forwards stop signals so the API shuts down cleanly.
@@ -75,7 +75,7 @@ services:
     working_dir: /app
     command: ["npx", "vite", "--host", "0.0.0.0", "--port", "5173", "--strictPort"]
     environment:
-      VITE_HOUSING_BACKEND: ${VITE_HOUSING_BACKEND:-mock}
+      VITE_HOUSING_BACKEND: ${VITE_HOUSING_BACKEND:-rest}
       VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:${API_PORT:-3001}}
     ports:
       - "127.0.0.1:${WEB_PORT:-5173}:5173"
