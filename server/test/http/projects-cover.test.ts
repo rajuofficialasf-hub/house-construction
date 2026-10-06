@@ -3,13 +3,14 @@
 // from GET /api/v1/photos/:id (docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md, U25).
 import { readdir, rm } from 'node:fs/promises';
 import path from 'node:path';
-import { Writable } from 'node:stream';
+import { Readable, Writable } from 'node:stream';
 import sharp from 'sharp';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { createApp } from '../../src/app.js';
 import { createLogger } from '../../src/logger.js';
+import { saveCover } from '../../src/photos/service.js';
 import { project } from '../../src/projects/schemas.js';
 import { appDb, insertProject, insertRecord, ownerDb, resetTestData } from '../support/db.js';
 import { loginAdmin, TEST_ORIGIN } from '../support/session.js';
@@ -120,6 +121,25 @@ describe('PUT /projects/:key/cover', () => {
     expect(big.status).toBe(413);
     expect(await coverPath()).toBeNull();
     expect(await storedCount()).toBe(0);
+  });
+});
+
+describe('saveCover', () => {
+  it('removes the stored files when the project is gone by the time it saves', async () => {
+    const files = await Promise.all(
+      (['photo', 'thumb'] as const).map(async (variant) => {
+        const key = `housing/${variant}-orphan.webp`;
+        await local.storage.put(key, Readable.from([png]), { contentType: 'image/webp' });
+        return { variant, key, sizeBytes: png.length, contentType: 'image/webp' as const, originalName: null };
+      }),
+    );
+    expect(await storedCount()).toBe(2);
+    const actor = { id: '22222222-2222-4222-8222-222222222222', email: 'admin@example.org' };
+    await expect(
+      saveCover({ sql, storage: local.storage, publicApiUrl: TEST_PUBLIC_API_URL }, actor, 'gone_p', { kind: 'cover', files }, createLogger('silent')),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    expect(await storedCount()).toBe(0);
+    expect(await owner`select id from public.housing_files`).toEqual([]);
   });
 });
 

@@ -87,9 +87,16 @@ describe('project guard', () => {
     await refused(app`update public.housing_projects set parent_key = null where key = ${P}`, 'parent_key');
   });
 
-  it('keeps is_group while the project has a field', async () => {
+  it('keeps is_group while the project has a field or a record', async () => {
     await insertField(owner, { project_key: P, key: 'amount', type: 'money' });
     await refused(app`update public.housing_projects set is_group = true, file_prefix = null where key = ${P}`, 'is_group');
+    await insertProject(owner, { key: 'with_rec' });
+    await insertRecord(app, { project_type: 'with_rec' });
+    await refused(app`update public.housing_projects set is_group = true, file_prefix = null where key = 'with_rec'`, 'is_group');
+  });
+
+  it('keeps a group a group while it has children', async () => {
+    await refused(app`update public.housing_projects set is_group = false, file_prefix = 'hs' where key = 'housing'`, 'is_group');
   });
 
   it('keeps the photo mode while photos need it', async () => {
@@ -117,6 +124,12 @@ describe('project delete', () => {
     await insertProject(owner, { key: P });
     const rec = await insertRecord(app, { project_type: P });
     await app`delete from public.housing_beneficiaries where id = ${rec.id}`;
+    await refused(app`delete from public.housing_projects where key = ${P}`, 'key');
+  });
+
+  it('refuses a leaf whose counter row is missing', async () => {
+    await insertProject(owner, { key: P });
+    await owner`delete from public.housing_serial_counters where project_type = ${P}`;
     await refused(app`delete from public.housing_projects where key = ${P}`, 'key');
   });
 
@@ -186,10 +199,11 @@ describe('field guard', () => {
   });
 
   it('counts a private value as used', async () => {
-    const id = await insertField(owner, { project_key: P, key: 'phone', visibility: 'admin' });
+    const id = await insertField(owner, { project_key: P, key: 'nid', type: 'text', visibility: 'admin' });
     const rec = await insertRecord(app, { project_type: P });
-    await insertPrivate(app, rec.id, { phone: '01799999999' });
-    await refused(app`update public.housing_project_fields set type = 'text' where id = ${id}`, 'type');
+    await insertPrivate(app, rec.id, { nid: '1234567890' });
+    await refused(app`update public.housing_project_fields set visibility = 'public' where id = ${id}`, 'visibility');
+    await refused(app`delete from public.housing_project_fields where id = ${id}`, 'key');
   });
 
   it('lets an unused field change its key', async () => {

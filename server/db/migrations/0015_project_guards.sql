@@ -197,7 +197,14 @@ begin
     end if;
   end if;
 
-  if tg_op in ('UPDATE', 'DELETE') then
+  if tg_op = 'UPDATE' and new.project_key <> old.project_key then
+    raise exception 'ফিল্ডের প্রকল্প বদলানো যায় না' using errcode = 'HC400', detail = 'project_key';
+  end if;
+
+  -- Whether a record holds a value matters only for a delete or a change of key, type or
+  -- visibility, so a label edit or a reorder doesn't scan the project's records.
+  if tg_op = 'DELETE'
+     or (tg_op = 'UPDATE' and (new.key <> old.key or new.type <> old.type or new.visibility <> old.visibility)) then
     if old.visibility = 'admin' then
       used := exists (select 1 from public.housing_beneficiary_private bp
                         join public.housing_beneficiaries b on b.id = bp.record_id
@@ -215,9 +222,6 @@ begin
       return old;
     end if;
 
-    if new.project_key <> old.project_key then
-      raise exception 'ফিল্ডের প্রকল্প বদলানো যায় না' using errcode = 'HC400', detail = 'project_key';
-    end if;
     if used then
       if new.key <> old.key then
         raise exception '«%» ফিল্ডের মান রেকর্ডে আছে — key বদলানো যায় না', old.label_bn using errcode = 'HC400', detail = 'key';

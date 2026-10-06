@@ -152,6 +152,12 @@ describe('PATCH /projects/:key', () => {
     expect(res.body.error.details).toEqual({ reason: 'if_match' });
   });
 
+  it('passes a guard refusal through as 400 with its field', async () => {
+    const res = await send('patch', `/projects/${P}`, { slug: 'admin' });
+    expect(res.status).toBe(400);
+    expect(res.body.error.details).toEqual({ field: 'slug' });
+  });
+
   it('answers 404 for an unknown project, with or without If-Match', async () => {
     expect((await send('patch', '/projects/nope', { name_bn: 'ক' })).status).toBe(404);
     expect((await send('patch', '/projects/nope', { name_bn: 'ক' }, main, { 'if-match': new Date().toISOString() })).status).toBe(404);
