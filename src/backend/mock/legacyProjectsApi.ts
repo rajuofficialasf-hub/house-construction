@@ -1,10 +1,11 @@
 /**
- * প্রকল্প-রেজিস্ট্রি ছাড়া চলা ব্যাকএন্ডের ProjectsApi (REST ও mock অ্যাডাপ্টার)।
- * নিজস্ব সার্ভার এখনো এক-প্রকল্পের চুক্তিতে (`/api/v1/housing`), তাই Supabase এর পুরনো-ডাটাবেস পথের মতোই
- * ফলব্যাকের ৩টি প্রকল্প (ঘর নির্মাণ গ্রুপ, সেমিপাকা, টিন) দেখায়; প্রকল্প/ফিল্ড বদল NOT_IMPLEMENTED।
+ * মক ব্যাকএন্ডের ProjectsApi: প্রকল্প-রেজিস্ট্রি ছাড়া, Supabase এর পুরনো-ডাটাবেস পথের মতোই ফলব্যাকের ৩টি প্রকল্প
+ * (ঘর নির্মাণ গ্রুপ, সেমিপাকা, টিন) দেখায়; প্রকল্প/ফিল্ড বদল NOT_IMPLEMENTED। মক ইচ্ছা করেই বহু-প্রকল্পে বাড়ে না —
+ * প্রকল্পের নিয়ম শুধু সার্ভারে থাকে (docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md,
+ * "Deferred to Planning — settled")।
  */
-import { FALLBACK_PROJECTS } from './fallbackProjects'
-import type { ProjectsApi } from './interfaces/projectsApi'
+import { FALLBACK_PROJECTS } from '../fallbackProjects'
+import type { ProjectsApi } from '../interfaces/projectsApi'
 import {
   HousingApiError,
   type HousingStats,
@@ -12,7 +13,7 @@ import {
   type ProjectKey,
   type ProjectOverviewItem,
   type ProjectStats,
-} from './interfaces/types'
+} from '../interfaces/types'
 
 /** গ্রুপ-key যেটি এক-প্রকল্পের ব্যাকএন্ডে "সব রেকর্ড" (project_type ছাড়া) বোঝায় */
 export const LEGACY_GROUP_KEY = 'housing'

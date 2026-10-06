@@ -2075,7 +2075,7 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
 - **Tests:** none new. `npm test`, `npm run test:e2e:mock` and the mock contract run are the check (behaviour-free move).
 - **Done when:** `rg "legacyProjectsApi" src --glob '!src/backend/mock/**'` is empty, and the mock suites pass. The `LEGACY_GROUP_KEY` in `src/backend/supabase/stats.ts` is the Supabase adapter's own constant and stays until P9.
 - **Depends on:** U30, U31
-- **Status:** todo
+- **Status:** done
 
 ### U33. Registry errors by field in the UI
 - **Goal:** A duplicate slug, key, file prefix or field key shows its own message, and only a real stale edit shows "someone else changed this".
@@ -2374,7 +2374,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** U32 (move `legacyProjectsApi.ts` into `src/backend/mock/`), then U33, U35, U34.
+- **Next:** U33 (registry errors by `details.field` in the UI), then U35, U34.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.

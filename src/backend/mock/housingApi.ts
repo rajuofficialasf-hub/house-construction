@@ -19,7 +19,7 @@ import {
 } from '../interfaces/types'
 import { nfc } from '@/features/geo/geo'
 import { photoPath } from '@/features/housing/utils/imagePath'
-import { fromLegacyStats, LEGACY_GROUP_KEY, legacyNotSupported, legacyProjectType } from '../legacyProjectsApi'
+import { fromLegacyStats, LEGACY_GROUP_KEY, legacyNotSupported, legacyProjectType } from './legacyProjectsApi'
 import type { MockStore } from './store'
 
 /** প্রকল্প-রেজিস্ট্রি ছাড়া মক: শুধু ঘর নির্মাণের দুই প্রকল্প (সার্ভারের মতো) */
