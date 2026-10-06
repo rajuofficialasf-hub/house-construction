@@ -1,5 +1,6 @@
 import type { AuthProvider } from '../../src/backend/interfaces/authProvider'
 import type { HousingApi } from '../../src/backend/interfaces/housingApi'
+import type { ProjectsApi } from '../../src/backend/interfaces/projectsApi'
 
 export interface Credentials {
   email: string
@@ -14,8 +15,15 @@ export interface Credentials {
 export interface ContractHarness {
   api: HousingApi
   auth: AuthProvider
-  /** এডমিন অ্যাকাউন্ট (লেখার স্যুটের জন্য) */
+  /**
+   * প্রকল্প-রেজিস্ট্রির API। থাকলে runProjectsApiContract চলে; মকে নেই, কারণ মক ইচ্ছা করেই পুরনো তিন-প্রকল্পের
+   * দৃশ্যে থাকে (docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md, "Deferred to Planning — settled")।
+   */
+  projects?: ProjectsApi
+  /** এডমিন অ্যাকাউন্ট (লেখার স্যুটের জন্য); মোছার টেস্টের জন্য মূল এডমিন (main_admin) */
   admin?: Credentials
+  /** সাধারণ এডমিন (role admin): সব লেখা পারেন, মোছা নয় (AE1) */
+  plainAdmin?: Credentials
   /** আছে কিন্তু এডমিন তালিকায় নেই (AE2) */
   nonAdmin?: Credentials
   /** লগইনের মাধ্যমে নয়, সরাসরি এমন সেশন বসানো যাতে "লগইন করা কিন্তু এডমিন নয়" লেখা-অনুমতি পরীক্ষা করা যায় (মক-সেতু) */

@@ -2156,7 +2156,7 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
   - `npm run test:contract:supabase-local` passes, with any `knownGaps` listed in Progress for P9.
   - The mock contract run in `npm test` still passes.
 - **Depends on:** U30, U31, U29 (seed file)
-- **Status:** todo
+- **Status:** done
 
 ### P6 order and parallel lanes
 
@@ -2374,7 +2374,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** U35 (contract suite: `ProjectsApi` part and the new `HousingApi` blocks), then U34.
+- **Next:** U34 (REST is the default backend), then the P6 verification.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
@@ -2566,3 +2566,16 @@ Run these at the end of P1:
     - **REST known gap:** "create rejects an unknown project type as a validation error". The key is in the path, so REST answers 404 `NOT_FOUND`, like a hidden draft (P2 decisions). Supabase and the mock answer `VALIDATION_ERROR`. That case was split out of the year and name test, so those still run everywhere. **For P9's contract rewrite.**
     - The REST `stats`, `years` and `list` are `async`, so a missing key rejects instead of throwing synchronously; the unit test caught that.
     - U33: both duplicate-key 409s (a project's and a field's) carry `details.field = 'key'`, but the server's messages already tell them apart, so the UI passes a `key` conflict's message through and maps only `slug` and `file_prefix`. A zod refusal is told from a database one by `details.reason`, which only zod sets. The create body nests the project, so its fields arrive as `project.<field>`.
+    - **U35:**
+      - **Local Supabase wasn't a multi-project reference.** `supabase/config.toml` seeded only SQL 01–09 (from before the registry), and from a `06_seed.sql` path that `main` had moved to `sql/dev/`. So the stack had no records and no `projects` table. It now loads `sql/dev/06_seed.sql` and `09a`–`13`, the files as of `a8e2154`; `14` stays out. This is test configuration for the parity reference, not a new Supabase use.
+      - The Supabase harness admin is now `main_admin`, because `10b` lets only the main admin delete. `10b` normalizes text, so the NFC known gap was removed: it passes on Supabase now.
+      - The custom-field `HousingApi` blocks live in `tests/contract/projectsApiContract.ts` next to the `ProjectsApi` part, because they need a project with fields. Each test builds its own draft project, so the REST harness doesn't load `demo-project.sql`.
+      - The harness gains `projects` and `plainAdmin`; AE1 runs on REST and Supabase.
+      - **Supabase `PROJECT_KNOWN_GAPS`, for P9's contract rewrite:**
+        - the 409's `details.field`
+        - a project delete taking its unused fields (Supabase's FK refuses)
+        - a field-with-values delete is 400 (Supabase's adapter says 500)
+        - bulk insert routes private keys (Supabase refuses them)
+        - a visitor's next serial for a draft is `null` (Supabase's adapter says 1)
+        - the Supabase adapter's project cache across a logout
+      - **Counts:** REST contract 62 passed plus 1 known gap; local Supabase 57 passed plus 8 known gaps; mock unchanged.

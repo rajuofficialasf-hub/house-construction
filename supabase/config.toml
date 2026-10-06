@@ -67,7 +67,9 @@ schema_paths = []
 enabled = true
 # Specifies an ordered list of seed files to load during db reset.
 # Supports glob patterns relative to supabase directory: "./seeds/*.sql"
-# Local test stack only: the same SQL the live project was built from, in the order of supabase/README.md.
+# Local test stack only: the same SQL the live project was built from, in the order of supabase/README.md,
+# up to main commit a8e2154 (the parity reference for the move to the own stack; 14_project_users.sql is
+# after it and left out, docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md).
 # 08_reset_test_data.sql is left out on purpose (it wipes the seed).
 sql_paths = [
   "./sql/01_schema.sql",
@@ -75,9 +77,15 @@ sql_paths = [
   "./sql/03_rls.sql",
   "./sql/04_rpc_stats.sql",
   "./sql/05_storage.sql",
-  "./sql/06_seed.sql",
+  "./sql/dev/06_seed.sql",
   "./sql/07_rpc_bulk.sql",
   "./sql/09_activity_log.sql",
+  "./sql/09a_fix_photo_log.sql",
+  "./sql/10_projects.sql",
+  "./sql/10b_project_guards.sql",
+  "./sql/11_project_rpcs.sql",
+  "./sql/12_activity_log_v2.sql",
+  "./sql/13_money_limit.sql",
 ]
 
 [db.network_restrictions]

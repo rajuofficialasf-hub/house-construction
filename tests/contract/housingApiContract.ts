@@ -11,7 +11,7 @@ const TYPES: ProjectType[] = ['semi_pucca', 'tin']
 const P: ProjectType = 'semi_pucca'
 const MISSING_ID = '00000000-0000-4000-8000-ffffffffffff'
 
-const tag = () => `ct-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
+export const tag = () => `ct-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
 
 const input = (over: Partial<HousingRecordInput> = {}): HousingRecordInput => ({
   project_type: 'tin',
@@ -25,7 +25,7 @@ const input = (over: Partial<HousingRecordInput> = {}): HousingRecordInput => ({
   ...over,
 })
 
-async function code(p: Promise<unknown>): Promise<string> {
+export async function code(p: Promise<unknown>): Promise<string> {
   try {
     await p
     return 'NO_ERROR'
@@ -37,7 +37,7 @@ async function code(p: Promise<unknown>): Promise<string> {
 // ছবি সবসময় WebP হয়ে আসে (utils/photoSpec); Supabase Storage টাইপহীন ফাইল নেয় না। নিজস্ব সার্ভার ছবি ডিকোড করে,
 // তাই আসল একটি ২×২ WebP; অতিরিক্ত অংশ দিলে তা পেছনে জোড়া হয় (বড় ফাইলের টেস্টে)।
 const TINY_WEBP = Uint8Array.from(atob('UklGRiQAAABXRUJQVlA4IBgAAABQAQCdASoCAAIAAUAmJaQABYwAAP6igAA='), (c) => c.charCodeAt(0))
-const webp = (...extra: BlobPart[]) => new Blob([TINY_WEBP, ...extra], { type: 'image/webp' })
+export const webp = (...extra: BlobPart[]) => new Blob([TINY_WEBP, ...extra], { type: 'image/webp' })
 
 const sum = (o: Record<string, number>) => Object.values(o).reduce((a, b) => a + b, 0)
 

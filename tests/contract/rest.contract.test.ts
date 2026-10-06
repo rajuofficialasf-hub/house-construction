@@ -8,8 +8,9 @@ import { hashPassword } from '../../server/src/auth/password.js'
 import { createLogger } from '../../server/src/logger.js'
 import { appDb, insertAdmin, ownerDb, resetTestData } from '../../server/test/support/db.js'
 import { TEST_ORIGIN as SITE } from '../../server/test/support/session.js'
-import { createRestAuthProvider, createRestHousingApi } from '../../src/backend/rest'
+import { createRestAuthProvider, createRestHousingApi, createRestProjectsApi } from '../../src/backend/rest'
 import { runHousingApiContract } from './housingApiContract'
+import { runProjectsApiContract } from './projectsApiContract'
 import { cookieJarFetch } from './cookieJarFetch'
 import type { ContractHarness } from './harness'
 import { TEST_PUBLIC_API_URL, testStorage } from '../../server/test/support/storage'
@@ -24,6 +25,7 @@ const enabled = process.env.REST_CONTRACT === '1'
 const seedFile = fileURLToPath(new URL('../../server/db/seed/dev.sql', import.meta.url))
 
 const ADMIN = { email: 'contract-admin@example.org', password: 'contract admin password' }
+const PLAIN_ADMIN = { email: 'contract-plain-admin@example.org', password: 'contract plain admin password' }
 
 if (!enabled) {
   describe('REST backend (express + housing_test)', () => {
@@ -35,6 +37,7 @@ if (!enabled) {
   let server: Server
   let baseUrl = ''
   let passwordHash = ''
+  let plainHash = ''
   const jar = cookieJarFetch(SITE)
   // Photos go to a NAS driver on a temp folder, removed after the run.
   const photos = testStorage()
@@ -42,6 +45,7 @@ if (!enabled) {
   beforeAll(async () => {
     vi.stubGlobal('fetch', jar.fetch)
     passwordHash = await hashPassword(ADMIN.password)
+    plainHash = await hashPassword(PLAIN_ADMIN.password)
     const app = createApp({
       sql,
       storage: photos.storage,
@@ -70,8 +74,15 @@ if (!enabled) {
     await owner.file(seedFile)
     // The contract deletes records and photos, which only the main admin may do.
     await insertAdmin(owner, { email: ADMIN.email, passwordHash, role: 'main_admin' })
+    await insertAdmin(owner, { email: PLAIN_ADMIN.email, passwordHash: plainHash, role: 'admin' })
     jar.clear()
-    return { api: createRestHousingApi(baseUrl), auth: createRestAuthProvider(baseUrl), admin: ADMIN }
+    return {
+      api: createRestHousingApi(baseUrl),
+      projects: createRestProjectsApi(baseUrl),
+      auth: createRestAuthProvider(baseUrl),
+      admin: ADMIN,
+      plainAdmin: PLAIN_ADMIN,
+    }
   }
 
   runHousingApiContract('REST backend (express + housing_test)', makeRest, {
@@ -86,4 +97,6 @@ if (!enabled) {
       'create rejects an unknown project type as a validation error',
     ],
   })
+
+  runProjectsApiContract('REST backend (express + housing_test)', makeRest, { writes: true, nonAdminAccounts: false })
 }

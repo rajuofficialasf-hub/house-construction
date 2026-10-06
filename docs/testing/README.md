@@ -79,8 +79,11 @@ These contract tests are expected to fail on Supabase (`KNOWN_GAPS` in `tests/co
 | Contract test | What Supabase does | What protects users today |
 |---|---|---|
 | over-long name, empty division, serial 0 | Accepts a 201-character name and an empty division. Treats serial 0 as "no serial" and assigns the next one | `RecordForm`: `maxLength=200`, required-field and serial checks (`e2e/mock/record-validation.spec.ts`) |
-| text is trimmed and NFC-normalized on write | Stores the text as sent | `RecordForm` sends `nfc()` values (same spec) |
 | more than 500 rows is too large | Accepts any size and saves in chunks of 200 | The import wizard sends batches of 200 |
+
+The local stack loads `supabase/sql` up to `13_money_limit.sql`, the state of `main` at `a8e2154` that the own server matches. `10b_project_guards.sql` normalizes text, so the NFC test now passes there.
+
+The projects part (`tests/contract/projectsApiContract.ts`) has its own `PROJECT_KNOWN_GAPS` in the same file: behaviour the own server was built to do differently (the field named in a 409, a project delete taking its unused fields, guard refusals as 400, private keys routed in a bulk import, no next serial for a visitor's draft), plus the Supabase adapter's project cache. Each entry names the plan decision behind it (`docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md`).
 
 ### Found by this run
 
