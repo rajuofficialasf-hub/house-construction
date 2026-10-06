@@ -135,3 +135,14 @@ export const recordPatchBody = z
   .partial()
   .refine((patch) => Object.keys(patch).length > 0, { message: 'কোনো ফিল্ড দেওয়া হয়নি', params: { reason: 'empty' } });
 export type RecordPatchBody = z.infer<typeof recordPatchBody>;
+
+// Private values (§4.4.8): admin-only, replaced as a whole set, read in bulk for the CSV export.
+
+export const MAX_PRIVATE_IDS = 100;
+
+export const privateBody = z.strictObject({ data: customValues });
+export type PrivateBody = z.infer<typeof privateBody>;
+
+export const privateManyBody = z.strictObject({ ids: z.array(z.uuid()).max(MAX_PRIVATE_IDS) });
+
+export const privateValues = z.record(z.string(), z.union([z.string(), z.number()]));

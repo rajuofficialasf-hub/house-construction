@@ -36,6 +36,9 @@ import { project, projectField, projectKeyParams, projectListQuery } from './pro
 import {
   customValueKeys,
   FIELD_KEY,
+  privateBody,
+  privateManyBody,
+  privateValues,
   projectRecord,
   projectRecordsParams,
   projectSerialParams,
@@ -369,6 +372,27 @@ export function buildOpenApiDocument(): OpenApiDocument {
           responses: { 200: ok('The records found', { type: 'array', items: ref('ProjectRecord') }), ...errors(400, 404, 429, 500) },
         },
       },
+      '/records/{id}/private': {
+        get: admin("A record's private values, {} when it has none; never cached", {
+          parameters: idParam,
+          responses: { 200: ok('The private values', ref('PrivateValues')), ...errors(400, 401, 404, 429, 500) },
+        }, 'records-admin'),
+        put: admin("Replace a record's private values; omitted keys are removed, empty values aren't stored. Only the project's private, active fields (an unchanged archived value is kept)", {
+          parameters: idParam,
+          requestBody: body(privateBody),
+          responses: { 200: ok('The values as stored', ref('PrivateValues')), ...errors(400, 401, 403, 404, 429, 500) },
+        }, 'records-admin'),
+      },
+      '/projects/{key}/records/private': {
+        post: admin('Private values of up to 100 records of this project, by id; others and records with none are left out', {
+          parameters: parameters(projectRecordsParams, 'path'),
+          requestBody: body(privateManyBody),
+          responses: {
+            200: ok('Values by record id', { type: 'object', additionalProperties: ref('PrivateValues') }),
+            ...errors(400, 401, 403, 404, 429, 500),
+          },
+        }, 'records-admin'),
+      },
       '/records/{id}': {
         patch: admin('Change a record; a sent extra replaces the whole extra. Photo columns, project_type and serial_no are refused', {
           parameters: idParam,
@@ -409,6 +433,7 @@ export function buildOpenApiDocument(): OpenApiDocument {
       schemas: {
         HousingRecord: jsonSchema(housingRecord, 'output'),
         ProjectRecord: jsonSchema(projectRecord, 'output'),
+        PrivateValues: jsonSchema(privateValues, 'output'),
         Project: jsonSchema(project, 'output'),
         ProjectField: jsonSchema(projectField, 'output'),
         PageMeta: jsonSchema(pageMeta, 'output'),

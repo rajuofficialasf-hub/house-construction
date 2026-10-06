@@ -1,6 +1,6 @@
 import { pino, type DestinationStream, type Level, type Logger } from 'pino';
 
-// Never log credentials or session material (NE-LOG-02).
+// Never log credentials, session material or request bodies (NE-LOG-02).
 const REDACT = [
   'req.headers.authorization',
   'req.headers.cookie',
@@ -8,6 +8,9 @@ const REDACT = [
   '*.password',
   '*.password_hash',
   '*.token',
+  // No body is logged today; this keeps private values (phone, NID) out if that ever changes.
+  'req.body',
+  'res.body',
 ];
 
 /** A JSON logger with secrets redacted, writing to stdout unless given another destination. */

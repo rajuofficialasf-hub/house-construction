@@ -720,7 +720,7 @@ These settle what research turned up. They add to Technical decisions and change
   - **Delete:** a record delete removes the private row (asserted in U10). A plain admin has no delete route for private values. Clearing them is a PUT of `{}`, which the contract allows any admin.
 - **Done when:** the tests pass, and the OpenAPI document lists the three routes as admin-only.
 - **Depends on:** U7, U10 (the admin router and shared schemas)
-- **Status:** todo
+- **Status:** done
 
 ### U12. P1 review follow-ups
 - **Goal:** Close the P1 review's P3 items that are cheap and touch code P2 doesn't otherwise change.
@@ -797,7 +797,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** U11 (private values): `server/src/records/private.ts` and three routes in `records-admin.ts`.
+- **Next:** P2's finish: `ae-test` (full), `ae-simplify`, `ae-review`.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
@@ -851,3 +851,4 @@ Run these at the end of P1:
     - postgres.js picks the insert or update form of `${sql(object)}` from the word just before it. A table alias (`insert into t as b`, `update t as b set`) breaks that, so writes return the unaliased `ADMIN_RECORD_COLUMNS`.
     - `extra` keys are checked by `customValueKeys` on the raw object. A plain `z.record` puts the rejected key in the error path (so `details.field` would echo it) and assigns `__proto__`. `openapi.ts` describes that check by hand, because zod can't turn a custom check into JSON Schema.
     - `recordFields`, `writeText` and `serialNo` are exported from `housing/schemas.ts`. `actorOf` and `writeRateLimiter` are exported from `housing-admin.ts`. The records admin router has its own write-limit counter.
+  - **U11 notes:** `privateNoStore` runs before `requireAdmin`, so a 401 is also marked `private, no-store`. The guard-coverage test in `records-writes.test.ts` skips it when looking for the first real handler. The bulk read is a POST, so it counts against the per-admin write limit.
