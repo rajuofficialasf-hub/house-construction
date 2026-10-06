@@ -2237,7 +2237,7 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
 - **Tests:** as above, each asserting the returned rows and errors against hand-written expectations (`TS-11`).
 - **Done when:** `npm test` passes with both files.
 - **Depends on:** none (can start at P7's start, or during P6)
-- **Status:** todo
+- **Status:** done
 
 ### U37. Admin-rest groundwork
 - **Goal:** Specs in `e2e/admin/` run on `admin-rest` with the demo project, custom values and both admin roles.
@@ -2374,7 +2374,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** P7, U36 (unit tests for `importFields.ts` and `importAnalyze.ts`), then U37.
+- **Next:** U37 (admin-rest groundwork: `e2e/admin/`, the reset with the demo project and a plain admin, `loginAs`).
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
