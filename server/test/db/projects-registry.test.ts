@@ -34,8 +34,9 @@ describe('seeded registry', () => {
 });
 
 describe('records belong to a registered project', () => {
-  it('refuses an unknown project_type with an explicit serial through the foreign key', async () => {
-    await expect(insertRecord(app, { project_type: 'nope', serial_no: 1 })).rejects.toMatchObject({ code: '23503' });
+  // The foreign key stays as the backstop; the record check (0013) refuses first, with its own message.
+  it('refuses an unknown project_type with an explicit serial in the record check', async () => {
+    await expect(insertRecord(app, { project_type: 'nope', serial_no: 1 })).rejects.toMatchObject({ code: 'HC400' });
   });
 
   it('refuses an unknown project_type without a serial in the serial trigger first', async () => {
@@ -50,8 +51,11 @@ describe('records belong to a registered project', () => {
   it('refuses extra that is not an object or is 16 KB or more', async () => {
     await expect(app`
       insert into public.housing_beneficiaries (project_type, year, name, division, district, upazila, extra)
-      values ('semi_pucca', 2024, 'নাম', 'রংপুর', 'কুড়িগ্রাম', 'উলিপুর', '[1]'::jsonb)`).rejects.toMatchObject({ code: '23514' });
-    await expect(insertRecord(app, { extra: { note: 'x'.repeat(20_000) } })).rejects.toMatchObject({ code: '23514' });
+      values ('semi_pucca', 2024, 'নাম', 'রংপুর', 'কুড়িগ্রাম', 'উলিপুর', '[1]'::jsonb)`).rejects.toMatchObject({ code: 'HC400' });
+    // Three valid long texts of 2000 Bangla letters (about 18 KB) pass the record check and meet the size CHECK.
+    for (const key of ['a1', 'a2', 'a3']) await insertField(owner, { project_key: 'semi_pucca', key, type: 'long_text' });
+    const long = 'ক'.repeat(2000);
+    await expect(insertRecord(app, { extra: { a1: long, a2: long, a3: long } })).rejects.toMatchObject({ code: '23514' });
   });
 });
 
@@ -84,6 +88,7 @@ describe('project shape', () => {
 
 describe('private values', () => {
   it('are written by the runtime role and go with their record', async () => {
+    await insertField(owner, { project_key: 'semi_pucca', key: 'phone', type: 'phone', visibility: 'admin' });
     const { id } = await insertRecord(app);
     await app`insert into public.housing_beneficiary_private (record_id, data) values (${id}, ${app.json({ phone: '01711987654' })})`;
     await app`delete from public.housing_beneficiaries where id = ${id}`;

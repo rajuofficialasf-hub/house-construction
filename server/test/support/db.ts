@@ -115,6 +115,8 @@ export interface ProjectInput {
   is_published?: boolean;
   sort_order?: number;
   photo_mode?: 'before_after' | 'after_only' | 'none';
+  geo_depth?: 'upazila' | 'union';
+  core_fields?: Record<string, { required?: boolean }>;
 }
 
 /**
@@ -134,6 +136,8 @@ export async function insertProject(owner: Sql, input: ProjectInput): Promise<vo
     is_published: input.is_published ?? true,
     sort_order: input.sort_order ?? 100,
     photo_mode: input.photo_mode ?? 'after_only',
+    geo_depth: input.geo_depth ?? 'upazila',
+    core_fields: owner.json(input.core_fields ?? {}),
   };
   await owner`insert into public.housing_projects ${owner(row)}`;
   if (!isGroup) await owner`insert into public.housing_serial_counters (project_type) values (${input.key})`;
@@ -147,6 +151,12 @@ export interface FieldInput {
   visibility?: 'public' | 'admin';
   is_active?: boolean;
   sort_order?: number;
+  required?: boolean;
+  filterable?: boolean;
+  searchable?: boolean;
+  max_length?: number | null;
+  min_value?: number | null;
+  max_value?: number | null;
 }
 
 /** Inserts a project field as the owner and returns its id. */
@@ -159,8 +169,23 @@ export async function insertField(owner: Sql, input: FieldInput): Promise<string
     visibility: input.visibility ?? 'public',
     is_active: input.is_active ?? true,
     sort_order: input.sort_order ?? 10,
+    required: input.required ?? false,
+    filterable: input.filterable ?? false,
+    searchable: input.searchable ?? false,
+    max_length: input.max_length ?? null,
+    min_value: input.min_value ?? null,
+    max_value: input.max_value ?? null,
   };
   const [inserted] = await owner<{ id: string }[]>`insert into public.housing_project_fields ${owner(row)} returning id`;
   if (!inserted) throw new Error('insert returned no row');
   return inserted.id;
+}
+
+/** Stores a record's private values through the given connection, so the validation trigger runs. */
+export async function insertPrivate(sql: Sql | Tx, recordId: string, data: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const [row] = await sql<{ data: Record<string, unknown> }[]>`
+    insert into public.housing_beneficiary_private (record_id, data)
+    values (${recordId}, ${sql.json(data as Parameters<typeof sql.json>[0])}) returning data`;
+  if (!row) throw new Error('insert returned no row');
+  return row.data;
 }

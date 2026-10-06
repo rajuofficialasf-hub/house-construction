@@ -515,7 +515,7 @@ These settle what research turned up. They add to Technical decisions and change
   - `npm --prefix server test` is green, including the global setup's up, down, up cycle and every existing `/housing` suite (the trigger applies to them too)
   - `npm --prefix server run db:migrate` and `db:seed` work on the dev database
 - **Depends on:** none
-- **Status:** todo
+- **Status:** done
 
 ### U8. HC errors reach the client
 - **Goal:** A guard's own message and field key reach the client for class `HC`. Every other database error keeps its fixed text.
@@ -797,7 +797,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** P2. Run `ae-plan` on this file to add P2's units (record rules `0013`, HC error mapping, single-record API, private values), then `ae-work`.
+- **Next:** U9 (record reads). Lane B (U8, U12) runs in a parallel worktree and merges before U10.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
@@ -836,3 +836,4 @@ Run these at the end of P1:
       - record bodies refuse photo URL and thumb keys from every role
       - `details.field` is present only when it matches the field-key pattern
     - `ae-doc-review` ran on P2 (2026-10-06). It fixed the private PUT (update-then-insert, not an upsert), router mounting (no root `use()`), the `::text` casts, the `union_name` rule, and draft-group 404s. The user chose: strip non-public `extra` keys for visitors, add security-event log lines for private writes and bulk reads, and keep U12 in P2.
+  - **U7 notes:** the record trigger now refuses an unknown project, a non-object `extra` and an undefined private key before the FK or CHECK can, so three `projects-registry` tests expect `HC400` now. The size CHECK is reached with three valid 2000-letter long texts. `insertProject` gained `geo_depth` and `core_fields`.

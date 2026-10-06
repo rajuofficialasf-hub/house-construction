@@ -73,6 +73,12 @@ describe('function privileges', () => {
     expect(await publicExecutable(owner)).toEqual([]);
   });
 
+  it('lets housing_app run the custom-value check the record triggers call', async () => {
+    const [row] = await app`
+      select has_function_privilege('public.housing_field_value(public.housing_project_fields, jsonb)', 'execute') as ok`;
+    expect(row).toEqual({ ok: true });
+  });
+
   it('keeps functions added by later migrations away from PUBLIC', async () => {
     await expect(
       owner.begin(async (tx) => {
