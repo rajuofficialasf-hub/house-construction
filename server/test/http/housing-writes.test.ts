@@ -269,6 +269,10 @@ describe('write rate limit', () => {
       expect((await request(target).get('/api/v1/housing').set('cookie', as)).status).toBe(200);
       expect((await write(target, 'post', '/activity', as, { action: 'export', details: {} })).status).toBe(201);
     }
+    // Express routes these to the activity log too, so they aren't counted either.
+    for (const path of ['/activity/', '/Activity']) {
+      expect((await write(target, 'post', path, as, { action: 'export', details: {} })).status).toBe(201);
+    }
     expect((await write(target, 'post', '', as, input)).status).toBe(201);
   });
 

@@ -95,5 +95,6 @@ echo "deploy: $ENV_NAME is live on $sha"
 live=$(readlink -f "$current")
 while IFS= read -r old; do
   [[ $old == "$live" ]] && continue
-  git -C "$repo" worktree remove --force "$old"
+  # The release is already live, so a directory that won't go is reported, not a failed deploy.
+  git -C "$repo" worktree remove --force "$old" || echo "deploy: could not remove $old" >&2
 done < <(find "$releases" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' | sort -rn | tail -n +6 | cut -d' ' -f2-)

@@ -367,7 +367,7 @@ All server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$P
 ## Progress
 - **Branch:** `migrate/c6-deploy`
 - **Updated:** 2026-10-06 09:55
-- **Next:** ae-test (full), then simplify and review; U3's green CI run waits on a push
+- **Next:** push `migrate/c6-deploy` (needs the user's yes) and confirm `ci.yml` is green, then set U3 and the plan to done
 - **Uncommitted:** none
 - **Notes:**
   - Unit order: U1, U2, U7, U3, U4, U5, U6 (U3 depends on U7 for a clean audit).
@@ -386,5 +386,16 @@ All server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$P
       - `edge-rest` was green on a fresh seeded database (17 passed, 2 skipped), and a `connect-src 'none'` CSP made it fail.
     - The local dev database's C5 photos have `http://localhost:3001` URLs, so `edge-rest` correctly flags them as cross-origin. The local edge run needs a fresh seed; CI's seed has none.
   - U6: the restore drill was re-run as a plain `createdb` role (`housing_drill`, as the runbook sets up), not the superuser, and passed. The runbook sets the role passwords through `printf` piped into psql, so they never appear in `ps`.
+  - Full ae-test run (2026-10-06), all green:
+    - lint, typechecks, i18n, unit 166, bundle check, both audits 0;
+    - server 494, contract 40, admin-rest 34, mock e2e 53, public-rest 17, edge-rest 17 (fresh database);
+    - shellcheck and actionlint clean.
+  - Simplify: named the activity path, `render-nginx.sh` reuses `die`, and fixed a stale comment. Skipped: merging the read and write limiter builders (it touches `housing.ts`, outside the diff) and a composite action for the Playwright CI steps.
+  - Review (2026-10-06): one P1 and two P2s, plus four P3s, all fixed:
+    - **P1:** CI's edge nginx ran on the host network on port 80 while the step polled 8080. `local.conf` now listens on `HOUSING_LISTEN_PORT` (default 80; CI sets 8080).
+    - **P2:** a failed `pg_dump` could upload a truncated backup that Object Lock would keep. `backup.sh` now writes age's output to a temp file and uploads only after the pipeline succeeds.
+    - **P2:** the heartbeat URL went to curl as an argument; it now goes through `curl --config -`.
+    - **P3s:** the drill rejects a symlink or a path outside `/dev/shm` (with `realpath`); `/activity/` and `/Activity` aren't counted by the write limit (test added); a release that won't prune no longer fails a live deploy.
+    - Verified in containers: good and failed backups, the heartbeat, the drill, the identity checks, and nginx on 8080.
   - The deploy script runs from the repo clone's working tree, so the runbook updates that tree before each deploy.
   - `npm ci` runs with `--ignore-scripts` per command, not through `NPM_CONFIG_IGNORE_SCRIPTS`, which would also skip pre/post scripts on `npm run`.

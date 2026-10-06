@@ -22,8 +22,10 @@ source ./lib.sh
 use_environment "${1:-}"
 : "${BACKUP_BUCKET:?BACKUP_BUCKET is not set}"
 : "${AGE_IDENTITY:?AGE_IDENTITY is not set}"
-[[ $AGE_IDENTITY == /dev/shm/* ]] || die "AGE_IDENTITY must be under /dev/shm, so the private key never touches the disk"
-[[ -r $AGE_IDENTITY ]] || die "can't read $AGE_IDENTITY"
+# A real file under /dev/shm, not a symlink or a ../ path out of it: the key must stay in memory,
+# and the exit trap deletes this path.
+[[ -f $AGE_IDENTITY && ! -L $AGE_IDENTITY && -r $AGE_IDENTITY ]] || die "AGE_IDENTITY must be a readable file, not a symlink"
+[[ $(realpath -e -- "$AGE_IDENTITY") == /dev/shm/* ]] || die "AGE_IDENTITY must be under /dev/shm, so the private key never touches the disk"
 
 SCRATCH=housing_restore_drill
 cleanup() {

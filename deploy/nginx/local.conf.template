@@ -8,7 +8,7 @@ upstream housing_api_${HOUSING_ENV} {
 }
 
 server {
-    listen 80;
+    listen ${HOUSING_LISTEN_PORT};
     server_name _;
     server_tokens off;
 

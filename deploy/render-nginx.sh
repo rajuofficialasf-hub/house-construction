@@ -7,7 +7,8 @@
 #   cloudflare.conf   the client IP from Cloudflare (staging and production only)
 #
 #   deploy/render-nginx.sh <staging|production> <out dir>   needs HOUSING_SERVER_NAME
-#   deploy/render-nginx.sh local <out dir>                  needs HOUSING_API_UPSTREAM
+#   deploy/render-nginx.sh local <out dir>                  needs HOUSING_API_UPSTREAM; HOUSING_LISTEN_PORT
+#                                                           defaults to 80
 #
 # Every include points at HOUSING_NGINX_DIR, where the rendered files will live on the server
 # (default /etc/nginx/housing/<env>, or /etc/nginx/housing for local). Only the variables listed
@@ -38,13 +39,15 @@ case $target in
     : "${HOUSING_API_UPSTREAM:?HOUSING_API_UPSTREAM is not set (host:port of the API)}"
     export HOUSING_NGINX_DIR=${HOUSING_NGINX_DIR:-/etc/nginx/housing}
     export HOUSING_WEB_ROOT=${HOUSING_WEB_ROOT:-/usr/share/nginx/html}
+    # 80 in the compose container; CI runs nginx on the host network, where it takes 8080.
+    export HOUSING_LISTEN_PORT=${HOUSING_LISTEN_PORT:-80}
     server_template=local.conf.template
     ;;
   *) die "first argument must be staging, production or local" ;;
 esac
 
 # shellcheck disable=SC2016 # envsubst's list of names to replace, not shell expansions
-vars='${HOUSING_ENV} ${HOUSING_SERVER_NAME} ${HOUSING_API_UPSTREAM} ${HOUSING_NGINX_DIR} ${HOUSING_WEB_ROOT} ${HOUSING_TLS_CERT} ${HOUSING_TLS_KEY} ${HOUSING_ORIGIN_PULL_CA}'
+vars='${HOUSING_ENV} ${HOUSING_LISTEN_PORT} ${HOUSING_SERVER_NAME} ${HOUSING_API_UPSTREAM} ${HOUSING_NGINX_DIR} ${HOUSING_WEB_ROOT} ${HOUSING_TLS_CERT} ${HOUSING_TLS_KEY} ${HOUSING_ORIGIN_PULL_CA}'
 mkdir -p "$out"
 envsubst "$vars" <"$here/nginx/$server_template" >"$out/housing.conf"
 envsubst "$vars" <"$here/nginx/locations.conf.template" >"$out/locations.conf"

@@ -128,7 +128,7 @@ jobs:
         run: |
           npm run build:edge
           docker run -d --name edge --network host \
-            -e HOUSING_API_UPSTREAM=127.0.0.1:3001 \
+            -e HOUSING_API_UPSTREAM=127.0.0.1:3001 -e HOUSING_LISTEN_PORT=8080 \
             -v "$PWD/deploy:/deploy:ro" -v "$PWD/.edge/dist:/usr/share/nginx/html:ro" \
             nginx:1.20 bash -c "bash /deploy/render-nginx.sh local /etc/nginx/housing && cp /etc/nginx/housing/housing.conf /etc/nginx/conf.d/default.conf && exec nginx -g 'daemon off;'"
           for _ in $(seq 1 30); do

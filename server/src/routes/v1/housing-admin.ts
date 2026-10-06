@@ -33,6 +33,9 @@ const notFound = () => new AppError('NOT_FOUND', 'রেকর্ড পাও�
 /** The activity log's path inside this router; its POST isn't counted by the write limit. */
 const ACTIVITY_PATH = '/activity';
 
+/** Matches the way Express routes it: case-insensitive, with or without a trailing slash. */
+const isActivityPath = (path: string) => path.toLowerCase().replace(/\/+$/, '') === ACTIVITY_PATH;
+
 export interface WriteRateLimit {
   windowMs: number;
   limit: number;
@@ -107,7 +110,7 @@ export function housingAdminRouter({
   // its own events there.
   router.use((req, res, next) => (SAFE_METHODS.has(req.method) ? next() : requireAdmin(req, res, next)));
   router.use((req, res, next) =>
-    SAFE_METHODS.has(req.method) || req.path.toLowerCase() === ACTIVITY_PATH ? next() : limitWrites(req, res, next),
+    SAFE_METHODS.has(req.method) || isActivityPath(req.path) ? next() : limitWrites(req, res, next),
   );
 
   router.get(ACTIVITY_PATH, requireAdmin, async (req, res) => {
