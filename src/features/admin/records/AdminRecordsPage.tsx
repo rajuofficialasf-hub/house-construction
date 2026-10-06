@@ -4,7 +4,7 @@ import { Link, NavLink, useParams, useSearchParams } from 'react-router'
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import { useToast } from '@/components/useToast'
 import { formatBanglaNumber, toBanglaNumber } from '@/lib/banglaNumber'
-import { DEFAULT_PAGE_SIZE, getHousingApi, HousingApiError, type HousingRecord, type ListParams, type Project } from '@/backend'
+import { DEFAULT_LIST_ORDER, DEFAULT_PAGE_SIZE, getHousingApi, HousingApiError, type HousingRecord, type ListParams, type Project } from '@/backend'
 import { useProjects } from '@/features/projects/registry'
 import { downloadText } from '@/features/housing/utils/csvExport'
 import { ConfirmDialog } from '@/features/housing/components/ConfirmDialog'
@@ -72,8 +72,7 @@ function RecordsManager({ project }: { project: Project }) {
       project_type: projectType,
       page,
       page_size: DEFAULT_PAGE_SIZE,
-      sort: 'serial_no',
-      order: 'asc',
+      ...DEFAULT_LIST_ORDER, // নতুন সাল আগে, একই সালে সিরিয়াল ক্রমে (M-ধাপ ১৭)
       year: filters.year ?? undefined,
       division: filters.division || undefined,
       district: filters.district || undefined,

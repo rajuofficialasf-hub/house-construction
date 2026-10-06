@@ -331,7 +331,7 @@ Query (সব ঐচ্ছিক):
 | `division`, `district`, `upazila`, `union_name` | ঠিক মিল (NFC করে তুলনা) |
 | `f.<fieldKey>` | কাস্টম ফিল্ডে ঠিক মিল, যেমন `f.category=গরু`, `f.amount=5000`। **শুধু প্রকল্পের পাবলিক, সক্রিয় ও `filterable` ফিল্ড** গৃহীত; অন্য key নীরবে উপেক্ষিত (whitelist)। মান ক্যাটাগরির নিয়মে স্বাভাবিক করে তুলনা |
 | `q` | `name`, `father_or_husband_name`, `address` আর প্রকল্পের `searchable` পাবলিক ফিল্ডে আংশিক মিল (case-insensitive); ≤ ১০০ অক্ষর |
-| `sort` | `serial_no` (ডিফল্ট) \| `year` \| `name` \| `created_at` \| `union_name` \| `extra.<fieldKey>` (শুধু পাবলিক ফিল্ড; অন্যথায় `serial_no`); দ্বিতীয় ক্রম সবসময় `serial_no asc` |
+| `sort` | `serial_no` (ডিফল্ট) \| `year` \| `name` \| `created_at` \| `union_name` \| `extra.<fieldKey>` (শুধু পাবলিক ফিল্ড; অন্যথায় `serial_no`); দ্বিতীয় ক্রম সবসময় `serial_no asc`। ফ্রন্টএন্ডের তালিকা (পাবলিক ও এডমিন) পাঠায় `sort=year&order=desc` — নতুন সাল আগে, একই সালে সিরিয়াল (M-ধাপ ১৭); CSV এক্সপোর্ট `serial_no` |
 | `order` | `asc` (ডিফল্ট) \| `desc` |
 | `page` | int ≥ 1, ডিফল্ট 1 |
 | `page_size` | int 1–100, ডিফল্ট **50** |

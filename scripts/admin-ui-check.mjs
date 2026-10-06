@@ -209,7 +209,15 @@ async function fakeRecords(u, method, req, respond0) {
       const want = JSON.parse(cs)
       rows = rows.filter((r) => Object.entries(want).every(([k, v]) => r.extra?.[k] === v))
     }
-    rows = [...rows].sort((a, b) => a.serial_no - b.serial_no)
+    // PostgREST এর order=year.desc,serial_no.asc (M-ধাপ ১৭) — না থাকলে সিরিয়াল ক্রম
+    const orderBy = (u.searchParams.get('order') ?? 'serial_no.asc').split(',').map((x) => x.split('.'))
+    rows = [...rows].sort((a, b) => {
+      for (const [col, dir] of orderBy) {
+        const d = a[col] < b[col] ? -1 : a[col] > b[col] ? 1 : 0
+        if (d) return dir === 'desc' ? -d : d
+      }
+      return 0
+    })
     // পেজিনেশন (supabase-js range → offset/limit) — M-ধাপ ১৪: পাতা পেরিয়ে ←/→
     const off = Number(u.searchParams.get('offset') ?? 0)
     const lim = u.searchParams.get('limit')
@@ -1178,6 +1186,12 @@ for (const [w, mobile] of [[1280, false], [390, true]]) {
   // ক্যাটাগরি-চার্ট ব্যবহারকারীর সিদ্ধান্তে বাদ (২০২৬-১০-০৬)
   ok('ক্যাটাগরি-চার্ট নেই ("… অনুযায়ী" অংশ বা "আরো দেখুন (n)" নেই)', !(await p.$('section[aria-label$="অনুযায়ী"]')) && !/অনুযায়ী\n|আরো দেখুন \(/.test(s))
   const headers = await p.evaluate(() => [...document.querySelectorAll('table thead th')].map((th) => th.innerText.trim()))
+  // M-ধাপ ১৭: ডিফল্ট ক্রম — নতুন সাল আগে, একই সালে সিরিয়াল (বিজোড় সিরিয়াল ২০২৫, জোড় ২০২৪)
+  const order1 = await p.evaluate(() => [...document.querySelectorAll('table tbody tr')].map((tr) => tr.children[2]?.innerText.trim()))
+  const wantOrder = [...demoRecs].sort((a, b) => b.year - a.year || a.serial_no - b.serial_no).map((r) => r.name)
+  ok('ডিফল্ট ক্রম: নতুন সাল আগে (২০২৫ → ২০২৪), একই সালে সিরিয়াল ক্রমে', order1.join(',') === wantOrder.join(','), order1.join(', '))
+  const lastList = calls.filter((c) => c.includes('housing_beneficiaries')).at(-1) ?? ''
+  ok('তালিকার অনুরোধে order=year.desc,serial_no.asc', decodeURIComponent(lastList).includes('order=year.desc,serial_no.asc'), decodeURIComponent(lastList).slice(0, 160))
   ok('টেবিলের কলাম কনফিগ থেকে: অনুদানের সাল, ঠিকানা (মেলানো), ক্যাটাগরি, টাকা, উপকরণসহ ছবি', ['অনুদানের সাল', 'ঠিকানা', 'উপকরণের ক্যাটাগরি', 'টাকা', 'উপকরণসহ ছবি'].every((h) => headers.includes(h)), headers.join(' | '))
   ok('ঠিকানায় ইউনিয়ন (ডাটায় ইউনিয়ন আছে); টাকার ঘরে ৳', (await p.evaluate(() => document.querySelector('table tbody')?.innerText ?? '')).includes('করেরহাট') && (await p.evaluate(() => document.querySelector('table tbody')?.innerText ?? '')).includes('৳'))
   ok('মানচিত্র-প্যানেলের শিরোনামে প্রকল্পের একক ("উপকারভোগী কোথায় কোথায়")', s.includes('উপকারভোগী কোথায় কোথায়'), s.match(/[^\n]*কোথায় কোথায়[^\n]*/)?.[0])
@@ -1244,6 +1258,27 @@ for (const [w, mobile] of [[1280, false], [390, true]]) {
   ok('৩৯০px: অনুভূমিক ওভারফ্লো নেই', !(await m.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)))
   await m.screenshot({ path: '.smoke/list-demo-390.png', fullPage: true })
   await m.close()
+
+  // M-ধাপ ১৭: বিস্তারিতের ←/→ আর এডমিন তালিকাও একই ক্রমে
+  const sorted = [...demoRecs].sort((a, b) => b.year - a.year || a.serial_no - b.serial_no)
+  const dn = await newPage(1280)
+  await dn.goto(BASE + `/demo/${sorted[0].serial_no}`, { waitUntil: 'domcontentloaded' })
+  await settle(dn)
+  await dn.keyboard.press('ArrowRight')
+  const nextOk = await dn.waitForFunction((s) => location.pathname === s, { timeout: 10000 }, `/demo/${sorted[1].serial_no}`).then(() => true).catch(() => false)
+  const at = sorted.findIndex((r) => r.year !== sorted[0].year) // প্রথম পুরনো-সালের রেকর্ড
+  await dn.goto(BASE + `/demo/${sorted[at - 1].serial_no}`, { waitUntil: 'domcontentloaded' })
+  await settle(dn)
+  await dn.keyboard.press('ArrowRight')
+  const crossOk = await dn.waitForFunction((s) => location.pathname === s, { timeout: 10000 }, `/demo/${sorted[at].serial_no}`).then(() => true).catch(() => false)
+  ok(`বিস্তারিতে → তালিকার ক্রমে: #${sorted[0].serial_no} → #${sorted[1].serial_no}; সালের সীমা পেরিয়ে #${sorted[at - 1].serial_no} (${sorted[at - 1].year}) → #${sorted[at].serial_no} (${sorted[at].year})`, nextOk && crossOk, new URL(dn.url()).pathname)
+  await dn.goto(BASE + '/admin/records/demo', { waitUntil: 'domcontentloaded' })
+  await settle(dn)
+  const adminRows = await dn.evaluate(() => [...document.querySelectorAll('table tbody tr')].map((tr) => tr.innerText))
+  const adminOrder = adminRows.map((t) => sorted.find((r) => t.includes(r.name))?.serial_no)
+  ok('এডমিন রেকর্ড-তালিকাও নতুন সাল আগে, একই সালে সিরিয়াল ক্রমে', adminOrder.join(',') === sorted.map((r) => r.serial_no).join(','), adminOrder.join(','))
+  ok('ক্রম-পরীক্ষায় page error নেই', dn.errors.length === 0, dn.errors.join(' | '))
+  await dn.close()
   demoRecs.length = 0
 }
 

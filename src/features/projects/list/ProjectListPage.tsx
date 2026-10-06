@@ -1,7 +1,7 @@
 import { lt, t } from '@/i18n'
 import { useCallback, useMemo, useRef } from 'react'
 import { Outlet, useSearchParams } from 'react-router'
-import { DEFAULT_PAGE_SIZE, type ListParams, type Project } from '@/backend'
+import { DEFAULT_LIST_ORDER, DEFAULT_PAGE_SIZE, type ListParams, type Project } from '@/backend'
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import type { ListOutletContext } from '@/features/housing/pages/listContext'
 import { HousingSubnav } from '@/features/housing/components/HousingSubnav'
@@ -54,8 +54,7 @@ export function ProjectListPage({ project }: Props) {
       project_type: projectType,
       page,
       page_size: DEFAULT_PAGE_SIZE,
-      sort: 'serial_no',
-      order: 'asc',
+      ...DEFAULT_LIST_ORDER, // নতুন সাল আগে, একই সালে সিরিয়াল ক্রমে (M-ধাপ ১৭)
       year: filters.year ?? undefined,
       division: filters.division || undefined,
       district: filters.district || undefined,

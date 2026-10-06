@@ -11,6 +11,7 @@ import { createSupabaseHousingApi } from '../src/backend/supabase/housingApi.ts'
 import { createSupabaseProjectsApi } from '../src/backend/supabase/projectsApi.ts'
 import { resetLegacyState } from '../src/backend/supabase/legacy.ts'
 import { FALLBACK_PROJECTS } from '../src/backend/fallbackProjects.ts'
+import { DEFAULT_LIST_ORDER } from '../src/backend/interfaces/types.ts'
 
 type Op = [string, unknown[]]
 type Handler = (target: string, ops: Op[]) => { data: unknown; error: unknown; count?: number }
@@ -165,6 +166,11 @@ const rec = { id: 'r1', project_type: 'semi_pucca', serial_no: 1, year: 2024, na
   await api.create({ ...base, project_type: 'self_reliance' })
   await api.create({ ...base, project_type: 'self_reliance', extra: { amount: 2 } })
   ok('নতুন DB: প্রকল্পের সেটিং ক্যাশ থেকে (প্রতি লেখায় নতুন কল নয়)', log.filter((l) => l.target === 'projects').length === before)
+
+  // M-ধাপ ১৭: ডিফল্ট ক্রম — সাল বড় থেকে ছোট, তারপর সিরিয়াল ছোট থেকে বড়
+  await api.list({ project_type: 'semi_pucca', ...DEFAULT_LIST_ORDER })
+  const ord = log.filter((l) => l.target === 'housing_beneficiaries').at(-1)!.ops.filter((o) => o[0] === 'order').map((o) => JSON.stringify(o[1]))
+  ok('ডিফল্ট ক্রম: order(year, desc) তারপর order(serial_no, asc)', ord.join(' ') === '["year",{"ascending":false}] ["serial_no",{"ascending":true}]', ord.join(' '))
 }
 
 // ===================================================================== ৩. রেজিস্ট্রি এক কলে (M-ধাপ ১৫: project_fields embed)

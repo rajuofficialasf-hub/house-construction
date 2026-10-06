@@ -278,6 +278,13 @@ export interface ListParams {
 export const DEFAULT_PAGE_SIZE = 50
 export const MAX_PAGE_SIZE = 100
 
+/**
+ * তালিকার ডিফল্ট ক্রম (পর্ব চ, M-ধাপ ১৭ — প্রশ্ন ২১): **নতুন সাল আগে**, একই সালে সিরিয়াল ছোট থেকে বড়
+ * (অ্যাডাপ্টার serial_no ছাড়া অন্য ক্রমে সবসময় সিরিয়ালকে দ্বিতীয় ক্রম হিসেবে যোগ করে)। পাবলিক ও এডমিন তালিকা দুটোতেই;
+ * CSV এক্সপোর্ট সিরিয়াল ক্রমেই থাকে (আবার ইম্পোর্টের জন্য)। ইনডেক্স (project_type, year) আছে।
+ */
+export const DEFAULT_LIST_ORDER = { sort: 'year', order: 'desc' } as const satisfies { sort: SortField; order: SortOrder }
+
 export interface PageMeta {
   page: number
   page_size: number
