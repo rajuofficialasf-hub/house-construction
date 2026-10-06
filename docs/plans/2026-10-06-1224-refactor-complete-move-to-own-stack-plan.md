@@ -2094,7 +2094,7 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
   - anything else passes the server message through
 - **Done when:** `npm test` and `npm run lint` pass.
 - **Depends on:** none (can run beside U30–U32)
-- **Status:** todo
+- **Status:** done
 
 ### U34. REST is the default backend
 - **Goal:** `npm run dev`, the production build and `docker compose up` use the REST backend unless told otherwise.
@@ -2374,7 +2374,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** U33 (registry errors by `details.field` in the UI), then U35, U34.
+- **Next:** U35 (contract suite: `ProjectsApi` part and the new `HousingApi` blocks), then U34.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
@@ -2565,3 +2565,4 @@ Run these at the end of P1:
     - U31 also did U35's "explicit key" change, because the contract suite's bare `list()`/`stats()` calls failed as soon as the adapter refused a missing key. Every read now uses `semi_pucca`, and "the two project totals add up" compares with `stats('housing')`. The new HousingApi blocks are still U35's.
     - **REST known gap:** "create rejects an unknown project type as a validation error". The key is in the path, so REST answers 404 `NOT_FOUND`, like a hidden draft (P2 decisions). Supabase and the mock answer `VALIDATION_ERROR`. That case was split out of the year and name test, so those still run everywhere. **For P9's contract rewrite.**
     - The REST `stats`, `years` and `list` are `async`, so a missing key rejects instead of throwing synchronously; the unit test caught that.
+    - U33: both duplicate-key 409s (a project's and a field's) carry `details.field = 'key'`, but the server's messages already tell them apart, so the UI passes a `key` conflict's message through and maps only `slug` and `file_prefix`. A zod refusal is told from a database one by `details.reason`, which only zod sets. The create body nests the project, so its fields arrive as `project.<field>`.

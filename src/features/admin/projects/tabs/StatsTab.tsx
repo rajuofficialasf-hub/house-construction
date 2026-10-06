@@ -1,13 +1,13 @@
 import { pick, t } from '@/i18n'
 import { useState } from 'react'
-import { getProjectsApi, HousingApiError, type Project, type ProjectStats, type StatCardDef } from '@/backend'
+import { getProjectsApi, type Project, type ProjectStats, type StatCardDef } from '@/backend'
 import { useToast } from '@/components/useToast'
 import { STAT_ICONS, StatIcon, type StatIconKey } from '@/features/projects/registry'
 import { cardSummary, cardValue, formatCardValue } from '@/features/projects/stats/statCards'
 import { toBanglaNumber } from '@/lib/banglaNumber'
 import { Badge } from '../../ui/Badge'
 import { card, inputClass, primaryButton, secondaryButton, smallButton } from '../../ui/styles'
-import { friendlyProjectError } from '../projectRules'
+import { friendlyProjectError, isStaleEdit } from '../projectRules'
 import { StatCardPicker } from '../StatCardPicker'
 
 const MAX_CARDS = 8
@@ -55,8 +55,7 @@ export function StatsTab({ project, stats, blocked, onChanged }: { project: Proj
       await onChanged()
       toast.success(t('সংরক্ষিত'))
     } catch (err) {
-      const e = HousingApiError.from(err)
-      setError(e.code === 'CONFLICT' ? t('অন্য কেউ এর মধ্যে প্রকল্পটি বদলেছেন। আপনার পরিবর্তন সংরক্ষিত হয়নি — নতুন অবস্থা এনে আবার করুন।') : friendlyProjectError(e))
+      setError(isStaleEdit(err) ? t('অন্য কেউ এর মধ্যে প্রকল্পটি বদলেছেন। আপনার পরিবর্তন সংরক্ষিত হয়নি — নতুন অবস্থা এনে আবার করুন।') : friendlyProjectError(err))
     } finally {
       setBusy(false)
     }

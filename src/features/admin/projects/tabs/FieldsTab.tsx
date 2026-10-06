@@ -1,6 +1,6 @@
 import { lt, t } from '@/i18n'
 import { useState } from 'react'
-import { getProjectsApi, HousingApiError, type CoreFieldKey, type CoreFieldsConfig, type Project, type ProjectField } from '@/backend'
+import { getProjectsApi, type CoreFieldKey, type CoreFieldsConfig, type Project, type ProjectField } from '@/backend'
 import { useToast } from '@/components/useToast'
 import { ALWAYS_REQUIRED, FIELD_VALUE_SPECS, SYSTEM_FIELDS } from '@/features/projects/fields'
 import { ConfirmDialog } from '@/features/housing/components/ConfirmDialog'
@@ -12,7 +12,7 @@ import { card, inputClass, primaryButton, secondaryButton, selectClass, smallBut
 import { FieldEditorDrawer } from '../FieldEditorDrawer'
 import { FieldPreview } from '../FieldPreview'
 import { MAX_FIELDS } from '../fieldRules'
-import { friendlyProjectError } from '../projectRules'
+import { friendlyProjectError, isStaleEdit } from '../projectRules'
 
 type Status = 'required' | 'optional' | 'off'
 
@@ -58,9 +58,9 @@ export function FieldsTab({ project, blocked, onChanged }: { project: Project; b
       await onChanged()
       toast.success(okMsg)
     } catch (err) {
-      const e = HousingApiError.from(err)
-      toast.error(e.code === 'CONFLICT' ? t('অন্য কেউ এর মধ্যে প্রকল্পটি বদলেছেন — পাতা আবার আনা হলো, আবার চেষ্টা করুন') : friendlyProjectError(e))
-      if (e.code === 'CONFLICT') await onChanged()
+      const stale = isStaleEdit(err)
+      toast.error(stale ? t('অন্য কেউ এর মধ্যে প্রকল্পটি বদলেছেন — পাতা আবার আনা হলো, আবার চেষ্টা করুন') : friendlyProjectError(err))
+      if (stale) await onChanged()
     } finally {
       setBusy(false)
     }

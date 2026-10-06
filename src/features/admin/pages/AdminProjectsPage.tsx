@@ -7,7 +7,7 @@ import { projectPath, refreshProjects } from '@/features/projects/registry'
 import { ErrorNotice } from '@/features/housing/components/ErrorNotice'
 import { formatBanglaNumber } from '@/lib/banglaNumber'
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
-import { friendlyProjectError } from '../projects/projectRules'
+import { friendlyProjectError, isStaleEdit } from '../projects/projectRules'
 import { publishChecklist } from '../projects/publishChecklist'
 import { UnpublishDialog } from '../projects/UnpublishDialog'
 import { Badge } from '../ui/Badge'
@@ -74,9 +74,9 @@ export function AdminProjectsPage() {
       toast.success(okMsg)
       await after()
     } catch (err) {
-      const e = HousingApiError.from(err)
-      toast.error(e.code === 'CONFLICT' ? t('অন্য কেউ এর মধ্যে প্রকল্পটি বদলেছেন — তালিকা আবার আনা হলো, আবার চেষ্টা করুন') : friendlyProjectError(e))
-      if (e.code === 'CONFLICT') await load()
+      const stale = isStaleEdit(err)
+      toast.error(stale ? t('অন্য কেউ এর মধ্যে প্রকল্পটি বদলেছেন — তালিকা আবার আনা হলো, আবার চেষ্টা করুন') : friendlyProjectError(err))
+      if (stale) await load()
     } finally {
       setBusyKey(null)
     }

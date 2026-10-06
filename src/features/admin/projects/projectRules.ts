@@ -79,13 +79,38 @@ export function photoNameExample(prefix: string, photoMode: Project['photo_mode'
   return '—'
 }
 
+/** The field a server error names, without the create body's `project.` prefix; undefined when none. */
+function errorField(e: HousingApiError): string | undefined {
+  const field = e.details?.field
+  return typeof field === 'string' ? field.replace(/^project\./, '') : undefined
+}
+
 /**
- * ডাটাবেসের ত্রুটি → বাংলা বার্তা। গার্ডের বার্তা (projects_guard ইত্যাদি) আগে থেকেই বাংলা, তাই হুবহু;
- * unique/CHECK এর ইংরেজি Postgres বার্তা চেনা নাম দিয়ে অনুবাদ।
+ * অন্য কেউ এর মধ্যে প্রকল্প বদলেছেন (If-Match মেলেনি): CONFLICT কিন্তু কোনো ফিল্ড নেই। একই key/URL আগে থেকে
+ * থাকলে সার্ভার CONFLICT এর সাথে details.field দেয় — সেটি "পুরনো পাতা" নয়, নিজের বার্তা পায়।
+ */
+export function isStaleEdit(err: unknown): boolean {
+  const e = HousingApiError.from(err)
+  return e.code === 'CONFLICT' && errorField(e) === undefined
+}
+
+/**
+ * সার্ভারের ত্রুটি → বাংলা বার্তা। নিজস্ব সার্ভার কোন ঘর (details.field) জানায়, আর ইনপুটের নিয়ম ভাঙলে কারণও
+ * (details.reason); গার্ড ও ডুপ্লিকেট-key এর বার্তা আগে থেকেই বাংলা। Supabase এর ইংরেজি Postgres বার্তা চেনা
+ * constraint নাম দিয়ে অনুবাদ হয় — Supabase অ্যাডাপ্টার সরানোর সময় সেগুলোও যাবে।
  */
 export function friendlyProjectError(err: unknown): string {
   const e = HousingApiError.from(err)
   const m = e.message
+  const field = errorField(e)
+  if (e.code === 'CONFLICT' && field === 'slug') return t('এই URL আগে থেকেই আছে — অন্যটি দিন')
+  if (e.code === 'CONFLICT' && field === 'file_prefix') return t('এই প্রিফিক্স অন্য প্রকল্পে আছে — অন্যটি দিন')
+  // ইনপুটের নিয়ম (zod) ভাঙলে reason থাকে; সংরক্ষিত key এর মতো ডাটাবেসের নিষেধে থাকে না, তখন সার্ভারের বার্তাই ঠিক
+  if (e.code === 'VALIDATION_ERROR' && e.details?.reason !== undefined) {
+    if (field === 'slug') return t('শুধু ছোট ইংরেজি অক্ষর, অঙ্ক আর মাঝে হাইফেন (-), যেমন self-reliance')
+    if (field === 'key') return t('key: ইংরেজি ছোট অক্ষর দিয়ে শুরু, তারপর অক্ষর/অঙ্ক/_ (২–৪০ অক্ষর)')
+    if (field === 'name_bn' || field === 'name_en') return t('বাংলা ও ইংরেজি দুই নামই দিন (১–১২০ অক্ষর)')
+  }
   if (e.code === 'CONFLICT' && /projects_slug_key/.test(m)) return t('এই URL আগে থেকেই আছে — অন্যটি দিন')
   if (e.code === 'CONFLICT' && /projects_pkey/.test(m)) return t('এই key আগে থেকেই আছে — URL অংশ একটু বদলান')
   if (e.code === 'CONFLICT' && /projects_file_prefix_key/.test(m)) return t('এই প্রিফিক্স অন্য প্রকল্পে আছে — অন্যটি দিন')
