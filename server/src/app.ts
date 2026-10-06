@@ -63,6 +63,8 @@ const PUBLIC_READ_ROUTES = [
   /^\/api\/v1\/projects\/[^/]+\/records\/?$/i,
   /^\/api\/v1\/projects\/[^/]+\/records\/serial\/[^/]+\/?$/i,
   /^\/api\/v1\/projects\/[^/]+\/records\/serials\/?$/i,
+  /^\/api\/v1\/projects\/[^/]+\/years\/?$/i,
+  /^\/api\/v1\/projects\/[^/]+\/next-serial\/?$/i,
   // Anchored, so /records/:id/private never matches.
   /^\/api\/v1\/records\/[^/]+\/?$/i,
 ];

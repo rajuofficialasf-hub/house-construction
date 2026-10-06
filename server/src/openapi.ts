@@ -48,6 +48,7 @@ import {
   recordCreateBody,
   recordListQuery,
   recordPatchBody,
+  serialBody,
 } from './records/schemas.js';
 
 // The OpenAPI 3.1 description of the /api/v1 housing routes, served at /api/v1/openapi.json for
@@ -357,6 +358,36 @@ export function buildOpenApiDocument(): OpenApiDocument {
           parameters: parameters(projectRecordsParams, 'path'),
           requestBody: body(recordCreateBody),
           responses: { 201: ok('The new record', ref('ProjectRecord')), ...errors(400, 401, 403, 404, 409, 429, 500) },
+        }, 'records-admin'),
+      },
+      '/projects/{key}/years': {
+        get: {
+          summary: "Years that have records, newest first; a group's cover its children. A draft only for an admin session",
+          tags: ['records'],
+          parameters: parameters(projectRecordsParams, 'path'),
+          responses: { 200: ok('Years', { type: 'array', items: { type: 'integer' } }), ...errors(400, 404, 429, 500) },
+        },
+      },
+      '/projects/{key}/next-serial': {
+        get: {
+          summary: 'The serial the next new record will probably get; null for a group, an unknown key, or a draft without an admin session',
+          tags: ['records'],
+          parameters: parameters(projectRecordsParams, 'path'),
+          responses: {
+            200: ok('Prediction only; the real serial is assigned on create', {
+              type: 'object',
+              required: ['project_type', 'next_serial'],
+              properties: { project_type: { type: 'string' }, next_serial: { type: ['integer', 'null'] } },
+            }),
+            ...errors(400, 429, 500),
+          },
+        },
+      },
+      '/records/{id}/serial': {
+        post: admin('Move a record to another serial; the old serial is never reused, and the same serial changes nothing', {
+          parameters: idParam,
+          requestBody: body(serialBody),
+          responses: { 200: ok('The record with its new serial', ref('ProjectRecord')), ...errors(400, 401, 403, 404, 409, 429, 500) },
         }, 'records-admin'),
       },
       '/projects/{key}/records/bulk': {

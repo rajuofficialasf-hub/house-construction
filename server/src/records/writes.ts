@@ -63,3 +63,22 @@ export async function bulkUpdateRecords(sql: Sql, actor: Actor, project: RecordP
     return row.result;
   });
 }
+
+/**
+ * Moves a record to another serial through housing_change_serial (0002_serial.sql), which raises
+ * the counter, writes the audit row and never reissues the old serial; a taken serial is its 23505,
+ * which errors.ts maps to 409. The same serial changes nothing and logs nothing. Null when the
+ * record doesn't exist. Photos stay put: their URLs don't depend on the serial.
+ */
+export async function changeRecordSerial(sql: Sql, actor: Actor, id: string, serialNo: number): Promise<ProjectRecord | null> {
+  return withActor(sql, actor, async (tx) => {
+    const [current] = await tx<ProjectRecord[]>`
+      select ${tx(ADMIN_RECORD_COLUMNS)} from public.housing_beneficiaries where id = ${id} for update`;
+    if (!current) return null;
+    if (current.serial_no === serialNo) return current;
+    const [moved] = await tx<ProjectRecord[]>`
+      select ${tx(ADMIN_RECORD_COLUMNS)} from public.housing_change_serial(${id}, ${serialNo})`;
+    if (!moved) throw new Error('housing_change_serial returned no row');
+    return moved;
+  });
+}

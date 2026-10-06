@@ -1,11 +1,20 @@
 import { Router } from 'express';
 import type { Sql } from '../../db.js';
-import { getRecord, getRecordsBySerials, listProjectRecords, recordNotFound, recordProject } from '../../records/reads.js';
+import { AppError } from '../../errors.js';
+import {
+  getRecord,
+  getRecordsBySerials,
+  listProjectRecords,
+  projectNextSerial,
+  projectYears,
+  recordNotFound,
+  recordProject,
+} from '../../records/reads.js';
 import { fieldFilters, idParams, projectRecordsParams, projectSerialParams, recordListQuery, serialsQuery } from '../../records/schemas.js';
 import { DEFAULT_READ_RATE_LIMIT, readRateLimiter, type ReadRateLimit } from './housing.js';
 import { sessionAwareCaching, viewerOf } from './projects.js';
 
-// The single-record reads (docs/api/PROJECTS_API_CONTRACT.md §4.4.1–§4.4.3). Mounted at /api/v1 with
+// The record reads (docs/api/PROJECTS_API_CONTRACT.md §4.3, §4.4.1–§4.4.3). Mounted at /api/v1 with
 // full paths and no router.use(), so its limiter and caching touch only these routes. Public, but an
 // admin session also reaches drafts, so answers vary on the cookie.
 
@@ -35,6 +44,18 @@ export function recordsReadRouter(sql: Sql, readRateLimit: ReadRateLimit = DEFAU
     const { nos } = serialsQuery.parse(req.query);
     const viewer = viewerOf(req);
     res.json({ data: await getRecordsBySerials(sql, await recordProject(sql, key, viewer), nos, viewer) });
+  });
+
+  router.get('/projects/:key/years', ...read, async (req, res) => {
+    const { key } = projectRecordsParams.parse(req.params);
+    const years = await projectYears(sql, key, viewerOf(req));
+    if (!years) throw new AppError('NOT_FOUND', 'প্রকল্প পাওয়া যায়নি');
+    res.json({ data: years });
+  });
+
+  router.get('/projects/:key/next-serial', ...read, async (req, res) => {
+    const { key } = projectRecordsParams.parse(req.params);
+    res.json({ data: { project_type: key, next_serial: await projectNextSerial(sql, key, viewerOf(req)) } });
   });
 
   router.get('/records/:id', ...read, async (req, res) => {

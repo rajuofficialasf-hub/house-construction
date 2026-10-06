@@ -175,3 +175,38 @@ export async function checkPhotoSlot(sql: Sql, id: string, slot: PhotoKind): Pro
     });
   }
 }
+
+/** Whether the project exists for this viewer, and if it is a group; null when unknown or hidden. */
+async function visibleProject(sql: Sql, key: string, viewer: Viewer): Promise<{ is_group: boolean } | null> {
+  const [project] = await sql<{ is_group: boolean }[]>`
+    select is_group from public.housing_projects
+    where key = ${key} and (${viewer.admin} or key = any(public.housing_public_project_keys()))`;
+  return project ?? null;
+}
+
+/**
+ * The years a project's records have, newest first; a group's cover its children. A visitor gets
+ * only years of public projects, so a draft child adds none. Null when the project is unknown or
+ * hidden (§4.3).
+ */
+export async function projectYears(sql: Sql, key: string, viewer: Viewer): Promise<number[] | null> {
+  if (!(await visibleProject(sql, key, viewer))) return null;
+  const rows = await sql<{ year: number }[]>`
+    select distinct year from public.housing_beneficiaries
+    where project_type = any(public.housing_project_leaf_keys(${key}))
+      and (${viewer.admin} or project_type = any(public.housing_public_project_keys()))
+    order by year desc`;
+  return rows.map((row) => row.year);
+}
+
+/**
+ * The serial the project's next record will probably get. Null for a group, and for a key that is
+ * unknown or hidden from the viewer, so a visitor can't tell a draft from a key that doesn't exist
+ * (§4.3). The counter itself is housing_next_serial (0002_serial.sql).
+ */
+export async function projectNextSerial(sql: Sql, key: string, viewer: Viewer): Promise<number | null> {
+  const project = await visibleProject(sql, key, viewer);
+  if (!project || project.is_group) return null;
+  const [row] = await sql<{ next: number | null }[]>`select public.housing_next_serial(${key}) as next`;
+  return row?.next ?? null;
+}

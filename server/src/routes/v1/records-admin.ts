@@ -16,8 +16,9 @@ import {
   projectRecordsParams,
   recordCreateBody,
   recordPatchBody,
+  serialBody,
 } from '../../records/schemas.js';
-import { bulkInsertRecords, bulkUpdateRecords, createProjectRecord, patchRecord } from '../../records/writes.js';
+import { bulkInsertRecords, bulkUpdateRecords, changeRecordSerial, createProjectRecord, patchRecord } from '../../records/writes.js';
 import type { StorageDriver } from '../../storage/index.js';
 import { actorOf, bulkJson, checkRowCount, DEFAULT_WRITE_RATE_LIMIT, writeRateLimiter, type WriteRateLimit } from './housing-admin.js';
 
@@ -79,6 +80,14 @@ export function recordsAdminRouter({
   router.patch('/records/:id', requireAdmin, limitWrites, async (req, res) => {
     const { id } = idParams.parse(req.params);
     const record = await patchRecord(sql, actorOf(req), id, recordPatchBody.parse(req.body));
+    if (!record) throw recordNotFound();
+    res.json({ data: record });
+  });
+
+  router.post('/records/:id/serial', requireAdmin, limitWrites, async (req, res) => {
+    const { id } = idParams.parse(req.params);
+    const { serial_no } = serialBody.parse(req.body);
+    const record = await changeRecordSerial(sql, actorOf(req), id, serial_no);
     if (!record) throw recordNotFound();
     res.json({ data: record });
   });

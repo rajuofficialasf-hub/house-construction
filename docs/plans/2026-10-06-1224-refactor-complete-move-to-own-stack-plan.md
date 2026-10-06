@@ -1158,7 +1158,7 @@ These settle what P3's research turned up. They add to Technical decisions, the 
   - **OpenAPI:** the drift test passes.
 - **Done when:** the tests pass, and `curl localhost:3001/api/v1/projects/housing/years` on the dev stack returns the seeded years.
 - **Depends on:** U13 (`housing_project_leaf_keys`)
-- **Status:** todo
+- **Status:** done
 
 ### U18. Activity routes, server-only actions and the single private read line
 - **Goal:** Admins read the activity log for any project and post client events, a client can't forge a server-logged action, and a single private read leaves a security-event line.
