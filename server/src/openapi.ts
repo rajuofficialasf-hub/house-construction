@@ -34,6 +34,8 @@ import {
 } from './housing/schemas.js';
 import { project, projectField, projectKeyParams, projectListQuery } from './projects/schemas.js';
 import {
+  bulkCreateBody,
+  bulkUpdateBody as recordsBulkUpdateBody,
   customValueKeys,
   FIELD_KEY,
   privateBody,
@@ -354,6 +356,18 @@ export function buildOpenApiDocument(): OpenApiDocument {
           parameters: parameters(projectRecordsParams, 'path'),
           requestBody: body(recordCreateBody),
           responses: { 201: ok('The new record', ref('ProjectRecord')), ...errors(400, 401, 403, 404, 409, 429, 500) },
+        }, 'records-admin'),
+      },
+      '/projects/{key}/records/bulk': {
+        post: admin(`Import 1-${MAX_BULK_ROWS} rows into a project (a draft too) in one transaction: all or nothing. Keys of private fields in extra are stored as private values. A refused row is named by details.row_index`, {
+          parameters: parameters(projectRecordsParams, 'path'),
+          requestBody: body(bulkCreateBody),
+          responses: { 200: ok('How many rows were inserted', ref('BulkInsertResult')), ...errors(400, 401, 403, 404, 409, 413, 429, 500) },
+        }, 'records-admin'),
+        put: admin(`Update 1-${MAX_BULK_ROWS} rows by serial: absent, null or empty values stay as they are, extra merges, _clear empties the listed optional fields, and keys of private fields in extra merge into the private values`, {
+          parameters: parameters(projectRecordsParams, 'path'),
+          requestBody: body(recordsBulkUpdateBody),
+          responses: { 200: ok('How many rows changed, and the serials not found', ref('BulkUpdateResult')), ...errors(400, 401, 403, 404, 413, 429, 500) },
         }, 'records-admin'),
       },
       '/projects/{key}/records/serial/{n}': {

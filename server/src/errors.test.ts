@@ -172,6 +172,23 @@ describe('errorHandler with guard (HC) errors', () => {
     },
   );
 
+  it('adds the failing bulk row from HINT', async () => {
+    const err = new postgres.PostgresError({ message: MESSAGE, code: 'HC400', detail: 'extra.amount', hint: 'row_index=7' } as never);
+    const res = await request(appThrowing(err)).get('/boom');
+    expect(res.body.error.details).toEqual({ row_index: 7, field: 'extra.amount' });
+  });
+
+  it.each([
+    ['HC400', 'row_index=x'],
+    ['HC400', 'row_index=1; drop'],
+    ['HC400', 'row_index=1234'],
+    ['23514', 'row_index=1'],
+  ])('ignores a HINT that is not a row index, or on a non-HC error (%s %j)', async (code, hint) => {
+    const err = new postgres.PostgresError({ message: MESSAGE, code, hint } as never);
+    const res = await request(appThrowing(err)).get('/boom');
+    expect(res.body.error.details?.row_index).toBeUndefined();
+  });
+
   it('keeps any other HC code a generic 500', async () => {
     const res = await request(appThrowing(guardError('HC500', 'extra.amount'))).get('/boom');
     expect(res.status).toBe(500);

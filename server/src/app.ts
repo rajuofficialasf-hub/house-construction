@@ -100,6 +100,14 @@ function corsFor(allowedOrigins: readonly string[], publicReadOrigins: readonly 
 }
 
 /** Builds the Express app without listening, so tests run the real middleware chain. */
+// A project's bulk import path, anchored, with the project key's characters only.
+const PROJECT_BULK_PATH = /^\/api\/v1\/projects\/[a-z][a-z0-9_]*\/records\/bulk\/?$/;
+
+/** The bulk writes, which skip the 100kb parser; any other path or method keeps it. */
+function isBulkWrite(req: Request): boolean {
+  return req.path === BULK_PATH || ((req.method === 'POST' || req.method === 'PUT') && PROJECT_BULK_PATH.test(req.path));
+}
+
 export function createApp({
   sql,
   logger,
@@ -141,10 +149,10 @@ export function createApp({
   app.use(corsFor(allowedOrigins, publicReadOrigins));
   // Before body parsing, so a refused request costs nothing more.
   app.use(originCheck(allowedOrigins));
-  // 100kb for every body (NE-REQ-02) except the bulk import, which parses its own larger body
-  // after the admin check (routes/v1/housing-admin.ts).
+  // 100kb for every body (NE-REQ-02) except the bulk imports, which parse their own larger body
+  // after the admin check (routes/v1/housing-admin.ts, routes/v1/records-admin.ts).
   const json = express.json({ limit: '100kb' });
-  app.use((req, res, next) => (req.path === BULK_PATH ? next() : json(req, res, next)));
+  app.use((req, res, next) => (isBulkWrite(req) ? next() : json(req, res, next)));
   app.use('/api/v1', sessionMiddleware({ sql, now }, cookie.name));
 
   app.use('/api/v1', healthRouter(sql));

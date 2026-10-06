@@ -1,6 +1,6 @@
 import { withActor, type Actor, type Sql } from '../db.js';
 import { ADMIN_RECORD_COLUMNS, type ProjectRecord, type RecordProject } from './reads.js';
-import type { RecordCreateBody, RecordPatchBody } from './schemas.js';
+import type { BulkCreateBody, BulkUpdateBody, RecordCreateBody, RecordPatchBody } from './schemas.js';
 
 // The single-record writes (docs/api/PROJECTS_API_CONTRACT.md §4.4.4, §4.4.5). Each runs in one
 // withActor() transaction so the activity trigger records the session's admin. The record trigger
@@ -25,5 +25,41 @@ export async function patchRecord(sql: Sql, actor: Actor, id: string, patch: Rec
     const [updated] = await tx<ProjectRecord[]>`
       update public.housing_beneficiaries set ${tx(changes)} where id = ${id} returning ${tx(ADMIN_RECORD_COLUMNS)}`;
     return updated ?? null;
+  });
+}
+
+export interface BulkCreateResult {
+  inserted: number;
+  /** Always empty: the batch commits whole or not at all (§4.4.7); the field stays for the contract. */
+  failed: never[];
+}
+
+/**
+ * Inserts a batch into a non-group project in one call to housing_bulk_insert_records
+ * (0014_record_functions_v2.sql), all or nothing. A refused row comes back as HC400/HC409 with its
+ * index in HINT, which errors.ts turns into details.row_index.
+ */
+export async function bulkInsertRecords(sql: Sql, actor: Actor, project: RecordProject, body: BulkCreateBody): Promise<BulkCreateResult> {
+  return withActor(sql, actor, async (tx) => {
+    const [row] = await tx<{ inserted: number }[]>`
+      select public.housing_bulk_insert_records(
+        ${project.key}, ${tx.json(body.rows as never)}, ${body.mode === 'use_given_serial'}) as inserted`;
+    if (!row) throw new Error('housing_bulk_insert_records returned no row');
+    return { inserted: row.inserted, failed: [] };
+  });
+}
+
+export interface BulkUpdateResult {
+  updated: number;
+  missing: number[];
+}
+
+/** Updates a batch by serial in one call to housing_bulk_update_by_serial, all or nothing. */
+export async function bulkUpdateRecords(sql: Sql, actor: Actor, project: RecordProject, body: BulkUpdateBody): Promise<BulkUpdateResult> {
+  return withActor(sql, actor, async (tx) => {
+    const [row] = await tx<{ result: BulkUpdateResult }[]>`
+      select public.housing_bulk_update_by_serial(${project.key}, ${tx.json(body.rows as never)}) as result`;
+    if (!row) throw new Error('housing_bulk_update_by_serial returned no row');
+    return row.result;
   });
 }

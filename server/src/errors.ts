@@ -73,15 +73,19 @@ const SERIAL_KEY = 'housing_beneficiaries_project_serial_key';
 
 // A field key as the guards write it in DETAIL: a column (`union_name`) or `extra.<key>`.
 const GUARD_FIELD = /^[a-z_]+(\.[a-z][a-z0-9_]*)?$/;
+// The failing row of a bulk call, as the bulk functions write it in HINT (0014_record_functions_v2.sql).
+const GUARD_ROW = /^row_index=(\d{1,3})$/;
 
 /**
  * Errors our own triggers raise with SQLSTATE class HC. We wrote their text (fixed words, a label
  * and a field key), so the message reaches the client; DETAIL does only when it is a field key, so
- * nothing the client sent is echoed. Matched by code, since a raised error has no constraint name.
+ * nothing the client sent is echoed. A bulk call adds the failing row in HINT. Matched by code, since
+ * a raised error has no constraint name.
  */
 function guardError(err: postgres.PostgresError): AppError | undefined {
   const field = err.detail && GUARD_FIELD.test(err.detail) ? err.detail : undefined;
-  const details = field ? { field } : undefined;
+  const row = err.hint ? GUARD_ROW.exec(err.hint)?.[1] : undefined;
+  const details = field || row ? { ...(row && { row_index: Number(row) }), ...(field && { field }) } : undefined;
   if (err.code === 'HC400') return new AppError('VALIDATION_ERROR', err.message, details);
   if (err.code === 'HC409') return new AppError('CONFLICT', err.message, details);
   return undefined;
@@ -138,7 +142,7 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
   // Never the message or DETAIL: only the field key that guardError checked.
   if (err instanceof postgres.PostgresError && known.code === 'VALIDATION_ERROR') {
     req.log.warn(
-      { code: err.code, constraint: err.constraint_name, field: known.details?.field },
+      { code: err.code, constraint: err.constraint_name, field: known.details?.field, row_index: known.details?.row_index },
       'database refused input the schema let through',
     );
   }

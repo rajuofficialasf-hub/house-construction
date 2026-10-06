@@ -64,13 +64,13 @@ export function writeRateLimiter(limits: WriteRateLimit) {
 export const BULK_PATH = '/api/v1/housing/bulk';
 
 // 500 rows with every field at its cap in Bangla (3 bytes a character) is about 8.5 MB.
-const bulkJson = express.json({ limit: '10mb' });
+export const bulkJson = express.json({ limit: '10mb' });
 
 // Only the row count; the full body schema runs after this check.
 const bulkRows = z.object({ rows: z.array(z.unknown()) });
 
 /** More rows than the contract allows is 413, not 400, so it's checked before the schema. */
-function checkRowCount(body: unknown): void {
+export function checkRowCount(body: unknown): void {
   const parsed = bulkRows.safeParse(body);
   if (parsed.success && parsed.data.rows.length > MAX_BULK_ROWS) {
     throw new AppError('PAYLOAD_TOO_LARGE', `একবারে সর্বোচ্চ ${MAX_BULK_ROWS}টি সারি পাঠানো যায়`);

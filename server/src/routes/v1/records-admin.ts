@@ -4,10 +4,19 @@ import type { Sql } from '../../db.js';
 import { deleteRecord } from '../../housing/writes.js';
 import { recordNotFound, recordProject } from '../../records/reads.js';
 import { getPrivate, getPrivateMany, putPrivate } from '../../records/private.js';
-import { idParams, privateBody, privateManyBody, projectRecordsParams, recordCreateBody, recordPatchBody } from '../../records/schemas.js';
-import { createProjectRecord, patchRecord } from '../../records/writes.js';
+import {
+  bulkCreateBody,
+  bulkUpdateBody,
+  idParams,
+  privateBody,
+  privateManyBody,
+  projectRecordsParams,
+  recordCreateBody,
+  recordPatchBody,
+} from '../../records/schemas.js';
+import { bulkInsertRecords, bulkUpdateRecords, createProjectRecord, patchRecord } from '../../records/writes.js';
 import type { StorageDriver } from '../../storage/index.js';
-import { actorOf, DEFAULT_WRITE_RATE_LIMIT, writeRateLimiter, type WriteRateLimit } from './housing-admin.js';
+import { actorOf, bulkJson, checkRowCount, DEFAULT_WRITE_RATE_LIMIT, writeRateLimiter, type WriteRateLimit } from './housing-admin.js';
 
 // The single-record admin routes (docs/api/PROJECTS_API_CONTRACT.md §4.4.4–§4.4.6). Mounted at
 // /api/v1 with full paths and no router.use(), so each route names its own guard: the admin check
@@ -34,6 +43,24 @@ export function recordsAdminRouter({ sql, storage, writeRateLimit = DEFAULT_WRIT
     const body = recordCreateBody.parse(req.body);
     const project = await recordProject(sql, key, { admin: true });
     res.status(201).json({ data: await createProjectRecord(sql, actorOf(req), project, body) });
+  });
+
+  // Bulk (§4.4.7). The 100kb app parser skips these paths (app.ts) and the 10 MB one runs only after
+  // the admin check, so only an admin can make the server read a large body.
+  router.post('/projects/:key/records/bulk', requireAdmin, limitWrites, bulkJson, async (req, res) => {
+    const { key } = projectRecordsParams.parse(req.params);
+    checkRowCount(req.body);
+    const body = bulkCreateBody.parse(req.body);
+    const project = await recordProject(sql, key, { admin: true });
+    res.json({ data: await bulkInsertRecords(sql, actorOf(req), project, body) });
+  });
+
+  router.put('/projects/:key/records/bulk', requireAdmin, limitWrites, bulkJson, async (req, res) => {
+    const { key } = projectRecordsParams.parse(req.params);
+    checkRowCount(req.body);
+    const body = bulkUpdateBody.parse(req.body);
+    const project = await recordProject(sql, key, { admin: true });
+    res.json({ data: await bulkUpdateRecords(sql, actorOf(req), project, body) });
   });
 
   router.patch('/records/:id', requireAdmin, limitWrites, async (req, res) => {

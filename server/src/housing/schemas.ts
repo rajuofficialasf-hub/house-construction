@@ -87,7 +87,7 @@ export const nextSerialQuery = z.object({ project_type: projectType });
 
 export const MAX_BULK_ROWS = 500;
 export const MAX_DETAILS_BYTES = 8192;
-const MAX_SOURCE = 2000;
+export const MAX_SOURCE = 2000;
 const ACTION = /^[a-z_]{1,40}$/;
 /** Actions the server logs itself (activity trigger, login, logout); a client may not post them. */
 export const SERVER_LOGGED_ACTIONS: ReadonlySet<string> = new Set(['login', 'logout', 'create', 'update', 'delete', 'photo_update', 'serial_change']);
@@ -100,7 +100,7 @@ export function writeText(min: number, max: number) {
     .pipe(z.string().min(min).max(max));
 }
 
-const year = z.number().int().min(YEAR_MIN).max(YEAR_MAX);
+export const year = z.number().int().min(YEAR_MIN).max(YEAR_MAX);
 export const serialNo = z.number().int().min(1).max(INT4_MAX);
 // The sheet's original link, kept only as a reference; the UI never renders it as a link.
 const photoSource = z
@@ -143,6 +143,18 @@ export type UpdateBody = z.infer<typeof updateBody>;
 
 export const changeSerialBody = z.strictObject({ serial_no: serialNo });
 
+/** With use_given_serial every row needs a serial, each only once; the issue names the row. */
+export function checkGivenSerials(body: { mode: string; rows: { serial_no?: number | undefined }[] }, ctx: z.RefinementCtx): void {
+  if (body.mode !== 'use_given_serial') return;
+  const seen = new Set<number>();
+  body.rows.forEach((row, i) => {
+    const path = ['rows', i, 'serial_no'];
+    if (row.serial_no === undefined) ctx.addIssue({ code: 'custom', path, message: 'serial_no আবশ্যক', params: { reason: 'required' } });
+    else if (seen.has(row.serial_no)) ctx.addIssue({ code: 'custom', path, message: 'ব্যাচে একই serial_no দুবার', params: { reason: 'duplicate' } });
+    else seen.add(row.serial_no);
+  });
+}
+
 export const bulkInsertBody = z
   .strictObject({
     project_type: projectType,
@@ -150,23 +162,14 @@ export const bulkInsertBody = z
     // The route answers more than MAX_BULK_ROWS with 413 before this runs; max() is only a backstop.
     rows: z.array(createRow).min(1).max(MAX_BULK_ROWS),
   })
-  .superRefine((body, ctx) => {
-    if (body.mode !== 'use_given_serial') return;
-    const seen = new Set<number>();
-    body.rows.forEach((row, i) => {
-      const path = ['rows', i, 'serial_no'];
-      if (row.serial_no === undefined) ctx.addIssue({ code: 'custom', path, message: 'serial_no আবশ্যক', params: { reason: 'required' } });
-      else if (seen.has(row.serial_no)) ctx.addIssue({ code: 'custom', path, message: 'ব্যাচে একই serial_no দুবার', params: { reason: 'duplicate' } });
-      else seen.add(row.serial_no);
-    });
-  })
+  .superRefine(checkGivenSerials)
   .transform((body) =>
     body.mode === 'assign_serial' ? { ...body, rows: body.rows.map(({ serial_no: _ignored, ...rest }) => rest) } : body,
   );
 export type BulkInsertBody = z.infer<typeof bulkInsertBody>;
 
-// Bulk update leaves absent or null fields unchanged, and also blank required text, exactly as
-// housing_bulk_update_by_serial does (0004_bulk_update.sql); the import sends '' for blank cells.
+// Bulk update leaves absent or null fields unchanged, and also blank required text. The function
+// (0014_record_functions_v2.sql) also leaves '' unchanged in every field.
 function keepIfFilled(max: number) {
   return writeText(0, max)
     .transform((value) => value || undefined)

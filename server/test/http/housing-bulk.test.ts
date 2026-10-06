@@ -158,6 +158,13 @@ describe('PUT /api/v1/housing/bulk', () => {
     expect(rec).toEqual({ name: 'নতুন', address: 'অপরিবর্তিত', division: 'রংপুর' });
   });
 
+  it('leaves the address unchanged on an empty string', async () => {
+    await insertRecord(sql, { project_type: 'tin', address: 'অপরিবর্তিত' });
+    await bulk('put', { project_type: 'tin', rows: [{ serial_no: 1, address: '' }] });
+    const [rec] = await owner<{ address: string }[]>`select address from public.housing_beneficiaries`;
+    expect(rec?.address).toBe('অপরিবর্তিত');
+  });
+
   it('refuses a row without serial_no with 400 naming it, and more than 500 rows with 413', async () => {
     const missing = await bulk('put', { project_type: 'tin', rows: [{ serial_no: 1 }, { name: 'x' }] });
     expect(missing.status).toBe(400);

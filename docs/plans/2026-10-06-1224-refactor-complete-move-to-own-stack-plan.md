@@ -1011,7 +1011,7 @@ These settle what P3's research turned up. They add to Technical decisions, the 
   - **Guard coverage:** the existing check still passes with the two new routes.
 - **Done when:** the tests pass, and the OpenAPI drift test lists both routes.
 - **Depends on:** U13
-- **Status:** todo
+- **Status:** done
 
 ### U15. Photo upload and delete on records v2
 - **Goal:** Admins upload a record's before or after photo, respecting the project's photo mode before any file is stored. Only a `main_admin` removes one.

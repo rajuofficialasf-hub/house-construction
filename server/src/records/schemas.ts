@@ -1,13 +1,17 @@
 import { z } from 'zod';
 import { AppError } from '../errors.js';
 import {
+  checkGivenSerials,
   DEFAULT_PAGE_SIZE,
   housingRecord,
   INT4_MAX,
+  MAX_BULK_ROWS,
   MAX_PAGE_SIZE,
+  MAX_SOURCE,
   recordFields,
   serialNo,
   writeText,
+  year,
   YEAR_MAX,
   YEAR_MIN,
 } from '../housing/schemas.js';
@@ -145,3 +149,56 @@ export const privateManyBody = z.strictObject({ ids: z.array(z.uuid()).max(MAX_P
 
 /** A record's private values have the same shape as its public custom values. */
 export const privateValues = extraValues;
+
+// Bulk (§4.4.7). The route answers more than MAX_BULK_ROWS rows with 413 before these run; max()
+// is only a backstop. Keys of private fields may sit in extra: the bulk functions move them to the
+// private table (0014_record_functions_v2.sql).
+
+export const bulkCreateBody = z
+  .strictObject({
+    mode: z.enum(['assign_serial', 'use_given_serial']),
+    rows: z.array(recordCreateBody).min(1).max(MAX_BULK_ROWS),
+  })
+  .superRefine(checkGivenSerials)
+  .transform((body) =>
+    body.mode === 'assign_serial' ? { ...body, rows: body.rows.map(({ serial_no: _ignored, ...rest }) => rest) } : body,
+  );
+export type BulkCreateBody = z.infer<typeof bulkCreateBody>;
+
+/** What `_clear` may empty: optional columns and public custom fields, never a required one by name. */
+const CLEARABLE = /^(father_or_husband_name|address|union_name|prev_photo_source|current_photo_source|extra\.[a-z][a-z0-9_]{0,39})$/;
+const MAX_CLEAR = 50;
+
+const bulkUpdateRow = z.strictObject({
+  serial_no: serialNo,
+  year: year.nullish(),
+  name: writeText(0, 200).nullish(),
+  father_or_husband_name: writeText(0, 200).nullish(),
+  division: writeText(0, 100).nullish(),
+  district: writeText(0, 100).nullish(),
+  upazila: writeText(0, 100).nullish(),
+  union_name: writeText(0, 100).nullish(),
+  address: writeText(0, 1000).nullish(),
+  prev_photo_source: z.string().trim().max(MAX_SOURCE).nullish(),
+  current_photo_source: z.string().trim().max(MAX_SOURCE).nullish(),
+  extra: customValues.optional(),
+  _clear: z
+    .array(z.string().regex(CLEARABLE, 'মোছা যায় না এমন ঘর'))
+    .max(MAX_CLEAR)
+    .transform((keys) => [...new Set(keys)])
+    .optional(),
+});
+
+/** Leaves only values that change something: null and '' mean "unchanged", so only _clear empties a value. */
+const filled = (value: unknown) => value !== null && value !== undefined && value !== '';
+
+export const bulkUpdateBody = z
+  .strictObject({ rows: z.array(bulkUpdateRow).min(1).max(MAX_BULK_ROWS) })
+  .transform((body) => ({
+    rows: body.rows.map((row) => {
+      const kept = Object.fromEntries(Object.entries(row).filter(([, value]) => filled(value)));
+      if (row.extra) kept.extra = Object.fromEntries(Object.entries(row.extra).filter(([, value]) => filled(value)));
+      return kept as typeof row;
+    }),
+  }));
+export type BulkUpdateBody = z.infer<typeof bulkUpdateBody>;
