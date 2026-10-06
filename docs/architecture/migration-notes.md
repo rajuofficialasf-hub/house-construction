@@ -46,6 +46,12 @@ Roadmap: [../plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md](../pla
    - The UI and the API share one origin, so `PUBLIC_API_URL` is the site's origin.
    - Nightly encrypted backups go to an Object Lock bucket for 30 days, and the restore drill runs quarterly.
    - Production stays on Supabase until C7.
+6. Import and cutover: settled in C7 ([../plans/2026-10-06-1035-migrate-c7-cutover-plan.md](../plans/2026-10-06-1035-migrate-c7-cutover-plan.md); the steps in [../operations/runbook.md](../operations/runbook.md) sections 19 and 20).
+   - `import-supabase import` reads one read-only snapshot of the Supabase database over verified TLS, as a temporary read-only role, and writes it as `housing_owner` in one transaction: the same record ids and serials, the exact counters, serial changes and the activity log (same ids), with the log trigger off while loading.
+   - Admins keep their Supabase id and bcrypt hash and log in with their current password; the first login rehashes it to argon2id. Admins who couldn't log in arrive disabled.
+   - Photos are copied from the public bucket through the storage adapter (new UUID keys, `housing_files` rows, `PUBLIC_API_URL/api/v1/photos/<id>` URLs). A clean WebP is stored as is; anything else is re-encoded like an upload.
+   - `import-supabase verify` compares both databases and every photo URL; any difference fails.
+   - The write freeze is `is_housing_admin()` returning `false` on Supabase, which also keeps Supabase read-only for the 14-day rollback window. Rollback re-enters the new stack's writes by hand from its activity log, within 72 hours.
 
 ## Where each `supabase/sql` file went
 
@@ -67,6 +73,8 @@ The server's migrations are in `server/db/migrations/` and run with `npm --prefi
 | none | `migrations/0010_search_and_activity_indexes.sql` | `pg_trgm` in its own `extensions` schema (a trusted extension's functions stay executable by PUBLIC, so they are kept out of `public`); trigram indexes for the list search and the activity log's actor filter, and `(project_type, at desc)` for its project filter (C7) |
 
 ## Working rules until cutover
+
+From the cutover on, production runs on the new stack and these rules end: nothing ships on Supabase any more, and C8 removes it after the rollback window.
 
 Another developer keeps shipping features on the Supabase version while the new stack is built. Both run side by side until the cutover day. New development rules for the new stack come after cutover.
 

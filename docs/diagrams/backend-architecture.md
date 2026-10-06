@@ -51,7 +51,31 @@ flowchart TB
   MON[Uptime monitor] -->|/api/v1/readyz| CF
 ```
 
-Staging and production each have their own Linux user, PM2 daemon, Postgres cluster, env files in `/etc/housing/<env>/` (`api.env`, `build.env`, `deploy.env`) and photo bucket. Until cutover (C7) production runs only the API on loopback and the backups; its public vhost and UI stay on Supabase. Plan: `docs/plans/2026-10-06-0925-migrate-c6-deploy-plan.md`; steps for a person: `docs/operations/runbook.md`.
+Staging and production each have their own Linux user, PM2 daemon, Postgres cluster, env files in `/etc/housing/<env>/` (`api.env`, `build.env`, `deploy.env`) and photo bucket. Before the cutover, production runs only the API on loopback and the backups while its public vhost serves the Supabase UI; the cutover (below) switches the vhost to this picture. Plan: `docs/plans/2026-10-06-0925-migrate-c6-deploy-plan.md`; steps for a person: `docs/operations/runbook.md`.
+
+## Import and cutover (C7)
+
+```mermaid
+flowchart LR
+  subgraph SB[Supabase, frozen: is_housing_admin returns false]
+    SPG[(Postgres<br/>housing_* tables, auth.users)]
+    SST[(Storage<br/>public housing-photos bucket)]
+  end
+  subgraph BOX[Organization box, as housing-prod]
+    CLI[import-supabase import / verify<br/>owner role, prompted source URL]
+    PG[(PostgreSQL 17<br/>production cluster)]
+    API[housing-api-production<br/>127.0.0.1:3201]
+  end
+  S3P[(S3 photos bucket<br/>production)]
+  CLI -->|read-only snapshot,<br/>verified TLS, export role| SPG
+  CLI -->|GET inside --photo-base,<br/>no redirects| SST
+  CLI -->|storage.put, new UUID keys| S3P
+  CLI -->|one transaction:<br/>records, counters, log, admins, housing_files| PG
+  CLI -->|verify --photos-via| API
+  NG[nginx vhost for the prod host] -.->|switched after verify<br/>from the Supabase UI block| API
+```
+
+The import copies everything in one transaction after the photos are stored, and `verify` must pass before nginx is switched. Until the switch nothing public changes; for 72 hours after it, rollback puts the Supabase UI block back and unfreezes Supabase. Plan: `docs/plans/2026-10-06-1035-migrate-c7-cutover-plan.md`; steps: `docs/operations/runbook.md` section 19.
 
 ## Where each Supabase service goes
 

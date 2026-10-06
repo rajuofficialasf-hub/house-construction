@@ -75,7 +75,7 @@ Each chunk is one session (plan, build, review, merge). Order matters; C3 and C5
 | **C4** | Write endpoints: create, update, delete, change serial, bulk insert, bulk update, activity log; REST adapter writes; write contract and mock e2e suites on `rest` | R1 (writes), R2, R4–R6 | C2, C3 |
 | **C5** (done: `docs/plans/2026-10-05-1722-migrate-c5-photos-plan.md`) | Photos: storage adapter with S3 and NAS drivers, `housing_files` table, photo upload/delete/serve routes, EXIF strip. The driver copy script moves to the NAS switch; the REST image adapter isn't needed (the server returns the URLs) | R11, R12 | C2 |
 | **C6** (done: `docs/plans/2026-10-06-0925-migrate-c6-deploy-plan.md`) | CI, staging and production deploy (PM2 + nginx), backups and restore drill, uptime check; box steps in `docs/operations/runbook.md` | R2 (in CI) | C4, C5 |
-| **C7** | Data import and cutover: import script (records, serial counters, activity log, admins with password hashes, photos to S3), rehearsal on staging, cutover, rollback window | R10, R13, R16 | C6 |
+| **C7** (built: `docs/plans/2026-10-06-1035-migrate-c7-cutover-plan.md`; the cutover itself is runbook section 19) | Data import and cutover: import script (records, serial counters, activity log, admins with password hashes, photos to S3), rehearsal on staging, cutover, rollback window | R10, R13, R16 | C6 |
 | **C8** | Remove Supabase after the rollback window: dependency, adapter, `supabase/` folder, migrate-photos script, docs | R17 | C7 + rollback window |
 
 After every chunk: merge `main` into the migration branch and port anything the other developer added on Supabase (`docs/architecture/migration-notes.md`, "After each merge").
@@ -87,5 +87,5 @@ After every chunk: merge `main` into the migration branch and port anything the 
 
 ## Open questions
 - ~~**Postgres host**~~ (answered 2026-10-06): self-hosted PostgreSQL 17 on the PM2 box, one cluster per environment, localhost only.
-- **Admin password hashes:** confirm that Supabase lets us export `auth.users.encrypted_password` for R10; if not, admins reset passwords once at cutover. Needed before C7.
+- ~~**Admin password hashes**~~ (answered 2026-10-06): a direct Postgres connection to Supabase reads `auth.users.encrypted_password` (bcrypt), and the server accepts bcrypt until each admin's first login rehashes it. Nobody resets a password.
 - ~~**S3 provider**~~ (answered 2026-10-06): AWS S3, for photos and backups.

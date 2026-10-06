@@ -5,13 +5,13 @@ Everything a person does on the organization box, in AWS and in Cloudflare to ru
 - Plan: [../plans/2026-10-06-0925-migrate-c6-deploy-plan.md](../plans/2026-10-06-0925-migrate-c6-deploy-plan.md).
 - Picture: "Deployment (C6)" in [../diagrams/backend-architecture.md](../diagrams/backend-architecture.md).
 
-**Until cutover (C7), production stays on Supabase.** For production, C6 only prepares:
+**Until the cutover, production stays on Supabase.** For production, C6 only prepares:
 - the database;
 - the env files;
 - the API process, on loopback only;
 - the photo bucket and the backups.
 
-Don't touch production's nginx vhost, its DNS or its UI build. Section 16 lists exactly what to do for production now.
+Don't touch production's nginx vhost, its DNS or its UI build before the cutover. Section 16 lists what to do for production before it; section 19 is the cutover itself, with its checklist in section 20.
 
 Commands are for the RHEL 9 family: the box runs nginx 1.20.1, which is the RHEL 9 AppStream version. Run `cat /etc/os-release` first; Ubuntu differences are noted where they matter. `<env>` is `staging` or `production`; `<host>` is that environment's hostname. Fill in `<region>` and `<org>`.
 
@@ -244,7 +244,8 @@ AWS_SECRET_ACCESS_KEY=<housing-app-<env> secret>
 # staging
 VITE_HOUSING_BACKEND=rest
 VITE_API_BASE_URL=https://<host>
-# production until C7: the current Supabase values (the anon key is public)
+# production until the cutover (section 19.4 switches it to the two rest lines above):
+# the current Supabase values (the anon key is public)
 # VITE_HOUSING_BACKEND=supabase
 # VITE_SUPABASE_URL=https://<project>.supabase.co
 # VITE_SUPABASE_ANON_KEY=<anon key>
@@ -274,7 +275,7 @@ age-keygen -o housing-backups.key   # prints "Public key: age1…"
 - The private key file is the only way to read a backup. Keep two copies offline with two named people, for example in the org password manager and on an encrypted USB drive.
 - Losing it makes every backup useless.
 
-## 7. nginx (staging now; production in C7)
+## 7. nginx (staging now; production at the cutover, section 19.4)
 
 Render the vhost, install it, test it, reload:
 
@@ -307,7 +308,7 @@ Ubuntu has no SELinux. The vhost goes in `sites-available`, linked from `sites-e
 
 ## 8. Cloudflare
 
-For the staging hostname now, and production's at C7:
+For the staging hostname now, and production's the day before the cutover (section 19.4):
 
 1. Add a DNS record for `<host>`, proxied (orange cloud), pointing at the box.
 2. Set SSL/TLS to **Full (strict)**, and turn on **Always Use HTTPS**.
@@ -381,7 +382,7 @@ node --env-file=/etc/housing/staging/deploy.env server/dist/cli/admin.js create 
 node --env-file=/etc/housing/staging/deploy.env server/dist/cli/admin.js list
 ```
 
-Production's admins are imported at cutover (C7), with their Supabase passwords.
+Production's admins are imported at the cutover with their Supabase passwords (section 19); after it, they are managed with this CLI like staging's.
 
 ## 11. One-time S3 test run
 
@@ -405,7 +406,7 @@ The S3 driver's contract and smoke tests skip without a bucket, and there is no 
   - `https://<host>/api/v1/readyz`, with the keyword `ok`;
   - `https://<host>/`.
 
-  Alert the ops email. Add production's at C7.
+  Alert the ops email. Add production's at the cutover (section 19.5, step 9).
 - **Backup heartbeat**: in Healthchecks.io (free), create a check with a 1-day period and a 2-hour grace. Put its ping URL in `BACKUP_HEARTBEAT_URL`. `backup.sh` pings it only after a successful upload, so a missed or failed backup alerts by email.
 
 ## 13. Routine deploy and rollback
@@ -494,7 +495,7 @@ Then check on the box:
 curl -s http://127.0.0.1:3201/api/v1/readyz   # {"data":{"status":"ok"}}
 ```
 
-Leave these alone until C7:
+Leave these alone until the cutover (section 19):
 - production's nginx vhost and DNS;
 - its Cloudflare settings;
 - its UI. `build.env` holds the Supabase values, and the built UI isn't served.
@@ -514,7 +515,7 @@ Rotate when someone with access leaves, after a suspected leak, and once a year.
 
 Tick each item per environment.
 - Production in C6 covers only the items section 16 lists.
-- Every "for C6" note from chunks C1–C5 is here.
+- Every "for C6" note from chunks C1–C5 is here. The C7 items are in section 20.
 
 - [ ] PostgreSQL 17 cluster on localhost only; `roles.sql` run once; `housing` database created (C1)
 - [ ] Env files are mode 600, owned by the environment user; secrets are in no other place
@@ -535,3 +536,291 @@ Tick each item per environment.
 - [ ] The uptime monitors are green and alert the ops email (staging)
 - [ ] `pm2-logrotate` is installed with 50M × 14, compressed
 - [ ] The staging admins were created with the CLI
+
+## 19. Cutover (C7)
+
+Production moves from Supabase to the new API in one planned window. Plan: [../plans/2026-10-06-1035-migrate-c7-cutover-plan.md](../plans/2026-10-06-1035-migrate-c7-cutover-plan.md). Section 20 is the checklist.
+
+**Who**
+
+| Role | Does |
+|---|---|
+| Operator | Everything on the box: deploys, the import and verify, nginx, backups and drills, admin CLI |
+| Supabase owner | The Supabase dashboard and SQL editor: the export role, the CA file, the freeze, the admin review, the final dump, dropping the role |
+| AWS admin | Staging bucket versions after the rehearsal; drill credentials |
+| Cloudflare admin | Certificates, rules and cache purges for both hosts |
+| Verifier | The read-only checks from a developer machine |
+| Admins | Re-upload reported photo gaps before the cutover; log in once on the day |
+
+**How the import runs.** On the box, as the environment's user, with both env files: `deploy.env` first (the owner URL), then `api.env` (the photo bucket and the app's AWS key). A later env file wins, but nothing overrides a variable already in the shell, so the command clears any AWS identity first:
+
+```sh
+cd /srv/housing/<env>/current
+import_supabase() {
+  env -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY -u AWS_SESSION_TOKEN -u AWS_PROFILE \
+    node --env-file=/etc/housing/<env>/deploy.env --env-file=/etc/housing/<env>/api.env \
+    server/dist/cli/import-supabase.js "$@"
+}
+```
+
+- It prints the target database and the photo bucket with the access key id it will use; stop if either is wrong.
+- It asks for the Supabase database URL at a hidden prompt. Paste it there, never on a command line.
+- `--report <file>` must be a new file. It holds record and admin ids only, mode 600. Delete it with the checklist.
+- The command exits non-zero when anything is refused or any verify check fails.
+
+| Flag | Use |
+|---|---|
+| `--photo-base https://<ref>.supabase.co/storage/v1/object/public/housing-photos/` | Required for `import`; only photo URLs inside it are fetched |
+| `--source-ca <file>` | Supabase's CA certificate (Dashboard → Project Settings → Database → SSL configuration → Download certificate) |
+| `--replace --confirm-db housing` | Wipe a non-empty target first (staging rehearsals, a second cutover) |
+| `--discard-new-writes` | Also wipe a target whose activity log is newer than Supabase's |
+| `--without-passwords` | Staging only: no real hash is copied; every admin arrives disabled |
+| `verify --report <file> --photos --photos-via <origin>` | Re-check everything and GET every photo through `<origin>` |
+
+### 19.1 The Supabase export role (T−8 days, Supabase owner)
+
+A temporary role that can only read what the import needs, used for the rehearsal and the cutover. In the SQL editor (generate the password with `openssl rand -hex 24`):
+
+```sql
+create role housing_export login password '<password>' valid until '<cutover date + 2 days>' bypassrls;
+grant usage on schema public, auth to housing_export;
+grant select on public.housing_beneficiaries, public.housing_serial_counters, public.housing_serial_changes,
+  public.housing_activity_log, public.housing_admins to housing_export;
+grant select on all sequences in schema public to housing_export;   -- for the final pg_dump
+grant select (id, email, encrypted_password, raw_user_meta_data, created_at, deleted_at, banned_until)
+  on auth.users to housing_export;
+```
+
+- Connection string: Dashboard → Connect → **Session pooler** (the box may have no IPv6), with the user `housing_export.<ref>` and this password.
+- **If Supabase refuses** `bypassrls` or the grant on `auth.users`, use the `postgres` connection string instead, and reset the database password (Dashboard → Database settings) after the rehearsal and again after the cutover.
+- Give the string to the operator in person or through a password manager, never in chat or email.
+
+**Pre-check** (C1 note): the live activity-log trigger should be the fixed version. In the SQL editor:
+
+```sql
+select pg_get_functiondef('public.housing_log_record_change'::regproc) like '%array_append%' as fixed;
+```
+
+`false` means photo changes on Supabase have been failing, and the log has no rows for them. The import copies the log as it is; tell the admins, and don't re-run `09_activity_log.sql` on live just for this.
+
+### 19.2 Rehearsal on staging (T−7 days)
+
+Production's personal data sits on staging for this day only, without password hashes.
+
+1. **Lock staging** (Cloudflare admin): a WAF custom rule for the staging host, `(http.host eq "<staging host>" and not ip.src in {<operator IPs>})` → Block. Check from another network that staging answers 403.
+2. **No copies** (operator): `pm2 stop housing-backup-staging housing-sweep-staging`, and `sudo -u postgres psql -p 5433 -c 'show archive_mode'` says `off`. Take no `pg_dump` today.
+3. **Time a restore drill** on a staging backup taken before the import (section 14), for the freeze estimate.
+4. **Import** (start a timer):
+
+   ```sh
+   import_supabase import --report ~/rehearsal-report.json --without-passwords \
+     --replace --confirm-db housing --discard-new-writes \
+     --photo-base https://<ref>.supabase.co/storage/v1/object/public/housing-photos/ --source-ca ~/supabase-ca.crt
+   ```
+
+   `--replace` wipes staging's own records, photos and admins (staging's log is newer than Supabase's, hence `--discard-new-writes`). Supabase isn't frozen today, so drift in the end-of-import verify is expected only if an admin wrote during the run.
+5. **Verify with photos** (timer): `import_supabase verify --report ~/rehearsal-report.json --source-ca ~/supabase-ca.crt --photos --photos-via http://127.0.0.1:3101`.
+6. **Read the report** with the Supabase owner:
+   - `photo_gaps`: each is a photo already broken on Supabase. Admins re-upload those in the Supabase UI before the cutover.
+   - `admins_disabled`: with `--without-passwords` it lists everyone; the reasons other than `without_passwords` matter.
+7. **Speed**: `psql "$(grep ^DATABASE_URL= /etc/housing/staging/api.env | cut -d= -f2-)" -v q='<a common name fragment>' -f deploy/sql/perf-check.sql`. Any `Execution Time` over 50 ms is a finding to fix before the cutover.
+8. **Read-only checks** from an operator IP (verifier):
+
+   ```sh
+   REST_READONLY_URL=https://<staging host> npm run test:contract:rest-readonly
+   E2E_EDGE_URL=https://<staging host> npx playwright test --project=edge-rest
+   ```
+
+9. **Wipe, the same day** (operator, as `housing_owner` on 5433):
+
+   ```sql
+   truncate public.housing_activity_log, public.housing_serial_changes, public.housing_files,
+     public.housing_beneficiaries, public.housing_admin_sessions, public.housing_admins restart identity;
+   update public.housing_serial_counters set last_serial = 0;
+   vacuum full public.housing_activity_log, public.housing_serial_changes, public.housing_files,
+     public.housing_beneficiaries, public.housing_admins;
+   ```
+
+   Then `rm ~/rehearsal-report.json`.
+10. **Wipe the photos and their versions** (AWS admin; the app's key can't delete versions; needs `jq`). Repeat until `jq` exits non-zero:
+
+    ```sh
+    B=<org>-housing-photos-staging
+    aws s3api list-object-versions --bucket "$B" --prefix housing/ --max-items 1000 \
+      --query '{Objects: [Versions[].{Key:Key,VersionId:VersionId}, DeleteMarkers[].{Key:Key,VersionId:VersionId}][]}' --output json > /tmp/v.json
+    jq -e '.Objects | length > 0' /tmp/v.json && aws s3api delete-objects --bucket "$B" --delete file:///tmp/v.json
+    rm /tmp/v.json
+    ```
+
+11. **Restore staging**: recreate its admins (section 10), `pm2 start housing-backup-staging housing-sweep-staging`, remove the WAF rule.
+12. **Sign-off**: a named person runs `select count(*)` on each table in step 9 (all `0`) and `aws s3api list-object-versions --bucket <org>-housing-photos-staging --prefix housing/ --max-items 1` (no versions), then ticks the rehearsal line in section 20.
+13. Fill the **Rehearsal** column below. Freeze length ≈ import + verify + backup + drill + 15 minutes for the switch and smoke tests.
+
+| Step | Local baseline (20 records) | Rehearsal |
+|---|---|---|
+| Import (records, admins, photos) | 0.5 s | |
+| Verify with photos | 0.3 s | |
+| `backup.sh production` | | |
+| Restore drill | | |
+
+### 19.3 T−2 days
+
+- Announce the freeze window to the admins: from that time no edits, uploads or imports on the old site; log in on the new one once it's announced. Public visitors see no change.
+- Agree with the other developer that nothing using the Supabase service-role key (it bypasses RLS and the freeze) runs from the freeze on.
+
+### 19.4 T−1 day (no public change)
+
+1. **Cloudflare** (section 8) for `<prod host>`: an origin certificate, Authenticated Origin Pulls on, the login WAF rule. The DNS record already points at the box (it serves the Supabase UI today).
+2. **Box** (operator):
+   - `dnf install -y postgresql17-contrib` (migration 0010 needs `pg_trgm`).
+   - In `/etc/housing/production/build.env`, replace the Supabase values with:
+
+     ```sh
+     VITE_HOUSING_BACKEND=rest
+     VITE_API_BASE_URL=https://<prod host>
+     ```
+
+   - Check `PUBLIC_API_URL=https://<prod host>` in `api.env`: the imported photo URLs are built from it.
+   - `deploy/deploy.sh production <sha>`: builds the `rest` UI into `current/dist`, backs up, migrates to 0010. The public vhost still serves the Supabase UI.
+   - Render production's nginx files without enabling them:
+
+     ```sh
+     HOUSING_SERVER_NAME=<prod host> deploy/render-nginx.sh production /tmp/housing-nginx-production
+     sudo install -d -m 755 /etc/nginx/housing/production
+     sudo cp /tmp/housing-nginx-production/* /etc/nginx/housing/production/
+     sudo install -m 644 origin.pem /etc/nginx/housing/production/origin.pem
+     sudo install -m 600 origin.key /etc/nginx/housing/production/origin.key
+     ```
+
+   - Find the Supabase UI's server block (`sudo grep -rl 'server_name <prod host>' /etc/nginx/`) and note the file and its `root` directory. Copy the file to `/etc/nginx/housing/supabase-ui.conf.bak`. Leave both in place.
+3. **Supabase owner**: the export role exists (19.1); the CA file is on the box at `~housing-prod/supabase-ca.crt`.
+
+### 19.5 Cutover day
+
+Note the start time; it is the "cutover time" for rollback.
+
+1. **Freeze** (Supabase owner). Save the live definition first, to undo the freeze with:
+
+   ```sql
+   select pg_get_functiondef('public.is_housing_admin'::regproc);   -- copy the result into a file
+   ```
+
+   Then:
+
+   ```sql
+   create or replace function public.is_housing_admin()
+   returns boolean language sql stable security definer set search_path = public
+   as $$ select false $$;
+   ```
+
+   Check it as an admin would see it (before the freeze this returns `true`):
+
+   ```sql
+   begin;
+   set local role authenticated;
+   set local request.jwt.claims = '{"sub":"<an admin user_id>","role":"authenticated"}';
+   select public.is_housing_admin();   -- false
+   rollback;
+   ```
+
+   The old admin UI still *shows* admin pages (`housing_current_admin()` reads the list directly); every write from it fails. Record `select count(*) from public.housing_activity_log` and `select max(updated_at) from public.housing_beneficiaries`.
+2. **Import** (operator):
+
+   ```sh
+   import_supabase import --report ~/cutover-report.json \
+     --photo-base https://<ref>.supabase.co/storage/v1/object/public/housing-photos/ --source-ca ~/supabase-ca.crt
+   ```
+
+3. **Verify** (operator): `import_supabase verify --report ~/cutover-report.json --source-ca ~/supabase-ca.crt --photos --photos-via http://127.0.0.1:3201`. The Supabase owner re-runs the two step 1 queries: unchanged.
+4. **Admins** (Supabase owner, operator): go through `admins_disabled` and `node --env-file=/etc/housing/production/deploy.env server/dist/cli/admin.js list`. Disable anyone who shouldn't be an admin any more (`admin.js disable --email …`).
+5. **Backup and drill** (operator): `deploy/backup.sh production`, then the restore drill on that backup (section 14, as the staging user, with `SOURCE_DATABASE_URL` from production's `deploy.env`).
+6. **Switch** (operator, Cloudflare admin):
+
+   ```sh
+   sudo mv <the Supabase UI server block file> /etc/nginx/housing/supabase-ui.conf.disabled
+   echo 'include /etc/nginx/housing/production/housing.conf;' | sudo tee /etc/nginx/conf.d/housing-production.conf
+   sudo nginx -t && sudo systemctl reload nginx
+   ```
+
+   If `nginx -t` fails: put the old file back, remove `housing-production.conf`, run `nginx -t` again, and fix before retrying. Then the Cloudflare admin purges the cache for `<prod host>`.
+7. **Smoke tests**:
+   - Operator: `import_supabase verify --report ~/cutover-report.json --source-ca ~/supabase-ca.crt --photos --photos-via https://<prod host>`.
+   - Verifier:
+
+     ```sh
+     REST_READONLY_URL=https://<prod host> npm run test:contract:rest-readonly
+     E2E_EDGE_URL=https://<prod host> npx playwright test --project=edge-rest
+     ```
+
+   - The Authenticated Origin Pulls and WAF checks from section 8, for `<prod host>`.
+8. **Admins log in** once each and open the activity log. This replaces each imported bcrypt hash with argon2id. No test edit in production: a test record would use up a real serial number.
+9. **Monitor**: production's `https://<prod host>/api/v1/readyz` and `/` in the uptime monitor (section 12). Announce that edits are open.
+10. **End of the day**: `admin.js list`. Disable anyone whose hash is still `bcrypt`; they get `set-password` and `enable` when they ask (the C2 timing gap stays closed).
+
+Freeze length = steps 1–8.
+
+### 19.6 After the cutover
+
+- **Final Supabase dump** (the same day; Supabase is frozen, so it holds what was imported). On the box as the production user, in memory only:
+
+  ```sh
+  umask 077; d=$(mktemp -d /dev/shm/supabase-final.XXXXXX)
+  read -rs PGPASSWORD; export PGPASSWORD   # the export role's password
+  PGSSLMODE=verify-full PGSSLROOTCERT=~/supabase-ca.crt \
+    pg_dump -Fc -h <pooler host> -p 5432 -U housing_export.<ref> -d postgres -t 'public.housing_*' -f "$d/dump"
+  set -a; . /etc/housing/production/deploy.env; set +a
+  age -r "$AGE_RECIPIENT" -o "$d/dump.age" "$d/dump"
+  aws s3 cp "$d/dump.age" "s3://$BACKUP_BUCKET/production/supabase-final-$(date -u +%Y%m%dT%H%M%SZ).pgdump.age"
+  rm -rf "$d"; unset PGPASSWORD
+  ```
+
+  - The `.pgdump.age` suffix keeps the restore drill from taking it for the newest backup.
+  - It holds no `auth.users` rows; the hashes are in the new database.
+  - Object Lock keeps it 30 days, then it expires.
+- **Supabase owner**: `drop role housing_export;` (or reset the `postgres` password, for the fallback). Delete `~/supabase-ca.crt` and `~/cutover-report.json` on the box.
+- **First week**: `pm2 logs housing-api-production`, the uptime monitor and the activity log, daily.
+- **Supabase stays frozen** for 14 days, then C8 removes it.
+
+### 19.7 Rollback
+
+**Before step 6** nothing public changed. Unfreeze Supabase (run the definition saved in step 1), fix the problem, and repeat from step 1 another day with `import --replace --confirm-db housing`.
+
+**After step 6, within 72 hours of the cutover time:**
+1. Stop writes on the new stack: `admin.js disable --email …` for every admin (it also ends their sessions).
+2. List what changed since the cutover, as `housing_owner` on 5432:
+
+   ```sql
+   select id, at, actor_email, action, project_type, serial_no, record_id, details
+   from public.housing_activity_log
+   where at > '<cutover time>' and action not in ('login', 'logout')
+   order by id;
+   ```
+
+3. Switch nginx back: remove `/etc/nginx/conf.d/housing-production.conf`, move the Supabase UI file back from `supabase-ui.conf.disabled`, `nginx -t`, reload. Purge the Cloudflare cache.
+4. Unfreeze Supabase with the saved definition.
+5. Admins re-enter the listed changes in the old UI, **in the same order**: Supabase's counters stand where the import found them, so creates entered in order get the same serials. Photos are uploaded again. Password changes made on the new stack don't carry back.
+6. A later cutover starts again at 19.4, with `import --replace --confirm-db housing --discard-new-writes`.
+
+**After 72 hours**: fix forward on the new stack. Supabase stays frozen until C8 as a read-only reference.
+
+## 20. Cutover checklist (C7)
+
+- [ ] 19.1 export role created (or the `postgres` fallback chosen); the live trigger pre-check result noted
+- [ ] Staging rehearsal done, timings filled in, report reviewed with the Supabase owner (19.2)
+- [ ] `perf-check.sql` on the rehearsal data: everything under 50 ms, or fixed (C3, C4 notes)
+- [ ] Reported photo gaps re-uploaded on Supabase by the admins
+- [ ] Rehearsal wipe signed off: housing tables at 0 rows, no photo versions left, report deleted, WAF lock removed, staging admins and PM2 jobs back. Signed: ____ on ____
+- [ ] Freeze announced to the admins; the other developer runs nothing with the service-role key
+- [ ] Production: `postgresql17-contrib`, `build.env` on `rest`, `PUBLIC_API_URL` = `https://<prod host>`, deployed at 0010 (C6 notes)
+- [ ] Production nginx files rendered and installed; the Supabase UI server block noted and copied (C6 note)
+- [ ] Cloudflare for `<prod host>`: origin certificate, Authenticated Origin Pulls, login WAF rule
+- [ ] Freeze applied, its saved definition kept, the as-admin check returned `false`
+- [ ] Import and verify passed; the step 1 counts unchanged after verify
+- [ ] Every imported email passes the login rule and every active admin was confirmed (C2 note)
+- [ ] Fresh production backup restored in a drill and logged (C6 note)
+- [ ] nginx switched, `nginx -t` passed, cache purged
+- [ ] Verify through `https://<prod host>`, the read-only contract and `edge-rest` passed; origin pulls and WAF checked
+- [ ] Every admin logged in once; end-of-day `admin list` shows no active `bcrypt` hash (C2 note)
+- [ ] Production `readyz` and `/` in the uptime monitor (C6 note)
+- [ ] Final Supabase dump uploaded; export role dropped; CA file and reports deleted on the box
+- [ ] Supabase still frozen at day 14; C8 can start

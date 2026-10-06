@@ -342,7 +342,7 @@ Everything the new stack needs exists on staging and is prepared for production 
 - **Tests:** none (docs). Check that every command in sections 19–20 exists in the repo (`npm run`, `server/dist/cli/*`, `deploy/*.sh`) and every flag matches the CLI's help.
 - **Done when:** a reader can follow section 19 from T−7 to T+14 days without asking, and every "C7" note from C1–C6 is either done in code or a checklist line.
 - **Depends on:** U1–U7
-- **Status:** todo
+- **Status:** done
 
 ## Verification
 - `npm run lint`, `npm run build`, `npm --prefix server run typecheck`, `npm run i18n-check` (Node 24)
@@ -380,7 +380,7 @@ Server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$PATH`
 ## Progress
 - **Branch:** `migrate/c7-cutover`
 - **Updated:** 2026-10-06 11:10
-- **Next:** U8, write runbook section 19 (cutover) and section 20 (checklist)
+- **Next:** finish: ae-test (full), simplify, review
 - **Uncommitted:** none
 - **Notes:**
   - `origin/main` was not ahead; `dev-forhad` already equals `migrate/c6-deploy` (`7397bbb`), so there was nothing to merge or port.
@@ -393,3 +393,4 @@ Server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$PATH`
   - U5: verify compares per-row md5s keyed by id instead of one aggregate checksum, so a failure names the differing ids. An admin hash that is now argon2id counts as matching: a login with the imported hash replaced it. The end-of-import verify runs without `--photos`; a failed check sets exit code 1.
   - U6: the read contract has one test that sends writes without a session; the new `writeProbes: false` option skips it for real-data runs. `readonlyFetch` also waits out a 429 (the site's read limit is per IP). The browser guard aborts every non-read request in `public-rest` and `edge-rest`, on any origin. `test:e2e:edge` wasn't run locally (it needs a freshly seeded database, which would wipe the dev data); CI runs it.
   - U7: the plugin's stack guard blocks new `@supabase/supabase-js` imports, so the script calls Supabase's auth, REST and storage HTTP APIs with `fetch` (it also survives C8). Confirmed on the local stack: a missing public object answers HTTP 400 `{"statusCode":"404","error":"not_found"}`. Local baseline on 20 records: import 0.5 s, verify with photos 0.3 s.
+  - U8: the final Supabase dump goes under the backup bucket's `production/` prefix (the backup IAM user can only write there) with a `.pgdump.age` suffix, because `restore-drill.sh` takes the newest `*.dump.age` by sorted name and `supabase-final-…` would sort after every `housing-…` backup. Checked on Node 22.20: with two `--env-file` flags the later file wins, and a shell variable beats both (hence `env -u` in the runbook).
