@@ -137,8 +137,16 @@ function drain(req: IncomingMessage, limitBytes: number, timeoutMs: number): Pro
   });
 }
 
+export interface ReceiveOptions {
+  /** The slot, when the route takes it from the path instead of a multipart kind field. */
+  kind?: PhotoKind;
+}
+
+/** Reads one photo upload into storage. */
+export type PhotoReceiver = (req: IncomingMessage, options?: ReceiveOptions) => Promise<PhotoUpload>;
+
 /** Builds the upload reader for one app. Call it once; its concurrency limit is shared by every request. */
-export function createPhotoReceiver(options: PhotoReceiverOptions): (req: IncomingMessage) => Promise<PhotoUpload> {
+export function createPhotoReceiver(options: PhotoReceiverOptions): PhotoReceiver {
   const {
     storage,
     maxConcurrent = 2,
@@ -212,11 +220,11 @@ export function createPhotoReceiver(options: PhotoReceiverOptions): (req: Incomi
     return results.slice(1).map((r) => (r as PromiseFulfilledResult<StoredPhotoFile>).value);
   }
 
-  return async function receivePhotoUpload(req) {
+  return async function receivePhotoUpload(req, { kind }: ReceiveOptions = {}) {
     const keys: string[] = [];
     const release = await limiter.acquire();
     try {
-      return await parse(req, keys);
+      return await parse(req, keys, kind);
     } catch (err) {
       await Promise.allSettled(keys.map((key) => storage.remove(key)));
       await drain(req, drainLimitBytes, drainTimeoutMs);
@@ -226,7 +234,8 @@ export function createPhotoReceiver(options: PhotoReceiverOptions): (req: Incomi
     }
   };
 
-  function parse(req: IncomingMessage, keys: string[]): Promise<PhotoUpload> {
+  /** With a preset slot (from the URL path) a multipart kind field is refused like any unknown field. */
+  function parse(req: IncomingMessage, keys: string[], preset: PhotoKind | undefined): Promise<PhotoUpload> {
     if (!/^multipart\/form-data\b/i.test(req.headers['content-type'] ?? '')) {
       return Promise.reject(invalid('not_multipart'));
     }
@@ -243,7 +252,7 @@ export function createPhotoReceiver(options: PhotoReceiverOptions): (req: Incomi
         return;
       }
 
-      let kind: string | undefined;
+      let kind: string | undefined = preset;
       let photo: Promise<StoredPhotoFile[]> | undefined;
       let thumbSeen = false;
       let failure: AppError | undefined;
@@ -274,7 +283,7 @@ export function createPhotoReceiver(options: PhotoReceiverOptions): (req: Incomi
       };
 
       parser.on('field', (name, value, info) => {
-        if (name !== 'kind' || kind !== undefined) return fail(invalid('unexpected_field', name));
+        if (preset !== undefined || name !== 'kind' || kind !== undefined) return fail(invalid('unexpected_field', name));
         if (info.valueTruncated) return fail(invalid('too_long', 'kind'));
         kind = value;
       });

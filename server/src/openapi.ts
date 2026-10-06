@@ -38,6 +38,7 @@ import {
   bulkUpdateBody as recordsBulkUpdateBody,
   customValueKeys,
   FIELD_KEY,
+  photoParams,
   privateBody,
   privateManyBody,
   privateValues,
@@ -423,6 +424,31 @@ export function buildOpenApiDocument(): OpenApiDocument {
           parameters: idParam,
           responses: { 200: ok('The record', ref('ProjectRecord')), ...errors(400, 404, 429, 500) },
         },
+      },
+      '/records/{id}/photos/{slot}': {
+        put: admin("Upload or replace the record's before (prev) or after (current) photo as multipart photo (and an optional thumb); the project's photo mode is checked before anything is stored, and the server re-encodes it as WebP and makes the thumbnail", {
+          parameters: parameters(photoParams, 'path'),
+          requestBody: {
+            required: true,
+            content: {
+              'multipart/form-data': {
+                schema: {
+                  type: 'object',
+                  required: ['photo'],
+                  properties: {
+                    photo: { type: 'string', format: 'binary', description: 'JPEG, PNG or WebP, at most 5 MB' },
+                    thumb: { type: 'string', format: 'binary', description: 'Optional, at most 500 KB; ignored, the server makes its own' },
+                  },
+                },
+              },
+            },
+          },
+          responses: { 200: ok('The record with its new photo URLs', ref('ProjectRecord')), ...errors(400, 401, 403, 404, 413, 429, 500) },
+        }, 'records-admin'),
+        delete: admin("Remove the slot's photo and thumbnail; main admin only, and a 200 when there is none", {
+          parameters: parameters(photoParams, 'path'),
+          responses: { 200: ok('The record', ref('ProjectRecord')), ...errors(400, 401, 403, 404, 429, 500) },
+        }, 'records-admin'),
       },
       '/photos/{id}': {
         get: {

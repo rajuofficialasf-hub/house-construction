@@ -164,7 +164,7 @@ export function createApp({
   app.use('/api/v1/housing', housingReadRouter(sql, readRateLimit));
   // Full paths at the root, before the projects router, whose router-wide limiter would otherwise
   // also count /projects/:key/records.
-  app.use('/api/v1', recordsAdminRouter({ sql, storage, writeRateLimit }));
+  app.use('/api/v1', recordsAdminRouter({ sql, storage, publicApiUrl, receivePhoto, writeRateLimit }));
   app.use('/api/v1', recordsReadRouter(sql, readRateLimit));
   app.use('/api/v1/projects', projectsReadRouter(sql, readRateLimit));
   app.use('/api/v1/photos', photosRouter(sql, storage, photoRateLimit));

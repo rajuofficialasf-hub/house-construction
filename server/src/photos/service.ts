@@ -1,7 +1,7 @@
 import type { Logger } from 'pino';
 import { withActor, type Actor, type Sql, type Tx } from '../db.js';
 import { AppError } from '../errors.js';
-import { RECORD_COLUMNS, type HousingRecord } from '../housing/reads.js';
+import type { HousingRecord } from '../housing/reads.js';
 import type { StorageDriver } from '../storage/index.js';
 import { removeTombstoned, type TombstonedFile } from './files.js';
 import type { PhotoKind, PhotoUpload } from './process.js';
@@ -44,14 +44,22 @@ function tombstoneKind(tx: Tx, recordId: string, kind: PhotoKind) {
 
 /**
  * Attaches an upload's two stored files to the record's slot, replacing what was there, and
- * returns the updated record. An unknown record is a 404, and the new files are removed whenever
- * the transaction fails, so a failed upload changes nothing.
+ * returns the updated record with the caller's columns (each route has its own record shape). An
+ * unknown record is a 404, and the new files are removed whenever the transaction fails, so a
+ * failed upload changes nothing.
  */
-export async function savePhoto(deps: PhotoDeps, actor: Actor, recordId: string, upload: PhotoUpload, log: Logger): Promise<HousingRecord> {
+export async function savePhoto<R extends object>(
+  deps: PhotoDeps,
+  actor: Actor,
+  recordId: string,
+  upload: PhotoUpload,
+  log: Logger,
+  returning: readonly string[],
+): Promise<R> {
   const { sql, storage, publicApiUrl } = deps;
   const columns = COLUMNS[upload.kind];
   let replaced: TombstonedFile[] = [];
-  let record: HousingRecord;
+  let record: R;
   try {
     record = await withActor(sql, actor, async (tx) => {
       if (!(await lockRecord(tx, recordId))) throw notFound();
@@ -71,9 +79,9 @@ export async function savePhoto(deps: PhotoDeps, actor: Actor, recordId: string,
         insert into public.housing_files ${tx(rows)} returning id, variant`;
       const urls: Record<string, string> = {};
       for (const file of inserted) urls[columns[file.variant]] = photoUrl(publicApiUrl, file.id);
-      const [row] = await tx<HousingRecord[]>`
+      const [row] = await tx<R[]>`
         update public.housing_beneficiaries set ${tx(urls)}, photo_updated_at = now()
-        where id = ${recordId} returning ${tx(RECORD_COLUMNS)}`;
+        where id = ${recordId} returning ${tx(returning as string[])}`;
       if (!row) throw new Error('locked record vanished');
       return row;
     });
@@ -89,21 +97,28 @@ export async function savePhoto(deps: PhotoDeps, actor: Actor, recordId: string,
  * Clears the record's photo and thumb of one kind. With nothing to clear the record comes back
  * unchanged, so a repeated delete is a 200 and logs nothing (contract §4.11). Null for an unknown record.
  */
-export async function deletePhoto(deps: Omit<PhotoDeps, 'publicApiUrl'>, actor: Actor, recordId: string, kind: PhotoKind, log: Logger): Promise<HousingRecord | null> {
+export async function deletePhoto<R extends object>(
+  deps: Omit<PhotoDeps, 'publicApiUrl'>,
+  actor: Actor,
+  recordId: string,
+  kind: PhotoKind,
+  log: Logger,
+  returning: readonly string[],
+): Promise<R | null> {
   const { sql, storage } = deps;
   const columns = COLUMNS[kind];
   let removed: TombstonedFile[] = [];
   const record = await withActor(sql, actor, async (tx) => {
     if (!(await lockRecord(tx, recordId))) return null;
     removed = await tombstoneKind(tx, recordId, kind);
-    const [cleared] = await tx<HousingRecord[]>`
+    const [cleared] = await tx<R[]>`
       update public.housing_beneficiaries
       set ${tx({ [columns.photo]: null, [columns.thumb]: null })}, photo_updated_at = now()
       where id = ${recordId} and (${tx(columns.photo)} is not null or ${tx(columns.thumb)} is not null)
-      returning ${tx(RECORD_COLUMNS)}`;
+      returning ${tx(returning as string[])}`;
     if (cleared) return cleared;
-    const [unchanged] = await tx<HousingRecord[]>`
-      select ${tx(RECORD_COLUMNS)} from public.housing_beneficiaries where id = ${recordId}`;
+    const [unchanged] = await tx<R[]>`
+      select ${tx(returning as string[])} from public.housing_beneficiaries where id = ${recordId}`;
     return unchanged ?? null;
   });
   await removeTombstoned(sql, storage, removed, log);

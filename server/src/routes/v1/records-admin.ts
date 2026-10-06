@@ -1,13 +1,16 @@
 import { Router, type RequestHandler } from 'express';
-import { requireAdmin, requireMainAdmin } from '../../auth/middleware.js';
+import { requireAdmin, requireMainAdmin, requireMainAdminForPhotos } from '../../auth/middleware.js';
 import type { Sql } from '../../db.js';
 import { deleteRecord } from '../../housing/writes.js';
-import { recordNotFound, recordProject } from '../../records/reads.js';
+import { deletePhoto, savePhoto } from '../../photos/service.js';
+import type { PhotoReceiver } from '../../photos/process.js';
+import { ADMIN_RECORD_COLUMNS, checkPhotoSlot, recordNotFound, recordProject, type ProjectRecord } from '../../records/reads.js';
 import { getPrivate, getPrivateMany, putPrivate } from '../../records/private.js';
 import {
   bulkCreateBody,
   bulkUpdateBody,
   idParams,
+  photoParams,
   privateBody,
   privateManyBody,
   projectRecordsParams,
@@ -31,10 +34,20 @@ export const privateNoStore: RequestHandler = (_req, res, next) => {
 export interface RecordsAdminDeps {
   sql: Sql;
   storage: StorageDriver;
+  /** The API's public base URL; photo URLs are built from it. */
+  publicApiUrl: string;
+  /** Reads a photo upload into storage; the app shares one, so its concurrency limit is shared too. */
+  receivePhoto: PhotoReceiver;
   writeRateLimit?: WriteRateLimit;
 }
 
-export function recordsAdminRouter({ sql, storage, writeRateLimit = DEFAULT_WRITE_RATE_LIMIT }: RecordsAdminDeps): Router {
+export function recordsAdminRouter({
+  sql,
+  storage,
+  publicApiUrl,
+  receivePhoto,
+  writeRateLimit = DEFAULT_WRITE_RATE_LIMIT,
+}: RecordsAdminDeps): Router {
   const router = Router();
   const limitWrites = writeRateLimiter(writeRateLimit);
 
@@ -73,6 +86,23 @@ export function recordsAdminRouter({ sql, storage, writeRateLimit = DEFAULT_WRIT
   router.delete('/records/:id', requireMainAdmin, limitWrites, async (req, res) => {
     if (!(await deleteRecord(sql, storage, actorOf(req), idParams.parse(req.params).id, req.log))) throw recordNotFound();
     res.status(204).end();
+  });
+
+  // Photos (§4.4.10, §4.4.11). Multipart; the app's JSON parser leaves it alone. The photo mode is
+  // checked before the body is read, so a refused upload stores nothing. Any admin may upload or
+  // replace; only the main admin removes.
+  router.put('/records/:id/photos/:slot', requireAdmin, limitWrites, async (req, res) => {
+    const { id, slot } = photoParams.parse(req.params);
+    await checkPhotoSlot(sql, id, slot);
+    const upload = await receivePhoto(req, { kind: slot });
+    res.json({ data: await savePhoto<ProjectRecord>({ sql, storage, publicApiUrl }, actorOf(req), id, upload, req.log, ADMIN_RECORD_COLUMNS) });
+  });
+
+  router.delete('/records/:id/photos/:slot', requireMainAdminForPhotos, limitWrites, async (req, res) => {
+    const { id, slot } = photoParams.parse(req.params);
+    const record = await deletePhoto<ProjectRecord>({ sql, storage }, actorOf(req), id, slot, req.log, ADMIN_RECORD_COLUMNS);
+    if (!record) throw recordNotFound();
+    res.json({ data: record });
   });
 
   // Private values (§4.4.8). Admin-only, reads included; never on the public-read CORS list. Each

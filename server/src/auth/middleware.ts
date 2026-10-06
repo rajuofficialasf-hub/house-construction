@@ -38,12 +38,20 @@ export const requireAdmin: RequestHandler = (req, _res, next) => {
   next();
 };
 
+/** A guard that refuses the request unless the session's admin is the main admin, with this 403 message. */
+function mainAdminOnly(message: string): RequestHandler {
+  return (req, _res, next) => {
+    if (!req.admin) throw new AppError('UNAUTHENTICATED', 'লগইন করুন');
+    if (req.admin.role !== 'main_admin') {
+      req.log.warn({ adminId: req.admin.id }, 'delete refused: not the main admin');
+      throw new AppError('FORBIDDEN', message);
+    }
+    next();
+  };
+}
+
 /** Refuses the request unless the session's admin is the main admin, the only one who may delete. */
-export const requireMainAdmin: RequestHandler = (req, _res, next) => {
-  if (!req.admin) throw new AppError('UNAUTHENTICATED', 'লগইন করুন');
-  if (req.admin.role !== 'main_admin') {
-    req.log.warn({ adminId: req.admin.id }, 'delete refused: not the main admin');
-    throw new AppError('FORBIDDEN', 'শুধু মূল এডমিন মুছতে পারেন');
-  }
-  next();
-};
+export const requireMainAdmin = mainAdminOnly('শুধু মূল এডমিন মুছতে পারেন');
+
+/** requireMainAdmin for a photo delete, with the contract's own message (§4.4.11). */
+export const requireMainAdminForPhotos = mainAdminOnly('শুধু মূল এডমিন ছবি মুছতে পারেন');

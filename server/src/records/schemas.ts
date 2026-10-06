@@ -6,6 +6,7 @@ import {
   housingRecord,
   INT4_MAX,
   MAX_BULK_ROWS,
+  photoKind,
   MAX_PAGE_SIZE,
   MAX_SOURCE,
   recordFields,
@@ -78,6 +79,8 @@ export function fieldFilters(query: Record<string, unknown>): Map<string, string
 }
 
 export const projectRecordsParams = z.object({ key: projectKey });
+/** A record's photo slot (§4.4.10, §4.4.11). */
+export const photoParams = z.object({ id: z.uuid(), slot: photoKind });
 export const projectSerialParams = z.object({ key: projectKey, n: intParam(1, INT4_MAX) });
 
 // Responses. Strict, so a test that parses one also proves no other column leaks.

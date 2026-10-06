@@ -18,6 +18,7 @@ import {
   MAX_BULK_ROWS,
   updateBody,
 } from '../../housing/schemas.js';
+import { RECORD_COLUMNS, type HousingRecord } from '../../housing/reads.js';
 import { bulkInsert, bulkUpdateBySerial, changeSerial, createRecord, deleteRecord, updateRecord } from '../../housing/writes.js';
 import type { PhotoUpload } from '../../photos/process.js';
 import { deletePhoto, savePhoto } from '../../photos/service.js';
@@ -153,13 +154,13 @@ export function housingAdminRouter({
   router.post('/:id/photo', requireAdmin, async (req, res) => {
     const { id } = idParams.parse(req.params);
     const upload = await receivePhoto(req);
-    res.json({ data: await savePhoto({ sql, storage, publicApiUrl }, actorOf(req), id, upload, req.log) });
+    res.json({ data: await savePhoto<HousingRecord>({ sql, storage, publicApiUrl }, actorOf(req), id, upload, req.log, RECORD_COLUMNS) });
   });
 
   router.delete('/:id/photo', requireMainAdmin, async (req, res) => {
     const { id } = idParams.parse(req.params);
     const { kind } = deletePhotoQuery.parse(req.query);
-    const record = await deletePhoto({ sql, storage }, actorOf(req), id, kind, req.log);
+    const record = await deletePhoto<HousingRecord>({ sql, storage }, actorOf(req), id, kind, req.log, RECORD_COLUMNS);
     if (!record) throw notFound();
     res.json({ data: record });
   });

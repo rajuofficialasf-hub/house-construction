@@ -62,7 +62,7 @@ describe('GET /api/v1/openapi.json', () => {
       ...routesOf('/housing', housingReadRouter(sql)),
       ...routesOf('/projects', projectsReadRouter(sql)),
       ...routesOf('', recordsReadRouter(sql)),
-      ...routesOf('', recordsAdminRouter({ sql, storage: testPhotoDeps().storage })),
+      ...routesOf('', recordsAdminRouter({ sql, ...testPhotoDeps(), receivePhoto: () => Promise.reject(new Error('unused')) })),
       ...routesOf('/photos', photosRouter(sql, testPhotoDeps().storage)),
     ];
     expect(documentedRoutes().sort()).toEqual(mounted.sort());

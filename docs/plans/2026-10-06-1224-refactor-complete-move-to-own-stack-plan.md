@@ -1069,7 +1069,7 @@ These settle what P3's research turned up. They add to Technical decisions, the 
   - **Guard coverage:** the check still passes.
 - **Done when:** the tests pass, and the OpenAPI drift test lists both routes.
 - **Depends on:** none in code. It shares files with U14 and U17, so it runs after U14 in lane A.
-- **Status:** todo
+- **Status:** done
 
 ### U16. Draft visibility on photo downloads
 - **Goal:** A visitor can't fetch a photo of a draft project's record, and an admin's photo responses are never cached by a shared cache.

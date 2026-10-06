@@ -9,7 +9,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { createApp } from '../../src/app.js';
-import { requireAdmin, requireMainAdmin } from '../../src/auth/middleware.js';
+import { requireAdmin, requireMainAdmin, requireMainAdminForPhotos } from '../../src/auth/middleware.js';
 import { createLogger } from '../../src/logger.js';
 import { privateNoStore, recordsAdminRouter } from '../../src/routes/v1/records-admin.js';
 import { projectRecord } from '../../src/records/schemas.js';
@@ -278,13 +278,18 @@ describe('write limit', () => {
 describe('auth and origin', () => {
   // The router has no router-wide guard (it is mounted at /api/v1), so each route must carry its own.
   it('puts an admin guard before any work on every route of the admin router', () => {
-    const router = recordsAdminRouter({ sql, storage: local.storage });
+    const router = recordsAdminRouter({
+      sql,
+      storage: local.storage,
+      publicApiUrl: TEST_PUBLIC_API_URL,
+      receivePhoto: () => Promise.reject(new Error('unused')),
+    });
     const routes = router.stack.flatMap((layer) => (layer.route ? [layer.route] : []));
     expect(routes.length).toBeGreaterThan(0);
     for (const route of routes) {
       // privateNoStore only sets a header, so a refusal is never cached either.
       const handlers = (route as unknown as { stack: { handle: unknown }[] }).stack.map((layer) => layer.handle);
-      expect([requireAdmin, requireMainAdmin]).toContain(handlers.find((handle) => handle !== privateNoStore));
+      expect([requireAdmin, requireMainAdmin, requireMainAdminForPhotos]).toContain(handlers.find((handle) => handle !== privateNoStore));
     }
   });
 

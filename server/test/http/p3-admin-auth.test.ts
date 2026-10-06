@@ -36,6 +36,8 @@ interface AdminRoute {
 const ROUTES: AdminRoute[] = [
   { method: 'post', path: `/api/v1/projects/${P}/records/bulk`, body: { mode: 'assign_serial', rows: [] } },
   { method: 'put', path: `/api/v1/projects/${P}/records/bulk`, body: { rows: [] } },
+  { method: 'put', path: '/api/v1/records/ID/photos/current' },
+  { method: 'delete', path: '/api/v1/records/ID/photos/current' },
 ];
 
 let id = '';

@@ -244,6 +244,35 @@ describe('photo upload pipeline', () => {
   });
 });
 
+describe('a slot given by the caller', () => {
+  function presetApp() {
+    const receive = createPhotoReceiver({ storage });
+    const app = express();
+    app.use(pinoHttp({ logger: createLogger('silent') }));
+    app.post('/upload', async (req, res) => {
+      res.json(await receive(req, { kind: 'current' }));
+    });
+    app.use(errorHandler);
+    return app;
+  }
+
+  it('takes the slot without a kind field', async () => {
+    const res = await request(presetApp()).post('/upload').attach('photo', await solid(10, 10).png().toBuffer(), 'x.png');
+    expect(res.status).toBe(200);
+    expect(res.body.kind).toBe('current');
+  });
+
+  it('refuses a kind field as unexpected and stores nothing', async () => {
+    const res = await request(presetApp())
+      .post('/upload')
+      .field('kind', 'prev')
+      .attach('photo', await solid(10, 10).png().toBuffer(), 'x.png');
+    expect(res.status).toBe(400);
+    expect(res.body.error.details).toMatchObject({ field: 'kind', reason: 'unexpected_field' });
+    expect(await storedFiles()).toEqual([]);
+  });
+});
+
 describe('after an early refusal', () => {
   const sockets = new Set<net.Socket>();
   afterAll(() => sockets.forEach((s) => s.destroy()));

@@ -1,6 +1,7 @@
 import type { Sql } from '../db.js';
 import { AppError } from '../errors.js';
 import { likePattern, RECORD_COLUMNS, toPage, type HousingRecord, type Page } from '../housing/reads.js';
+import type { PhotoKind } from '../photos/process.js';
 import type { Viewer } from '../projects/reads.js';
 import type { RecordListQuery } from './schemas.js';
 
@@ -151,4 +152,26 @@ export async function getRecordsBySerials(sql: Sql, project: RecordProject, seri
     select ${recordColumns(sql, viewer)} from public.housing_beneficiaries b
     where b.project_type = ${project.key} and b.serial_no in ${sql(serialNos)}
     order by b.serial_no`;
+}
+
+/**
+ * Refuses a photo upload the record's project can't hold, before the body is read, so nothing is
+ * stored (§4.4.10, AE3 in docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md).
+ * An unknown record is 404. The record trigger (0013_record_rules.sql) checks the same rule again
+ * when the URL is saved, in case the photo mode changes meanwhile.
+ */
+export async function checkPhotoSlot(sql: Sql, id: string, slot: PhotoKind): Promise<void> {
+  const [record] = await sql<{ photo_mode: 'before_after' | 'after_only' | 'none' }[]>`
+    select p.photo_mode from public.housing_beneficiaries b join public.housing_projects p on p.key = b.project_type
+    where b.id = ${id}`;
+  if (!record) throw recordNotFound();
+  if (record.photo_mode === 'none') {
+    throw new AppError('VALIDATION_ERROR', 'এই প্রকল্পে ছবি নেই', { field: `${slot}_photo_url`, reason: 'photo_mode' });
+  }
+  if (record.photo_mode === 'after_only' && slot === 'prev') {
+    throw new AppError('VALIDATION_ERROR', 'এই প্রকল্পে আগের ছবি রাখা যায় না (ছবি মোড: শুধু পরের ছবি)', {
+      field: 'prev_photo_url',
+      reason: 'photo_mode',
+    });
+  }
 }
