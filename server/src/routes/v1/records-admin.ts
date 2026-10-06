@@ -1,4 +1,4 @@
-import { Router, type RequestHandler } from 'express';
+import { Router } from 'express';
 import { requireAdmin, requireMainAdmin, requireMainAdminForPhotos } from '../../auth/middleware.js';
 import type { Sql } from '../../db.js';
 import { deleteRecord } from '../../housing/writes.js';
@@ -20,17 +20,12 @@ import {
 } from '../../records/schemas.js';
 import { bulkInsertRecords, bulkUpdateRecords, changeRecordSerial, createProjectRecord, patchRecord } from '../../records/writes.js';
 import type { StorageDriver } from '../../storage/index.js';
+import { privateNoStore } from './projects.js';
 import { actorOf, bulkJson, checkRowCount, DEFAULT_WRITE_RATE_LIMIT, writeRateLimiter, type WriteRateLimit } from './housing-admin.js';
 
 // The single-record admin routes (docs/api/PROJECTS_API_CONTRACT.md §4.4.4–§4.4.6). Mounted at
 // /api/v1 with full paths and no router.use(), so each route names its own guard: the admin check
 // first (deny by default, NE-SEC-03), then the per-admin write limit.
-
-/** Private values are never stored by any cache; set first, so a refusal carries it too. */
-export const privateNoStore: RequestHandler = (_req, res, next) => {
-  res.set('cache-control', 'private, no-store');
-  next();
-};
 
 export interface RecordsAdminDeps {
   sql: Sql;
@@ -87,9 +82,7 @@ export function recordsAdminRouter({
   router.post('/records/:id/serial', requireAdmin, limitWrites, async (req, res) => {
     const { id } = idParams.parse(req.params);
     const { serial_no } = serialBody.parse(req.body);
-    const record = await changeRecordSerial(sql, actorOf(req), id, serial_no);
-    if (!record) throw recordNotFound();
-    res.json({ data: record });
+    res.json({ data: await changeRecordSerial(sql, actorOf(req), id, serial_no) });
   });
 
   router.delete('/records/:id', requireMainAdmin, limitWrites, async (req, res) => {

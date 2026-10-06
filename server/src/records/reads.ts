@@ -25,7 +25,7 @@ export interface RecordProject {
   sortable: Set<string>;
 }
 
-const projectNotFound = () => new AppError('NOT_FOUND', 'প্রকল্প পাওয়া যায়নি');
+export const projectNotFound = () => new AppError('NOT_FOUND', 'প্রকল্প পাওয়া যায়নি');
 export const recordNotFound = () => new AppError('NOT_FOUND', 'রেকর্ড পাওয়া যায়নি');
 
 /** Every column of a record as an admin reads it, for a write's returning list (no table alias). */
@@ -53,10 +53,8 @@ const visibleTo = (sql: Sql, viewer: Viewer) =>
  * is a group refused, since groups hold no records.
  */
 export async function recordProject(sql: Sql, key: string, viewer: Viewer): Promise<RecordProject> {
-  const [[project], fields] = await Promise.all([
-    sql<{ is_group: boolean }[]>`
-      select is_group from public.housing_projects
-      where key = ${key} and (${viewer.admin} or key = any(public.housing_public_project_keys()))`,
+  const [project, fields] = await Promise.all([
+    visibleProject(sql, key, viewer),
     sql<{ key: string; type: string; filterable: boolean; searchable: boolean }[]>`
       select key, type, filterable, searchable from public.housing_project_fields
       where project_key = ${key} and visibility = 'public' and is_active`,

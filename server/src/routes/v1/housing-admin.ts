@@ -1,6 +1,5 @@
 import express, { Router, type Request } from 'express';
 import { rateLimit } from 'express-rate-limit';
-import type { IncomingMessage } from 'node:http';
 import { z } from 'zod';
 import { requireAdmin, requireMainAdmin } from '../../auth/middleware.js';
 import type { Actor, Sql } from '../../db.js';
@@ -20,7 +19,7 @@ import {
 } from '../../housing/schemas.js';
 import { RECORD_COLUMNS, type HousingRecord } from '../../housing/reads.js';
 import { bulkInsert, bulkUpdateBySerial, changeSerial, createRecord, deleteRecord, updateRecord } from '../../housing/writes.js';
-import type { PhotoUpload } from '../../photos/process.js';
+import type { PhotoReceiver } from '../../photos/process.js';
 import { deletePhoto, savePhoto } from '../../photos/service.js';
 import type { StorageDriver } from '../../storage/index.js';
 
@@ -90,7 +89,7 @@ export interface HousingAdminDeps {
   /** The API's public base URL; photo URLs are built from it. */
   publicApiUrl: string;
   /** Reads a photo upload into storage (photos/process.ts); shared so its concurrency limit is too. */
-  receivePhoto: (req: IncomingMessage) => Promise<PhotoUpload>;
+  receivePhoto: PhotoReceiver;
   /** Per-admin cap on writes; tests pass a small one. */
   writeRateLimit?: WriteRateLimit;
 }

@@ -5,7 +5,7 @@ import { listActivity, logEvent } from '../../housing/activity.js';
 import { projectActivityBody, projectActivityQuery } from '../../housing/schemas.js';
 import { actorOf, DEFAULT_WRITE_RATE_LIMIT, writeRateLimiter, type WriteRateLimit } from './housing-admin.js';
 import { DEFAULT_READ_RATE_LIMIT, readRateLimiter, type ReadRateLimit } from './housing.js';
-import { privateNoStore } from './records-admin.js';
+import { privateNoStore } from './projects.js';
 
 // The activity log (docs/api/PROJECTS_API_CONTRACT.md §4.5): admin-only, reads included, and never on
 // the public-read CORS list. Mounted at /api/v1 with full paths and no router.use(), so each route

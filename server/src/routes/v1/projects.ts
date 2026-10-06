@@ -12,6 +12,12 @@ const notFound = () => new AppError('NOT_FOUND', 'প্রকল্প পা�
 
 export const viewerOf = (req: Request): Viewer => ({ admin: req.admin !== undefined });
 
+/** For admin-only answers (private values, the activity log): no cache stores them; set first, so a refusal carries it too. */
+export const privateNoStore: RequestHandler = (_req, res, next) => {
+  res.set('cache-control', 'private, no-store');
+  next();
+};
+
 /** Answers vary on the cookie, and an admin's is never stored by any cache. */
 export const sessionAwareCaching: RequestHandler = (req, res, next) => {
   res.vary('Cookie');

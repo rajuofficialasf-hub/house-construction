@@ -102,7 +102,6 @@ function corsFor(allowedOrigins: readonly string[], publicReadOrigins: readonly 
   });
 }
 
-/** Builds the Express app without listening, so tests run the real middleware chain. */
 // A project's bulk import path, anchored, with the project key's characters only.
 const PROJECT_BULK_PATH = /^\/api\/v1\/projects\/[a-z][a-z0-9_]*\/records\/bulk\/?$/;
 
@@ -111,6 +110,7 @@ function isBulkWrite(req: Request): boolean {
   return req.path === BULK_PATH || ((req.method === 'POST' || req.method === 'PUT') && PROJECT_BULK_PATH.test(req.path));
 }
 
+/** Builds the Express app without listening, so tests run the real middleware chain. */
 export function createApp({
   sql,
   logger,

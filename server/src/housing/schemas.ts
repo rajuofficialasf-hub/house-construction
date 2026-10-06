@@ -176,6 +176,11 @@ export function checkGivenSerials(body: { mode: string; rows: { serial_no?: numb
   });
 }
 
+/** Under assign_serial the server numbers the rows, so any serial_no sent is dropped. */
+export function dropSerialsWhenAssigned<T extends { mode: string; rows: { serial_no?: number | undefined }[] }>(body: T): T {
+  return body.mode === 'assign_serial' ? { ...body, rows: body.rows.map(({ serial_no: _ignored, ...rest }) => rest) } : body;
+}
+
 export const bulkInsertBody = z
   .strictObject({
     project_type: projectType,
@@ -184,9 +189,7 @@ export const bulkInsertBody = z
     rows: z.array(createRow).min(1).max(MAX_BULK_ROWS),
   })
   .superRefine(checkGivenSerials)
-  .transform((body) =>
-    body.mode === 'assign_serial' ? { ...body, rows: body.rows.map(({ serial_no: _ignored, ...rest }) => rest) } : body,
-  );
+  .transform(dropSerialsWhenAssigned);
 export type BulkInsertBody = z.infer<typeof bulkInsertBody>;
 
 // Bulk update leaves absent or null fields unchanged, and also blank required text. The function

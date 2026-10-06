@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import type { Sql } from '../../db.js';
-import { AppError } from '../../errors.js';
 import {
   getRecord,
   getRecordsBySerials,
   listProjectRecords,
   projectNextSerial,
+  projectNotFound,
   projectYears,
   recordNotFound,
   recordProject,
@@ -49,7 +49,7 @@ export function recordsReadRouter(sql: Sql, readRateLimit: ReadRateLimit = DEFAU
   router.get('/projects/:key/years', ...read, async (req, res) => {
     const { key } = projectRecordsParams.parse(req.params);
     const years = await projectYears(sql, key, viewerOf(req));
-    if (!years) throw new AppError('NOT_FOUND', 'প্রকল্প পাওয়া যায়নি');
+    if (!years) throw projectNotFound();
     res.json({ data: years });
   });
 

@@ -3,6 +3,7 @@ import { AppError } from '../errors.js';
 import {
   checkGivenSerials,
   DEFAULT_PAGE_SIZE,
+  dropSerialsWhenAssigned,
   housingRecord,
   INT4_MAX,
   MAX_BULK_ROWS,
@@ -165,9 +166,7 @@ export const bulkCreateBody = z
     rows: z.array(recordCreateBody).min(1).max(MAX_BULK_ROWS),
   })
   .superRefine(checkGivenSerials)
-  .transform((body) =>
-    body.mode === 'assign_serial' ? { ...body, rows: body.rows.map(({ serial_no: _ignored, ...rest }) => rest) } : body,
-  );
+  .transform(dropSerialsWhenAssigned);
 export type BulkCreateBody = z.infer<typeof bulkCreateBody>;
 
 /** What `_clear` may empty: optional columns and public custom fields, never a required one by name. */
