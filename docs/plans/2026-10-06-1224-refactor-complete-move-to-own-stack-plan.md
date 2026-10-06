@@ -670,7 +670,7 @@ These settle what research turned up. They add to Technical decisions and change
   - **Old routes:** the existing `housing-writes`, `housing-bulk` and `housing-photos` suites pass unchanged.
 - **Done when:** the tests pass, and `npm run test:contract:rest` and `npm run test:e2e:rest-admin` still pass on the old routes.
 - **Depends on:** U7, U8, U9 (the shared schemas and project lookup)
-- **Status:** todo
+- **Status:** done
 
 ### U11. Private values
 - **Goal:** Admins read and replace one record's private values and read them in bulk for CSV export. Nothing private reaches a visitor, a cache, a log line or an error body.
@@ -797,7 +797,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** U10 (record writes): `createBody` and `patchBody` in `server/src/records/schemas.ts`, then `records-admin.ts`.
+- **Next:** U11 (private values): `server/src/records/private.ts` and three routes in `records-admin.ts`.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
@@ -847,3 +847,7 @@ Run these at the end of P1:
     - The CORS cases sit in `records-reads.test.ts` (as `projects-reads.test.ts` does), not in `security.test.ts`.
     - The database collation (`en_US`) doesn't order Bangla by code point, so the name-sort test checks that `asc` and `desc` mirror each other.
     - `test/db/search-indexes.test.ts` ("activity indexes…") failed once in a full run and passed on rerun. It depends on the planner, so it was already flaky and P2 didn't cause it.
+  - **U10 notes:**
+    - postgres.js picks the insert or update form of `${sql(object)}` from the word just before it. A table alias (`insert into t as b`, `update t as b set`) breaks that, so writes return the unaliased `ADMIN_RECORD_COLUMNS`.
+    - `extra` keys are checked by `customValueKeys` on the raw object. A plain `z.record` puts the rejected key in the error path (so `details.field` would echo it) and assigns `__proto__`. `openapi.ts` describes that check by hand, because zod can't turn a custom check into JSON Schema.
+    - `recordFields`, `writeText` and `serialNo` are exported from `housing/schemas.ts`. `actorOf` and `writeRateLimiter` are exported from `housing-admin.ts`. The records admin router has its own write-limit counter.

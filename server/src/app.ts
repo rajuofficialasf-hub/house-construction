@@ -17,6 +17,7 @@ import { housingReadRouter, type ReadRateLimit } from './routes/v1/housing.js';
 import { openapiRouter } from './routes/v1/openapi.js';
 import { photosRouter } from './routes/v1/photos.js';
 import { projectsReadRouter } from './routes/v1/projects.js';
+import { recordsAdminRouter } from './routes/v1/records-admin.js';
 import { recordsReadRouter } from './routes/v1/records.js';
 import { createPhotoReceiver, type PhotoReceiverOptions } from './photos/process.js';
 import type { StorageDriver } from './storage/index.js';
@@ -88,7 +89,7 @@ const isReadRequest = (req: Request) =>
 function corsFor(allowedOrigins: readonly string[], publicReadOrigins: readonly string[]) {
   const credentialed = new Set(allowedOrigins);
   const publicRead = new Set(publicReadOrigins);
-  const site: CorsOptions = { origin: true, credentials: true, methods: ['GET', 'POST', 'PUT', 'DELETE'] };
+  const site: CorsOptions = { origin: true, credentials: true, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] };
   const reader: CorsOptions = { origin: true, credentials: false, methods: ['GET', 'HEAD'] };
   return cors<Request>((req, callback) => {
     const origin = req.headers.origin;
@@ -155,6 +156,7 @@ export function createApp({
   app.use('/api/v1/housing', housingReadRouter(sql, readRateLimit));
   // Full paths at the root, before the projects router, whose router-wide limiter would otherwise
   // also count /projects/:key/records.
+  app.use('/api/v1', recordsAdminRouter({ sql, storage, writeRateLimit }));
   app.use('/api/v1', recordsReadRouter(sql, readRateLimit));
   app.use('/api/v1/projects', projectsReadRouter(sql, readRateLimit));
   app.use('/api/v1/photos', photosRouter(sql, storage, photoRateLimit));

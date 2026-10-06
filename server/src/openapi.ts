@@ -33,7 +33,16 @@ import {
   YEAR_MIN,
 } from './housing/schemas.js';
 import { project, projectField, projectKeyParams, projectListQuery } from './projects/schemas.js';
-import { projectRecord, projectRecordsParams, projectSerialParams, recordListQuery } from './records/schemas.js';
+import {
+  customValueKeys,
+  FIELD_KEY,
+  projectRecord,
+  projectRecordsParams,
+  projectSerialParams,
+  recordCreateBody,
+  recordListQuery,
+  recordPatchBody,
+} from './records/schemas.js';
 
 // The OpenAPI 3.1 description of the /api/v1 housing routes, served at /api/v1/openapi.json for
 // other apps (docs/api/API_CONTRACT.md §1). Parameter and body schemas come from the same zod
@@ -60,7 +69,7 @@ interface Operation {
   responses: Record<string, { description: string; content?: Record<string, { schema: JsonSchema }> }>;
 }
 
-type Method = 'get' | 'post' | 'put' | 'delete';
+type Method = 'get' | 'post' | 'put' | 'patch' | 'delete';
 
 export interface OpenApiDocument {
   openapi: '3.1.0';
@@ -70,9 +79,24 @@ export interface OpenApiDocument {
   components: { schemas: Record<string, JsonSchema>; securitySchemes: Record<string, JsonSchema> };
 }
 
+// What customValueKeys accepts: an object of field keys to a text, a number or null.
+const CUSTOM_VALUES_SCHEMA = {
+  type: 'object',
+  propertyNames: { type: 'string', pattern: FIELD_KEY.source },
+  additionalProperties: { type: ['string', 'number', 'null'] },
+};
+
 /** Request schemas describe what the client sends (strings with patterns); responses what it gets back. */
 function jsonSchema(schema: z.ZodType, io: 'input' | 'output'): JsonSchema {
-  const { $schema: _dialect, ...rest } = z.toJSONSchema(schema, { io }) as JsonSchema;
+  const { $schema: _dialect, ...rest } = z.toJSONSchema(schema, {
+    io,
+    // customValueKeys is a custom check, which JSON Schema can't express on its own, so it is
+    // described by hand; the openapi test checks the record bodies carry that description.
+    unrepresentable: 'any',
+    override: ({ zodSchema, jsonSchema: out }) => {
+      if ((zodSchema as unknown) === customValueKeys) Object.assign(out, CUSTOM_VALUES_SCHEMA);
+    },
+  }) as JsonSchema;
   return rest;
 }
 
@@ -146,9 +170,9 @@ export function buildOpenApiDocument(): OpenApiDocument {
   });
   const projectFilter = parameters(projectTypeQuery, 'query', { project_type: PROJECT_TYPE_DOC });
   // Admin-only: the site's session cookie and an allowed Origin, so other apps can't call these.
-  const admin = (summary: string, operation: Omit<Operation, 'summary' | 'tags' | 'security'>): Operation => ({
+  const admin = (summary: string, operation: Omit<Operation, 'summary' | 'tags' | 'security'>, tag = 'housing-admin'): Operation => ({
     summary,
-    tags: ['housing-admin'],
+    tags: [tag],
     security: [{ adminSession: [] }],
     ...operation,
   });
@@ -323,6 +347,11 @@ export function buildOpenApiDocument(): OpenApiDocument {
           parameters: [...parameters(projectRecordsParams, 'path'), ...parameters(recordListQuery, 'query', RECORD_LIST_DOCS)],
           responses: { 200: ok('One page and its totals', { type: 'array', items: ref('ProjectRecord') }, ref('PageMeta')), ...errors(400, 404, 429, 500) },
         },
+        post: admin('Create a record in a project (a draft too); without serial_no the next serial is assigned. Groups hold no records', {
+          parameters: parameters(projectRecordsParams, 'path'),
+          requestBody: body(recordCreateBody),
+          responses: { 201: ok('The new record', ref('ProjectRecord')), ...errors(400, 401, 403, 404, 409, 429, 500) },
+        }, 'records-admin'),
       },
       '/projects/{key}/records/serial/{n}': {
         get: {
@@ -341,6 +370,15 @@ export function buildOpenApiDocument(): OpenApiDocument {
         },
       },
       '/records/{id}': {
+        patch: admin('Change a record; a sent extra replaces the whole extra. Photo columns, project_type and serial_no are refused', {
+          parameters: idParam,
+          requestBody: body(recordPatchBody),
+          responses: { 200: ok('The record', ref('ProjectRecord')), ...errors(400, 401, 403, 404, 429, 500) },
+        }, 'records-admin'),
+        delete: admin('Delete a record with its photos and private values; main admin only', {
+          parameters: idParam,
+          responses: { 204: { description: 'Deleted' }, ...errors(400, 401, 403, 404, 429, 500) },
+        }, 'records-admin'),
         get: {
           summary: "One record; a draft project's only for an admin session. A visitor's extra holds only public fields",
           tags: ['records'],

@@ -1,6 +1,17 @@
 import { z } from 'zod';
 import { AppError } from '../errors.js';
-import { DEFAULT_PAGE_SIZE, housingRecord, INT4_MAX, MAX_PAGE_SIZE, serialsQuery, YEAR_MAX, YEAR_MIN } from '../housing/schemas.js';
+import {
+  DEFAULT_PAGE_SIZE,
+  housingRecord,
+  INT4_MAX,
+  MAX_PAGE_SIZE,
+  recordFields,
+  serialNo,
+  serialsQuery,
+  writeText,
+  YEAR_MAX,
+  YEAR_MIN,
+} from '../housing/schemas.js';
 import { projectKey } from '../projects/schemas.js';
 
 // Request and response shapes of the single-record routes (docs/api/PROJECTS_API_CONTRACT.md
@@ -77,3 +88,50 @@ export const projectRecord = z.strictObject({
   union_name: z.string(),
   extra: extraValues,
 });
+
+// Write bodies (§4.4.4, §4.4.5). Strict: an unknown key is a 400, which keeps project_type,
+// serial_no on a patch, and every photo URL and thumbnail out of a write, for every role. A photo
+// is removed only through its own main_admin route
+// (docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md, "P2 decisions").
+
+const MAX_VALUE_TEXT = 2000;
+const customValue = z.union([z.string().max(MAX_VALUE_TEXT), z.number(), z.null()]);
+
+/** The raw-object check behind customValues; openapi.ts describes it, since JSON Schema can't. */
+export const customValueKeys = z.custom<Record<string, unknown>>(
+  (value) => typeof value === 'object' && value !== null && !Array.isArray(value) && Object.keys(value).every((key) => FIELD_KEY.test(key)),
+  { message: 'অচেনা ফিল্ড', params: { reason: 'invalid_key' } },
+);
+
+/**
+ * A map of custom field keys to values. The keys are checked on the raw object before zod copies
+ * it, so `__proto__` and other non-field keys are refused (NE-SEC-09) and the error names only the
+ * map, never the key that was sent. The database checks each key and value against the project's
+ * fields (0013_record_rules.sql).
+ */
+export const customValues = customValueKeys.pipe(z.record(z.string(), customValue));
+
+const recordWriteFields = {
+  ...recordFields,
+  union_name: writeText(0, 100),
+  extra: customValues,
+};
+
+export const recordCreateBody = z.strictObject({
+  ...recordWriteFields,
+  serial_no: serialNo.optional(),
+  father_or_husband_name: recordFields.father_or_husband_name.default(''),
+  address: recordFields.address.default(''),
+  union_name: recordWriteFields.union_name.default(''),
+  extra: recordWriteFields.extra.default({}),
+  prev_photo_source: recordFields.prev_photo_source.default(null),
+  current_photo_source: recordFields.current_photo_source.default(null),
+});
+export type RecordCreateBody = z.infer<typeof recordCreateBody>;
+
+/** Any subset; a sent extra replaces the whole column (§4.4.5). */
+export const recordPatchBody = z
+  .strictObject(recordWriteFields)
+  .partial()
+  .refine((patch) => Object.keys(patch).length > 0, { message: 'কোনো ফিল্ড দেওয়া হয়নি', params: { reason: 'empty' } });
+export type RecordPatchBody = z.infer<typeof recordPatchBody>;

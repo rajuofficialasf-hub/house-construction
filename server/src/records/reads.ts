@@ -25,6 +25,9 @@ export interface RecordProject {
 
 const notFound = () => new AppError('NOT_FOUND', 'প্রকল্প পাওয়া যায়নি');
 
+/** Every column of a record as an admin reads it, for a write's returning list (no table alias). */
+export const ADMIN_RECORD_COLUMNS = [...RECORD_COLUMNS, 'union_name', 'extra'] as const;
+
 /**
  * The record columns for this viewer. A visitor's extra keeps only keys of the project's public
  * fields (archived ones too), a whitelist, so a key with no public field never leaves the server.

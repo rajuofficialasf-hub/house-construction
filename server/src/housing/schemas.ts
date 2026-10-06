@@ -93,7 +93,7 @@ const ACTION = /^[a-z_]{1,40}$/;
 export const SERVER_LOGGED_ACTIONS: ReadonlySet<string> = new Set(['login', 'logout', 'create', 'update', 'delete', 'photo_update', 'serial_change']);
 
 /** Trimmed and NFC-normalized before the length check, so stored text compares exactly (contract §3.3). */
-function writeText(min: number, max: number) {
+export function writeText(min: number, max: number) {
   return z
     .string()
     .transform((value) => value.trim().normalize('NFC'))
@@ -101,7 +101,7 @@ function writeText(min: number, max: number) {
 }
 
 const year = z.number().int().min(YEAR_MIN).max(YEAR_MAX);
-const serialNo = z.number().int().min(1).max(INT4_MAX);
+export const serialNo = z.number().int().min(1).max(INT4_MAX);
 // The sheet's original link, kept only as a reference; the UI never renders it as a link.
 const photoSource = z
   .string()
@@ -110,7 +110,7 @@ const photoSource = z
   .transform((value) => value || null)
   .nullable();
 
-const recordFields = {
+export const recordFields = {
   year,
   name: writeText(1, 200),
   father_or_husband_name: writeText(0, 200),

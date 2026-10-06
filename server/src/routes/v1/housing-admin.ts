@@ -47,7 +47,7 @@ export interface WriteRateLimit {
 export const DEFAULT_WRITE_RATE_LIMIT: WriteRateLimit = { windowMs: 60_000, limit: 120 };
 
 /** Counts each admin's writes; runs only after requireAdmin, so req.admin is always set. */
-function writeRateLimiter(limits: WriteRateLimit) {
+export function writeRateLimiter(limits: WriteRateLimit) {
   return rateLimit({
     ...limits,
     standardHeaders: 'draft-8',
@@ -78,7 +78,7 @@ function checkRowCount(body: unknown): void {
 }
 
 /** The logged-in admin as the actor for the activity log; never taken from the request body. */
-function actorOf(req: Request): Actor {
+export function actorOf(req: Request): Actor {
   if (!req.admin) throw new AppError('UNAUTHENTICATED', 'লগইন করুন');
   return { id: req.admin.id, email: req.admin.email };
 }

@@ -10,6 +10,7 @@ import { housingReadRouter } from '../../src/routes/v1/housing.js';
 import { openapiRouter } from '../../src/routes/v1/openapi.js';
 import { photosRouter } from '../../src/routes/v1/photos.js';
 import { projectsReadRouter } from '../../src/routes/v1/projects.js';
+import { recordsAdminRouter } from '../../src/routes/v1/records-admin.js';
 import { recordsReadRouter } from '../../src/routes/v1/records.js';
 import { appDb } from '../support/db.js';
 import { testPhotoDeps } from '../support/storage.js';
@@ -61,9 +62,18 @@ describe('GET /api/v1/openapi.json', () => {
       ...routesOf('/housing', housingReadRouter(sql)),
       ...routesOf('/projects', projectsReadRouter(sql)),
       ...routesOf('', recordsReadRouter(sql)),
+      ...routesOf('', recordsAdminRouter({ sql, storage: testPhotoDeps().storage })),
       ...routesOf('/photos', photosRouter(sql, testPhotoDeps().storage)),
     ];
     expect(documentedRoutes().sort()).toEqual(mounted.sort());
+  });
+
+  it('describes the custom values of the record bodies, which zod can\'t', () => {
+    type Body = { requestBody: { content: { 'application/json': { schema: { properties: { extra: unknown } } } } } };
+    const extraOf = (operation: unknown) => (operation as Body).requestBody.content['application/json'].schema.properties.extra;
+    const expected = { type: 'object', propertyNames: { type: 'string', pattern: '^[a-z][a-z0-9_]{0,39}$' }, additionalProperties: { type: ['string', 'number', 'null'] } };
+    expect(extraOf(document.paths['/projects/{key}/records']?.post)).toMatchObject(expected);
+    expect(extraOf(document.paths['/records/{id}']?.patch)).toMatchObject(expected);
   });
 
   it('marks every housing write admin-only with the session cookie scheme', () => {
