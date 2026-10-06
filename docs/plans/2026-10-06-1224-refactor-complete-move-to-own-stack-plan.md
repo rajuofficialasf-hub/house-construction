@@ -402,7 +402,7 @@ Only P1 is planned in full below. Each later chunk gets its own units from `ae-p
     - the OpenAPI drift test passes
 - **Done when:** the tests pass, and `curl localhost:3001/api/v1/projects` against the dev stack returns the three seed projects.
 - **Depends on:** U2
-- **Status:** todo
+- **Status:** done
 
 ## Verification
 
@@ -431,7 +431,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** P1 U6, project registry reads: `server/src/projects/{schemas,reads}.ts` and `server/src/routes/v1/projects.ts`.
+- **Next:** P1 finish: `ae-test` (full), then `ae-simplify` and `ae-review`.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
@@ -452,4 +452,7 @@ Run these at the end of P1:
   - **U4 notes:**
     - The REST contract runner's admin (`tests/contract/rest.contract.test.ts`) is also `main_admin`, because the contract deletes.
     - The auth routes are not in the OpenAPI document by design, so the `role` enum lives only in the code.
+  - **U6 notes:**
+    - Visitors' project reads send `Vary: Cookie` and no `Cache-Control`. An admin's get `private, no-store`.
+    - `isPublicReadPath` keeps its `/housing` prefix rule until P9 and lists the project routes explicitly in `PUBLIC_READ_ROUTES` (`server/src/app.ts`).
   - **`housing_seed_projects()`** (owner-only) holds the seed rows, so `resetTestData` and the e2e reset restore the same registry.

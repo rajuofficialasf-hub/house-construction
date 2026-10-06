@@ -32,6 +32,7 @@ import {
   YEAR_MAX,
   YEAR_MIN,
 } from './housing/schemas.js';
+import { project, projectField, projectKeyParams, projectListQuery } from './projects/schemas.js';
 
 // The OpenAPI 3.1 description of the /api/v1 housing routes, served at /api/v1/openapi.json for
 // other apps (docs/api/API_CONTRACT.md §1). Parameter and body schemas come from the same zod
@@ -103,7 +104,7 @@ const ERROR_DESCRIPTIONS = {
   400: 'Invalid parameter or body (VALIDATION_ERROR); details.field names it, and details.row_index the row of a bulk body',
   401: 'No admin session (UNAUTHENTICATED)',
   403: 'The Origin header is missing or not allowed, or a delete comes from an admin who is not the main admin (FORBIDDEN)',
-  404: 'No such record or photo (NOT_FOUND)',
+  404: 'No such record, photo or project, or a draft project asked for without an admin session (NOT_FOUND)',
   409: 'The serial is already in use in that project (CONFLICT)',
   413: 'The body, a photo or the number of rows is too large (PAYLOAD_TOO_LARGE)',
   429: 'Too many requests (RATE_LIMITED): per IP on reads, photos and login, per admin on writes',
@@ -151,7 +152,7 @@ export function buildOpenApiDocument(): OpenApiDocument {
     openapi: '3.1.0',
     info: {
       title: 'Housing project API',
-      version: '0.13',
+      version: '0.14',
       description:
         'Public, read-only access to the housing project records: no login is needed, and browser apps must be listed in PUBLIC_READ_ORIGINS and call without credentials. The housing-admin operations are for this site\'s admins only.',
     },
@@ -280,6 +281,33 @@ export function buildOpenApiDocument(): OpenApiDocument {
           responses: { 200: ok('The record', ref('HousingRecord')), ...errors(400, 401, 403, 404, 429, 500) },
         }),
       },
+      '/projects': {
+        get: {
+          summary: 'List the projects by sort_order then key; drafts and private fields only for an admin session',
+          tags: ['projects'],
+          parameters: parameters(projectListQuery, 'query', {
+            include: 'fields: embed each project\'s fields in sort_order, archived ones included',
+            drafts: '1: include draft projects; ignored without an admin session',
+          }),
+          responses: { 200: ok('The projects', { type: 'array', items: ref('Project') }), ...errors(400, 429, 500) },
+        },
+      },
+      '/projects/{key}': {
+        get: {
+          summary: 'One project with its fields; a draft only for an admin session',
+          tags: ['projects'],
+          parameters: parameters(projectKeyParams, 'path'),
+          responses: { 200: ok('The project', ref('Project')), ...errors(400, 404, 429, 500) },
+        },
+      },
+      '/projects/{key}/fields': {
+        get: {
+          summary: 'A project\'s fields in sort_order; private fields only for an admin session',
+          tags: ['projects'],
+          parameters: parameters(projectKeyParams, 'path'),
+          responses: { 200: ok('The fields', { type: 'array', items: ref('ProjectField') }), ...errors(400, 404, 429, 500) },
+        },
+      },
       '/photos/{id}': {
         get: {
           summary: 'A photo or thumbnail, by the id in a record\'s *_photo_url or *_thumb_url; cacheable for a year',
@@ -302,6 +330,8 @@ export function buildOpenApiDocument(): OpenApiDocument {
     components: {
       schemas: {
         HousingRecord: jsonSchema(housingRecord, 'output'),
+        Project: jsonSchema(project, 'output'),
+        ProjectField: jsonSchema(projectField, 'output'),
         PageMeta: jsonSchema(pageMeta, 'output'),
         HousingStats: jsonSchema(housingStats, 'output'),
         FilterOptions: jsonSchema(filterOptions, 'output'),

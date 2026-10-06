@@ -16,6 +16,7 @@ import { BULK_PATH, housingAdminRouter, type WriteRateLimit } from './routes/v1/
 import { housingReadRouter, type ReadRateLimit } from './routes/v1/housing.js';
 import { openapiRouter } from './routes/v1/openapi.js';
 import { photosRouter } from './routes/v1/photos.js';
+import { projectsReadRouter } from './routes/v1/projects.js';
 import { createPhotoReceiver, type PhotoReceiverOptions } from './photos/process.js';
 import type { StorageDriver } from './storage/index.js';
 
@@ -48,10 +49,22 @@ export interface AppDeps {
 
 const READ_METHODS = new Set(['GET', 'HEAD']);
 
-/** Paths other apps may read: the housing reads (not the admin-only activity log), photos and the API description. */
+/**
+ * Public GET routes other apps may read, listed one by one so a route added later is not public
+ * by accident: never the activity log, private values or anything admin-only. Express matches
+ * case-insensitively and ignores a trailing slash, so the patterns do too.
+ */
+const PUBLIC_READ_ROUTES = [
+  /^\/api\/v1\/projects\/?$/i,
+  /^\/api\/v1\/projects\/[^/]+\/?$/i,
+  /^\/api\/v1\/projects\/[^/]+\/fields\/?$/i,
+];
+
+/** Paths other apps may read: the housing reads (not the admin-only activity log), the project registry, photos and the API description. */
 const isPublicReadPath = (path: string) =>
   path === '/api/v1/openapi.json' ||
   path.startsWith('/api/v1/photos/') ||
+  PUBLIC_READ_ROUTES.some((route) => route.test(path)) ||
   ((path === '/api/v1/housing' || path.startsWith('/api/v1/housing/')) &&
     // Express matches routes case-insensitively, so compare the same way.
     !path.toLowerCase().startsWith('/api/v1/housing/activity'));
@@ -134,6 +147,7 @@ export function createApp({
   const receivePhoto = createPhotoReceiver({ ...photoUpload, storage });
   app.use('/api/v1/housing', housingAdminRouter({ sql, storage, publicApiUrl, receivePhoto, writeRateLimit }));
   app.use('/api/v1/housing', housingReadRouter(sql, readRateLimit));
+  app.use('/api/v1/projects', projectsReadRouter(sql, readRateLimit));
   app.use('/api/v1/photos', photosRouter(sql, storage, photoRateLimit));
 
   app.use(notFoundHandler);
