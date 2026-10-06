@@ -19,7 +19,7 @@ import {
   type ProjectType,
 } from '../interfaces/types'
 import { ENDPOINTS } from './endpoints'
-import { restRequest } from './http'
+import { queryOf, restData, restRequest, type RestRequestOptions } from './http'
 import type { AdminUsersApi } from '../interfaces/adminUsersApi'
 
 export { ENDPOINTS } from './endpoints'
@@ -43,15 +43,6 @@ const INT4_MAX = 2147483647
 
 const clampPage = (page?: number) => Math.max(1, Math.floor(page ?? 1))
 const clampPageSize = (pageSize?: number) => Math.min(MAX_PAGE_SIZE, Math.max(1, Math.floor(pageSize ?? DEFAULT_PAGE_SIZE)))
-
-/** undefined ও ফাঁকা মান বাদ দিয়ে query string */
-function queryOf(values: Record<string, string | number | undefined>): URLSearchParams {
-  const query = new URLSearchParams()
-  for (const [key, value] of Object.entries(values)) {
-    if (value !== undefined && value !== '') query.set(key, String(value))
-  }
-  return query
-}
 
 /**
  * সার্ভার পরিসীমার বাইরের page/page_size এ 400 দেয়; HousingApi আগের মতোই সীমিত করে (Supabase অ্যাডাপ্টারের মতো),
@@ -110,8 +101,7 @@ function withoutProject<T extends { project_type?: unknown }>(input: T): Omit<T,
 }
 
 export function createRestHousingApi(baseUrl: string): HousingApi {
-  /** Calls the server and returns the `data` of its `{ data }` answer. */
-  const call = async <T>(path: string, opts?: Parameters<typeof restRequest>[2]) => (await restRequest<{ data: T }>(baseUrl, path, opts)).data
+  const call = <T>(path: string, opts?: RestRequestOptions) => restData<T>(baseUrl, path, opts)
   const get = <T>(path: string) => call<T>(path)
   const send = <T>(method: 'POST' | 'PUT' | 'PATCH', path: string, body: unknown) => call<T>(path, { method, body })
 
@@ -138,7 +128,7 @@ export function createRestHousingApi(baseUrl: string): HousingApi {
     bulkInsert: (input) => send('POST', ENDPOINTS.records.bulk(input.project_type), withoutProject(input)),
     bulkUpdateBySerial: (input) => send('PUT', ENDPOINTS.records.bulk(input.project_type), withoutProject(input)),
     stats: async (projectType, opts = {}) =>
-      get<ProjectStats>(ENDPOINTS.records.stats(keyOf(projectType), new URLSearchParams(opts.light ? { light: '1' } : {}))),
+      get<ProjectStats>(ENDPOINTS.records.stats(keyOf(projectType), queryOf({ light: opts.light ? '1' : undefined }))),
     years: async (projectType) => get<number[]>(ENDPOINTS.records.years(keyOf(projectType))),
     // সার্ভারে আলাদা রাউট নেই: সাল আর পরিসংখ্যানের কী থেকে (Supabase অ্যাডাপ্টারের মতো)
     async filterOptions(projectType) {

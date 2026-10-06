@@ -1,14 +1,12 @@
 import { Router, type Request, type RequestHandler } from 'express';
 import type { Sql } from '../../db.js';
-import { AppError } from '../../errors.js';
 import { getProject, listProjectFields, listProjects, projectStats, projectsOverview, type Viewer } from '../../projects/reads.js';
 import { overviewQuery, projectKeyParams, projectListQuery, statsQuery } from '../../projects/schemas.js';
+import { projectNotFound } from '../../records/reads.js';
 import { DEFAULT_READ_RATE_LIMIT, readRateLimiter, type ReadRateLimit } from './shared.js';
 
 // The project registry reads (docs/api/PROJECTS_API_CONTRACT.md §4.1). Public, but an admin
 // session sees more, so every answer varies on the cookie and an admin's is never cached.
-
-const notFound = () => new AppError('NOT_FOUND', 'প্রকল্প পাওয়া যায়নি');
 
 export const viewerOf = (req: Request): Viewer => ({ admin: req.admin !== undefined });
 
@@ -37,20 +35,20 @@ export function projectsReadRouter(sql: Sql, readRateLimit: ReadRateLimit = DEFA
 
   router.get('/:key', async (req, res) => {
     const found = await getProject(sql, projectKeyParams.parse(req.params).key, viewerOf(req));
-    if (!found) throw notFound();
+    if (!found) throw projectNotFound();
     res.json({ data: found });
   });
 
   router.get('/:key/stats', async (req, res) => {
     const { key } = projectKeyParams.parse(req.params);
     const stats = await projectStats(sql, key, statsQuery.parse(req.query).light !== undefined, viewerOf(req));
-    if (stats === null) throw notFound();
+    if (stats === null) throw projectNotFound();
     res.json({ data: stats });
   });
 
   router.get('/:key/fields', async (req, res) => {
     const fields = await listProjectFields(sql, projectKeyParams.parse(req.params).key, viewerOf(req));
-    if (!fields) throw notFound();
+    if (!fields) throw projectNotFound();
     res.json({ data: fields });
   });
 

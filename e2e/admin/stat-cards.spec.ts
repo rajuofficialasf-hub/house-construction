@@ -1,6 +1,6 @@
 import { expect, test } from '../support/backend'
 import { loginAs, MOCK_ADMIN } from '../support/auth'
-import { DEMO, addStatCard, asVisitor, publish } from '../support/projects'
+import { DEMO, addStatCard, inFreshContext, publish } from '../support/projects'
 
 // The "পরিসংখ্যান" tab (StatsTab.tsx, StatCardPicker.tsx). The demo records' amounts are
 // 25000 + 30000 + 20000 + 35000 + 15000 (one record has none) = 125000 (demo-project.sql).
@@ -16,7 +16,7 @@ test('a sum card on the money field shows the seeded total, in the preview and o
   await expect(page.getByRole('textbox', { name: 'লেবেল (বাংলা)' })).toHaveValue('মোট অনুদান')
 
   await publish(page)
-  await asVisitor(browser, baseURL, async (visitor) => {
+  await inFreshContext(browser, baseURL, async (visitor) => {
     await visitor.goto(DEMO.publicPath)
     const stats = visitor.getByRole('region', { name: 'পরিসংখ্যান' })
     await expect(stats.getByText('মোট অনুদান', { exact: true })).toBeVisible()

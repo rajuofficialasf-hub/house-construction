@@ -3,8 +3,8 @@ import { expect, type Browser, type Page } from '@playwright/test'
 /** The draft "demo" project the admin-rest reset loads (server/db/seed/demo-project.sql). */
 export const DEMO = { name: 'ডেমো প্রকল্প', settings: '/admin/projects/demo', publicPath: '/demo' }
 
-/** Runs `fn` with a page in a fresh browser context: a visitor with no admin session. */
-export async function asVisitor(browser: Browser, baseURL: string | undefined, fn: (page: Page) => Promise<void>) {
+/** Runs `fn` with a page in a fresh browser context: no session until `fn` logs in, so a visitor by default. */
+export async function inFreshContext(browser: Browser, baseURL: string | undefined, fn: (page: Page) => Promise<void>) {
   const context = await browser.newContext({ baseURL })
   try {
     await fn(await context.newPage())

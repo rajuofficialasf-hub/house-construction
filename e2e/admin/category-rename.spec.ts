@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from '../support/backend'
 import { loginAs, MOCK_ADMIN } from '../support/auth'
-import { addStatCard, asVisitor, DEMO, publish, toast } from '../support/projects'
+import { addStatCard, inFreshContext, DEMO, publish, toast } from '../support/projects'
 
 // Category spelling unification on the records page (CategoryValuesPanel.tsx, useCategoryUsage.ts).
 // The demo seed's পেশা has «দর্জি» on three records (demo-project.sql); one of them is first edited to
@@ -62,7 +62,7 @@ test('once published, the public category filter (from the project stats) offers
   await addStatCard(page, 'গণনা')
   await publish(page)
 
-  await asVisitor(browser, baseURL, async (visitor) => {
+  await inFreshContext(browser, baseURL, async (visitor) => {
     await visitor.goto(DEMO.publicPath)
     const filter = visitor.getByRole('combobox', { name: 'পেশা' })
     await expect(filter.getByRole('option', { name: 'দর্জী (৩)' })).toBeAttached()

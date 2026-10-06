@@ -1,38 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { FALLBACK_PROJECTS, type Project, type ProjectField } from '@/backend'
+import { FALLBACK_PROJECTS, type Project } from '@/backend'
 import { buildImportFields, guessMapping, isIgnoredHeader, normHeader } from './importFields'
+import { projectField } from './testFixtures'
 
 // Which fields an import offers for a project and how a sheet's headers are matched to them.
 
 const semiPucca = FALLBACK_PROJECTS.find((p) => p.key === 'semi_pucca')!
-
-function field(over: Partial<ProjectField> & Pick<ProjectField, 'key' | 'label_bn' | 'type'>): ProjectField {
-  return {
-    id: `id-${over.key}`,
-    project_key: 'demo',
-    label_en: '',
-    help_bn: '',
-    help_en: '',
-    options: [],
-    required: false,
-    visibility: 'public',
-    show_in_table: false,
-    show_in_card: false,
-    show_in_detail: true,
-    filterable: false,
-    searchable: false,
-    fill_down: false,
-    max_length: null,
-    min_value: null,
-    max_value: null,
-    import_aliases: [],
-    sort_order: 10,
-    is_active: true,
-    created_at: '2026-10-06T00:00:00Z',
-    updated_at: '2026-10-06T00:00:00Z',
-    ...over,
-  }
-}
 
 /** A union-level, after-only project with a money field, a category with an alias, a private phone and an archived field. */
 const demo: Project = {
@@ -41,10 +14,10 @@ const demo: Project = {
   photo_mode: 'after_only',
   geo_depth: 'union',
   fields: [
-    field({ key: 'amount', label_bn: 'অনুদান', label_en: 'Grant', type: 'money', required: true, sort_order: 10 }),
-    field({ key: 'trade', label_bn: 'পেশা', label_en: 'Trade', type: 'category', import_aliases: ['কাজের ধরন'], sort_order: 20 }),
-    field({ key: 'phone', label_bn: 'ফোন', label_en: 'Phone', type: 'phone', visibility: 'admin', sort_order: 30 }),
-    field({ key: 'old_cost', label_bn: 'পুরনো খরচ', type: 'money', is_active: false, sort_order: 40 }),
+    projectField({ key: 'amount', label_bn: 'অনুদান', label_en: 'Grant', type: 'money', required: true, sort_order: 10 }),
+    projectField({ key: 'trade', label_bn: 'পেশা', label_en: 'Trade', type: 'category', import_aliases: ['কাজের ধরন'], sort_order: 20 }),
+    projectField({ key: 'phone', label_bn: 'ফোন', label_en: 'Phone', type: 'phone', visibility: 'admin', sort_order: 30 }),
+    projectField({ key: 'old_cost', label_bn: 'পুরনো খরচ', type: 'money', is_active: false, sort_order: 40 }),
   ],
 }
 

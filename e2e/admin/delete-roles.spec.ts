@@ -3,6 +3,7 @@ import { expect, test } from '../support/backend'
 import { loginAs, MOCK_ADMIN } from '../support/auth'
 import { PLAIN_ADMIN } from '../support/rest-data'
 import { ADMIN_REST_API_URL } from '../support/rest-env'
+import { inFreshContext } from '../support/projects'
 
 // AE1: only the main admin may delete. A plain admin gets no delete controls, and a direct request is
 // refused by the server's role check. The request is sent from inside the page, with the browser's
@@ -57,18 +58,14 @@ test('a plain admin\'s direct delete is refused by the role check; the main admi
   await expect(page.getByRole('row', { name: new RegExp(NAME) })).toBeVisible()
 
   // The main admin, in a session of their own, deletes the same record through the page.
-  const context = await browser.newContext({ baseURL })
-  try {
-    const main = await context.newPage()
+  await inFreshContext(browser, baseURL, async (main) => {
     await loginAs(main, MOCK_ADMIN, RECORDS)
     const row = main.getByRole('row', { name: new RegExp(NAME) })
     await row.getByRole('button', { name: 'ডিলেট' }).click()
     await main.getByRole('dialog', { name: 'আপনি কি নিশ্চিত?' }).getByRole('button', { name: 'হ্যাঁ, মুছুন' }).click()
     await expect(row).toHaveCount(0)
     expect((await api(main, `/records/${id}`)).status).toBe(404)
-  } finally {
-    await context.close()
-  }
+  })
 })
 
 test('the main admin sees the row delete button and the bulk delete', async ({ page }) => {

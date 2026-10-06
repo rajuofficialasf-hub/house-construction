@@ -1,7 +1,7 @@
 import { expect, test } from '../support/backend'
 import { loginAs, MOCK_ADMIN } from '../support/auth'
 import { GEO } from '../support/data'
-import { asVisitor, DEMO, expectNotFound, toast } from '../support/projects'
+import { inFreshContext, DEMO, expectNotFound, toast } from '../support/projects'
 
 // Bulk import (ImportPage.tsx) into the draft demo project, whose custom fields are অনুদান (money),
 // পেশা (category; the seed already has «দর্জি») and the private ফোন (demo-project.sql). The column
@@ -51,7 +51,7 @@ test('a sheet with custom, category and private columns imports into demo; the a
   await expect(page.getByLabel('অনুদান')).toHaveValue('12000')
 
   // The project is still a draft: a visitor can't see it at all.
-  await asVisitor(browser, baseURL, (visitor) => expectNotFound(visitor, DEMO.publicPath))
+  await inFreshContext(browser, baseURL, (visitor) => expectNotFound(visitor, DEMO.publicPath))
 })
 
 test('a row with an invalid private phone is reported and never written; the valid row still imports', async ({ page }) => {

@@ -1,6 +1,6 @@
 import { expect, test } from '../support/backend'
 import { loginAs, MOCK_ADMIN } from '../support/auth'
-import { DEMO, addStatCard, asVisitor, expectNotFound, publish, toast } from '../support/projects'
+import { DEMO, addStatCard, inFreshContext, expectNotFound, publish, toast } from '../support/projects'
 
 // /admin/projects/demo (ProjectSettingsPage.tsx) on the draft demo project.
 
@@ -25,7 +25,7 @@ test('publishing waits for the checklist; once published a visitor sees the proj
   await expect(page.getByText('✕ অন্তত একটি পরিসংখ্যান কার্ড লাগবে')).toHaveCount(0)
   await publish(page)
 
-  await asVisitor(browser, baseURL, async (visitor) => {
+  await inFreshContext(browser, baseURL, async (visitor) => {
     await visitor.goto(DEMO.publicPath)
     await expect(visitor.getByRole('heading', { level: 1, name: DEMO.name })).toBeVisible()
   })
@@ -46,7 +46,7 @@ test('unpublishing asks for the project name; afterwards a visitor gets "not fou
   await expect(toast(page, 'অপ্রকাশ করা হয়েছে')).toBeVisible()
   await expect(page.getByText('খসড়া', { exact: true })).toBeVisible()
 
-  await asVisitor(browser, baseURL, (visitor) => expectNotFound(visitor, DEMO.publicPath))
+  await inFreshContext(browser, baseURL, (visitor) => expectNotFound(visitor, DEMO.publicPath))
 })
 
 test('a stale page cannot overwrite a newer save: it shows the conflict and reloads', async ({ page, context }) => {

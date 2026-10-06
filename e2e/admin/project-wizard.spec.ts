@@ -1,6 +1,6 @@
 import { expect, test } from '../support/backend'
 import { loginAs, MOCK_ADMIN } from '../support/auth'
-import { DEMO, asVisitor, expectNotFound, toast } from '../support/projects'
+import { DEMO, inFreshContext, expectNotFound, toast } from '../support/projects'
 
 // /admin/projects/new (ProjectWizardPage.tsx): a new project starts as a draft.
 
@@ -25,7 +25,7 @@ test('a leaf project made from a template is a draft that visitors cannot see', 
   await expect(page.getByRole('heading', { level: 1, name: 'দর্জি অনুদান' })).toBeVisible()
   await expect(page.getByRole('listitem').filter({ hasText: 'item_name' })).toBeVisible()
 
-  await asVisitor(browser, baseURL, (visitor) => expectNotFound(visitor, '/tailoring-grant'))
+  await inFreshContext(browser, baseURL, (visitor) => expectNotFound(visitor, '/tailoring-grant'))
 })
 
 test('a URL another admin took in the meantime is refused with the duplicate-URL message', async ({ page, context }) => {

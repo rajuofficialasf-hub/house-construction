@@ -5,7 +5,7 @@
  */
 import { HousingApiError, type ApiErrorCode } from '../interfaces/types'
 
-interface RequestOptions {
+export interface RestRequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   body?: unknown
   /** multipart হলে FormData দিন (Content-Type ব্রাউজার বসায়) */
@@ -36,7 +36,7 @@ function codeFromStatus(status: number): ApiErrorCode {
   return 'INTERNAL_ERROR'
 }
 
-export async function restRequest<T>(baseUrl: string, path: string, opts: RequestOptions = {}): Promise<T> {
+export async function restRequest<T>(baseUrl: string, path: string, opts: RestRequestOptions = {}): Promise<T> {
   if (!baseUrl) throw new HousingApiError('CONFIG_ERROR', 'VITE_API_BASE_URL সেট নেই')
   const headers: Record<string, string> = { ...opts.headers, accept: 'application/json' }
   if (opts.body !== undefined) headers['content-type'] = 'application/json; charset=utf-8'
@@ -65,4 +65,18 @@ export async function restRequest<T>(baseUrl: string, path: string, opts: Reques
     throw new HousingApiError(code, e?.message ?? `HTTP ${res.status}`, e?.details)
   }
   return json as T
+}
+
+/** The `data` of the server's `{ data }` answer. */
+export async function restData<T>(baseUrl: string, path: string, opts?: RestRequestOptions): Promise<T> {
+  return (await restRequest<{ data: T }>(baseUrl, path, opts)).data
+}
+
+/** A query string without undefined or empty values. */
+export function queryOf(values: Record<string, string | number | undefined>): URLSearchParams {
+  const query = new URLSearchParams()
+  for (const [key, value] of Object.entries(values)) {
+    if (value !== undefined && value !== '') query.set(key, String(value))
+  }
+  return query
 }

@@ -5,25 +5,20 @@
 import type { ProjectsApi } from '../interfaces/projectsApi'
 import type { FieldUsage, Project, ProjectField, ProjectOverview } from '../interfaces/types'
 import { ENDPOINTS } from './endpoints'
-import { restRequest } from './http'
+import { queryOf, restData, restRequest, type RestRequestOptions } from './http'
 
 export function createRestProjectsApi(baseUrl: string): ProjectsApi {
-  /** Calls the server and returns the `data` of its `{ data }` answer. */
-  const call = async <T>(path: string, opts?: Parameters<typeof restRequest>[2]) => (await restRequest<{ data: T }>(baseUrl, path, opts)).data
-  const none = async (path: string, opts: Parameters<typeof restRequest>[2]) => {
+  const call = <T>(path: string, opts?: RestRequestOptions) => restData<T>(baseUrl, path, opts)
+  const none = async (path: string, opts: RestRequestOptions) => {
     await restRequest<void>(baseUrl, path, opts)
   }
-  const draftsQuery = (includeDrafts?: boolean) => new URLSearchParams(includeDrafts ? { drafts: '1' } : {})
+  const drafts = (includeDrafts?: boolean) => (includeDrafts ? '1' : undefined)
 
   return {
     backendMode: async () => 'full',
-    list: (opts = {}) => {
-      const query = draftsQuery(opts.includeDrafts)
-      query.set('include', 'fields')
-      return call<Project[]>(ENDPOINTS.projects.list(query))
-    },
+    list: (opts = {}) => call<Project[]>(ENDPOINTS.projects.list(queryOf({ drafts: drafts(opts.includeDrafts), include: 'fields' }))),
     get: (key) => call<Project>(ENDPOINTS.projects.byKey(key)),
-    overview: (opts = {}) => call<ProjectOverview>(ENDPOINTS.projects.overview(draftsQuery(opts.includeDrafts))),
+    overview: (opts = {}) => call<ProjectOverview>(ENDPOINTS.projects.overview(queryOf({ drafts: drafts(opts.includeDrafts) }))),
 
     create: (input, fields = []) => call<Project>(ENDPOINTS.projects.list(), { method: 'POST', body: { project: input, fields } }),
     // If-Match থাকলে সার্ভার মেলায়: অন্য কেউ এর মধ্যে বদলালে 409 CONFLICT (দুই এডমিনের একসাথে এডিট)

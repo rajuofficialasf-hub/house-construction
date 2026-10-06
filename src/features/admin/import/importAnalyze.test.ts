@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { FALLBACK_PROJECTS, type Project, type ProjectField } from '@/backend'
+import { FALLBACK_PROJECTS, type Project } from '@/backend'
 import { BD_GEO } from '@/features/geo/data/bdGeo'
 import { analyzeRows, CLEAR_TOKEN, fillDown, fillDownFields, type AnalyzeOptions, type Mapping } from './importAnalyze'
 import { buildImportFields, type ImportFieldId } from './importFields'
+import { projectField } from './testFixtures'
 
 // How the import wizard turns sheet rows into records: serials, required cells, geography, custom and
 // private values, update mode with "(মুছুন)", category spelling fixes, and the duplicate checks.
@@ -11,43 +12,15 @@ const DV = BD_GEO[0]!
 const DS = DV.districts[0]!
 const UP = DS.upazilas[0]!
 
-function field(over: Partial<ProjectField> & Pick<ProjectField, 'key' | 'label_bn' | 'type'>): ProjectField {
-  return {
-    id: `id-${over.key}`,
-    project_key: 'demo',
-    label_en: '',
-    help_bn: '',
-    help_en: '',
-    options: [],
-    required: false,
-    visibility: 'public',
-    show_in_table: false,
-    show_in_card: false,
-    show_in_detail: true,
-    filterable: false,
-    searchable: false,
-    fill_down: false,
-    max_length: null,
-    min_value: null,
-    max_value: null,
-    import_aliases: [],
-    sort_order: 10,
-    is_active: true,
-    created_at: '2026-10-06T00:00:00Z',
-    updated_at: '2026-10-06T00:00:00Z',
-    ...over,
-  }
-}
-
 const demo: Project = {
   ...FALLBACK_PROJECTS.find((p) => p.key === 'semi_pucca')!,
   key: 'demo',
   photo_mode: 'after_only',
   geo_depth: 'upazila',
   fields: [
-    field({ key: 'amount', label_bn: 'অনুদান', type: 'money', sort_order: 10 }),
-    field({ key: 'trade', label_bn: 'পেশা', type: 'category', sort_order: 20 }),
-    field({ key: 'phone', label_bn: 'ফোন', type: 'phone', visibility: 'admin', sort_order: 30 }),
+    projectField({ key: 'amount', label_bn: 'অনুদান', type: 'money', sort_order: 10 }),
+    projectField({ key: 'trade', label_bn: 'পেশা', type: 'category', sort_order: 20 }),
+    projectField({ key: 'phone', label_bn: 'ফোন', type: 'phone', visibility: 'admin', sort_order: 30 }),
   ],
 }
 const fields = buildImportFields(demo)

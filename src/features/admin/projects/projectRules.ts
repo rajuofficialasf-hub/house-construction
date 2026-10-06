@@ -97,7 +97,8 @@ export function isStaleEdit(err: unknown): boolean {
 /**
  * সার্ভারের ত্রুটি → বাংলা বার্তা। নিজস্ব সার্ভার কোন ঘর (details.field) জানায়, আর ইনপুটের নিয়ম ভাঙলে কারণও
  * (details.reason); গার্ড ও ডুপ্লিকেট-key এর বার্তা আগে থেকেই বাংলা। Supabase এর ইংরেজি Postgres বার্তা চেনা
- * constraint নাম দিয়ে অনুবাদ হয় — Supabase অ্যাডাপ্টার সরানোর সময় সেগুলোও যাবে।
+ * constraint নাম দিয়ে অনুবাদ হয় — Supabase অ্যাডাপ্টার সরানোর সময় সেগুলোও যাবে (P9,
+ * docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md)।
  */
 export function friendlyProjectError(err: unknown): string {
   const e = HousingApiError.from(err)
