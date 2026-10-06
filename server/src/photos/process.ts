@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { Transform, type Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import sharp from 'sharp';
+import sharp, { type Sharp } from 'sharp';
 import { AppError } from '../errors.js';
 import { photoKind, type PhotoKind } from '../housing/schemas.js';
 import type { StorageDriver } from '../storage/index.js';
@@ -48,13 +48,20 @@ export interface PhotoReceiverOptions {
 }
 
 const MB = 1024 * 1024;
-const FULL_WIDTH = 1600;
-const THUMB_WIDTH = 400;
-const WEBP_QUALITY = 80;
-const OUTPUTS: readonly { variant: PhotoVariant; width: number }[] = [
-  { variant: 'photo', width: FULL_WIDTH },
-  { variant: 'thumb', width: THUMB_WIDTH },
-];
+/** The widest each stored variant may be; narrower images keep their size. */
+export const VARIANT_WIDTHS: Readonly<Record<PhotoVariant, number>> = { photo: 1600, thumb: 400 };
+export const WEBP_QUALITY = 80;
+/** The most pixels sharp will decode from one input, so a small file can't expand into gigabytes. */
+export const MAX_INPUT_PIXELS = 40_000_000;
+const OUTPUTS: readonly PhotoVariant[] = ['photo', 'thumb'];
+
+/**
+ * The stored form of one variant: rotated upright, no wider than its limit, WebP. sharp writes no
+ * EXIF, GPS, XMP or ICC data unless asked, so the output carries no metadata.
+ */
+export function encodeVariant(image: Sharp, variant: PhotoVariant): Sharp {
+  return image.rotate().resize({ width: VARIANT_WIDTHS[variant], withoutEnlargement: true }).webp({ quality: WEBP_QUALITY });
+}
 
 // libvips holds decoded pixels itself; keep its cache off so memory follows the uploads in flight.
 sharp.cache(false);
@@ -137,7 +144,7 @@ export function createPhotoReceiver(options: PhotoReceiverOptions): (req: Incomi
     maxConcurrent = 2,
     maxPhotoBytes = 5 * MB,
     maxThumbBytes = 500 * 1024,
-    maxInputPixels = 40_000_000,
+    maxInputPixels = MAX_INPUT_PIXELS,
     drainLimitBytes = 10 * MB,
     drainTimeoutMs = 10_000,
   } = options;
@@ -151,7 +158,7 @@ export function createPhotoReceiver(options: PhotoReceiverOptions): (req: Incomi
     let imageError: unknown;
     const encoders: Readable[] = [];
 
-    const writes = OUTPUTS.map(async ({ variant, width }) => {
+    const writes = OUTPUTS.map(async (variant) => {
       const key = `housing/${randomUUID()}.webp`;
       keys.push(key);
       let sizeBytes = 0;
@@ -165,7 +172,7 @@ export function createPhotoReceiver(options: PhotoReceiverOptions): (req: Incomi
       // first). The failure is reported through imageError or put's rejection, so a destroy before
       // then must not surface as an unhandled stream error.
       counter.on('error', () => undefined);
-      const encoded = decoder.clone().rotate().resize({ width, withoutEnlargement: true }).webp({ quality: WEBP_QUALITY });
+      const encoded = encodeVariant(decoder.clone(), variant);
       encoders.push(encoded);
       // pipe, not pipeline: a storage failure must not reach back and make the encoder report an error.
       encoded.on('error', (err) => {

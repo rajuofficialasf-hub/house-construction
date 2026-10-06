@@ -294,7 +294,7 @@ Everything the new stack needs exists on staging and is prepared for production 
   - No more than 4 fetches are in flight at once.
 - **Done when:** `npm --prefix server test` passes.
 - **Depends on:** U3
-- **Status:** todo
+- **Status:** done
 
 ### U5. Verify command
 - **Goal:** `import-supabase verify` proves the target equals the source and every photo URL answers.
@@ -380,7 +380,7 @@ Server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$PATH`
 ## Progress
 - **Branch:** `migrate/c7-cutover`
 - **Updated:** 2026-10-06 11:10
-- **Next:** U4, export `encodeVariant` from `server/src/photos/process.ts`, then write `server/src/import/photos.ts`
+- **Next:** U5, write `server/src/import/verify.ts` and the `verify` subcommand
 - **Uncommitted:** none
 - **Notes:**
   - `origin/main` was not ahead; `dev-forhad` already equals `migrate/c6-deploy` (`7397bbb`), so there was nothing to merge or port.
@@ -389,3 +389,4 @@ Server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$PATH`
   - U1: the repo has no React component test setup (no jsdom/testing-library), so the `RequireAdmin` and login-page checks are a Playwright test in `e2e/mock/route-protection.spec.ts` that runs only in `admin-rest`. The retry button reloads the page. `HousingLoginPage.tsx` needed no change: it only redirects on `ready` + admin.
   - U2: `pg_trgm` lives in its own `extensions` schema, not `public`. A trusted extension is installed as the bootstrap superuser, so its functions keep PUBLIC `EXECUTE` and the owner can't revoke it; `server/test/db/privileges.test.ts` caught that. The test reset in `server/test/support/global-setup.ts` now drops `extensions` too. Indexes reference `extensions.gin_trgm_ops`.
   - U3: rows travel as `to_jsonb` text and load with `jsonb_populate_recordset` in one statement per table (no 500-row batches), so timestamps keep their microseconds and `details` keeps exact numbers; the serial-change and log JSON is never parsed in JS. Bind that text as `${json}::text::jsonb`: a JS string bound straight to `::jsonb` is JSON-encoded a second time. The report goes to `--report <file>` (mode 600, never overwritten), not stdout. Existing local volumes need `housing_source_test` (`docker compose exec db createdb -U postgres -O housing_owner housing_source_test`). A staging re-run needs `--discard-new-writes` too, because staging's own log rows are newer than the source's.
+  - U4: `encodeVariant(image, variant)` plus `VARIANT_WIDTHS`, `WEBP_QUALITY` and `MAX_INPUT_PIXELS` are exported from `server/src/photos/process.ts`. Supabase answers a missing public object with HTTP 400 and a "not found" body, so 400 + "not found" counts as a gap like 404 (to confirm against the local stack in U7). `copyPhotos` stops all workers at the first failure before removing what they wrote.

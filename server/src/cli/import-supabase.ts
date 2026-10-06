@@ -4,7 +4,7 @@
 // owner (DATABASE_MIGRATION_URL), in one transaction. The Supabase connection string is read from
 // a prompt (or one line of piped stdin), never from arguments or the environment.
 //
-//   import-supabase import --report <file> [--source-ca <file>]
+//   import-supabase import --report <file> --photo-base <bucket URL> [--source-ca <file>]
 //       [--replace --confirm-db <target database>] [--discard-new-writes] [--without-passwords]
 import { accessSync, constants } from 'node:fs';
 import { parseArgs } from 'node:util';
@@ -15,12 +15,13 @@ import type { Sql } from '../db.js';
 import { mapAdmins } from '../import/admins.js';
 import { writeReport, type ImportReport } from '../import/report.js';
 import { checkSource, describeDatabase, openSource, readSnapshot } from '../import/source.js';
-import { checkTarget, NO_PHOTOS, writeImport, type TargetOptions } from '../import/target.js';
-import { createStorage, type StorageDriver } from '../storage/index.js';
+import { copyPhotos, parsePhotoBase, removeAll } from '../import/photos.js';
+import { checkTarget, writeImport, type TargetOptions } from '../import/target.js';
+import { createStorage } from '../storage/index.js';
 import { CliError, readSecret } from './prompt.js';
 
 const USAGE = `usage:
-  import-supabase import --report <file> [--source-ca <file>]
+  import-supabase import --report <file> --photo-base <bucket URL> [--source-ca <file>]
       [--replace --confirm-db <target database>] [--discard-new-writes] [--without-passwords]`;
 
 const postgresUrl = z.url({ protocol: /^postgres(ql)?$/ });
@@ -49,20 +50,10 @@ async function readSourceUrl(target: string): Promise<string> {
   return url.data;
 }
 
-async function removeKeys(storage: StorageDriver, keys: string[]): Promise<void> {
-  const failed: string[] = [];
-  for (const key of keys) {
-    try {
-      await storage.remove(key);
-    } catch {
-      failed.push(key);
-    }
-  }
-  if (failed.length > 0) console.error(`could not remove ${failed.length} stored file(s); remove them by hand:\n  ${failed.join('\n  ')}`);
-}
-
 async function runImport(values: Values): Promise<void> {
   if (!values.report) throw new CliError(`--report <file> is required\n${USAGE}`);
+  if (!values['photo-base']) throw new CliError(`--photo-base <bucket URL> is required\n${USAGE}`);
+  const photoBase = parsePhotoBase(values['photo-base']);
   const env = parseEnv(importEnv);
   const targetName = new URL(env.DATABASE_MIGRATION_URL).pathname.slice(1);
   if (values.replace && values['confirm-db'] !== targetName) {
@@ -88,16 +79,22 @@ async function runImport(values: Values): Promise<void> {
     await checkTarget(target, options);
 
     const { admins, disabled } = mapAdmins(snapshot.users, { withoutPasswords: values['without-passwords'] ?? false, now: new Date() });
-    const photos = NO_PHOTOS;
-    const { wipedKeys } = await writeImport(target, { snapshot, admins, photos }, options);
-    await removeKeys(storage, wipedKeys);
+    const photos = await copyPhotos(snapshot.records, { storage, publicApiUrl: env.PUBLIC_API_URL, photoBase });
+    let wipedKeys: string[];
+    try {
+      ({ wipedKeys } = await writeImport(target, { snapshot, admins, photos: photos.result }, options));
+    } catch (err) {
+      await removeAll(storage, photos.writtenKeys);
+      throw err;
+    }
+    await removeAll(storage, wipedKeys);
 
     const report: ImportReport = {
       created_at: new Date().toISOString(),
       source: describeDatabase(sourceUrl),
       target: describeDatabase(env.DATABASE_MIGRATION_URL),
-      photo_gaps: [],
-      generated_thumbs: [],
+      photo_gaps: photos.gaps,
+      generated_thumbs: photos.generated,
       admins_disabled: disabled,
     };
     await writeReport(values.report, report);
@@ -119,10 +116,12 @@ async function printSummary(target: Sql, report: ImportReport): Promise<void> {
   for (const row of rows) console.log(`${row.what.padEnd(24)} ${row.n}`);
   console.log(`admins imported disabled ${report.admins_disabled.length}`);
   console.log(`photo gaps               ${report.photo_gaps.length}`);
+  console.log(`generated thumbs         ${report.generated_thumbs.length}`);
 }
 
 const OPTIONS = {
   report: { type: 'string' },
+  'photo-base': { type: 'string' },
   'source-ca': { type: 'string' },
   replace: { type: 'boolean' },
   'confirm-db': { type: 'string' },

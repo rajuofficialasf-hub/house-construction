@@ -34,7 +34,9 @@ afterAll(() => Promise.all([app.end(), owner.end(), src.end()]));
 
 const reportPath = () => path.join(work, `report-${randomUUID()}.json`);
 const nasEnv = () => ({ STORAGE_ROOT: path.join(work, 'storage') });
-const runImport = (extra: string[] = [], stdin = `${testSourceUrl}\n`) => importCli(['import', '--report', reportPath(), ...extra], stdin, nasEnv());
+const NO_PHOTO_BASE = 'http://127.0.0.1:9/storage/v1/object/public/housing-photos/';
+const runImport = (extra: string[] = [], stdin = `${testSourceUrl}\n`) =>
+  importCli(['import', '--report', reportPath(), '--photo-base', NO_PHOTO_BASE, ...extra], stdin, nasEnv());
 
 /** Every row of a table as to_jsonb text, in id order: equal text means equal data, to the microsecond. */
 async function tableText(sql: typeof owner, table: string, drop: string[] = []): Promise<string[]> {
@@ -133,7 +135,7 @@ describe('import-supabase import', () => {
   it('imports admins who could not log in as disabled, and reports them by id and reason only', async () => {
     const ids = await seedSource();
     const report = reportPath();
-    const res = await importCli(['import', '--report', report], `${testSourceUrl}\n`, nasEnv());
+    const res = await importCli(['import', '--report', report, '--photo-base', NO_PHOTO_BASE], `${testSourceUrl}\n`, nasEnv());
     expect(res.code).toBe(0);
     const written = JSON.parse(await readFile(report, 'utf8'));
     expect(written.admins_disabled).toEqual(
@@ -265,7 +267,7 @@ describe('import-supabase refusals', () => {
   });
 
   it('needs --report and a source URL on stdin', async () => {
-    expect((await importCli(['import'], `${testSourceUrl}\n`, nasEnv())).stderr).toContain('--report');
+    expect((await importCli(['import', '--photo-base', NO_PHOTO_BASE], `${testSourceUrl}\n`, nasEnv())).stderr).toContain('--report');
     expect((await runImport([], '')).stderr).toContain('no supabase database url given on stdin');
   });
 });
