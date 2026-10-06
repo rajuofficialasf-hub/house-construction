@@ -311,7 +311,7 @@ Migrations are not rolled back automatically. After the first staging run they a
 - **Tests:** None automated. A read-through against the scripts: every variable the scripts and `config.ts` need is in the env-file section, and every command names a real script or path.
 - **Done when:** The runbook covers each item above, and the other docs are updated.
 - **Depends on:** U4, U5
-- **Status:** todo
+- **Status:** done
 
 ### U7. Replace `xlsx` 0.18.5 with SheetJS 0.20.3
 - **Goal:** The admin import reads `.xlsx` and `.csv` files exactly as before, on a SheetJS version with no open high advisories.
@@ -367,7 +367,7 @@ All server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$P
 ## Progress
 - **Branch:** `migrate/c6-deploy`
 - **Updated:** 2026-10-06 09:55
-- **Next:** U6, write `docs/operations/runbook.md`, then the migration-notes, testing, roadmap and README updates
+- **Next:** ae-test (full), then simplify and review; U3's green CI run waits on a push
 - **Uncommitted:** none
 - **Notes:**
   - Unit order: U1, U2, U7, U3, U4, U5, U6 (U3 depends on U7 for a clean audit).
@@ -385,5 +385,6 @@ All server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$P
       - curl confirmed the headers, the SPA fallback, immutable assets, the one-day photo cache, 413 for a 2 MB login body, and that a spoofed `X-Forwarded-For` is replaced by the client IP;
       - `edge-rest` was green on a fresh seeded database (17 passed, 2 skipped), and a `connect-src 'none'` CSP made it fail.
     - The local dev database's C5 photos have `http://localhost:3001` URLs, so `edge-rest` correctly flags them as cross-origin. The local edge run needs a fresh seed; CI's seed has none.
+  - U6: the restore drill was re-run as a plain `createdb` role (`housing_drill`, as the runbook sets up), not the superuser, and passed. The runbook sets the role passwords through `printf` piped into psql, so they never appear in `ps`.
   - The deploy script runs from the repo clone's working tree, so the runbook updates that tree before each deploy.
   - `npm ci` runs with `--ignore-scripts` per command, not through `NPM_CONFIG_IGNORE_SCRIPTS`, which would also skip pre/post scripts on `npm run`.

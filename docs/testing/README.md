@@ -18,7 +18,20 @@ The suite exists so that nothing is lost when the backend moves from Supabase to
 | `npm run test:contract:rest` | The full backend-contract suite, writes included, through the REST adapter against the Express app on `housing_test` | `docker compose up -d db` and Node 22 |
 | `npm run test:e2e:rest` | Playwright: the public flows (`e2e/live/`) against the compose API (`VITE_HOUSING_BACKEND=rest`, project `public-rest`) | `docker compose up -d db api` with the dev seed |
 | `npm run test:e2e:rest-admin` | Playwright: the admin flows (`e2e/mock/`), photos included, against an API it starts on `housing_test` (project `admin-rest`), storing photos in `.storage/e2e` | `docker compose up -d db` and Node 22 |
+| `npm run test:e2e:edge` | Playwright: the public flows (`e2e/live/`) through nginx 1.20 with the box's locations, security headers and CSP (project `edge-rest`). Any CSP violation fails the test; the dev seed's `https://example.com/` photo placeholders are the only exception | `npm run build:edge`, then `docker compose --profile edge up -d db api edge` on a database whose photo URLs use the edge origin: a fresh seed, not one with photos uploaded through `:3001` |
 | `npm run dev:mock` | The app on the mock backend, for manual checks. Admin login: see `MOCK_ADMIN` in `src/features/housing/backend/mock/fixtures.ts` | nothing |
+
+## CI
+
+`.github/workflows/ci.yml` runs on every push and pull request, with no secrets:
+- `checks`: lint, both typechecks, `i18n-check`, `npm test`, `check:prod-bundle`, and `npm audit --omit=dev --audit-level=high` for both packages.
+- `db-suites`, against a `postgres:17` service set up by `server/db/docker-init/01-init.sh`:
+  - the three `housing_test` suites one after another (`npm --prefix server test`, `test:contract:rest`, `test:e2e:rest-admin`);
+  - then, on the seeded `housing` database, `test:e2e:rest` against the built API, and `test:e2e:edge` through nginx 1.20.
+- `e2e-mock`: `test:e2e:mock`.
+- `deploy-config`: shellcheck, the PM2 file, and `nginx -t` on nginx 1.20 for every rendered vhost.
+
+The S3 storage tests don't run in CI, which holds no AWS keys. They run once by hand against a test bucket (`docs/operations/runbook.md`, section 11).
 
 ## Rules
 

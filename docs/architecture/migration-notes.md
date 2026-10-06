@@ -37,8 +37,15 @@ Roadmap: [../plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md](../pla
    - Every upload gets server-made UUID keys (`housing/<uuid>.webp`) and rows in `housing_files`; the record's `*_url` columns hold `PUBLIC_API_URL/api/v1/photos/<file id>`. Serial-based paths stay a Supabase-only rule.
    - A serial change moves no file and changes no URL. A replaced photo, a photo delete and a record delete mark the old rows in the transaction and remove the files after commit; `npm --prefix server run files:sweep` retries any removal that failed.
    - The server re-encodes every upload as WebP with all metadata removed and makes the thumbnail itself.
-   - `GET /api/v1/photos/:id` serves photos publicly with a year of immutable caching and its own rate limit (1200 per IP per minute).
-4. Writes: every POST, PUT or DELETE under `/api/v1/housing` needs an admin session, checked before the body is read. The acting admin for the activity log always comes from the session (`withActor()`), never from the request. The bulk routes take up to 500 rows in one transaction, with a 10 MB body limit; every other route has 100 KB. There is no write rate limit yet; C6 decides on one before production. Settled in C4 ([../plans/2026-10-05-1601-migrate-c4-write-endpoints-plan.md](../plans/2026-10-05-1601-migrate-c4-write-endpoints-plan.md)).
+   - `GET /api/v1/photos/:id` serves photos publicly with its own rate limit (1200 per IP per minute). It was cached a year as immutable; C6 changed that to one day (`public, max-age=86400`), so a deleted photo leaves browser and CDN caches within a day.
+4. Writes: every POST, PUT or DELETE under `/api/v1/housing` needs an admin session, checked before the body is read. The acting admin for the activity log always comes from the session (`withActor()`), never from the request. The bulk routes take up to 500 rows in one transaction, with a 10 MB body limit; every other route has 100 KB. Settled in C4 ([../plans/2026-10-05-1601-migrate-c4-write-endpoints-plan.md](../plans/2026-10-05-1601-migrate-c4-write-endpoints-plan.md)). C6 added a write rate limit: 120 writes per admin per minute, counted in memory. A bulk request counts as one, the activity-log POST isn't counted, and a write without a session is still 401.
+5. Deploy: settled in C6 ([../plans/2026-10-06-0925-migrate-c6-deploy-plan.md](../plans/2026-10-06-0925-migrate-c6-deploy-plan.md); steps for a person in [../operations/runbook.md](../operations/runbook.md)).
+   - GitHub Actions runs every suite against PostgreSQL 17.
+   - On the organization box, Cloudflare (with Authenticated Origin Pulls) → nginx 1.20 → one PM2 API process per environment. The API binds to loopback, and `TRUST_PROXY=1` because nginx overwrites `X-Forwarded-For` with the client IP.
+   - Each environment has its own Linux user, PostgreSQL 17 cluster, env files and S3 photo bucket.
+   - The UI and the API share one origin, so `PUBLIC_API_URL` is the site's origin.
+   - Nightly encrypted backups go to an Object Lock bucket for 30 days, and the restore drill runs quarterly.
+   - Production stays on Supabase until C7.
 
 ## Where each `supabase/sql` file went
 
@@ -74,7 +81,7 @@ Another developer keeps shipping features on the Supabase version while the new 
 2. Production stays on `VITE_HOUSING_BACKEND=supabase`. Only local and staging use `rest`.
 3. Merge `main` into the migration branch at least weekly, and whenever the other developer pushes.
 4. After each merge, check these paths:
-   - `supabase/sql/*`: port each new `supabase/sql/NN_*.sql` as the next `server/db/migrations/NNNN_*.sql`, add a row to the table above, and grant `housing_app` what it needs. Never edit a migration that has already run on staging or production; add a new one.
+   - `supabase/sql/*`: port each new `supabase/sql/NN_*.sql` as the next `server/db/migrations/NNNN_*.sql`, add a row to the table above, and grant `housing_app` what it needs. Never edit a migration that has already run on staging or production; add a new one. From the first staging deploy on, migrations are add-only and must work with the previous release's code, because a rollback switches the code back but never the schema.
    - `backend/supabase/*` and the shared backend types: add the matching endpoint and REST adapter method.
    - `docs/api/API_CONTRACT.md`: implement whatever changed.
 5. Run the contract and e2e suites against `rest`. A failure means a feature exists on Supabase but not yet on the new server.

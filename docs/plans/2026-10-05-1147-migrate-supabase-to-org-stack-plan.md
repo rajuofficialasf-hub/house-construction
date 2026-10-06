@@ -74,7 +74,7 @@ Each chunk is one session (plan, build, review, merge). Order matters; C3 and C5
 | **C3** | Read endpoints + REST adapter reads + read contract tests against the server; CORS allowlist and OpenAPI spec | R1 (reads), R3, R14 | C1 |
 | **C4** | Write endpoints: create, update, delete, change serial, bulk insert, bulk update, activity log; REST adapter writes; write contract and mock e2e suites on `rest` | R1 (writes), R2, R4–R6 | C2, C3 |
 | **C5** (done: `docs/plans/2026-10-05-1722-migrate-c5-photos-plan.md`) | Photos: storage adapter with S3 and NAS drivers, `housing_files` table, photo upload/delete/serve routes, EXIF strip. The driver copy script moves to the NAS switch; the REST image adapter isn't needed (the server returns the URLs) | R11, R12 | C2 |
-| **C6** | CI, staging and production deploy (PM2 + nginx), backups and restore drill, uptime check | R2 (in CI) | C4, C5 |
+| **C6** (done: `docs/plans/2026-10-06-0925-migrate-c6-deploy-plan.md`) | CI, staging and production deploy (PM2 + nginx), backups and restore drill, uptime check; box steps in `docs/operations/runbook.md` | R2 (in CI) | C4, C5 |
 | **C7** | Data import and cutover: import script (records, serial counters, activity log, admins with password hashes, photos to S3), rehearsal on staging, cutover, rollback window | R10, R13, R16 | C6 |
 | **C8** | Remove Supabase after the rollback window: dependency, adapter, `supabase/` folder, migrate-photos script, docs | R17 | C7 + rollback window |
 
@@ -86,6 +86,6 @@ After every chunk: merge `main` into the migration branch and port anything the 
 - A new developer can run the whole stack locally with one command.
 
 ## Open questions
-- **Postgres host:** confirm with the box owner that self-hosted PostgreSQL 17 on the PM2 box is acceptable (fallback: small managed Postgres; no code change). Needed before C6.
+- ~~**Postgres host**~~ (answered 2026-10-06): self-hosted PostgreSQL 17 on the PM2 box, one cluster per environment, localhost only.
 - **Admin password hashes:** confirm that Supabase lets us export `auth.users.encrypted_password` for R10; if not, admins reset passwords once at cutover. Needed before C7.
-- **S3 provider:** AWS S3 or Cloudflare R2 for the S3 driver. Needed before C6.
+- ~~**S3 provider**~~ (answered 2026-10-06): AWS S3, for photos and backups.

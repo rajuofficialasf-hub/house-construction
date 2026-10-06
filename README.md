@@ -67,4 +67,5 @@ npm --prefix server test             # সার্ভার টেস্ট (ho
 - [docs/progress/HOUSING_PROGRESS.md](docs/progress/HOUSING_PROGRESS.md) — স্ট্যাক, স্কিমা, রুট, প্রতিটি ধাপের সিদ্ধান্ত, **ব্যবহার নির্দেশিকা**, ডাটাবেস সেটআপ চেকলিস্ট
 - [docs/api/API_CONTRACT.md](docs/api/API_CONTRACT.md) — নিজস্ব REST ব্যাকএন্ডের চুক্তি
 - [docs/testing/README.md](docs/testing/README.md) — টেস্ট চালানো, মক ব্যাকএন্ড, নতুন ব্যাকএন্ডে টেস্ট সরানোর ধাপ
+- [docs/operations/runbook.md](docs/operations/runbook.md) — সার্ভারে (PM2 + nginx) স্টেজিং ও প্রোডাকশন সেটআপ, ডিপ্লয়, রোলব্যাক, ব্যাকআপ ও রিস্টোর ড্রিল
 - [supabase/README.md](supabase/README.md) — SQL চালানোর ক্রম
