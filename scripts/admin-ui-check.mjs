@@ -12,6 +12,11 @@
  */
 import fs from 'node:fs'
 import puppeteer from 'puppeteer-core'
+import sharp from 'sharp'
+
+// demo এর নকল ছবি (৮০০×৬০০ — ভিন্ন রং, আগে/পরে আলাদা চেনা যায়)
+const DEMO_PNG = await sharp({ create: { width: 800, height: 600, channels: 3, background: '#2f855a' } }).png().toBuffer()
+const DEMO_PNG_PREV = await sharp({ create: { width: 600, height: 800, channels: 3, background: '#9c4221' } }).png().toBuffer()
 
 const argv = process.argv.slice(2)
 const bi = argv.indexOf('--base')
@@ -196,7 +201,16 @@ async function fakeRecords(u, method, req, respond0) {
       const want = JSON.parse(cs)
       rows = rows.filter((r) => Object.entries(want).every(([k, v]) => r.extra?.[k] === v))
     }
-    return send([...rows].sort((a, b) => a.serial_no - b.serial_no))
+    rows = [...rows].sort((a, b) => a.serial_no - b.serial_no)
+    // পেজিনেশন (supabase-js range → offset/limit) — M-ধাপ ১৪: পাতা পেরিয়ে ←/→
+    const off = Number(u.searchParams.get('offset') ?? 0)
+    const lim = u.searchParams.get('limit')
+    if (!one && lim !== null) {
+      const total = rows.length
+      const pageRows = rows.slice(off, off + Number(lim))
+      return respond(200, pageRows, { 'content-range': pageRows.length ? `${off}-${off + pageRows.length - 1}/${total}` : `*/${total}` })
+    }
+    return send(rows)
   }
   writes.push({ method, path: u.pathname, search: u.search, body })
   if (method === 'POST') {
@@ -223,6 +237,10 @@ async function handle(req) {
   if (!url.startsWith(SB)) return req.continue()
   const u = new URL(url)
   const method = req.method()
+  // demo এর ছবি পড়া — নকল PNG (M-ধাপ ১৪; লাইভ স্টোরেজে demo এর ছবি নেই)
+  if (method === 'GET' && u.pathname.startsWith('/storage/v1/object/public/housing-photos/housing/demo/')) {
+    return req.respond({ status: 200, contentType: 'image/png', headers: { 'access-control-allow-origin': '*' }, body: u.pathname.includes('/prev') ? DEMO_PNG_PREV : DEMO_PNG })
+  }
   const respond = (status, body, headers = {}) =>
     req.respond({ status, contentType: 'application/json', headers: { 'access-control-allow-origin': '*', 'access-control-expose-headers': 'content-range', ...headers }, body: typeof body === 'string' ? body : JSON.stringify(body) })
   if (method === 'OPTIONS') return req.respond({ status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' } })
@@ -1186,6 +1204,142 @@ for (const [w, mobile] of [[1280, false], [390, true]]) {
   ok('৩৯০px: অনুভূমিক ওভারফ্লো নেই', !(await m.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)))
   await m.screenshot({ path: '.smoke/list-demo-390.png', fullPage: true })
   await m.close()
+  demoRecs.length = 0
+}
+
+// ---------------------------------------------------------------- O. বিস্তারিত মডাল — ছবি মোড ও কাস্টম ফিল্ড (M-ধাপ ১৪)
+{
+  const ts = new Date('2026-10-06T00:00:00Z').toISOString()
+  const photo = (serial, kind) => `${SB}/storage/v1/object/public/housing-photos/housing/demo/${String(serial).padStart(4, '0')}/${kind}.webp`
+  const cats = ['গাভী', 'ছাগল', 'সেলাই মেশিন']
+  demoRecs.length = 0
+  for (let i = 1; i <= 55; i++) {
+    demoRecs.push({ id: `00000000-0000-0000-0000-0000000g${String(i).padStart(4, '0')}`, project_type: 'demo', serial_no: i, year: 2025, name: i === 1 ? 'রহিমা' : `উপকারভোগী ${i}`, father_or_husband_name: '', division: 'চট্টগ্রাম', district: 'চট্টগ্রাম', upazila: 'মীরসরাই', union_name: i === 1 ? 'করেরহাট' : '', address: i === 1 ? 'গ্রাম: পূর্ব জোয়ার' : '', extra: { category: cats[i % 3], item_name: i === 1 ? 'দেশি গাভী (২ বছর)' : '', amount: 60000 + i }, prev_photo_url: i === 2 ? photo(i, 'prev') : null, prev_thumb_url: null, current_photo_url: i === 4 ? null : photo(i, 'current'), current_thumb_url: null, prev_photo_source: null, current_photo_source: null, photo_updated_at: ts, created_at: ts, updated_at: ts })
+  }
+  const dlg = (p) => p.evaluate(() => document.querySelector('[role="dialog"][aria-modal="true"]')?.innerText ?? '')
+  const pathQ = (p) => { const u = new URL(p.url()); return u.pathname + u.search }
+  const waitPath = (p, re) => p.waitForFunction((s) => new RegExp(s).test(location.pathname + location.search), { timeout: 10000 }, re.source).then(() => true).catch(() => false)
+
+  const p = await newPage(1280)
+  await p.goto(BASE + '/demo/1', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  await p.waitForFunction(() => document.querySelector('[data-photo-viewer] img:not([aria-hidden])')?.naturalWidth > 0, { timeout: 10000 }).catch(() => {})
+  let s = await dlg(p)
+  const v = await p.evaluate(() => {
+    const el = document.querySelector('[data-photo-viewer]')
+    const img = el?.querySelector('img:not([aria-hidden])')
+    return { viewer: !!el, slider: !!document.querySelector('[role="dialog"] [role="slider"]'), modeBtns: [...document.querySelectorAll('[role="dialog"] button')].some((b) => /স্লাইডার|পাশাপাশি/.test(b.textContent)), loaded: (img?.naturalWidth ?? 0) > 0, alt: img?.alt }
+  })
+  ok('শুধু-পরে প্রকল্প: একক ছবি (PhotoViewer), ছবি লোড; স্লাইডার/পাশাপাশি নেই', v.viewer && v.loaded && !v.slider && !v.modeBtns, JSON.stringify(v))
+  ok('"তুলনা সম্ভব নয়" কোথাও নেই; টুলবারে প্রকল্পের লেবেল "উপকরণসহ ছবি"', !s.includes('তুলনা সম্ভব নয়') && s.includes('উপকরণসহ ছবি') && v.alt === 'রহিমা — উপকরণসহ ছবি')
+  const hl = await p.evaluate(() => document.querySelector('[data-highlight]')?.innerText.replace(/\s+/g, ' ') ?? '')
+  ok('হাইলাইট কার্ড উপরে: "উপকরণের ক্যাটাগরি: ছাগল" আর "টাকা: ৳ ৬০,০০১"', hl.includes('উপকরণের ক্যাটাগরি ছাগল') && hl.includes('টাকা ৳ ৬০,০০১'), hl)
+  const dts = await p.evaluate(() => [...document.querySelectorAll('[role="dialog"] dl dt')].map((d) => d.textContent + '=' + d.nextElementSibling?.textContent))
+  ok('ঘরগুলো ক্রমে: সিরিয়াল, অনুদানের সাল, নাম, …, ইউনিয়ন (মান আছে), উপকরণের নাম, ঠিকানা শেষে; টাকা/ক্যাটাগরি দ্বিতীয়বার নয়', dts[0] === 'সিরিয়াল নম্বর=১' && dts[1] === 'অনুদানের সাল=২০২৫' && dts.includes('ইউনিয়ন/পৌরসভা=করেরহাট') && dts.includes('উপকরণের নাম/বিবরণ=দেশি গাভী (২ বছর)') && dts.at(-1) === 'বিস্তারিত ঠিকানা=গ্রাম: পূর্ব জোয়ার' && !dts.some((d) => d.startsWith('টাকা=') || d.startsWith('উপকরণের ক্যাটাগরি=')), dts.join(' | '))
+  // জুম
+  const zoomTxt = () => p.evaluate(() => document.querySelector('[data-photo-viewer] [aria-live]')?.textContent)
+  await p.click('[data-photo-viewer] button[aria-label="বড় করুন"]')
+  await sleep(150)
+  const z1 = await zoomTxt()
+  const fr = await p.evaluate(() => { const r = document.querySelector('[data-photo-viewer] .cursor-grab, [data-photo-viewer] .cursor-zoom-in')?.getBoundingClientRect(); return r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null })
+  await p.click('[data-photo-viewer] button[aria-label="রিসেট"]')
+  await sleep(100)
+  await p.mouse.click(fr.x, fr.y, { count: 2 })
+  await sleep(150)
+  const z2 = await zoomTxt()
+  await p.mouse.move(fr.x, fr.y)
+  await p.mouse.wheel({ deltaY: 200 })
+  await sleep(150)
+  const z3 = await zoomTxt()
+  ok('জুম: "+" → ১২৫%, ডাবল-ক্লিক → ২৫০%, হুইল নিচে → ছোট', z1 === '১২৫%' && z2 === '২৫০%' && z3 !== '২৫০%', `${z1} ${z2} ${z3}`)
+  await p.click('[data-photo-viewer] button[aria-label="রিসেট"]')
+  // ফুলস্ক্রিন
+  await p.click('[data-photo-viewer] button[aria-label="ফুলস্ক্রিন"]')
+  await sleep(400)
+  const fs1 = await p.evaluate(() => ({ on: !!document.fullscreenElement?.hasAttribute('data-photo-viewer'), btn: !!document.querySelector('[data-photo-viewer] button[aria-label="ফুলস্ক্রিন বন্ধ"]') }))
+  await p.keyboard.press('ArrowRight') // ফুলস্ক্রিনে ← → মডালকে সরায় না
+  await sleep(200)
+  const stay = pathQ(p)
+  await p.evaluate(() => document.exitFullscreen().catch(() => {}))
+  await sleep(300)
+  ok('ফুলস্ক্রিন চালু হয় (একক ছবির ফ্রেম), বাটন "ফুলস্ক্রিন বন্ধ"; তখন → চাপলে রেকর্ড বদলায় না', fs1.on && fs1.btn && stay === '/demo/1', `${JSON.stringify(fs1)} ${stay}`)
+  // ← → , পাতা পেরিয়ে
+  await p.keyboard.press('ArrowRight')
+  const r2 = await waitPath(p, /^\/demo\/2$/)
+  await settle(p)
+  s = await dlg(p)
+  ok('→ চাপলে /demo/2; সেখানে শুধু-পরে প্রকল্পে আগের ছবি থাকলেও একক বর্তমান ছবিই', r2 && !(await p.$('[role="dialog"] [role="slider"]')) && !s.includes('তুলনা সম্ভব নয়'), pathQ(p))
+  await p.goto(BASE + '/demo/50', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  await p.keyboard.press('ArrowRight')
+  const r51 = await waitPath(p, /^\/demo\/51\?page=2$/)
+  await settle(p)
+  const pos = await p.evaluate(() => document.querySelector('[role="dialog"] [aria-live="polite"]')?.textContent)
+  ok('পাতার শেষে → : পরের পাতা এনে /demo/51?page=2 ("৫৫ টির মধ্যে ৫১")', r51 && pos === '৫৫ টির মধ্যে ৫১', `${pathQ(p)} ${pos}`)
+  await p.keyboard.press('ArrowLeft')
+  const r50 = await waitPath(p, /^\/demo\/50$/)
+  ok('← চাপলে আগের পাতায় ফেরে (/demo/50, page প্যারামিটার নেই)', r50, pathQ(p))
+  await p.goto(BASE + '/demo/4', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  ok('ছবি না থাকলে: "এই উপকারভোগীর কোনো ছবি নেই।" (তুলনার কথা নয়)', (await dlg(p)).includes('এই উপকারভোগীর কোনো ছবি নেই।') && !(await dlg(p)).includes('তুলনা'))
+  await p.screenshot({ path: '.smoke/detail-demo-1280.png' })
+  ok('বিস্তারিতে কোনো page error নেই', p.errors.length === 0, p.errors.join(' | '))
+  await p.close()
+
+  // ইংরেজি: লেবেল ইংরেজিতে, ক্যাটাগরি/নাম শীটে যেমন (বাংলা)
+  const e = await newPage(1280, false, 'en')
+  await e.goto(BASE + '/demo/1', { waitUntil: 'domcontentloaded' })
+  await settle(e)
+  await sleep(500)
+  const ehl = await e.evaluate(() => document.querySelector('[data-highlight]')?.innerText.replace(/\s+/g, ' ') ?? '')
+  const edt = await e.evaluate(() => [...document.querySelectorAll('[role="dialog"] dl dt')].map((d) => d.textContent + '=' + d.nextElementSibling?.textContent))
+  const es = await dlg(e)
+  ok('EN: "Item category ছাগল" (মান বাংলায়, যেমন শীটে), "Amount ৳60,001"; নাম "রহিমা" বাংলায়', ehl.includes('Item category ছাগল') && /Amount ৳\s?60,001/.test(ehl) && edt.includes('Beneficiary name=রহিমা'), `${ehl} | ${edt.slice(0, 3).join(' | ')}`)
+  ok('EN: বাকি লেবেল ইংরেজিতে — Grant year, Union/Municipality=Korerhat, Item name / description, Detailed address, "Photo with the item"', edt.includes('Grant year=2025') && edt.includes('Union/Municipality=Korerhat') && edt.some((d) => d.startsWith('Item name / description=')) && edt.some((d) => d.startsWith('Detailed address=')) && es.includes('Photo with the item'), edt.join(' | '))
+  await e.screenshot({ path: '.smoke/detail-demo-en.png' })
+  await e.close()
+
+  // ফোন
+  const m = await newPage(390, true)
+  await m.goto(BASE + '/demo/1', { waitUntil: 'domcontentloaded' })
+  await settle(m)
+  const mv = await m.evaluate(() => {
+    const d = document.querySelector('[role="dialog"] > div')?.getBoundingClientRect()
+    const f = document.querySelector('[data-photo-viewer]')?.getBoundingClientRect()
+    return { dw: d?.width, fw: f?.width, fh: f?.height, over: document.documentElement.scrollWidth > window.innerWidth + 1 }
+  })
+  ok('৩৯০px: একক ছবি মডালের পুরো চওড়ায় (প্যাডিং বাদে), যথেষ্ট উঁচু; ওভারফ্লো নেই', mv.fw >= mv.dw - 30 && mv.fh >= 220 && !mv.over, JSON.stringify(mv))
+  await m.screenshot({ path: '.smoke/detail-demo-390.png' })
+  await m.close()
+
+  // আগে-পরে প্রকল্পে নিজের লেবেল ("মেরামতের আগে/পরে"), আর ছবিহীন প্রকল্প
+  Object.assign(created.project, { photo_mode: 'before_after', prev_label_bn: 'মেরামতের আগে', prev_label_en: 'Before repair', current_label_bn: 'মেরামতের পরে', current_label_en: 'After repair' })
+  const q = await newPage(1280)
+  await q.goto(BASE + '/demo/2', { waitUntil: 'domcontentloaded' })
+  await settle(q)
+  const badges = await q.evaluate(() => [...document.querySelectorAll('[data-compare] span.pointer-events-none')].map((x) => x.textContent))
+  ok('আগে-পরে প্রকল্প: স্লাইডার, ব্যাজে প্রকল্পের লেবেল "মেরামতের আগে"/"মেরামতের পরে"', !!(await q.$('[role="dialog"] [role="slider"]')) && badges.join(',') === 'মেরামতের আগে,মেরামতের পরে', badges.join(','))
+  await q.goto(BASE + '/demo/3', { waitUntil: 'domcontentloaded' })
+  await settle(q)
+  ok('আগে-পরে প্রকল্পে একটি ছবি নেই → "«মেরামতের আগে» ছবি নেই — তুলনা সম্ভব নয়…" (শুধু আগে-পরে প্রকল্পেই)', (await dlg(q)).includes('«মেরামতের আগে» ছবি নেই — তুলনা সম্ভব নয়'))
+  created.project.photo_mode = 'none'
+  await q.goto(BASE + '/demo/1', { waitUntil: 'domcontentloaded' })
+  await settle(q)
+  ok('ছবিহীন প্রকল্প: ছবির অংশই নেই, হাইলাইট কার্ড সবার উপরে', !(await q.$('[role="dialog"] [data-compare]')) && !!(await q.$('[role="dialog"] [data-highlight]')))
+  Object.assign(created.project, { photo_mode: 'after_only', prev_label_bn: '', prev_label_en: '', current_label_bn: 'উপকরণসহ ছবি', current_label_en: 'Photo with the item' })
+  ok('আগে-পরে/ছবিহীন পরীক্ষায় page error নেই', q.errors.length === 0, q.errors.join(' | '))
+  await q.close()
+
+  // ঘর নির্মাণ: স্লাইডার আগের মতো, আগের ৮টি ঘর, হাইলাইট নেই (লাইভ পড়া)
+  const h = await newPage(1280)
+  await h.goto(BASE + '/housing/semi-pucca', { waitUntil: 'domcontentloaded' })
+  await settle(h)
+  await h.evaluate(() => document.querySelector('table a[href^="/housing/semi-pucca/"]')?.click())
+  await settle(h)
+  await sleep(300)
+  const hb = await h.evaluate(() => ({ slider: !!document.querySelector('[role="dialog"] [role="slider"]'), badges: [...document.querySelectorAll('[data-compare] span.pointer-events-none')].map((x) => x.textContent), dts: [...document.querySelectorAll('[role="dialog"] dl dt')].map((d) => d.textContent), hl: !!document.querySelector('[data-highlight]'), viewer: !!document.querySelector('[data-photo-viewer]') }))
+  ok('ঘর নির্মাণ: স্লাইডার, ব্যাজ "পূর্বের"/"বর্তমান", আগের ৮টি ঘর একই ক্রমে, হাইলাইট/একক ছবি নেই', hb.slider && hb.badges.join(',') === 'পূর্বের,বর্তমান' && hb.dts.join(',') === 'সিরিয়াল নম্বর,সাল,উপকারভোগীর নাম,পিতা/স্বামীর নাম,বিভাগ,জেলা,উপজেলা,বিস্তারিত ঠিকানা' && !hb.hl && !hb.viewer, JSON.stringify(hb))
+  await h.close()
   demoRecs.length = 0
 }
 

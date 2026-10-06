@@ -7,7 +7,7 @@ import { ProjectListPage } from '@/features/projects/list/ProjectListPage'
 import { HousingLoginPage } from '@/features/housing/pages/HousingLoginPage'
 import {
   Lazy,
-  LazyHousingDetailPage,
+  LazyProjectDetailPage,
 } from '@/features/housing/pages/lazyPages'
 import { LazyAdminDashboardPage, LazyAdminProjectsPage, LazyActivityPage, LazyAdminRecordsPage, LazyImportPage, LazyPhotoBulkPage, LazyProjectSettingsPage, LazyProjectWizardPage, LazyRecordFormPage } from '@/features/admin/pages/lazyAdminPages'
 import { ProjectFrame } from './ProjectFrame'
@@ -60,7 +60,7 @@ function leafRoute(p: Project) {
         path=":serial"
         element={
           <Lazy>
-            <LazyHousingDetailPage />
+            <LazyProjectDetailPage />
           </Lazy>
         }
       />

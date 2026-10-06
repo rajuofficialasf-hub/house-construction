@@ -1,14 +1,19 @@
-import { gn, lt, t as tr } from '@/i18n'
-import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent } from 'react'
+import { getLang, lt, t as tr } from '@/i18n'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type TouchEvent } from 'react'
 import { useLocation, useNavigate, useOutletContext, useParams } from 'react-router'
 import { formatBanglaNumber, toBanglaNumber } from '@/lib/banglaNumber'
-import { getHousingApi } from '../../../backend/factory'
-import { HousingApiError, type HousingRecord } from '../../../backend/interfaces/types'
-import { ErrorNotice } from '../components/ErrorNotice'
-import { PhotoCompare } from '../components/PhotoCompare'
-import { photoSrc } from '../utils/imagePath'
-import { projectPath } from '../utils/housingProjects'
-import type { ListOutletContext } from './listContext'
+import { getHousingApi, HousingApiError, type HousingRecord, type Project } from '@/backend'
+import type { FieldDef } from '@/features/projects/fields'
+import { useUnionData } from '@/features/geo/unions'
+import { ErrorNotice } from '@/features/housing/components/ErrorNotice'
+import { PhotoCompare } from '@/features/housing/components/PhotoCompare'
+import { photoSrc } from '@/features/housing/utils/imagePath'
+import { projectPath } from '@/features/housing/utils/housingProjects'
+import type { ListOutletContext } from '@/features/housing/pages/listContext'
+import { fieldHeader, photoLabel } from '@/features/projects/list/listColumns'
+import { compareLabels, detailLayout, fieldsFor, fieldText, type DetailLayout } from './detailLayout'
+import { FieldValue } from './FieldValue'
+import { PhotoViewer } from './PhotoViewer'
 
 const NO_RECORDS: HousingRecord[] = []
 const SWIPE_MIN_PX = 60
@@ -19,14 +24,17 @@ type Fetched =
   | { serial: number; status: 'error'; error: HousingApiError }
 
 /**
- * /housing/<slug>/:serial — ভিউ মোড। ProjectListPage এর ভেতরে (Outlet) full-screen মডাল হিসেবে রেন্ডার হয়,
+ * /<প্রকল্প>/:serial — ভিউ মোড (M-ধাপ ১৪-এ HousingDetailPage থেকে; সব প্রকল্পের)। ProjectListPage এর ভেতরে (Outlet) full-screen মডাল হিসেবে রেন্ডার হয়,
  * তাই নিচে তালিকা থাকে এবং URL এর ফিল্টার/পেইজ বজায় থাকে। লগইন লাগে না।
  *
  * আগের/পরের: রেকর্ড বর্তমান (ফিল্টার করা) পেইজে থাকলে সেই ক্রমে; পেইজের শেষে গেলে পরের পেইজ API থেকে এনে
  * তার প্রথম রেকর্ডে যায় (URL এ page বদলায়, নিচের তালিকাও সেই পেইজে যায়)।
  * সরাসরি লিঙ্কে রেকর্ড বর্তমান পেইজে না থাকলে getBySerial দিয়ে দেখায়; তখন আগের/পরের সিরিয়াল-ক্রমে চলে।
+ *
+ * ছবির অংশ ছবি মোড অনুযায়ী: আগে-পরে → PhotoCompare (স্লাইডার; ঘর নির্মাণে আগের মতো), শুধু-পরে → PhotoViewer (একক ছবি,
+ * জুম/ফুলস্ক্রিন), ছবি নেই → কিছু নয়। ঘরগুলো show_in_detail ক্রমে FieldValue দিয়ে; টাকা ও ক্যাটাগরি উপরে হাইলাইট কার্ডে।
  */
-export function HousingDetailPage() {
+export function ProjectDetailPage() {
   const ctx = useOutletContext<ListOutletContext>()
   const { serial: serialParam } = useParams()
   const navigate = useNavigate()
@@ -34,6 +42,8 @@ export function HousingDetailPage() {
   const serialNo = Number(serialParam)
   const validSerial = Number.isInteger(serialNo) && serialNo >= 1
   const project = ctx.project
+  const layout = useMemo(() => detailLayout(project), [project])
+  const labels = useMemo(() => compareLabels(project), [project])
 
   // ---- বর্তমান পেইজে রেকর্ড আছে? ----
   const pageRecords = ctx.list.data?.data ?? NO_RECORDS
@@ -70,6 +80,8 @@ export function HousingDetailPage() {
         ? fetchedForThis.error
         : null
   const loading = !record && !error
+  // ইংরেজিতে ইউনিয়নের ইংরেজি নাম (তালিকা lazy) — শুধু রেকর্ডে ইউনিয়ন থাকলে
+  useUnionData(!!record?.union_name && getLang() === 'en')
 
   // ---- URL helper ----
   const urlFor = useCallback(
@@ -231,29 +243,8 @@ export function HousingDetailPage() {
         {/* ---------- বডি ---------- */}
         <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 sm:px-4">
           {error && <ErrorNotice title={error.code === 'NOT_FOUND' ? tr('রেকর্ড পাওয়া যায়নি') : tr('রেকর্ড লোড করা যায়নি')} error={error} />}
-          {loading && <DetailSkeleton />}
-          {record && (
-            <>
-              <PhotoCompare
-                before={photoSrc(record.prev_photo_url, record.photo_updated_at)}
-                after={photoSrc(record.current_photo_url, record.photo_updated_at)}
-                alt={record.name}
-                compact
-                frameClassName="h-[clamp(200px,42vh,380px)] sm:h-[clamp(160px,36vh,380px)]"
-              />
-
-              <dl className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                <Field label={tr('সিরিয়াল নম্বর')} value={toBanglaNumber(record.serial_no)} strong />
-                <Field label={tr('সাল')} value={toBanglaNumber(record.year)} />
-                <Field label={tr('উপকারভোগীর নাম')} value={record.name} strong />
-                <Field label={tr('পিতা/স্বামীর নাম')} value={record.father_or_husband_name || '—'} />
-                <Field label={tr('বিভাগ')} value={gn(record.division)} />
-                <Field label={tr('জেলা')} value={gn(record.district)} />
-                <Field label={tr('উপজেলা')} value={gn(record.upazila)} />
-                <Field label={tr('বিস্তারিত ঠিকানা')} value={record.address || '—'} className="col-span-2 sm:col-span-4" wrap />
-              </dl>
-            </>
-          )}
+          {loading && <DetailSkeleton photos={layout.photoKinds.length} />}
+          {record && <RecordDetail project={project} layout={layout} labels={labels} record={record} />}
         </div>
 
         {/* ---------- ফুটার: আগের / পরের ---------- */}
@@ -273,12 +264,77 @@ export function HousingDetailPage() {
   )
 }
 
-function Field({ label, value, strong = false, wrap = false, className = '' }: { label: string; value: string; strong?: boolean; wrap?: boolean; className?: string }) {
+type CompareLabels = { before: string; after: string } | undefined
+
+/** রেকর্ডের অংশ: ছবি (ছবি মোড অনুযায়ী), হাইলাইট কার্ড (টাকা/ক্যাটাগরি), বাকি ঘর */
+function RecordDetail({ project, layout, labels, record }: { project: Project; layout: DetailLayout; labels: CompareLabels; record: HousingRecord }) {
+  const kinds = layout.photoKinds
+  const highlightCols = HIGHLIGHT_COLS[Math.min(4, layout.highlight.length)] ?? ''
+  return (
+    <>
+      {kinds.length === 2 && (
+        <PhotoCompare
+          before={photoSrc(record.prev_photo_url, record.photo_updated_at)}
+          after={photoSrc(record.current_photo_url, record.photo_updated_at)}
+          alt={record.name}
+          compact
+          labels={labels}
+          frameClassName="h-[clamp(200px,42vh,380px)] sm:h-[clamp(160px,36vh,380px)]"
+        />
+      )}
+      {kinds.length === 1 && (
+        <PhotoViewer
+          src={photoSrc(kinds[0] === 'prev' ? record.prev_photo_url : record.current_photo_url, record.photo_updated_at)}
+          alt={record.name}
+          label={photoLabel(project, kinds[0])}
+          frameClassName="h-[clamp(220px,46vh,420px)] sm:h-[clamp(200px,44vh,440px)]"
+        />
+      )}
+
+      {layout.highlight.length > 0 && (
+        <div data-highlight="" className={`${kinds.length ? 'mt-3 ' : ''}grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-brand-200 bg-brand-200 ${highlightCols}`}>
+          {layout.highlight.map((d) => (
+            <div key={d.key} className="min-w-0 bg-brand-50 px-3 py-2">
+              <p className="text-[11px] font-medium text-brand-800">{fieldHeader(d, project)}</p>
+              <p className="truncate text-lg leading-snug font-bold text-slate-900" title={fieldText(d, record)}>
+                <FieldValue def={d} record={record} />
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <dl className={`${kinds.length || layout.highlight.length ? 'mt-3 ' : ''}grid grid-cols-2 gap-2 sm:grid-cols-4`}>
+        <Field label={tr('সিরিয়াল নম্বর')} title={toBanglaNumber(record.serial_no)} strong>
+          {toBanglaNumber(record.serial_no)}
+        </Field>
+        {fieldsFor(layout, record).map((d) => (
+          <DetailField key={d.key} def={d} project={project} record={record} />
+        ))}
+      </dl>
+    </>
+  )
+}
+
+/** হাইলাইট কার্ডে বড় পর্দায় কলাম (Tailwind পুরো ক্লাসের নাম দেখতে চায়) */
+const HIGHLIGHT_COLS: Record<number, string> = { 1: 'sm:grid-cols-1', 2: 'sm:grid-cols-2', 3: 'sm:grid-cols-3', 4: 'sm:grid-cols-4' }
+
+/** একটি ঘর — লম্বা লেখা (ঠিকানা ইত্যাদি) পূর্ণ-চওড়া, লাইন-ভাঙা; নাম মোটা */
+function DetailField({ def, project, record }: { def: FieldDef; project: Project; record: HousingRecord }) {
+  const long = def.type === 'long_text'
+  return (
+    <Field label={fieldHeader(def, project)} title={long ? undefined : fieldText(def, record)} strong={def.key === 'name'} wrap={long} className={long ? 'col-span-2 sm:col-span-4' : ''}>
+      <FieldValue def={def} record={record} />
+    </Field>
+  )
+}
+
+function Field({ label, title, strong = false, wrap = false, className = '', children }: { label: string; title?: string; strong?: boolean; wrap?: boolean; className?: string; children: ReactNode }) {
   return (
     <div className={`min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-1.5 ${className}`}>
       <dt className="text-[11px] font-medium text-slate-500">{label}</dt>
-      <dd className={`${wrap ? 'break-words' : 'truncate'} text-slate-900 ${strong ? 'text-sm font-semibold' : 'text-sm'}`} title={wrap ? undefined : value}>
-        {value}
+      <dd className={`${wrap ? 'break-words' : 'truncate'} text-slate-900 ${strong ? 'text-sm font-semibold' : 'text-sm'}`} title={wrap ? undefined : title}>
+        {children}
       </dd>
     </div>
   )
@@ -301,14 +357,17 @@ function NavButton({ dir, disabled, onClick }: { dir: -1 | 1; disabled: boolean;
   )
 }
 
-function DetailSkeleton() {
+function DetailSkeleton({ photos }: { photos: number }) {
   return (
     <div className="animate-pulse" aria-busy="true" aria-label={tr('লোড হচ্ছে')}>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="aspect-[4/3] rounded-xl bg-slate-200" />
-        <div className="aspect-[4/3] rounded-xl bg-slate-200" />
-      </div>
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {photos === 2 && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="aspect-[4/3] rounded-xl bg-slate-200" />
+          <div className="aspect-[4/3] rounded-xl bg-slate-200" />
+        </div>
+      )}
+      {photos === 1 && <div className="aspect-[4/3] rounded-xl bg-slate-200 sm:aspect-[16/9]" />}
+      <div className={`${photos ? 'mt-5 ' : ''}grid gap-3 sm:grid-cols-2 lg:grid-cols-3`}>
         {Array.from({ length: 6 }, (_, i) => (
           <div key={i} className="h-16 rounded-xl bg-slate-200" />
         ))}

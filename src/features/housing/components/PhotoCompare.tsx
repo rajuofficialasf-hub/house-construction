@@ -18,6 +18,8 @@ import { SafeImage } from './SafeImage'
  * - জুম: মাউস হুইল, ডাবল-ক্লিক/ডাবল-ট্যাপ, পিঞ্চ; জুম অবস্থায় ড্র্যাগে প্যান। দুই ছবিতে সিঙ্ক (একই transform)।
  * - বাটন: −, +, রিসেট, ফুলস্ক্রিন (Fullscreen API)। কীবোর্ড: হ্যান্ডেলে ← → (স্লাইডার), Home/End।
  * - ভিন্ন আকার/অনুপাতের ছবি একই 4:3 ফ্রেমে object-contain; একটি ছবি না থাকলে একক ভিউ + বার্তা।
+ * - লেবেল (M-ধাপ ১৪): প্রকল্পের ছবির লেবেল props এ (যেমন "মেরামতের আগে"); না দিলে ঘর নির্মাণের আগের লেখা হুবহু।
+ * ZoomFrame/Layer/Badge/ToolButton export — শুধু-পরের-ছবির PhotoViewer একই জুম/প্যান/পিঞ্চ ব্যবহার করে।
  */
 
 interface Props {
@@ -30,11 +32,13 @@ interface Props {
   frameClassName?: string
   /** true: নিচের ইঙ্গিত-লাইন লুকানো, টুলবার ছোট */
   compact?: boolean
+  /** প্রকল্পের ছবির লেবেল (বর্তমান ভাষায়); না দিলে "পূর্বের"/"বর্তমান" (ঘর নির্মাণের আগের মতো) */
+  labels?: { before: string; after: string }
 }
 
 type Mode = 'slider' | 'side'
 
-interface Transform {
+export interface Transform {
   z: number
   tx: number
   ty: number
@@ -66,7 +70,12 @@ function zoomAt(t: Transform, p: { x: number; y: number }, factor: number, w: nu
   return clampTransform({ z, tx: p.x - (p.x - t.tx) * k, ty: p.y - (p.y - t.ty) * k }, w, h)
 }
 
-export function PhotoCompare({ before, after, alt, className = '', frameClassName = 'aspect-[4/3]', compact = false }: Props) {
+export function PhotoCompare({ before, after, alt, className = '', frameClassName = 'aspect-[4/3]', compact = false, labels }: Props) {
+  // ব্যাজ ও alt এর লেখা: প্রকল্পের লেবেল, নইলে আগের হুবহু
+  const badgeBefore = labels?.before ?? tr(BEFORE_LABEL)
+  const badgeAfter = labels?.after ?? tr(AFTER_LABEL)
+  const altBefore = alt + ' — ' + (labels?.before ?? tr('পূর্বের ঘর'))
+  const altAfter = alt + ' — ' + (labels?.after ?? tr('বর্তমান ঘর'))
   const [mode, setMode] = useState<Mode>('slider')
   const [t, setT] = useState<Transform>(IDENTITY)
   const [split, setSplit] = useState(50)
@@ -154,23 +163,23 @@ export function PhotoCompare({ before, after, alt, className = '', frameClassNam
       {single && (
         <div className={`flex min-h-0 flex-col ${isFs ? 'flex-1' : ''}`}>
           <ZoomFrame t={t} onChange={setT} fill={isFs} frameClass={frameClassName}>
-            <Layer src={(before ?? after)!} alt={`${alt} — ${before ? tr('পূর্বের ঘর') : tr('বর্তমান ঘর')}`} t={t} />
-            <Badge side="left">{before ? tr(BEFORE_LABEL) : tr(AFTER_LABEL)}</Badge>
+            <Layer src={(before ?? after)!} alt={before ? altBefore : altAfter} t={t} />
+            <Badge side="left">{before ? badgeBefore : badgeAfter}</Badge>
           </ZoomFrame>
           <p className={`px-3 py-2 text-xs ${isFs ? 'text-white/80' : 'text-slate-500'}`}>
-            {before ? tr('বর্তমান ঘরের ছবি নেই') : tr('পূর্বের ঘরের ছবি নেই')} — {tr('তুলনা সম্ভব নয়, একটি ছবিই দেখানো হচ্ছে।')}
+            {labels ? tr('«{label}» ছবি নেই', { label: before ? labels.after : labels.before }) : before ? tr('বর্তমান ঘরের ছবি নেই') : tr('পূর্বের ঘরের ছবি নেই')} — {tr('তুলনা সম্ভব নয়, একটি ছবিই দেখানো হচ্ছে।')}
           </p>
         </div>
       )}
 
       {both && mode === 'slider' && (
         <ZoomFrame t={t} onChange={setT} fill={isFs} frameClass={frameClassName}>
-          <Layer src={before!} alt={`${alt} — ${tr('পূর্বের ঘর')}`} t={t} />
+          <Layer src={before!} alt={altBefore} t={t} />
           <div className="absolute inset-0" style={{ clipPath: `inset(0 0 0 ${split}%)` }}>
-            <Layer src={after!} alt={`${alt} — ${tr('বর্তমান ঘর')}`} t={t} />
+            <Layer src={after!} alt={altAfter} t={t} />
           </div>
-          <Badge side="left">{tr(BEFORE_LABEL)}</Badge>
-          <Badge side="right">{tr(AFTER_LABEL)}</Badge>
+          <Badge side="left">{badgeBefore}</Badge>
+          <Badge side="right">{badgeAfter}</Badge>
           <SliderHandle split={split} onChange={setSplit} />
         </ZoomFrame>
       )}
@@ -178,12 +187,12 @@ export function PhotoCompare({ before, after, alt, className = '', frameClassNam
       {both && mode === 'side' && (
         <div className={`grid grid-cols-2 gap-0.5 bg-slate-200 ${isFs ? 'min-h-0 flex-1' : ''}`}>
           <ZoomFrame t={t} onChange={setT} fill={isFs} frameClass={frameClassName}>
-            <Layer src={before!} alt={`${alt} — ${tr('পূর্বের ঘর')}`} t={t} />
-            <Badge side="left">{tr(BEFORE_LABEL)}</Badge>
+            <Layer src={before!} alt={altBefore} t={t} />
+            <Badge side="left">{badgeBefore}</Badge>
           </ZoomFrame>
           <ZoomFrame t={t} onChange={setT} fill={isFs} frameClass={frameClassName}>
-            <Layer src={after!} alt={`${alt} — ${tr('বর্তমান ঘর')}`} t={t} />
-            <Badge side="left">{tr(AFTER_LABEL)}</Badge>
+            <Layer src={after!} alt={altAfter} t={t} />
+            <Badge side="left">{badgeAfter}</Badge>
           </ZoomFrame>
         </div>
       )}
@@ -208,7 +217,7 @@ interface FrameProps {
   children: ReactNode
 }
 
-function ZoomFrame({ t, onChange, fill, frameClass, children }: FrameProps) {
+export function ZoomFrame({ t, onChange, fill, frameClass, children }: FrameProps) {
   const ref = useRef<HTMLDivElement>(null)
   const tRef = useRef(t)
   useEffect(() => {
@@ -355,7 +364,7 @@ function ZoomFrame({ t, onChange, fill, frameClass, children }: FrameProps) {
 }
 
 /** একটি ছবির স্তর — সব স্তরে একই transform, তাই জুম/প্যান সিঙ্ক */
-function Layer({ src, alt, t }: { src: string; alt: string; t: Transform }) {
+export function Layer({ src, alt, t }: { src: string; alt: string; t: Transform }) {
   return (
     <div
       className="absolute inset-0 will-change-transform"
@@ -373,7 +382,7 @@ function Layer({ src, alt, t }: { src: string; alt: string; t: Transform }) {
   )
 }
 
-function Badge({ side, children }: { side: 'left' | 'right'; children: ReactNode }) {
+export function Badge({ side, children }: { side: 'left' | 'right'; children: ReactNode }) {
   return (
     <span
       className={`pointer-events-none absolute top-2 rounded-full bg-black/60 px-2.5 py-0.5 text-xs font-medium text-white backdrop-blur-sm ${side === 'left' ? 'left-2' : 'right-2'}`}
@@ -461,7 +470,7 @@ function ModeButton({ active, disabled, onClick, children }: { active: boolean; 
   )
 }
 
-function ToolButton({ label, onClick, disabled, children }: { label: string; onClick: () => void; disabled?: boolean; children: ReactNode }) {
+export function ToolButton({ label, onClick, disabled, children }: { label: string; onClick: () => void; disabled?: boolean; children: ReactNode }) {
   return (
     <button
       type="button"

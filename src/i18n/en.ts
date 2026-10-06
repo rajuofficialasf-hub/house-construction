@@ -217,6 +217,7 @@ export const EN: Record<string, string> = {
   'পূর্বের ঘরের ছবি নেই': 'No before photo',
   'বর্তমান ঘরের ছবি নেই': 'No current photo',
   'তুলনা সম্ভব নয়, একটি ছবিই দেখানো হচ্ছে।': 'comparison not possible, showing a single photo.',
+  '«{label}» ছবি নেই': 'No «{label}» photo',
   'আগে-পরে ভাগ': 'Before/after split',
   'স্লাইডার দেখুন': 'Slider view',
   'পাশাপাশি দেখুন': 'Side-by-side view',
