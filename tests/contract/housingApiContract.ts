@@ -7,6 +7,8 @@ const dv = BD_GEO[0]
 const ds = dv.districts[0]
 const up = ds.upazilas[0]
 const TYPES: ProjectType[] = ['semi_pucca', 'tin']
+/** The project the read checks use; every backend needs a project key, because the server has no all-projects route. */
+const P: ProjectType = 'semi_pucca'
 const MISSING_ID = '00000000-0000-4000-8000-ffffffffffff'
 
 const tag = () => `ct-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
@@ -75,7 +77,7 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
     })
 
     test('list returns a page with consistent meta and the default page size', async () => {
-      const r = await h.api.list({})
+      const r = await h.api.list({ project_type: P })
       expect(r.meta.page).toBe(1)
       expect(r.meta.page_size).toBe(50)
       expect(r.data.length).toBeLessThanOrEqual(50)
@@ -84,61 +86,60 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
     })
 
     test('page_size above the cap is clamped to 100', async () => {
-      expect((await h.api.list({ page_size: 1000 })).meta.page_size).toBe(100)
+      expect((await h.api.list({ project_type: P, page_size: 1000 })).meta.page_size).toBe(100)
     })
 
     test('a search with no match returns an empty page with total_pages 1', async () => {
-      const r = await h.api.list({ q: `zz-no-match-${tag()}` })
+      const r = await h.api.list({ project_type: P, q: `zz-no-match-${tag()}` })
       expect(r.data).toEqual([])
       expect(r.meta.total).toBe(0)
       expect(r.meta.total_pages).toBe(1)
     })
 
     test('pages do not overlap', async () => {
-      const total = (await h.api.list({ page_size: 1 })).meta.total
+      const total = (await h.api.list({ project_type: P, page_size: 1 })).meta.total
       if (!hasData(total > 0)) return
       if (total < 2) return
-      const p1 = await h.api.list({ page: 1, page_size: 1 })
-      const p2 = await h.api.list({ page: 2, page_size: 1 })
+      const p1 = await h.api.list({ project_type: P, page: 1, page_size: 1 })
+      const p2 = await h.api.list({ project_type: P, page: 2, page_size: 1 })
       expect(p1.data[0].id).not.toBe(p2.data[0].id)
       expect(p1.meta.total).toBe(p2.meta.total)
     })
 
-    test('project_type filter narrows, and the two project totals add up to the overall total', async () => {
-      const all = await h.api.list({ page_size: 1 })
+    test('project_type filter narrows, and the two project totals add up to the housing group total', async () => {
       let sumTypes = 0
       for (const t of TYPES) {
         const r = await h.api.list({ project_type: t, page_size: 100 })
         expect(r.data.every((x) => x.project_type === t)).toBe(true)
         sumTypes += r.meta.total
       }
-      expect(sumTypes).toBe(all.meta.total)
+      expect(sumTypes).toBe((await h.api.stats('housing')).total)
     })
 
     test('Covers AE3: a district filter keeps only that district and never grows the count', async () => {
-      const first = (await h.api.list({ page_size: 1 })).data[0]
+      const first = (await h.api.list({ project_type: P, page_size: 1 })).data[0]
       if (!hasData(first)) return
-      const all = await h.api.list({ page_size: 1 })
-      const r = await h.api.list({ district: first.district, page_size: 100 })
+      const all = await h.api.list({ project_type: P, page_size: 1 })
+      const r = await h.api.list({ project_type: P, district: first.district, page_size: 100 })
       expect(r.data.length).toBeGreaterThan(0)
       expect(r.data.every((x) => x.district === first.district)).toBe(true)
       expect(r.meta.total).toBeLessThanOrEqual(all.meta.total)
-      expect(r.meta.total).toBe((await h.api.stats()).by_district[first.district])
+      expect(r.meta.total).toBe((await h.api.stats(P)).by_district[first.district])
     })
 
     test('a year filter keeps only that year and matches the stats count', async () => {
-      const first = (await h.api.list({ page_size: 1 })).data[0]
+      const first = (await h.api.list({ project_type: P, page_size: 1 })).data[0]
       if (!hasData(first)) return
-      const r = await h.api.list({ year: first.year, page_size: 100 })
+      const r = await h.api.list({ project_type: P, year: first.year, page_size: 100 })
       expect(r.data.every((x) => x.year === first.year)).toBe(true)
-      expect(r.meta.total).toBe((await h.api.stats()).by_year[String(first.year)])
+      expect(r.meta.total).toBe((await h.api.stats(P)).by_year[String(first.year)])
     })
 
     test('search matches name, parent name or address, case-insensitively', async () => {
-      const first = (await h.api.list({ page_size: 1 })).data[0]
+      const first = (await h.api.list({ project_type: P, page_size: 1 })).data[0]
       if (!hasData(first)) return
       const needle = first.name.slice(0, 3)
-      const r = await h.api.list({ q: needle, page_size: 100 })
+      const r = await h.api.list({ project_type: P, q: needle, page_size: 100 })
       expect(r.data.some((x) => x.id === first.id)).toBe(true)
       for (const x of r.data) {
         const hay = [x.name, x.father_or_husband_name, x.address].join('\n').toLowerCase()
@@ -161,7 +162,7 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
     })
 
     test('getById and getBySerial return the same record as the list; unknown ones are NOT_FOUND', async () => {
-      const first = (await h.api.list({ page_size: 1 })).data[0]
+      const first = (await h.api.list({ project_type: P, page_size: 1 })).data[0]
       if (hasData(first)) {
         expect((await h.api.getById(first!.id)).id).toBe(first!.id)
         expect((await h.api.getBySerial(first!.project_type, first!.serial_no)).id).toBe(first!.id)
@@ -179,8 +180,8 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
     })
 
     test('stats totals agree with the list and with each other', async () => {
-      const s = await h.api.stats()
-      expect(s.total).toBe((await h.api.list({ page_size: 1 })).meta.total)
+      const s = await h.api.stats(P)
+      expect(s.total).toBe((await h.api.list({ project_type: P, page_size: 1 })).meta.total)
       expect(sum(s.by_year)).toBe(s.total)
       expect(sum(s.by_division)).toBe(s.total)
       expect(sum(s.by_district)).toBe(s.total)
@@ -194,15 +195,15 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
     })
 
     test('years are unique, newest first, and match the stats years', async () => {
-      const years = await h.api.years()
+      const years = await h.api.years(P)
       expect(years).toEqual([...new Set(years)].sort((a, b) => b - a))
-      expect(years.map(String).sort()).toEqual(Object.keys((await h.api.stats()).by_year).sort())
+      expect(years.map(String).sort()).toEqual(Object.keys((await h.api.stats(P)).by_year).sort())
     })
 
     test('filterOptions match what the stats and years report', async () => {
-      const o = await h.api.filterOptions()
-      expect(o.years).toEqual(await h.api.years())
-      expect(new Set(o.divisions)).toEqual(new Set(Object.keys((await h.api.stats()).by_division)))
+      const o = await h.api.filterOptions(P)
+      expect(o.years).toEqual(await h.api.years(P))
+      expect(new Set(o.divisions)).toEqual(new Set(Object.keys((await h.api.stats(P)).by_division)))
     })
 
     test('nextSerial is greater than every existing serial of that project', async () => {
@@ -215,8 +216,8 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
     })
 
     writeProbeTest('without a session every write is refused as unauthenticated, before anything is written', async () => {
-      const before = (await h.api.list({ page_size: 1 })).meta.total
-      const some = (await h.api.list({ page_size: 1 })).data[0]
+      const before = (await h.api.list({ project_type: P, page_size: 1 })).meta.total
+      const some = (await h.api.list({ project_type: P, page_size: 1 })).data[0]
       const id = some?.id ?? MISSING_ID
       const files = { photo: webp(), thumb: webp() }
       // code() is attached to every call at once, so a backend that rejects them all leaves none unhandled
@@ -232,7 +233,7 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
         h.api.listActivity({}),
       ].map(code)
       for (const c of await Promise.all(codes)) expect(c).toBe('UNAUTHENTICATED')
-      expect((await h.api.list({ page_size: 1 })).meta.total).toBe(before)
+      expect((await h.api.list({ project_type: P, page_size: 1 })).meta.total).toBe(before)
     })
   })
 
@@ -273,7 +274,7 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
 
       nonAdminTest('a logged-in non-admin is forbidden on writes and on the activity log', async () => {
         await h.forceNonAdminSession!()
-        const some = (await h.api.list({ page_size: 1 })).data[0]
+        const some = (await h.api.list({ project_type: P, page_size: 1 })).data[0]
         expect(await code(h.api.create(input()))).toBe('FORBIDDEN')
         expect(await code(h.api.delete(some.id))).toBe('FORBIDDEN')
         expect(await code(h.api.listActivity({}))).toBe('FORBIDDEN')
@@ -304,9 +305,13 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
         expect(await code(h.api.create(input({ serial_no: target })))).toBe('CONFLICT')
       })
 
-      test('create rejects an invalid project type, a year outside 2000-2100 or not whole, and a blank name', async () => {
-        const bads: Partial<HousingRecordInput>[] = [{ project_type: 'villa' as ProjectType }, { year: 1999 }, { year: 2101 }, { year: 2025.5 }, { name: '   ' }]
+      test('create rejects a year outside 2000-2100 or not whole, and a blank name', async () => {
+        const bads: Partial<HousingRecordInput>[] = [{ year: 1999 }, { year: 2101 }, { year: 2025.5 }, { name: '   ' }]
         for (const b of bads) expect(await code(h.api.create(input(b))), JSON.stringify(b)).toBe('VALIDATION_ERROR')
+      })
+
+      test('create rejects an unknown project type as a validation error', async () => {
+        expect(await code(h.api.create(input({ project_type: 'villa' as ProjectType })))).toBe('VALIDATION_ERROR')
       })
 
       test('create rejects an over-long name, an empty division and serial 0', async () => {
@@ -323,7 +328,7 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
         const rec = await h.api.create(input({ name: `  ${raw}  ` }))
         expect(rec.name).toBe(nfc)
         for (const q of [raw, nfc]) {
-          const found = await h.api.list({ q, page_size: 100 })
+          const found = await h.api.list({ project_type: 'tin', q, page_size: 100 })
           expect(found.data.some((r) => r.id === rec.id), q).toBe(true)
         }
       })

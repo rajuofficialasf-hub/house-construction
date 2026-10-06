@@ -2062,7 +2062,7 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
   - `rg "/housing" src/backend/rest` finds only comments that P9 removes, or nothing
 - **Done when:** `npm test` passes, and `npm run test:contract:rest` passes with the suite as it stands. U35 widens it.
 - **Depends on:** U30 (shared `endpoints.ts` and `http.ts`)
-- **Status:** todo
+- **Status:** done
 
 ### U32. Legacy into the mock
 - **Goal:** Only the mock backend knows the three-fixed-projects legacy view.
@@ -2374,7 +2374,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** U31 (REST `HousingApi` on the new routes, `endpoints.ts` without `/housing`).
+- **Next:** U32 (move `legacyProjectsApi.ts` into `src/backend/mock/`), then U33, U35, U34.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
@@ -2562,3 +2562,6 @@ Run these at the end of P1:
   - **P6 build notes:**
     - U30: `rest/index.ts` still imports the legacy stats helpers for `HousingApi`, so U30's "no `legacyProjectsApi` in `src/backend/rest`" check moves to U31, which removes them.
     - The cover upload sends one `photo` part, because the receiver's `thumb` is optional and the server makes both variants.
+    - U31 also did U35's "explicit key" change, because the contract suite's bare `list()`/`stats()` calls failed as soon as the adapter refused a missing key. Every read now uses `semi_pucca`, and "the two project totals add up" compares with `stats('housing')`. The new HousingApi blocks are still U35's.
+    - **REST known gap:** "create rejects an unknown project type as a validation error". The key is in the path, so REST answers 404 `NOT_FOUND`, like a hidden draft (P2 decisions). Supabase and the mock answer `VALIDATION_ERROR`. That case was split out of the year and name test, so those still run everywhere. **For P9's contract rewrite.**
+    - The REST `stats`, `years` and `list` are `async`, so a missing key rejects instead of throwing synchronously; the unit test caught that.

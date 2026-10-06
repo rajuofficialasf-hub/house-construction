@@ -1,8 +1,8 @@
 /**
- * REST endpoint পাথ — docs/api/API_CONTRACT.md এর সাথে হুবহু মিলে থাকতে হবে।
+ * REST endpoint পাথ — docs/api/PROJECTS_API_CONTRACT.md এর সাথে হুবহু মিলে থাকতে হবে।
  * বেস URL (VITE_API_BASE_URL) এর সাপেক্ষে। সার্ভার কন্ট্রাক্টের প্রতিটি /api/x পাথ /api/v1/x এ দেয়।
  */
-import type { PhotoKind, ProjectKey, ProjectType } from '../interfaces/types'
+import type { PhotoKind, ProjectKey } from '../interfaces/types'
 
 const API = '/api/v1'
 const enc = encodeURIComponent
@@ -19,24 +19,6 @@ export const ENDPOINTS = {
     logout: () => `${API}/auth/logout`, // POST
     me: () => `${API}/auth/me`, // GET
   },
-  housing: {
-    list: (query?: URLSearchParams) => withQuery(`${API}/housing`, query), // GET (query: project_type, serial_no, year, division, district, upazila, q, page, page_size, sort, order)
-    create: () => `${API}/housing`, // POST
-    bulk: () => `${API}/housing/bulk`, // POST (নতুন যোগ) / PUT (সিরিয়াল ধরে আপডেট)
-    stats: (query?: URLSearchParams) => withQuery(`${API}/housing/stats`, query), // GET ?project_type=
-    years: (query?: URLSearchParams) => withQuery(`${API}/housing/years`, query), // GET ?project_type=
-    filterOptions: (query?: URLSearchParams) => withQuery(`${API}/housing/filter-options`, query), // GET ?project_type=
-    nextSerial: (projectType: ProjectType) => `${API}/housing/next-serial?project_type=${projectType}`, // GET
-    serial: (id: string) => `${API}/housing/${encodeURIComponent(id)}/serial`, // POST { serial_no } (সিরিয়াল বদল)
-    activity: (query?: URLSearchParams) => withQuery(`${API}/housing/activity`, query), // GET (এডমিন, ফিল্টার+পেজিনেশন) / POST { action, details, project_type } (ক্লায়েন্ট-ইভেন্ট)
-    bySerial: (projectType: ProjectType, serialNo: number) =>
-      `${API}/housing/${projectType}/serial/${serialNo}`, // GET
-    bySerials: (projectType: ProjectType, serialNos: number[]) =>
-      `${API}/housing/${projectType}/serials?nos=${serialNos.join(',')}`, // GET (≤ 100 per call)
-    byId: (id: string) => `${API}/housing/${encodeURIComponent(id)}`, // GET / PUT / DELETE
-    photo: (id: string, kind?: PhotoKind) =>
-      `${API}/housing/${encodeURIComponent(id)}/photo${kind ? `?kind=${kind}` : ''}`, // POST (multipart) / DELETE ?kind=
-  },
   /** প্রকল্প ও ফিল্ড (docs/api/PROJECTS_API_CONTRACT.md §৪.১–৪.২) */
   projects: {
     list: (query?: URLSearchParams) => withQuery(`${API}/projects`, query), // GET ?include=fields&drafts=1 · POST
@@ -52,6 +34,22 @@ export const ENDPOINTS = {
   fields: {
     byId: (id: string) => `${API}/fields/${enc(id)}`, // PATCH · DELETE
   },
+  /** রেকর্ড (docs/api/PROJECTS_API_CONTRACT.md §৪.৩–৪.৪) */
+  records: {
+    list: (key: ProjectKey, query?: URLSearchParams) => withQuery(`${API}/projects/${enc(key)}/records`, query), // GET · POST
+    bulk: (key: ProjectKey) => `${API}/projects/${enc(key)}/records/bulk`, // POST (নতুন) · PUT (সিরিয়াল ধরে)
+    privateMany: (key: ProjectKey) => `${API}/projects/${enc(key)}/records/private`, // POST { ids }
+    bySerial: (key: ProjectKey, serialNo: number) => `${API}/projects/${enc(key)}/records/serial/${serialNo}`, // GET
+    bySerials: (key: ProjectKey, serialNos: number[]) => `${API}/projects/${enc(key)}/records/serials?nos=${serialNos.join(',')}`, // GET (≤ ১০০)
+    stats: (key: ProjectKey, query?: URLSearchParams) => withQuery(`${API}/projects/${enc(key)}/stats`, query), // GET ?light=1
+    years: (key: ProjectKey) => `${API}/projects/${enc(key)}/years`, // GET
+    nextSerial: (key: ProjectKey) => `${API}/projects/${enc(key)}/next-serial`, // GET
+    byId: (id: string) => `${API}/records/${enc(id)}`, // GET · PATCH · DELETE
+    serial: (id: string) => `${API}/records/${enc(id)}/serial`, // POST { serial_no }
+    photo: (id: string, kind: PhotoKind) => `${API}/records/${enc(id)}/photos/${kind}`, // PUT multipart · DELETE
+    private: (id: string) => `${API}/records/${enc(id)}/private`, // GET · PUT { data }
+  },
+  activity: (query?: URLSearchParams) => withQuery(`${API}/activity`, query), // GET (এডমিন) · POST { action, details, project_type }
   /** ইউজার-ব্যবস্থাপনা (শুধু মূল এডমিন; চুক্তি v১.৫ §৪.৭) — নিজস্ব সার্ভারে নেই (প্যারিটি a8e2154 এ স্থির) */
   adminUsers: {
     list: () => `${API}/admin/users`, // GET
