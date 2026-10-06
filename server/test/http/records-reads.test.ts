@@ -111,8 +111,13 @@ describe('as an admin', () => {
 
 describe('extra for visitors holds only public fields', () => {
   beforeEach(async () => {
-    // A field made private after it had values; P4's guard will forbid this, but the read must not rely on it.
-    await owner`update public.housing_project_fields set visibility = 'admin' where project_key = ${P} and key = 'quiet'`;
+    // A private key stored in extra: the field guard refuses this change once values exist, so the
+    // owner switches it off for the one update. The read must hide the key without relying on the guard.
+    await owner.begin(async (tx) => {
+      await tx`alter table public.housing_project_fields disable trigger housing_project_fields_guard`;
+      await tx`update public.housing_project_fields set visibility = 'admin' where project_key = ${P} and key = 'quiet'`;
+      await tx`alter table public.housing_project_fields enable trigger housing_project_fields_guard`;
+    });
   });
 
   it('drops the key on the list, by id and by serial for a visitor, and keeps it for an admin', async () => {

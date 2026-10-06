@@ -1452,7 +1452,7 @@ These settle what P4's research turned up. They add to Technical decisions, the 
   - `npm --prefix server test` is green, including the global setup's up, down, up cycle and the old `/housing` suites
   - `npm --prefix server run db:migrate`, `db:rollback`, `db:migrate` and `db:seed` work on the dev database
 - **Depends on:** U19 only for file order. It can start first.
-- **Status:** todo
+- **Status:** done
 
 ### U21. Registry constraint errors carry their field
 - **Goal:** A duplicate project key, slug, file prefix or field key is a 409 that names the field. A reserved field key is a 400 that names `key`. Every other CHECK keeps today's fixed 400.

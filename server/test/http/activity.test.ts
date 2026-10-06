@@ -92,7 +92,7 @@ describe('POST /api/v1/activity', () => {
     expect(row).toEqual({ actor_email: adminEmail, project_type: 'any_key', details: { rows: 3 } });
   });
 
-  it.each(['create', 'update', 'delete', 'photo_update', 'serial_change', 'private_update', 'login', 'logout', 'project_publish', 'made_up_event', 'Bad Action'])(
+  it.each(['create', 'update', 'delete', 'photo_update', 'serial_change', 'private_update', 'login', 'logout', 'project_publish', 'field_delete', 'made_up_event', 'Bad Action'])(
     'refuses %j',
     async (action) => {
       const res = await post({ action });

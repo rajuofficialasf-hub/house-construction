@@ -161,7 +161,7 @@ describe('activity log v2: custom and private values', () => {
     const rec = await insertRecord(app, { project_type: P });
     await insertPrivate(app, rec.id, { phone: PHONE });
     await app`delete from public.housing_beneficiaries where id = ${rec.id}`;
-    expect((await app`select action from public.housing_activity_log order by id`).map((e) => e.action)).toEqual([
+    expect((await app`select action from public.housing_activity_log where record_id is not null order by id`).map((e) => e.action)).toEqual([
       'create',
       'private_update',
       'delete',

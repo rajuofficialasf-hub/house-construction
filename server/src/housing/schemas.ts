@@ -100,6 +100,16 @@ export const SERVER_LOGGED_ACTIONS: ReadonlySet<string> = new Set([
   'photo_update',
   'serial_change',
   'private_update',
+  'project_create',
+  'project_update',
+  'project_publish',
+  'project_unpublish',
+  'project_delete',
+  'field_create',
+  'field_update',
+  'field_archive',
+  'field_restore',
+  'field_delete',
 ]);
 
 /**

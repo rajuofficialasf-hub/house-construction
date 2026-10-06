@@ -1,7 +1,7 @@
 // The housing_files table (server/db/migrations/0009_housing_files.sql), exercised as the runtime role.
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import type { Sql } from '../../src/db.js';
-import { appDb, insertAdmin, insertRecord, ownerDb, resetTestData } from '../support/db.js';
+import { appDb, insertAdmin, insertProject, insertRecord, ownerDb, resetTestData } from '../support/db.js';
 
 const app = appDb();
 const owner = ownerDb();
@@ -73,6 +73,37 @@ describe('housing_files', () => {
     { original_name: 'x'.repeat(256) },
   ])('refuses %j', async (overrides) => {
     await expect(insertFile(app, fileRow(null, overrides))).rejects.toMatchObject({ code: '23514' });
+  });
+
+  describe('covers', () => {
+    const cover = (overrides: Record<string, unknown> = {}) => fileRow(null, { kind: 'cover', project_key: 'tin', ...overrides });
+
+    it('holds a project cover with no record, one live photo per project', async () => {
+      await insertFile(app, cover());
+      await insertFile(app, cover({ variant: 'thumb' }));
+      await expect(insertFile(app, cover())).rejects.toMatchObject({ code: '23505' });
+      await insertFile(app, cover({ deleted_at: new Date() }));
+    });
+
+    it.each([
+      ['a cover with a record', async () => cover({ record_id: (await insertRecord(app)).id })],
+      ['a record photo with a project', async () => fileRow((await insertRecord(app)).id, { project_key: 'tin' })],
+    ])('refuses %s', async (_name, row) => {
+      await expect(insertFile(app, await row())).rejects.toMatchObject({ code: '23514' });
+    });
+
+    it('keeps a tombstoned cover when its project is deleted, detached from it', async () => {
+      await insertProject(owner, { key: 'cov_p' });
+      const id = await insertFile(app, cover({ project_key: 'cov_p', deleted_at: new Date() }));
+      await app`delete from public.housing_projects where key = 'cov_p'`;
+      expect(await app`select project_key from public.housing_files where id = ${id}`).toEqual([{ project_key: null }]);
+    });
+
+    it('lets cover_path hold only a photo URL', async () => {
+      const url = 'http://localhost:3001/api/v1/photos/0b0e6c8e-2f7a-4f0e-9d7e-3f3c1a2b4c5d';
+      await app`update public.housing_projects set cover_path = ${url} where key = 'tin'`;
+      await expect(app`update public.housing_projects set cover_path = '/etc/passwd' where key = 'tin'`).rejects.toMatchObject({ code: '23514' });
+    });
   });
 
   it('gives housing_app exactly select, insert, update and delete', async () => {

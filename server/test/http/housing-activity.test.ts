@@ -139,7 +139,7 @@ describe('POST /api/v1/housing/activity', () => {
     });
   });
 
-  it.each(['login', 'logout', 'create', 'serial_change'])('refuses %s, which the server logs itself', async (action) => {
+  it.each(['login', 'logout', 'create', 'serial_change', 'project_publish', 'field_delete'])('refuses %s, which the server logs itself', async (action) => {
     const res = await post({ action });
     expect(res.status).toBe(400);
     expect(res.body.error.details).toEqual({ field: 'action', reason: 'server_logged' });

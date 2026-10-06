@@ -86,6 +86,16 @@ describe('function privileges', () => {
     expect(row).toEqual({ insert: true, leaves: true });
   });
 
+  it('runs the counter and config-log triggers as the owner with a fixed search_path', async () => {
+    const rows = await owner`
+      select proname, prosecdef, proconfig from pg_proc
+      where proname in ('housing_projects_after_write', 'housing_log_config_change') order by proname`;
+    expect(rows).toEqual([
+      { proname: 'housing_log_config_change', prosecdef: true, proconfig: ['search_path=public'] },
+      { proname: 'housing_projects_after_write', prosecdef: true, proconfig: ['search_path=public'] },
+    ]);
+  });
+
   it('runs the log triggers as the owner with a fixed search_path', async () => {
     const rows = await owner`
       select proname, prosecdef, proconfig from pg_proc

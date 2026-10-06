@@ -14,8 +14,8 @@ export function ownerDb(): Sql {
 
 /**
  * Empties every housing table, restores the project registry to the rows the migrations seed and
- * zeroes their serial counters, so each test starts from the state of a fresh install. TRUNCATE
- * doesn't fire row triggers, so nothing is logged.
+ * zeroes their serial counters, so each test starts from the state of a fresh install, with an
+ * empty activity log.
  */
 export async function resetTestData(owner: Sql): Promise<void> {
   await owner`truncate public.housing_activity_log, public.housing_serial_changes, public.housing_files,
@@ -25,6 +25,8 @@ export async function resetTestData(owner: Sql): Promise<void> {
   await owner`delete from public.housing_serial_counters
     where project_type not in (select key from public.housing_projects)`;
   await owner`update public.housing_serial_counters set last_serial = 0`;
+  // Seeding the registry logs its project_create rows; a fresh install starts with an empty log.
+  await owner`truncate public.housing_activity_log restart identity`;
 }
 
 /** A project key; the seeded leaf projects are semi_pucca and tin. */
@@ -120,8 +122,8 @@ export interface ProjectInput {
 }
 
 /**
- * Inserts a project as the owner, with a serial counter when it can hold records. Defaults make a
- * published, top-level project whose slug and file prefix derive from its key.
+ * Inserts a project as the owner; the after-write trigger gives a leaf its serial counter. Defaults
+ * make a published, top-level project whose slug and file prefix derive from its key.
  */
 export async function insertProject(owner: Sql, input: ProjectInput): Promise<void> {
   const isGroup = input.is_group ?? false;
@@ -140,7 +142,6 @@ export async function insertProject(owner: Sql, input: ProjectInput): Promise<vo
     core_fields: owner.json(input.core_fields ?? {}),
   };
   await owner`insert into public.housing_projects ${owner(row)}`;
-  if (!isGroup) await owner`insert into public.housing_serial_counters (project_type) values (${input.key})`;
 }
 
 export interface FieldInput {
