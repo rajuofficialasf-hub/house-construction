@@ -5,6 +5,7 @@ import { AppError } from '../../errors.js';
 import type { PhotoReceiver } from '../../photos/process.js';
 import { deleteCover, saveCover } from '../../photos/service.js';
 import { fieldUsage, getProject } from '../../projects/reads.js';
+import { projectNotFound, visibleProject } from '../../records/reads.js';
 import {
   fieldCreateBody,
   fieldIdParams,
@@ -30,11 +31,11 @@ import {
   updateProject,
 } from '../../projects/writes.js';
 import type { StorageDriver } from '../../storage/index.js';
-import { privateNoStore } from './projects.js';
 import {
   actorOf,
   DEFAULT_READ_RATE_LIMIT,
   DEFAULT_WRITE_RATE_LIMIT,
+  privateNoStore,
   readRateLimiter,
   writeRateLimiter,
   type ReadRateLimit,
@@ -57,9 +58,8 @@ export interface ProjectsAdminDeps {
   writeRateLimit?: WriteRateLimit;
 }
 
-const projectNotFound = () => new AppError('NOT_FOUND', 'প্রকল্প পাওয়া যায়নি');
 const fieldNotFound = () => new AppError('NOT_FOUND', 'ফিল্ড পাওয়া যায়নি');
-const ADMIN = { admin: true };
+const ADMIN_VIEW = { admin: true };
 
 /** The If-Match header as a timestamp, or undefined when it isn't sent. */
 function ifMatchOf(req: Request): string | undefined {
@@ -71,7 +71,7 @@ function ifMatchOf(req: Request): string | undefined {
 }
 
 async function adminProject(sql: Sql, key: string) {
-  const project = await getProject(sql, key, ADMIN);
+  const project = await getProject(sql, key, ADMIN_VIEW);
   if (!project) throw projectNotFound();
   return project;
 }
@@ -93,7 +93,6 @@ export function projectsAdminRouter({
     res.status(201).json({ data: await adminProject(sql, key) });
   });
 
-  // Before /projects/:key, though no other PUT shares the path today.
   router.put('/projects/order', requireAdmin, limitWrites, async (req, res) => {
     await reorderProjects(sql, actorOf(req), projectOrderBody.parse(req.body).keys);
     res.status(204).end();
@@ -145,7 +144,7 @@ export function projectsAdminRouter({
   // stores nothing. Any admin may upload or replace; only the main admin removes.
   router.put('/projects/:key/cover', requireAdmin, limitWrites, async (req, res) => {
     const { key } = projectKeyParams.parse(req.params);
-    await adminProject(sql, key);
+    if (!(await visibleProject(sql, key, ADMIN_VIEW))) throw projectNotFound();
     const upload = await receivePhoto(req, { kind: 'cover' });
     await saveCover({ sql, storage, publicApiUrl }, actorOf(req), key, upload, req.log);
     res.json({ data: await adminProject(sql, key) });

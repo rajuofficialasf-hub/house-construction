@@ -175,7 +175,7 @@ export async function checkPhotoSlot(sql: Sql, id: string, slot: PhotoKind): Pro
 }
 
 /** Whether the project exists for this viewer, and if it is a group; null when unknown or hidden. */
-async function visibleProject(sql: Sql, key: string, viewer: Viewer): Promise<{ is_group: boolean } | null> {
+export async function visibleProject(sql: Sql, key: string, viewer: Viewer): Promise<{ is_group: boolean } | null> {
   const [project] = await sql<{ is_group: boolean }[]>`
     select is_group from public.housing_projects
     where key = ${key} and (${viewer.admin} or key = any(public.housing_public_project_keys()))`;

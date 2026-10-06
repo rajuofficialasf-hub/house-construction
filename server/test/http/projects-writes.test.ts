@@ -13,7 +13,7 @@ import { requireAdmin, requireMainAdmin, requireMainAdminForCovers } from '../..
 import { createLogger } from '../../src/logger.js';
 import { project } from '../../src/projects/schemas.js';
 import { projectsAdminRouter } from '../../src/routes/v1/projects-admin.js';
-import { privateNoStore } from '../../src/routes/v1/projects.js';
+import { privateNoStore } from '../../src/routes/v1/shared.js';
 import { appDb, insertField, insertProject, insertRecord, ownerDb, resetTestData } from '../support/db.js';
 import { loginAdmin, TEST_ORIGIN } from '../support/session.js';
 import { TEST_PUBLIC_API_URL, testStorage } from '../support/storage.js';

@@ -10,7 +10,7 @@ import { requireAdmin } from '../../src/auth/middleware.js';
 import { activityEntry, pageMeta } from '../../src/housing/schemas.js';
 import { createLogger } from '../../src/logger.js';
 import { activityRouter } from '../../src/routes/v1/activity.js';
-import { privateNoStore } from '../../src/routes/v1/projects.js';
+import { privateNoStore } from '../../src/routes/v1/shared.js';
 import { appDb, insertField, insertPrivate, insertProject, insertRecord, ownerDb, resetTestData } from '../support/db.js';
 import { loginAdmin, TEST_ORIGIN } from '../support/session.js';
 import { testPhotoDeps } from '../support/storage.js';

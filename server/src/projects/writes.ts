@@ -3,7 +3,7 @@ import { withActor, type Actor, type Sql, type Tx } from '../db.js';
 import { removeTombstoned, type TombstonedFile } from '../photos/files.js';
 import { tombstoneCover } from '../photos/service.js';
 import type { StorageDriver } from '../storage/index.js';
-import { fieldColumns, type ProjectFieldRow } from './reads.js';
+import { fieldColumns, nullWhenNoField, type ProjectFieldRow } from './reads.js';
 import type { FieldCreateBody, FieldPatchBody, ProjectCreateBody, ProjectPatchBody } from './schemas.js';
 
 // The project registry writes (docs/api/PROJECTS_API_CONTRACT.md §4.1, §4.2). Each runs in one withActor()
@@ -126,11 +126,9 @@ export async function reorderFields(sql: Sql, actor: Actor, projectKey: string, 
  */
 export async function renameFieldValue(sql: Sql, actor: Actor, projectKey: string, fieldKey: string, from: string, to: string): Promise<number | null> {
   return withActor(sql, actor, async (tx) => {
-    const [found] = await tx`select 1 from public.housing_project_fields where project_key = ${projectKey} and key = ${fieldKey}`;
-    if (!found) return null;
     const [row] = await tx<{ updated: number }[]>`
       select public.housing_project_field_rename_value(${projectKey}, ${fieldKey}, ${from}, ${to}) as updated`;
     if (!row) throw new Error('housing_project_field_rename_value returned no row');
     return row.updated;
-  });
+  }).catch(nullWhenNoField);
 }

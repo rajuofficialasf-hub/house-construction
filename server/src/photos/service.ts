@@ -2,6 +2,7 @@ import type { Logger } from 'pino';
 import { withActor, type Actor, type Sql, type Tx } from '../db.js';
 import { AppError } from '../errors.js';
 import type { HousingRecord } from '../housing/reads.js';
+import { projectNotFound } from '../records/reads.js';
 import type { StorageDriver } from '../storage/index.js';
 import { removeTombstoned, type TombstonedFile } from './files.js';
 import type { PhotoKind, PhotoUpload } from './process.js';
@@ -127,8 +128,6 @@ export async function deletePhoto<R extends object>(
   await removeTombstoned(sql, storage, removed, log);
   return record;
 }
-
-const projectNotFound = () => new AppError('NOT_FOUND', 'প্রকল্প পাওয়া যায়নি');
 
 /** Locks the project for this transaction, so two cover writes to it run one after the other. */
 async function lockProject(tx: Tx, key: string): Promise<boolean> {

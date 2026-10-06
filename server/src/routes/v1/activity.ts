@@ -7,12 +7,12 @@ import {
   actorOf,
   DEFAULT_READ_RATE_LIMIT,
   DEFAULT_WRITE_RATE_LIMIT,
+  privateNoStore,
   readRateLimiter,
   writeRateLimiter,
   type ReadRateLimit,
   type WriteRateLimit,
 } from './shared.js';
-import { privateNoStore } from './projects.js';
 
 // The activity log (docs/api/PROJECTS_API_CONTRACT.md §4.5): admin-only, reads included, and never on
 // the public-read CORS list. Mounted at /api/v1 with full paths and no router.use(), so each route

@@ -5,13 +5,21 @@ import type { Actor } from '../../db.js';
 import { AppError } from '../../errors.js';
 import { MAX_BULK_ROWS } from '../../housing/schemas.js';
 
-// Rate limits, the actor and the bulk body checks that every v1 router shares. Each router builds
+// Rate limits, the actor, the admin-only cache header and the bulk body checks that every v1 router shares. Each router builds
 // its own limiter from these, so routers never share a counter.
 
-export interface ReadRateLimit {
+/** For admin-only answers (private values, the activity log): no cache stores them; set first, so a refusal carries it too. */
+export const privateNoStore: RequestHandler = (_req, res, next) => {
+  res.set('cache-control', 'private, no-store');
+  next();
+};
+
+export interface RateLimit {
   windowMs: number;
   limit: number;
 }
+
+export type ReadRateLimit = RateLimit;
 
 // Per-IP cap on the public reads (NE-SEC-04). Search and stats scan the table and other origins
 // can call them; 300 a minute is far above what one visitor's pages need. The counter is in
@@ -31,10 +39,7 @@ export function readRateLimiter(limits: ReadRateLimit, logMessage: string): Requ
   });
 }
 
-export interface WriteRateLimit {
-  windowMs: number;
-  limit: number;
-}
+export type WriteRateLimit = RateLimit;
 
 // Per-admin cap on writes (NE-SEC-04). A bulk request is one write, so the import's 200-row
 // batches and the photo page's 2 uploads at a time stay far below it; a stolen session or a

@@ -11,7 +11,7 @@ import { z } from 'zod';
 import { createApp } from '../../src/app.js';
 import { requireAdmin, requireMainAdmin, requireMainAdminForPhotos } from '../../src/auth/middleware.js';
 import { createLogger } from '../../src/logger.js';
-import { privateNoStore } from '../../src/routes/v1/projects.js';
+import { privateNoStore } from '../../src/routes/v1/shared.js';
 import { recordsAdminRouter } from '../../src/routes/v1/records-admin.js';
 import { projectRecord } from '../../src/records/schemas.js';
 import { StorageNotFoundError } from '../../src/storage/index.js';
