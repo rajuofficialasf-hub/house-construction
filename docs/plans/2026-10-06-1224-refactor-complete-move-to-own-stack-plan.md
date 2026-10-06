@@ -2299,7 +2299,7 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
 - **Tests:** the specs above, about 8 to 10 cases.
 - **Done when:** `npm run test:e2e:rest-admin` passes twice in a row.
 - **Depends on:** U37
-- **Status:** todo
+- **Status:** done
 
 ### U40. CI and test docs on REST
 - **Goal:** CI runs every suite on the REST backend, and the docs say which command runs what.
@@ -2374,7 +2374,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** U39 (specs: import with custom and private fields, CSV export with private columns, category rename, AE1), then U40.
+- **Next:** U40 (CI and the testing README), then the P7 verification and the combined simplify and review.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
@@ -2589,3 +2589,12 @@ Run these at the end of P1:
       - The stale-edit case and the duplicate-slug case are both covered: the duplicate in the wizard, through a stale project list.
       - The cover is checked in the settings preview, not on a home card, because `demo` is a draft.
       - Toasts are `role="status"` with no accessible name, so the specs match them by role plus text.
+    - **U39** (9 cases in `e2e/admin/`):
+      - import with custom, category and private columns, plus an invalid phone
+      - private and plain CSV export
+      - category merge, with the activity row and the public filter
+      - AE1: a plain admin's in-page DELETE is 403 with the main-admin message, the record survives, and the main admin then deletes it
+    - **The full admin-rest run hit the API's per-IP read limit** (300 a minute; the suite already peaked near 330 and passed only on window timing).
+      - The server gained an optional `READ_RATE_LIMIT`, set high only in the admin-rest `webServer`; production keeps 300.
+      - Each admin page load makes about three `GET /projects` calls. That's an efficiency point for the combined simplify.
+      - Full admin-rest is 61 passed twice in a row.
