@@ -2,7 +2,7 @@ import type { ListParams, Project, ProjectType } from '../../../backend/interfac
 import type { ListState } from '../hooks/useHousingList'
 
 /**
- * HousingListPage → (Outlet) → HousingDetailPage এ পাঠানো context।
+ * ProjectListPage → (Outlet) → HousingDetailPage এ পাঠানো context।
  * ডিটেইল ভিউ এতে বর্তমান ফিল্টার করা পেইজের ক্রম পায় (আগের/পরের নেভিগেশনের জন্য)।
  */
 export interface ListOutletContext {

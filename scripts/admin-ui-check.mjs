@@ -68,6 +68,35 @@ function usageOf(key) {
   for (const r of demoRecs) if (r.extra?.[key] !== undefined) m.set(r.extra[key], (m.get(r.extra[key]) ?? 0) + 1)
   return { count: [...m.values()].reduce((a, b) => a + b, 0), values: [...m].map(([value, n]) => ({ value, n })) }
 }
+/** নকল project_stats('demo') — 11_project_rpcs.sql › project_stats এর শেপে, demoRecs থেকে (M-ধাপ ১৩) */
+function demoStats() {
+  const inc = (o, k, by = 1) => (o[k] = (o[k] ?? 0) + by)
+  const s = { total: demoRecs.length, by_year: {}, by_division: {}, by_district: {}, by_upazila: {}, by_location: {}, by_union: {}, by_project: { demo: demoRecs.length }, fields: {} }
+  const money = allFields().filter((f) => f.project_key === 'demo' && f.type === 'money' && f.visibility === 'public')
+  const cats = allFields().filter((f) => f.project_key === 'demo' && f.type === 'category' && f.visibility === 'public')
+  for (const r of demoRecs) {
+    inc(s.by_year, r.year)
+    inc(s.by_division, r.division)
+    inc(s.by_district, r.district)
+    inc(s.by_upazila, r.upazila)
+    inc(s.by_location, `${r.district}|${r.upazila}`)
+    if (r.union_name) inc(s.by_union, `${r.district}|${r.upazila}|${r.union_name}`)
+  }
+  for (const m of money) s.fields[m.key] = { type: 'money', sum: demoRecs.reduce((a, r) => a + (r.extra?.[m.key] ?? 0), 0), count: demoRecs.filter((r) => r.extra?.[m.key] !== undefined).length }
+  for (const c of cats) {
+    const by = {}
+    for (const r of demoRecs) {
+      const v = r.extra?.[c.key]
+      if (v === undefined || v === '') continue
+      by[v] ??= { n: 0, sums: {} }
+      by[v].n++
+      for (const m of money) inc(by[v].sums, m.key, r.extra?.[m.key] ?? 0)
+    }
+    s.fields[c.key] = { type: 'category', distinct: Object.keys(by).length, by_value: by }
+  }
+  s.distinct = { divisions: Object.keys(s.by_division).length, districts: Object.keys(s.by_district).length, upazilas: Object.keys(s.by_location).length, unions: Object.keys(s.by_union).length }
+  return s
+}
 /** demo এর অনুরোধ হলে নকল উত্তর দিয়ে true, নইলে undefined */
 async function fakeRecords(u, method, req, respond0) {
   // উত্তর দিলে true (await এর পর respond এর Promise undefined হয় — তাই আলাদা চিহ্ন)
@@ -81,7 +110,8 @@ async function fakeRecords(u, method, req, respond0) {
   const accept = req.headers()['accept'] ?? ''
   const one = accept.includes('vnd.pgrst.object')
   const send = (rows) => (one ? (rows[0] ? respond(200, rows[0]) : respond(406, { code: 'PGRST116', message: 'JSON object requested, multiple (or no) rows returned', details: 'The result contains 0 rows', hint: null })) : respond(200, rows, { 'content-range': rows.length ? `0-${rows.length - 1}/${rows.length}` : '*/0' }))
-  if (u.pathname === '/rest/v1/rpc/housing_next_serial' && body?.p_project_type === 'demo') return respond(200, String(demoRecs.reduce((m, r) => Math.max(m, r.serial_no), 0) + 1))
+  if (u.pathname === '/rest/v1/rpc/project_stats' && body?.p_key === 'demo') return respond(200, demoStats())
+  if (u.pathname === '/rest/v1/rpc/housing_next_serial' && body?.p_project_type === 'demo')return respond(200, String(demoRecs.reduce((m, r) => Math.max(m, r.serial_no), 0) + 1))
   if (u.pathname === '/rest/v1/rpc/project_field_rename_value' && body?.p_project === 'demo') {
     writes.push({ method, path: u.pathname, search: u.search, body })
     let n = 0
@@ -157,6 +187,10 @@ async function fakeRecords(u, method, req, respond0) {
     const snIn = u.searchParams.get('serial_no')?.match(/^in\.\((.*)\)$/)?.[1]?.split(',')
     if (snIn) rows = rows.filter((r) => snIn.includes(String(r.serial_no)))
     if (sn) rows = rows.filter((r) => String(r.serial_no) === sn)
+    for (const col of ['year', 'division', 'district', 'upazila', 'union_name']) {
+      const v = u.searchParams.get(col)?.startsWith('eq.') ? eqParam(u, col) : null
+      if (v !== null) rows = rows.filter((r) => String(r[col]) === v)
+    }
     const cs = u.searchParams.get('extra')?.match(/^cs\.(.*)$/)?.[1]
     if (cs) {
       const want = JSON.parse(cs)
@@ -289,16 +323,17 @@ async function handle(req) {
 }
 
 const b = await puppeteer.launch({ executablePath: BROWSER, headless: true })
-async function newPage(width = 1280, mobile = false) {
+async function newPage(width = 1280, mobile = false, lang = 'bn') {
   const p = await b.newPage()
   await p.setViewport({ width, height: mobile ? 844 : 900, isMobile: mobile, hasTouch: mobile })
   await p.evaluateOnNewDocument(
-    (k, s) => {
+    (k, s, l) => {
       localStorage.setItem(k, s)
-      localStorage.setItem('asf_lang', 'bn')
+      localStorage.setItem('asf_lang', l)
     },
     `sb-${REF}-auth-token`,
     JSON.stringify(SESSION),
+    lang,
   )
   await p.setRequestInterception(true)
   p.on('request', (r) => void handle(r).catch((e) => console.log('handler error', e.message)))
@@ -1035,6 +1070,123 @@ for (const [w, mobile] of [[1280, false], [390, true]]) {
   ok('লগ-পাতায় কোনো page error নেই', p.errors.length === 0, p.errors.join(' | '))
   await p.close()
   fakeLog.length = 0
+}
+
+// ---------------------------------------------------------------- N. পাবলিক তালিকা — খসড়া demo (M-ধাপ ১৩): ঘর নির্মাণের একই পেইজ, অনুদান-ধরন
+{
+  const ts = new Date().toISOString()
+  const rec = (serial, name, category, amount, upazila, union_name) => ({ id: `00000000-0000-0000-0000-00000000f${String(serial).padStart(3, '0')}`, project_type: 'demo', serial_no: serial, year: serial % 2 ? 2025 : 2024, name, father_or_husband_name: '', division: 'চট্টগ্রাম', district: 'চট্টগ্রাম', upazila, union_name, address: '', extra: { category, item_name: '', amount }, prev_photo_url: null, prev_thumb_url: null, current_photo_url: null, current_thumb_url: null, prev_photo_source: null, current_photo_source: null, photo_updated_at: null, created_at: ts, updated_at: ts })
+  demoRecs.length = 0
+  demoRecs.push(
+    rec(1, 'রহিমা', 'গাভী', 60000, 'মীরসরাই', 'করেরহাট'),
+    rec(2, 'করিম', 'গাভী', 55000, 'মীরসরাই', 'ধুম'),
+    rec(3, 'সালমা', 'গাভী', 65000, 'সীতাকুন্ড', 'বাড়বকুন্ড'),
+    rec(4, 'জামাল', 'ছাগল', 20000, 'মীরসরাই', 'করেরহাট'),
+    rec(5, 'আমেনা', 'ছাগল', 18000, 'সীতাকুন্ড', ''),
+    rec(6, 'হাসান', 'সেলাই মেশিন', 12000, 'মীরসরাই', 'করেরহাট'),
+    rec(7, 'রাশেদ', 'রিকশা', 45000, 'মীরসরাই', 'ধুম'),
+    rec(8, 'ফাতেমা', 'হাঁস-মুরগি', 15000, 'সীতাকুন্ড', 'বাড়বকুন্ড'),
+    rec(9, 'নূর', 'নৌকা', 80000, 'মীরসরাই', 'করেরহাট'),
+    rec(10, 'সুমি', 'দোকান', 30000, 'মীরসরাই', 'ধুম'),
+  )
+  const total = demoRecs.reduce((a, r) => a + r.extra.amount, 0)
+  const ascii = (s) => (s ?? '').replace(/[০-৯]/g, (d) => String('০১২৩৪৫৬৭৮৯'.indexOf(d))).replace(/\D/g, '')
+  const params = (p) => Object.fromEntries(new URL(p.url()).searchParams)
+  const rows = (p) => p.evaluate(() => document.querySelectorAll('table tbody tr').length)
+  const selectByLabel = async (p, label, value) => {
+    const id = await p.evaluate((x) => [...document.querySelectorAll('label')].find((l) => l.textContent.trim() === x)?.htmlFor, label)
+    if (!id) throw new Error('select not found: ' + label)
+    await p.select(`[id="${id}"]`, value)
+    await settle(p)
+  }
+  const optionsOf = (p, label) => p.evaluate((x) => { const l = [...document.querySelectorAll('label')].find((e) => e.textContent.trim() === x); const el = l && document.getElementById(l.htmlFor); return el ? { opts: [...el.options].map((o) => o.textContent), disabled: el.disabled } : null }, label)
+
+  const p = await newPage(1280)
+  const calls = []
+  p.on('request', (r) => {
+    const u = new URL(r.url())
+    if (r.url().startsWith(SB) && r.method() !== 'OPTIONS' && u.pathname.startsWith('/rest/v1/')) calls.push(`${r.method()} ${u.pathname} ${u.search}${r.postData() ?? ''}`)
+  })
+  await p.goto(BASE + '/demo', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  await sleep(1500) // count-up শেষ হোক
+  let s = await text(p)
+  ok('/demo (খসড়া, এডমিন প্রিভিউ): নাম ও খসড়া-ব্যানার; গ্রুপ নয় তাই সাব-নেভ নেই', s.includes('পরীক্ষা প্রকল্প') && s.includes('খসড়া') && !s.includes('সেমিপাকা ঘর নির্মাণ'))
+  const moneyTxt = s.match(/মোট টাকা\s+([^\n]+)/)?.[1]
+  ok('স্ট্যাট কার্ড: মোট টাকা ৳ (সব রেকর্ডের যোগফল), মোট ক্যাটাগরি ৭, মোট উপকারভোগী ১০', moneyTxt?.includes('৳') && Number(ascii(moneyTxt)) === total && /মোট ক্যাটাগরি\s+৭/.test(s) && /মোট উপকারভোগী\s+১০/.test(s), `${moneyTxt} (চাই ${total})`)
+  const bd = await p.evaluate(() => { const sec = document.querySelector('section[aria-label="উপকরণের ক্যাটাগরি অনুযায়ী"]'); return sec ? { rows: [...sec.querySelectorAll('li')].map((li) => li.innerText.replace(/\s+/g, ' ')), text: sec.innerText } : null })
+  ok('ক্যাটাগরি চার্ট: ৬টি সারি (বেশি থেকে কম), "আরো দেখুন (১)"; প্রতিটিতে সংখ্যা ও টাকা', bd?.rows.length === 6 && bd.rows[0].startsWith('গাভী ৩') && bd.rows[0].includes('৳') && bd.text.includes('আরো দেখুন (১)'), bd?.rows.length + ' সারি; ' + bd?.rows.slice(0, 2).join(' | '))
+  await clickText(p, 'button', 'আরো দেখুন (১)')
+  await sleep(200)
+  ok('"আরো দেখুন" → ৭টি সারি, "কম দেখান"', (await p.evaluate(() => document.querySelectorAll('section[aria-label="উপকরণের ক্যাটাগরি অনুযায়ী"] li').length)) === 7 && (await text(p)).includes('কম দেখান'))
+  const headers = await p.evaluate(() => [...document.querySelectorAll('table thead th')].map((th) => th.innerText.trim()))
+  ok('টেবিলের কলাম কনফিগ থেকে: অনুদানের সাল, ঠিকানা (মেলানো), ক্যাটাগরি, টাকা, উপকরণসহ ছবি', ['অনুদানের সাল', 'ঠিকানা', 'উপকরণের ক্যাটাগরি', 'টাকা', 'উপকরণসহ ছবি'].every((h) => headers.includes(h)), headers.join(' | '))
+  ok('ঠিকানায় ইউনিয়ন (ডাটায় ইউনিয়ন আছে); টাকার ঘরে ৳', (await p.evaluate(() => document.querySelector('table tbody')?.innerText ?? '')).includes('করেরহাট') && (await p.evaluate(() => document.querySelector('table tbody')?.innerText ?? '')).includes('৳'))
+  ok('মানচিত্র-প্যানেলের শিরোনামে প্রকল্পের একক ("উপকারভোগী কোথায় কোথায়")', s.includes('উপকারভোগী কোথায় কোথায়'), s.match(/[^\n]*কোথায় কোথায়[^\n]*/)?.[0])
+  const kinds = [...new Set(calls.map((c) => c.split(' ').slice(0, 2).join(' ')).filter((c) => !/\/projects$|\/project_fields$|housing_current_admin/.test(c)))]
+  ok('API কল শুধু ২ ধরনের: list (housing_beneficiaries) আর project_stats — আলাদা years/stats কল নেই', kinds.sort().join(',') === 'GET /rest/v1/housing_beneficiaries,POST /rest/v1/rpc/project_stats', kinds.join(', '))
+  ok('একই অনুরোধ একবারই (StrictMode এর দ্বিগুণ বাদে): list ১, stats ১', new Set(calls.filter((c) => c.includes('housing_beneficiaries'))).size === 1 && new Set(calls.filter((c) => c.includes('project_stats'))).size === 1, calls.filter((c) => /housing_beneficiaries|project_stats/.test(c)).map((c) => c.slice(0, 90)).join(' || '))
+
+  // চার্টের সারিতে ক্লিক → ?f_category=
+  await p.evaluate(() => [...document.querySelectorAll('section[aria-label="উপকরণের ক্যাটাগরি অনুযায়ী"] li button')].find((b) => b.innerText.startsWith('ছাগল'))?.click())
+  await settle(p)
+  ok('চার্টে "ছাগল" চাপলে ?f_category=ছাগল, তালিকায় ২ জন; ক্যাটাগরি-ড্রপডাউনেও "ছাগল"', params(p).f_category === 'ছাগল' && (await rows(p)) === 2 && (await p.evaluate(() => { const l = [...document.querySelectorAll('label')].find((e) => e.textContent.trim() === 'উপকরণের ক্যাটাগরি'); return document.getElementById(l?.htmlFor)?.value })) === 'ছাগল', `${JSON.stringify(params(p))} rows=${await rows(p)}`)
+  await p.evaluate(() => [...document.querySelectorAll('section[aria-label="উপকরণের ক্যাটাগরি অনুযায়ী"] li button')].find((b) => b.getAttribute('aria-pressed') === 'true')?.click())
+  await settle(p)
+  ok('আবার চাপলে ফিল্টার ওঠে (১০ জন)', !('f_category' in params(p)) && (await rows(p)) === 10)
+
+  // ইউনিয়ন ফিল্টার: উপজেলা না বাছা পর্যন্ত বন্ধ; বিকল্প by_union থেকে
+  let un = await optionsOf(p, 'ইউনিয়ন/পৌরসভা')
+  ok('ইউনিয়ন-ড্রপডাউন আছে (ডাটায় ইউনিয়ন আছে), উপজেলা ছাড়া বন্ধ', un?.disabled === true, JSON.stringify(un))
+  await selectByLabel(p, 'বিভাগ', 'চট্টগ্রাম')
+  await selectByLabel(p, 'জেলা', 'চট্টগ্রাম')
+  await selectByLabel(p, 'উপজেলা', 'মীরসরাই')
+  un = await optionsOf(p, 'ইউনিয়ন/পৌরসভা')
+  ok('মীরসরাই বাছলে ইউনিয়নের বিকল্প শুধু ডাটার: করেরহাট, ধুম', un?.disabled === false && un.opts.slice(1).sort().join(',') === ['করেরহাট', 'ধুম'].sort().join(','), JSON.stringify(un))
+  await selectByLabel(p, 'ইউনিয়ন/পৌরসভা', 'করেরহাট')
+  const wantU = demoRecs.filter((r) => r.union_name === 'করেরহাট').length
+  ok(`ইউনিয়ন "করেরহাট" → ?union=করেরহাট, ${wantU} জন`, params(p).union === 'করেরহাট' && params(p).upazila === 'মীরসরাই' && (await rows(p)) === wantU, `${JSON.stringify(params(p))} rows=${await rows(p)}`)
+  await selectByLabel(p, 'উপকরণের ক্যাটাগরি', 'গাভী')
+  ok('ইউনিয়ন + উপকরণের ক্যাটাগরি "গাভী" একসাথে → ১ জন (রহিমা)', params(p).f_category === 'গাভী' && (await rows(p)) === 1 && (await p.evaluate(() => document.querySelector('table tbody').innerText)).includes('রহিমা'))
+  const lw = calls.filter((c) => c.includes('housing_beneficiaries')).at(-1) ?? ''
+  ok('তালিকার অনুরোধে union_name=eq. আর extra=cs.{"category":"গাভী"}', decodeURIComponent(lw).includes('union_name=eq.করেরহাট') && decodeURIComponent(lw).includes('extra=cs.{"category":"গাভী"}'), decodeURIComponent(lw).slice(0, 200))
+  await selectByLabel(p, 'উপজেলা', 'সীতাকুন্ড')
+  ok('উপজেলা বদলালে ইউনিয়ন খালি হয়', !('union' in params(p)) && params(p).upazila === 'সীতাকুন্ড', JSON.stringify(params(p)))
+  await p.screenshot({ path: '.smoke/list-demo-1280.png', fullPage: true })
+  ok('/demo তালিকায় কোনো page error নেই', p.errors.length === 0, p.errors.join(' | '))
+  await p.close()
+
+  // ১০২৪px, দুই ভাষায়: অনুভূমিক স্ক্রল নেই
+  for (const lang of ['bn', 'en']) {
+    const q = await newPage(1024, false, lang)
+    await q.goto(BASE + '/demo', { waitUntil: 'domcontentloaded' })
+    await settle(q)
+    await sleep(1200)
+    const over = await q.evaluate(() => ({ sw: document.documentElement.scrollWidth, w: window.innerWidth, table: (() => { const t = document.querySelector('table'); const w = t?.parentElement; return w ? w.scrollWidth - w.clientWidth : 0 })() }))
+    const qs = await text(q)
+    const words = lang === 'en' ? ['Total amount', 'Total categories', 'By Item category', 'Amount', 'Korerhat, Mirsharai'] : ['মোট টাকা', 'উপকরণের ক্যাটাগরি অনুযায়ী', 'করেরহাট, মীরসরাই']
+    ok(`১০২৪px (${lang}): পেইজ ও টেবিলে অনুভূমিক স্ক্রল নেই; লেখা ঠিক ভাষায়`, over.sw <= over.w + 1 && over.table <= 1 && words.every((x) => qs.includes(x)), `${JSON.stringify(over)} ${words.filter((x) => !qs.includes(x)).join(',')}`)
+    await q.screenshot({ path: `.smoke/list-demo-1024-${lang}.png`, fullPage: true })
+    ok(`১০২৪px (${lang}): কোনো page error নেই`, q.errors.length === 0, q.errors.join(' | '))
+    await q.close()
+  }
+
+  // ফোন: কার্ড, শুধু-পরের ছবি পূর্ণ-চওড়া ৪:৩
+  const m = await newPage(390, true)
+  await m.goto(BASE + '/demo', { waitUntil: 'domcontentloaded' })
+  await settle(m)
+  const card = await m.evaluate(() => {
+    const li = document.querySelector('ul.lg\\:hidden > li')
+    const ph = li?.querySelector('[class*="aspect-[4/3]"]')
+    const a = li?.getBoundingClientRect()
+    const b = ph?.getBoundingClientRect()
+    return li ? { li: a.width, w: b?.width ?? 0, h: b?.height ?? 0, text: li.innerText.replace(/\s+/g, ' ') } : null
+  })
+  ok('৩৯০px: কার্ডে একটিই ছবি, পূর্ণ-চওড়া ৪:৩; কার্ডে ক্যাটাগরি ও টাকা (৳)', !!card && card.w >= card.li - 40 && Math.abs(card.w / card.h - 4 / 3) < 0.05 && card.text.includes('উপকরণের ক্যাটাগরি:') && card.text.includes('৳'), JSON.stringify(card)?.slice(0, 220))
+  ok('৩৯০px: অনুভূমিক ওভারফ্লো নেই', !(await m.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)))
+  await m.screenshot({ path: '.smoke/list-demo-390.png', fullPage: true })
+  await m.close()
+  demoRecs.length = 0
 }
 
 // ---------------------------------------------------------------- E. ফোনে ড্রয়ার

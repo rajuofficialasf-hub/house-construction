@@ -3,7 +3,7 @@ import type { Project } from '@/backend'
 import { childrenOf, topLevelProjects } from '@/features/projects/registry'
 import { RequireAdmin } from '@/features/housing/components/RequireAdmin'
 import { HousingLandingPage } from '@/features/housing/pages/HousingLandingPage'
-import { HousingListPage } from '@/features/housing/pages/HousingListPage'
+import { ProjectListPage } from '@/features/projects/list/ProjectListPage'
 import { HousingLoginPage } from '@/features/housing/pages/HousingLoginPage'
 import {
   Lazy,
@@ -52,7 +52,7 @@ function leafRoute(p: Project) {
       path={p.slug}
       element={
         <ProjectFrame project={p}>
-          <HousingListPage project={p} />
+          <ProjectListPage project={p} />
         </ProjectFrame>
       }
     >

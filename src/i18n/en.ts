@@ -108,10 +108,6 @@ export const EN: Record<string, string> = {
   'মোট জেলা কভার': 'Districts covered',
   'মোট উপজেলা কভার': 'Upazilas covered',
   'মোট অগ্রগতি': 'Overall progress',
-  'মোট উপকারভোগী': 'Total beneficiaries',
-  'মোট বিভাগ': 'Divisions',
-  'মোট জেলা': 'Districts',
-  'মোট উপজেলা': 'Upazilas',
   'পরিসংখ্যান': 'Statistics',
 
   // ---------------------------------------------------------------- তালিকা / টেবিল / ফিল্টার
@@ -164,6 +160,9 @@ export const EN: Record<string, string> = {
   'আগে জেলা': 'District first',
   'আগে বিভাগ বাছুন': 'Select a division first',
   'আগে জেলা বাছুন': 'Select a district first',
+  'আগে উপজেলা বাছুন': 'Select an upazila first',
+  'সব ইউনিয়ন': 'All unions',
+  'এই উপজেলায় নেই': 'None in this upazila',
   'বিভাগ বাছুন': 'Select division',
   'জেলা বাছুন': 'Select district',
   'উপজেলা বাছুন': 'Select upazila',
@@ -193,15 +192,20 @@ export const EN: Record<string, string> = {
   'মানচিত্র লোড হচ্ছে…': 'Loading map…',
   'মানচিত্রে দেখুন — কোথায় কোথায় ঘর হয়েছে': 'View on the map — where houses have been built',
   'কোথায় কোথায় ঘর হয়েছে': 'Where houses have been built',
+  'মানচিত্রে দেখুন — {unit} কোথায় কোথায়': 'View on the map — where the {unit} are',
+  '{unit} কোথায় কোথায়': 'Where the {unit} are',
+  'উপজেলা মানচিত্র — যেসব উপজেলায় {unit} আছে সেখানে জেলার রঙের পতাকা ও সংখ্যা; ক্লিক করলে ফিল্টার':
+    'Upazila map — flags in district colours with counts where there are {unit}; click to filter',
+  'ঘর': 'houses',
   'উপজেলা মানচিত্র — যেখানে ঘর হয়েছে সেখানে জেলার রঙের পতাকা ও সংখ্যা; ক্লিক করলে ফিল্টার':
     'Upazila map — flags in district colours with counts where houses were built; click to filter',
-  '{u} উপজেলায় {n} টি ঘর · উপজেলায় ক্লিক করলে তালিকা সেখানে ফিল্টার হবে': '{n} houses in {u} upazilas · click an upazila to filter the list',
+  '{u} উপজেলায় {n} টি {unit} · উপজেলায় ক্লিক করলে তালিকা সেখানে ফিল্টার হবে': '{n} {unit} in {u} upazilas · click an upazila to filter the list',
   '{u} উপজেলায় পতাকা (রঙ = জেলা) · পতাকা/উপজেলায় ক্লিক করলে তালিকা সেখানে ফিল্টার হবে':
     'Flags in {u} upazilas (colour = district) · click a flag/upazila to filter the list',
-  '{d} জেলার {u} উপজেলায় {n} টি ঘর': '{n} houses in {u} upazilas across {d} districts',
+  '{d} জেলার {u} উপজেলায় {n} টি {unit}': '{n} {unit} in {u} upazilas across {d} districts',
   'এখনো কাজ হয়নি': 'No work yet',
   'সিটি এলাকা (তালিকায় নেই)': 'City area (not in list)',
-  'টি ঘর · ক্লিক করে তালিকা দেখুন': 'houses · click to view the list',
+  'টি {unit} · ক্লিক করে তালিকা দেখুন': '{unit} · click to view the list',
   'ছোট করুন': 'Zoom out',
   'বড় করুন': 'Zoom in',
 
@@ -858,4 +862,10 @@ Object.assign(EN, {
   'স্ট্যাট কার্ড': 'Stat cards',
   'হ্যাঁ': 'Yes',
   'হ্যাঁ, ওভাররাইট করে আপলোড করুন': 'Yes, overwrite and upload',
+
+  // ---------------------------------------------------------------- ক্যাটাগরি বিতরণ (M-ধাপ ১৩)
+  '{label} অনুযায়ী': 'By {label}',
+  'সারিতে চাপলে তালিকা সেই ক্যাটাগরিতে ফিল্টার হবে': 'Tap a row to filter the list by that category',
+  'আরো দেখুন ({n})': 'Show more ({n})',
+  'কম দেখান': 'Show less',
 })

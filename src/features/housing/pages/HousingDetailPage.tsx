@@ -19,7 +19,7 @@ type Fetched =
   | { serial: number; status: 'error'; error: HousingApiError }
 
 /**
- * /housing/<slug>/:serial — ভিউ মোড। HousingListPage এর ভেতরে (Outlet) full-screen মডাল হিসেবে রেন্ডার হয়,
+ * /housing/<slug>/:serial — ভিউ মোড। ProjectListPage এর ভেতরে (Outlet) full-screen মডাল হিসেবে রেন্ডার হয়,
  * তাই নিচে তালিকা থাকে এবং URL এর ফিল্টার/পেইজ বজায় থাকে। লগইন লাগে না।
  *
  * আগের/পরের: রেকর্ড বর্তমান (ফিল্টার করা) পেইজে থাকলে সেই ক্রমে; পেইজের শেষে গেলে পরের পেইজ API থেকে এনে

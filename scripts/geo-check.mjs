@@ -225,7 +225,9 @@ if (!argv.includes('--no-ui')) {
 
 // ---------------------------------------------------------------- ঙ. বিল্ড
 // M-ধাপ ১০ থেকে রেকর্ড-ফর্ম (lazy এডমিন পাতা) ইউনিয়নের কম্বোবক্স ব্যবহার করে — তাই প্রোডাকশন বিল্ডেই যাচাই:
-// ইউনিয়নের ডাটা নিজের chunk এ, শুধু lazy import() দিয়ে, মূল বান্ডলে কখনো নয়
+// ইউনিয়নের ডাটা নিজের chunk এ, শুধু lazy import() দিয়ে, মূল বান্ডলে কখনো নয়।
+// M-ধাপ ১৩ থেকে পাবলিক তালিকা-পেইজও (মূল বান্ডলে) lazy import() করতে পারে — শুধু ডাটায় ইউনিয়ন থাকলে
+// (ইউনিয়ন-ফিল্টার, বা ইংরেজিতে ইউনিয়নের নাম); ঘর নির্মাণে এখনো নামে না। তাই মূল বান্ডল থেকে lazy রেফারেন্স চলে।
 if (!argv.includes('--no-build')) {
   section('ঙ. বিল্ড (vite build — .smoke/geo-build)')
   const { build } = await import('vite')
@@ -240,9 +242,10 @@ if (!argv.includes('--no-build')) {
   const staticRef = js.filter((x) => /(from|import)\s*[`"']\.\/bd-unions-/.test(src(x)))
   const ucGz = unionChunk[0] ? zlib.gzipSync(fs.readFileSync(unionChunk[0])).length : 0
   ok('ইউনিয়নের ডাটা একটিই আলাদা chunk এ (মূল বান্ডলে নয়)', unionChunk.length === 1 && unionChunk[0] !== indexJs && /^bd-unions-/.test(path.basename(unionChunk[0])), unionChunk.map((x) => path.basename(x)).join(', '))
-  ok('ইউনিয়নের chunk শুধু lazy import() দিয়ে আসে (কোথাও স্থির import নয়)', lazyRef.length >= 1 && staticRef.length === 0 && !lazyRef.includes(indexJs), `${lazyRef.map((x) => path.basename(x)).join(', ')} → ${path.basename(unionChunk[0] ?? '')} (${(ucGz / 1024).toFixed(1)} KB gzip)`)
-  // সর্বশেষ মাপা: M-ধাপ ১০ এর বিল্ডে মূল বান্ডল ২৭৩,০৯৬ বাইট (Vite: 273.09 kB, gzip 82.43 kB) — পরের ধাপে বদলালে হালনাগাদ করুন
-  ok('মূল বান্ডল বাড়েনি (M-ধাপ ১০: ২৭৩,০৯৬ বাইট)', indexBytes <= 273096, `${indexBytes} বাইট`)
+  ok('ইউনিয়নের chunk শুধু lazy import() দিয়ে আসে (কোথাও স্থির import নয়)', lazyRef.length >= 1 && staticRef.length === 0, `${lazyRef.map((x) => path.basename(x)).join(', ')} → ${path.basename(unionChunk[0] ?? '')} (${(ucGz / 1024).toFixed(1)} KB gzip)`)
+  // সর্বশেষ মাপা: M-ধাপ ১৩ এর বিল্ডে মূল বান্ডল ২৮২,৯৯৩ বাইট (Vite: 282.99 kB, gzip 86.18 kB) — M-ধাপ ১০ এ ছিল ২৭৩,০৯৬;
+  // বৃদ্ধি জেনেরিক তালিকা-পেইজের (ক্যাটাগরি-চার্ট, ইউনিয়ন/ক্যাটাগরি ফিল্টার, কনফিগ-চালিত কলাম)। পরের ধাপে বদলালে হালনাগাদ করুন
+  ok('মূল বান্ডল বাড়েনি (M-ধাপ ১৩: ২৮২,৯৯৩ বাইট)', indexBytes <= 282993, `${indexBytes} বাইট`)
 }
 
 console.log(`\nফল: PASS ${pass}, FAIL ${fail}`)
