@@ -59,8 +59,7 @@ export interface StatCardDef {
 export interface ProjectDisplay {
   show_map?: boolean
   geo_columns?: 'split' | 'merged'
-  /** বিতরণ চার্টের ক্যাটাগরি ফিল্ড */
-  breakdown_field?: string
+  // breakdown_field (ক্যাটাগরি-চার্ট) বাদ — ব্যবহারকারীর সিদ্ধান্ত ২০২৬-১০-০৬; পুরনো ডাটায় থাকলে উপেক্ষিত
 }
 
 export interface ProjectField {

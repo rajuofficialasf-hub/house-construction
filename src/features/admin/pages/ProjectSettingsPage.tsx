@@ -110,7 +110,6 @@ export function ProjectSettingsPage() {
   const patch = diff(pickEditable(project), form)
   const dirty = Object.keys(patch).length > 0
   const groups = all.filter((p) => p.is_group && p.key !== project.key)
-  const categoryFields = project.fields.filter((f) => f.type === 'category' && f.visibility === 'public' && f.is_active)
   const records = stats?.total ?? 0
   const check = publishChecklist({ ...project, ...form }, all, stats)
 
@@ -446,30 +445,6 @@ export function ProjectSettingsPage() {
                 <select {...p} className={selectClass} value={form.display.geo_columns ?? 'split'} onChange={(e) => set('display', { ...form.display, geo_columns: e.target.value as 'split' | 'merged' })}>
                   <option value="split">{t('আলাদা (বিভাগ, জেলা, উপজেলা আলাদা কলামে)')}</option>
                   <option value="merged">{t('একসাথে (এক কলামে)')}</option>
-                </select>
-              )}
-            </Field>
-            <Field label={t('বিতরণ চার্টের ফিল্ড')} help={categoryFields.length ? t('যেমন "ক্যাটাগরি অনুযায়ী বিতরণ: গরু ৪৫ জন, ৳ ১৫,৭৫,০০০"') : t('এই প্রকল্পে কোনো ক্যাটাগরি ফিল্ড নেই — "ফিল্ড" ট্যাবে যোগ করুন।')}>
-              {(p) => (
-                <select
-                  {...p}
-                  className={selectClass}
-                  value={form.display.breakdown_field ?? ''}
-                  disabled={!categoryFields.length}
-                  onChange={(e) => {
-                    const v = e.target.value
-                    const next = { ...form.display }
-                    if (v) next.breakdown_field = v
-                    else delete next.breakdown_field
-                    set('display', next)
-                  }}
-                >
-                  <option value="">{t('— চার্ট নেই —')}</option>
-                  {categoryFields.map((f) => (
-                    <option key={f.key} value={f.key}>
-                      {lt(f, 'label')}
-                    </option>
-                  ))}
                 </select>
               )}
             </Field>

@@ -11,7 +11,6 @@ import { ErrorNotice } from '@/features/housing/components/ErrorNotice'
 import { useHousingList } from '@/features/housing/hooks/useHousingList'
 import { useHousingStats } from '@/features/housing/hooks/useHousingStats'
 import type { HousingFilters } from '@/features/housing/utils/filters'
-import { CategoryBreakdown } from './CategoryBreakdown'
 import { listLayout } from './listColumns'
 import { applyListFilters, hasActiveListFilters, listFiltersEqual, listFiltersFromSearchParams, type ProjectListFilters as Filters } from './listFilters'
 import { ProjectFilters } from './ProjectFilters'
@@ -32,9 +31,9 @@ function parsePage(raw: string | null): number {
  * যেকোনো প্রকল্পের পাবলিক তালিকা পেইজ (M-ধাপ ১৩; আগে HousingListPage) — ঘর নির্মাণ (/housing/semi-pucca …) আর
  * অনুদান-ধরন (/self-reliance …) একই কম্পোনেন্টে, প্রকল্পের কনফিগ থেকে:
  *   গ্রুপের উপ-প্রকল্প হলে সাব-নেভ · নাম ও বর্ণনা pick() দিয়ে · খসড়া হলে ব্যানার (ProjectFrame)
- *   স্ট্যাট কার্ড (stat_cards) · ক্যাটাগরি বিতরণ (display.breakdown_field) · মানচিত্র (display.show_map)
+ *   স্ট্যাট কার্ড (stat_cards) · মানচিত্র (display.show_map)
  *   ফিল্টার (সাল, বিভাগ → জেলা → উপজেলা → ইউনিয়ন, ক্যাটাগরি f_<key>, নাম) · টেবিল/কার্ড (ফিল্ড-টাইপ রেজিস্ট্রি) + পেজিনেশন
- * API কল মোট ২টি: list আর stats (সাল, ইউনিয়ন, ক্যাটাগরির মান, মানচিত্র সবাই এই stats থেকে)।
+ * API কল মোট ২টি: list আর stats (সাল, ইউনিয়ন, ক্যাটাগরির মান, মানচিত্র সবাই এই stats থেকে)। ক্যাটাগরি-চার্ট ছিল, ব্যবহারকারীর সিদ্ধান্তে বাদ (২০২৬-১০-০৬)।
  * ফিল্টার ও পেইজ URL এ (?year=&division=&district=&upazila=&union=&f_<key>=&q=&page=)।
  * child route /:serial (ভিউ মোড) <Outlet> দিয়ে এর উপরে মডাল হিসেবে রেন্ডার হয়।
  */
@@ -108,7 +107,6 @@ export function ProjectListPage({ project }: Props) {
   const statsData = stats.status === 'ready' ? stats.data : null
   // ইউনিয়নের কলাম/লাইন শুধু ডাটায় ইউনিয়ন থাকলে (ঘর নির্মাণে এখনো নেই — টেবিল আগের ১১ কলামই)
   const layout = useMemo(() => listLayout(project, { showUnion: (statsData?.distinct.unions ?? 0) > 0 }), [project, statsData])
-  const breakdownKey = project.display?.breakdown_field ?? ''
 
   // ভিউ মোড (child route /:serial) কে তালিকার ক্রম ও params দেওয়া হয়
   const outletContext = useMemo<ListOutletContext>(
@@ -126,12 +124,6 @@ export function ProjectListPage({ project }: Props) {
       <div className="mt-8">
         <ProjectStatCards project={project} stats={stats} />
       </div>
-
-      {statsData && breakdownKey && (
-        <div className="mt-6">
-          <CategoryBreakdown project={project} stats={statsData} active={filters.fields[breakdownKey] ?? ''} onSelect={(v) => setFilters({ ...filters, fields: v ? { ...filters.fields, [breakdownKey]: v } : Object.fromEntries(Object.entries(filters.fields).filter(([k]) => k !== breakdownKey)) })} />
-        </div>
-      )}
 
       <div ref={tableTop} className="mt-10 scroll-mt-20">
         <h2 className="text-lg font-semibold text-slate-800 sm:text-xl">{t('উপকারভোগীদের তালিকা')}</h2>

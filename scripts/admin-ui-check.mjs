@@ -40,6 +40,12 @@ const SB = env.VITE_SUPABASE_URL.replace(/\/+$/, '')
 const ANON = env.VITE_SUPABASE_ANON_KEY
 const REF = new URL(SB).hostname.split('.')[0]
 const now = Math.floor(Date.now() / 1000)
+/** লাইভের প্রকাশিত প্রকল্প (anon) — প্রত্যাশা এখান থেকে, যাতে আপনি নতুন প্রকল্প প্রকাশ করলেও পরীক্ষা চলে */
+const LIVE = await fetch(`${SB}/rest/v1/rpc/projects_overview`, { method: 'POST', headers: { apikey: ANON, authorization: `Bearer ${ANON}`, 'content-type': 'application/json' }, body: '{}' }).then((r) => r.json())
+const bnNum = (n) => Number(n).toLocaleString('en-IN').replace(/\d/g, (d) => '০১২৩৪৫৬৭৮৯'[d])
+/** ঘর নির্মাণের বাইরে লাইভে প্রকাশিত প্রকল্পের বাংলা নাম */
+const OTHER_LIVE = LIVE.projects.filter((x) => !['housing', 'semi_pucca', 'tin'].includes(x.key)).map((x) => x.name_bn)
+const HOUSING3 = 'ঘর নির্মাণ প্রকল্প|সেমিপাকা ঘর নির্মাণ|টিনের ঘর নির্মাণ'
 const USER = { id: '00000000-0000-0000-0000-0000000000aa', email: 'ui-test@example.org', aud: 'authenticated', role: 'authenticated', app_metadata: {}, user_metadata: {} }
 const SESSION = { access_token: 'fake-token', refresh_token: 'fake-refresh', token_type: 'bearer', expires_in: 36000, expires_at: now + 36000, user: USER }
 
@@ -423,10 +429,11 @@ async function typeInto(p, labelText, value) {
   await settle(p)
   const s = await text(p)
   const cards = await p.$$eval('article h2', (h) => h.map((x) => x.textContent))
-  ok('ড্যাশবোর্ড খোলে (নকল মূল এডমিন), প্রতিটি প্রকল্পের কার্ড', p.url().endsWith('/admin') && cards.join('|') === 'ঘর নির্মাণ প্রকল্প|সেমিপাকা ঘর নির্মাণ|টিনের ঘর নির্মাণ', cards.join('|'))
+  ok('ড্যাশবোর্ড খোলে (নকল মূল এডমিন), প্রতিটি প্রকল্পের কার্ড (ঘর নির্মাণ আগে; লাইভের অন্য প্রকল্পও)', p.url().endsWith('/admin') && cards.slice(0, 3).join('|') === HOUSING3 && OTHER_LIVE.every((n) => cards.includes(n)), cards.join('|'))
   const nums = await p.$$eval('article dd', (d) => d.map((x) => x.textContent.trim()))
   ok('ড্যাশবোর্ডের সংখ্যা: ঘর নির্মাণ ১০, সেমিপাকা ১০, টিন ০ রেকর্ড; টাকা "—"', nums[0] === '১০' && nums[3] === '১০' && nums[6] === '০' && nums[1] === '—', nums.join(' '))
-  ok('প্রকাশিত সারাংশ: ২টি প্রকল্প · ১০ জন · ১টি জেলা', s.includes('প্রকাশিত: ২টি প্রকল্প · ১০ জন উপকারভোগী · ১টি জেলা'))
+  const sumLine = `প্রকাশিত: ${bnNum(LIVE.global.projects)}টি প্রকল্প · ${bnNum(LIVE.global.total)} জন উপকারভোগী · ${bnNum(LIVE.global.districts)}টি জেলা`
+  ok('প্রকাশিত সারাংশ = লাইভের ওভারভিউ: ' + sumLine, s.includes(sumLine), s.match(/প্রকাশিত:[^\n]*/)?.[0])
   ok('সাইডবারে মেনু ও "মূল এডমিন"', s.includes('ড্যাশবোর্ড') && s.includes('প্রকল্পসমূহ') && s.includes('মূল এডমিন') && s.includes('সেমিপাকা ঘর নির্মাণ'))
   await p.screenshot({ path: '.smoke/admin-dashboard.png', fullPage: true })
   ok('ড্যাশবোর্ডে কোনো page error নেই', p.errors.length === 0, p.errors.join(' | '))
@@ -439,7 +446,7 @@ async function typeInto(p, labelText, value) {
   await p.goto(BASE + '/admin/projects', { waitUntil: 'domcontentloaded' })
   await settle(p)
   const rows = await p.$$eval('ul li a[href^="/admin/projects/"]', (a) => a.filter((x) => x.classList.contains('font-bold')).map((x) => x.textContent))
-  ok('প্রকল্পের তালিকা: গ্রুপ, তারপর তার উপ-প্রকল্প', rows.join('|') === 'ঘর নির্মাণ প্রকল্প|সেমিপাকা ঘর নির্মাণ|টিনের ঘর নির্মাণ', rows.join('|'))
+  ok('প্রকল্পের তালিকা: গ্রুপ, তারপর তার উপ-প্রকল্প (লাইভের অন্য প্রকল্পও আছে)', rows.slice(0, 3).join('|') === HOUSING3 && OTHER_LIVE.every((n) => rows.includes(n)), rows.join('|'))
   const before = writes.length
   await p.evaluate(() => [...[...document.querySelectorAll('ul.divide-y > li')][0].querySelectorAll('button')].find((x) => x.textContent.trim() === 'অপ্রকাশ করুন')?.click())
   await sleep(400)
@@ -489,6 +496,11 @@ async function typeInto(p, labelText, value) {
   ok('project_create এর ইনপুট: key/slug demo, শুধু-পরে, ইউনিয়ন, প্রিফিক্স demo, খসড়া', pp.key === 'demo' && pp.slug === 'demo' && pp.photo_mode === 'after_only' && pp.geo_depth === 'union' && pp.file_prefix === 'demo' && !pp.is_published && pp.parent_key === null, JSON.stringify(pp).slice(0, 200))
   ok('টেমপ্লেটের ৩টি ফিল্ড (ক্যাটাগরি, উপকরণের নাম, টাকা) ও ৫টি কার্ড', (w?.body?.p_fields ?? []).map((f) => f.key).join(',') === 'category,item_name,amount' && pp.stat_cards?.length === 5)
   ok('তৈরির পর সেটিংস পেইজে যায় (/admin/projects/demo), "খসড়া" দেখায়', p.url().endsWith('/admin/projects/demo') && (await text(p)).includes('খসড়া'), p.url())
+  ok('টেমপ্লেটে ক্যাটাগরি-চার্টের সেটিং নেই (চার্ট বাদ, ২০২৬-১০-০৬)', !('breakdown_field' in (pp.display ?? {})), JSON.stringify(pp.display))
+  await p.goto(BASE + '/admin/projects/demo?tab=display', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  const disp = await text(p)
+  ok('সেটিংস → প্রদর্শন: মানচিত্র ও ঠিকানার কলাম আছে, "বিতরণ চার্টের ফিল্ড" নেই', disp.includes('মানচিত্র') && !disp.includes('বিতরণ চার্ট'), disp.match(/প্রদর্শন[\s\S]{0,200}/)?.[0]?.replace(/\s+/g, ' '))
   ok('উইজার্ডে কোনো page error নেই', p.errors.length === 0, p.errors.join(' | '))
   await p.close()
 }
@@ -1163,11 +1175,8 @@ for (const [w, mobile] of [[1280, false], [390, true]]) {
   ok('/demo (খসড়া, এডমিন প্রিভিউ): নাম ও খসড়া-ব্যানার; গ্রুপ নয় তাই সাব-নেভ নেই', s.includes('পরীক্ষা প্রকল্প') && s.includes('খসড়া') && !s.includes('সেমিপাকা ঘর নির্মাণ'))
   const moneyTxt = s.match(/মোট টাকা\s+([^\n]+)/)?.[1]
   ok('স্ট্যাট কার্ড: মোট টাকা ৳ (সব রেকর্ডের যোগফল), মোট ক্যাটাগরি ৭, মোট উপকারভোগী ১০', moneyTxt?.includes('৳') && Number(ascii(moneyTxt)) === total && /মোট ক্যাটাগরি\s+৭/.test(s) && /মোট উপকারভোগী\s+১০/.test(s), `${moneyTxt} (চাই ${total})`)
-  const bd = await p.evaluate(() => { const sec = document.querySelector('section[aria-label="উপকরণের ক্যাটাগরি অনুযায়ী"]'); return sec ? { rows: [...sec.querySelectorAll('li')].map((li) => li.innerText.replace(/\s+/g, ' ')), text: sec.innerText } : null })
-  ok('ক্যাটাগরি চার্ট: ৬টি সারি (বেশি থেকে কম), "আরো দেখুন (১)"; প্রতিটিতে সংখ্যা ও টাকা', bd?.rows.length === 6 && bd.rows[0].startsWith('গাভী ৩') && bd.rows[0].includes('৳') && bd.text.includes('আরো দেখুন (১)'), bd?.rows.length + ' সারি; ' + bd?.rows.slice(0, 2).join(' | '))
-  await clickText(p, 'button', 'আরো দেখুন (১)')
-  await sleep(200)
-  ok('"আরো দেখুন" → ৭টি সারি, "কম দেখান"', (await p.evaluate(() => document.querySelectorAll('section[aria-label="উপকরণের ক্যাটাগরি অনুযায়ী"] li').length)) === 7 && (await text(p)).includes('কম দেখান'))
+  // ক্যাটাগরি-চার্ট ব্যবহারকারীর সিদ্ধান্তে বাদ (২০২৬-১০-০৬)
+  ok('ক্যাটাগরি-চার্ট নেই ("… অনুযায়ী" অংশ বা "আরো দেখুন (n)" নেই)', !(await p.$('section[aria-label$="অনুযায়ী"]')) && !/অনুযায়ী\n|আরো দেখুন \(/.test(s))
   const headers = await p.evaluate(() => [...document.querySelectorAll('table thead th')].map((th) => th.innerText.trim()))
   ok('টেবিলের কলাম কনফিগ থেকে: অনুদানের সাল, ঠিকানা (মেলানো), ক্যাটাগরি, টাকা, উপকরণসহ ছবি', ['অনুদানের সাল', 'ঠিকানা', 'উপকরণের ক্যাটাগরি', 'টাকা', 'উপকরণসহ ছবি'].every((h) => headers.includes(h)), headers.join(' | '))
   ok('ঠিকানায় ইউনিয়ন (ডাটায় ইউনিয়ন আছে); টাকার ঘরে ৳', (await p.evaluate(() => document.querySelector('table tbody')?.innerText ?? '')).includes('করেরহাট') && (await p.evaluate(() => document.querySelector('table tbody')?.innerText ?? '')).includes('৳'))
@@ -1176,13 +1185,13 @@ for (const [w, mobile] of [[1280, false], [390, true]]) {
   ok('API কল শুধু ২ ধরনের: list (housing_beneficiaries) আর project_stats — আলাদা years/stats কল নেই', kinds.sort().join(',') === 'GET /rest/v1/housing_beneficiaries,POST /rest/v1/rpc/project_stats', kinds.join(', '))
   ok('একই অনুরোধ একবারই (StrictMode এর দ্বিগুণ বাদে): list ১, stats ১', new Set(calls.filter((c) => c.includes('housing_beneficiaries'))).size === 1 && new Set(calls.filter((c) => c.includes('project_stats'))).size === 1, calls.filter((c) => /housing_beneficiaries|project_stats/.test(c)).map((c) => c.slice(0, 90)).join(' || '))
 
-  // চার্টের সারিতে ক্লিক → ?f_category=
-  await p.evaluate(() => [...document.querySelectorAll('section[aria-label="উপকরণের ক্যাটাগরি অনুযায়ী"] li button')].find((b) => b.innerText.startsWith('ছাগল'))?.click())
-  await settle(p)
-  ok('চার্টে "ছাগল" চাপলে ?f_category=ছাগল, তালিকায় ২ জন; ক্যাটাগরি-ড্রপডাউনেও "ছাগল"', params(p).f_category === 'ছাগল' && (await rows(p)) === 2 && (await p.evaluate(() => { const l = [...document.querySelectorAll('label')].find((e) => e.textContent.trim() === 'উপকরণের ক্যাটাগরি'); return document.getElementById(l?.htmlFor)?.value })) === 'ছাগল', `${JSON.stringify(params(p))} rows=${await rows(p)}`)
-  await p.evaluate(() => [...document.querySelectorAll('section[aria-label="উপকরণের ক্যাটাগরি অনুযায়ী"] li button')].find((b) => b.getAttribute('aria-pressed') === 'true')?.click())
-  await settle(p)
-  ok('আবার চাপলে ফিল্টার ওঠে (১০ জন)', !('f_category' in params(p)) && (await rows(p)) === 10)
+  // ক্যাটাগরি-ড্রপডাউন → ?f_category=
+  const catOpts = await optionsOf(p, 'উপকরণের ক্যাটাগরি')
+  ok('ক্যাটাগরি-ড্রপডাউনে ডাটার ৭টি মান', catOpts?.opts.length === 8, JSON.stringify(catOpts?.opts))
+  await selectByLabel(p, 'উপকরণের ক্যাটাগরি', 'ছাগল')
+  ok('ড্রপডাউনে "ছাগল" → ?f_category=ছাগল, তালিকায় ২ জন', params(p).f_category === 'ছাগল' && (await rows(p)) === 2, `${JSON.stringify(params(p))} rows=${await rows(p)}`)
+  await selectByLabel(p, 'উপকরণের ক্যাটাগরি', '')
+  ok('"সব" বাছলে ফিল্টার ওঠে (১০ জন)', !('f_category' in params(p)) && (await rows(p)) === 10)
 
   // ইউনিয়ন ফিল্টার: উপজেলা না বাছা পর্যন্ত বন্ধ; বিকল্প by_union থেকে
   let un = await optionsOf(p, 'ইউনিয়ন/পৌরসভা')
@@ -1213,7 +1222,7 @@ for (const [w, mobile] of [[1280, false], [390, true]]) {
     await sleep(1200)
     const over = await q.evaluate(() => ({ sw: document.documentElement.scrollWidth, w: window.innerWidth, table: (() => { const t = document.querySelector('table'); const w = t?.parentElement; return w ? w.scrollWidth - w.clientWidth : 0 })() }))
     const qs = await text(q)
-    const words = lang === 'en' ? ['Total amount', 'Total categories', 'By Item category', 'Amount', 'Korerhat, Mirsharai'] : ['মোট টাকা', 'উপকরণের ক্যাটাগরি অনুযায়ী', 'করেরহাট, মীরসরাই']
+    const words = lang === 'en' ? ['Total amount', 'Total categories', 'Item category', 'Amount', 'Korerhat, Mirsharai'] : ['মোট টাকা', 'উপকরণের ক্যাটাগরি', 'করেরহাট, মীরসরাই']
     ok(`১০২৪px (${lang}): পেইজ ও টেবিলে অনুভূমিক স্ক্রল নেই; লেখা ঠিক ভাষায়`, over.sw <= over.w + 1 && over.table <= 1 && words.every((x) => qs.includes(x)), `${JSON.stringify(over)} ${words.filter((x) => !qs.includes(x)).join(',')}`)
     await q.screenshot({ path: `.smoke/list-demo-1024-${lang}.png`, fullPage: true })
     ok(`১০২৪px (${lang}): কোনো page error নেই`, q.errors.length === 0, q.errors.join(' | '))
@@ -1402,7 +1411,7 @@ for (const [w, mobile] of [[1280, false], [390, true]]) {
   await settle(p)
   await sleep(1500) // count-up
   const cards = await p.evaluate(() => [...document.querySelectorAll('[data-project-card]')].map((c) => ({ key: c.getAttribute('data-project-card'), text: c.innerText.replace(/\s+/g, ' '), img: c.querySelector('img')?.getAttribute('src') ?? null, fallback: !!c.querySelector('[data-cover-fallback]'), chips: [...c.querySelectorAll(':scope ul a')].map((a) => a.textContent), href: [...c.querySelectorAll('a')].at(-1)?.getAttribute('href') })))
-  ok('হোম: কার্ড শুধু শীর্ষ-স্তরের প্রকাশিত ও "হোমে" চালু প্রকল্প — ঘর নির্মাণ (গ্রুপ) ও স্বাবলম্বী; খসড়া/হোমে-বন্ধ নেই, উপ-প্রকল্প আলাদা কার্ড নয়', cards.map((c) => c.key).join(',') === 'housing,sr_test', cards.map((c) => c.key).join(','))
+  ok('হোম: কার্ড শুধু শীর্ষ-স্তরের প্রকাশিত ও "হোমে" চালু প্রকল্প — ঘর নির্মাণ (গ্রুপ) ও স্বাবলম্বী; খসড়া/হোমে-বন্ধ নেই, উপ-প্রকল্প আলাদা কার্ড নয়', cards.map((c) => c.key).sort().join(',') === [...LIVE.projects.filter((x) => !x.parent_key && x.is_published && x.show_on_home).map((x) => x.key), 'sr_test'].sort().join(',') && !cards.some((c) => ['draft_test', 'nohome_test', 'semi_pucca', 'tin'].includes(c.key)), cards.map((c) => c.key).join(','))
   const h = cards.find((c) => c.key === 'housing')
   ok('গ্রুপ-কার্ড: উপ-প্রকল্পের চিপ (সেমিপাকা · টিন), "মোট ঘর নির্মাণ"/"মোট জেলা কভার"/"মোট উপজেলা কভার", সর্বশেষ রেকর্ডের থাম্ব (কভার নেই)', h && h.chips.join('|') === 'সেমিপাকা ঘর নির্মাণ|টিনের ঘর নির্মাণ' && h.text.includes('মোট ঘর নির্মাণ') && h.text.includes('মোট জেলা কভার') && h.text.includes('মোট উপজেলা কভার') && /current_thumb\.webp/.test(h.img ?? '') && h.href === '/housing', JSON.stringify(h)?.slice(0, 300))
   const s = cards.find((c) => c.key === 'sr_test')

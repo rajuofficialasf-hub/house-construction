@@ -73,7 +73,7 @@ export const PROJECT_TEMPLATES: readonly ProjectTemplate[] = [
       geoCard('district', false),
       geoCard('upazila', false),
     ],
-    display: { show_map: true, geo_columns: 'merged', breakdown_field: 'category' },
+    display: { show_map: true, geo_columns: 'merged' },
     icon: 'hands-heart',
     accent: 'teal',
     fields: [

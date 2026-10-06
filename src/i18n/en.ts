@@ -523,7 +523,6 @@ Object.assign(EN, {
   'এই key আগে থেকেই আছে — URL অংশ একটু বদলান': 'This key already exists — change the URL part a little',
   'এই কাজের অনুমতি নেই': 'You do not have permission for this',
   'এই প্রকল্পে একই key এর ফিল্ড আগে থেকেই আছে': 'This project already has a field with the same key',
-  'এই প্রকল্পে কোনো ক্যাটাগরি ফিল্ড নেই — "ফিল্ড" ট্যাবে যোগ করুন।': 'This project has no category field — add one in the "Fields" tab.',
   'এই প্রিফিক্স অন্য প্রকল্পে আছে — অন্যটি দিন': 'Another project uses this prefix — choose another',
   'একক প্রকল্প': 'Standalone project',
   'একক প্রকল্প (কোনো গ্রুপে নয়)': 'Standalone project (not in a group)',
@@ -609,10 +608,8 @@ Object.assign(EN, {
   'বাংলা নাম': 'Bangla name',
   'বাংলা নাম দিন': 'Enter the Bangla name',
   'বাল্ক ছবি আপলোডে ফাইলনাম চেনার জন্য। উদাহরণ (সিরিয়াল ১২): {example}': 'Used to recognise file names in bulk photo upload. Example (serial 12): {example}',
-  'বিতরণ চার্টের ফিল্ড': 'Field for the breakdown chart',
   'মূল এডমিন': 'Main admin',
   'মোট টাকা': 'Total amount',
-  'যেমন "ক্যাটাগরি অনুযায়ী বিতরণ: গরু ৪৫ জন, ৳ ১৫,৭৫,০০০"': 'e.g. "Breakdown by category: Cow 45 people, ৳1,575,000"',
   'যেমন "ঘর", "উপকারভোগী" — মানচিত্র ও পরিসংখ্যানে': 'e.g. "houses", "beneficiaries" — on the map and in statistics',
   'যেমন উপকরণসহ ছবি': 'e.g. Photo with the item',
   'যেমন ঘর নির্মাণের ভেতরে "ঘর মেরামত" — /housing/…': 'e.g. "House repair" inside Housing — /housing/…',
@@ -640,7 +637,6 @@ Object.assign(EN, {
   'হোমে দেখান': 'Show on home',
   'হোমে নেই': 'Not on home',
   'হোমের কার্ডে': 'On the home-page card',
-  '— চার্ট নেই —': '— no chart —',
   '— বাছাই করুন —': '— choose —',
   // এডমিন: ফিল্ড বিল্ডার ও পরিসংখ্যান কার্ড বিল্ডার (M-ধাপ ৮)
   '"{key}" সিস্টেমের নাম — অন্যটি দিন': '"{key}" is a system name — choose another',
@@ -857,11 +853,6 @@ Object.assign(EN, {
   'হ্যাঁ': 'Yes',
   'হ্যাঁ, ওভাররাইট করে আপলোড করুন': 'Yes, overwrite and upload',
 
-  // ---------------------------------------------------------------- ক্যাটাগরি বিতরণ (M-ধাপ ১৩)
-  '{label} অনুযায়ী': 'By {label}',
-  'সারিতে চাপলে তালিকা সেই ক্যাটাগরিতে ফিল্টার হবে': 'Tap a row to filter the list by that category',
-  'আরো দেখুন ({n})': 'Show more ({n})',
-  'কম দেখান': 'Show less',
 
   // ---------------------------------------------------------------- হোম পেইজ (M-ধাপ ১৫)
   'আমাদের সেবা প্রকল্পসমূহ': 'Our service projects',

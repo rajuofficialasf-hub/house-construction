@@ -107,7 +107,7 @@
   "geo_depth": "union",              // upazila | union (ইউনিয়ন পর্যন্ত ঠিকানা)
   "core_fields": { "union_name": { "required": false }, "address": { "enabled": true, "required": false } },
   "stat_cards": [ { "id": "money", "kind": "sum", "field": "amount", "label_bn": "মোট টাকা", "label_en": "Total amount", "icon": "coins", "home": true, "format": "money" } ],
-  "display": { "show_map": true, "geo_columns": "split", "breakdown_field": "category" },
+  "display": { "show_map": true, "geo_columns": "split" },   // breakdown_field (ক্যাটাগরি-চার্ট) v১.৪-এর পরে বাদ — থাকলে উপেক্ষিত
   "file_prefix": "sr",               // ^[a-z][a-z0-9]{0,15}$, unique; গ্রুপে null — ছবির ফাইলনামের শুরু (sr_0012.jpg)
   "icon": "hands-heart", "accent": "brand",   // ফ্রন্টএন্ডের নির্দিষ্ট তালিকার key (কাঁচা CSS নয়)
   "cover_path": null,                // কভার ছবির স্টোরেজ পাথ (URL নয়)
