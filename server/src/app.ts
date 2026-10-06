@@ -12,7 +12,7 @@ import { originCheck } from './http/origin.js';
 import { buildOpenApiDocument } from './openapi.js';
 import { authRouter } from './routes/v1/auth.js';
 import { healthRouter } from './routes/v1/health.js';
-import { BULK_PATH, housingAdminRouter } from './routes/v1/housing-admin.js';
+import { BULK_PATH, housingAdminRouter, type WriteRateLimit } from './routes/v1/housing-admin.js';
 import { housingReadRouter, type ReadRateLimit } from './routes/v1/housing.js';
 import { openapiRouter } from './routes/v1/openapi.js';
 import { photosRouter } from './routes/v1/photos.js';
@@ -40,6 +40,8 @@ export interface AppDeps {
   publicApiUrl: string;
   /** Per-IP cap on the public photo route; tests pass a small one. */
   photoRateLimit?: ReadRateLimit;
+  /** Per-admin cap on housing writes; tests pass a small one. */
+  writeRateLimit?: WriteRateLimit;
   /** Upload limits; tests pass small ones. */
   photoUpload?: Omit<PhotoReceiverOptions, 'storage'>;
 }
@@ -91,6 +93,7 @@ export function createApp({
   publicApiUrl,
   photoUpload,
   photoRateLimit,
+  writeRateLimit,
 }: AppDeps): Express {
   const cookie = sessionCookie(cookieSecure);
   const app = express();
@@ -129,7 +132,7 @@ export function createApp({
   app.use('/api/v1/auth', authRouter({ sql, now }, cookie));
   // The admin router first: its literal paths (/activity, /bulk) must win over the reads' /:id.
   const receivePhoto = createPhotoReceiver({ ...photoUpload, storage });
-  app.use('/api/v1/housing', housingAdminRouter({ sql, storage, publicApiUrl, receivePhoto }));
+  app.use('/api/v1/housing', housingAdminRouter({ sql, storage, publicApiUrl, receivePhoto, writeRateLimit }));
   app.use('/api/v1/housing', housingReadRouter(sql, readRateLimit));
   app.use('/api/v1/photos', photosRouter(sql, storage, photoRateLimit));
 

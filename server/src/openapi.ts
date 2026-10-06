@@ -106,7 +106,7 @@ const ERROR_DESCRIPTIONS = {
   404: 'No such record or photo (NOT_FOUND)',
   409: 'The serial is already in use in that project (CONFLICT)',
   413: 'The body, a photo or the number of rows is too large (PAYLOAD_TOO_LARGE)',
-  429: 'Too many requests from this IP (RATE_LIMITED)',
+  429: 'Too many requests (RATE_LIMITED): per IP on reads, photos and login, per admin on writes',
   500: 'Server or database failure (INTERNAL_ERROR)',
   503: 'Database unavailable',
 } as const;
@@ -177,7 +177,7 @@ export function buildOpenApiDocument(): OpenApiDocument {
         }),
         post: admin('Create a record; without serial_no the next serial is assigned', {
           requestBody: body(createBody),
-          responses: { 201: ok('The new record', ref('HousingRecord')), ...errors(400, 401, 403, 409, 500) },
+          responses: { 201: ok('The new record', ref('HousingRecord')), ...errors(400, 401, 403, 409, 429, 500) },
         }),
       },
       '/housing/stats': reads('Counts by year and place', {
@@ -215,11 +215,11 @@ export function buildOpenApiDocument(): OpenApiDocument {
         put: admin('Change some fields of a record; serial_no and project_type cannot change here', {
           parameters: idParam,
           requestBody: body(updateBody),
-          responses: { 200: ok('The updated record', ref('HousingRecord')), ...errors(400, 401, 403, 404, 500) },
+          responses: { 200: ok('The updated record', ref('HousingRecord')), ...errors(400, 401, 403, 404, 429, 500) },
         }),
         delete: admin('Delete a record; its serial is never reused', {
           parameters: idParam,
-          responses: { 204: { description: 'Deleted' }, ...errors(400, 401, 403, 404, 500) },
+          responses: { 204: { description: 'Deleted' }, ...errors(400, 401, 403, 404, 429, 500) },
         }),
       },
       '/housing/activity': {
@@ -247,11 +247,11 @@ export function buildOpenApiDocument(): OpenApiDocument {
       '/housing/bulk': {
         post: admin(`Import 1-${MAX_BULK_ROWS} rows in one transaction: all or nothing`, {
           requestBody: body(bulkInsertBody),
-          responses: { 200: ok('How many rows were inserted', ref('BulkInsertResult')), ...errors(400, 401, 403, 409, 413, 500) },
+          responses: { 200: ok('How many rows were inserted', ref('BulkInsertResult')), ...errors(400, 401, 403, 409, 413, 429, 500) },
         }),
         put: admin(`Update 1-${MAX_BULK_ROWS} rows by serial; absent, null or blank fields stay as they are`, {
           requestBody: body(bulkUpdateBody),
-          responses: { 200: ok('How many rows changed, and the serials not found', ref('BulkUpdateResult')), ...errors(400, 401, 403, 413, 500) },
+          responses: { 200: ok('How many rows changed, and the serials not found', ref('BulkUpdateResult')), ...errors(400, 401, 403, 413, 429, 500) },
         }),
       },
       '/housing/{id}/photo': {
@@ -273,11 +273,11 @@ export function buildOpenApiDocument(): OpenApiDocument {
               },
             },
           },
-          responses: { 200: ok('The record with its new photo URLs and photo_updated_at', ref('HousingRecord')), ...errors(400, 401, 403, 404, 413, 500) },
+          responses: { 200: ok('The record with its new photo URLs and photo_updated_at', ref('HousingRecord')), ...errors(400, 401, 403, 404, 413, 429, 500) },
         }),
         delete: admin('Remove the record\'s photo and thumbnail of one kind; succeeds when there is none', {
           parameters: [...idParam, ...parameters(deletePhotoQuery, 'query', { kind: 'prev or current' })],
-          responses: { 200: ok('The record', ref('HousingRecord')), ...errors(400, 401, 403, 404, 500) },
+          responses: { 200: ok('The record', ref('HousingRecord')), ...errors(400, 401, 403, 404, 429, 500) },
         }),
       },
       '/photos/{id}': {
@@ -295,7 +295,7 @@ export function buildOpenApiDocument(): OpenApiDocument {
         post: admin('Move a record to another serial; the old serial is never reused', {
           parameters: idParam,
           requestBody: body(changeSerialBody),
-          responses: { 200: ok('The record with its new serial', ref('HousingRecord')), ...errors(400, 401, 403, 404, 409, 500) },
+          responses: { 200: ok('The record with its new serial', ref('HousingRecord')), ...errors(400, 401, 403, 404, 409, 429, 500) },
         }),
       },
     },

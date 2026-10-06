@@ -1,4 +1,5 @@
 import express, { Router, type Request } from 'express';
+import { rateLimit } from 'express-rate-limit';
 import type { IncomingMessage } from 'node:http';
 import { z } from 'zod';
 import { requireAdmin } from '../../auth/middleware.js';
@@ -28,6 +29,30 @@ import type { StorageDriver } from '../../storage/index.js';
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 const notFound = () => new AppError('NOT_FOUND', 'রেকর্ড পাওয়া যায়নি');
+
+export interface WriteRateLimit {
+  windowMs: number;
+  limit: number;
+}
+
+// Per-admin cap on writes (NE-SEC-04). A bulk request is one write, so the import's 200-row
+// batches and the photo page's 2 uploads at a time stay far below it; a stolen session or a
+// runaway script doesn't. In memory, exact while the API runs as one process.
+export const DEFAULT_WRITE_RATE_LIMIT: WriteRateLimit = { windowMs: 60_000, limit: 120 };
+
+/** Counts each admin's writes; runs only after requireAdmin, so req.admin is always set. */
+function writeRateLimiter(limits: WriteRateLimit) {
+  return rateLimit({
+    ...limits,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    keyGenerator: (req) => actorOf(req).id,
+    handler: (req, _res, next) => {
+      req.log.warn({ adminId: actorOf(req).id }, 'housing writes rate-limited');
+      next(new AppError('RATE_LIMITED', 'অনেক বেশি অনুরোধ হয়েছে, কিছুক্ষণ পরে আবার চেষ্টা করুন'));
+    },
+  });
+}
 
 /** The bulk import's full path; app.ts keeps its 100kb parser off it. */
 export const BULK_PATH = '/api/v1/housing/bulk';
@@ -59,14 +84,28 @@ export interface HousingAdminDeps {
   publicApiUrl: string;
   /** Reads a photo upload into storage (photos/process.ts); shared so its concurrency limit is too. */
   receivePhoto: (req: IncomingMessage) => Promise<PhotoUpload>;
+  /** Per-admin cap on writes; tests pass a small one. */
+  writeRateLimit?: WriteRateLimit;
 }
 
-export function housingAdminRouter({ sql, storage, publicApiUrl, receivePhoto }: HousingAdminDeps): Router {
+export function housingAdminRouter({
+  sql,
+  storage,
+  publicApiUrl,
+  receivePhoto,
+  writeRateLimit = DEFAULT_WRITE_RATE_LIMIT,
+}: HousingAdminDeps): Router {
   const router = Router();
+  const limitWrites = writeRateLimiter(writeRateLimit);
 
   // Deny by default (NE-SEC-03): every write under /housing needs an admin session, including
   // paths with no route yet, before any body is validated. Reads pass through to the read router.
+  // Then the write limit, before any body parser. The activity log isn't counted: the UI posts
+  // its own events there.
   router.use((req, res, next) => (SAFE_METHODS.has(req.method) ? next() : requireAdmin(req, res, next)));
+  router.use((req, res, next) =>
+    SAFE_METHODS.has(req.method) || req.path.toLowerCase() === '/activity' ? next() : limitWrites(req, res, next),
+  );
 
   router.get('/activity', requireAdmin, async (req, res) => {
     res.json(await listActivity(sql, activityQuery.parse(req.query)));

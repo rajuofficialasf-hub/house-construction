@@ -1,4 +1,5 @@
 import { Writable } from 'node:stream';
+import type { Express } from 'express';
 import request from 'supertest';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
@@ -208,5 +209,71 @@ describe('who may write', () => {
     const { id } = await insertRecord(sql);
     expect((await request(app).get(`/api/v1/housing/${id}`)).status).toBe(200);
     expect((await request(app).get('/api/v1/housing')).status).toBe(200);
+  });
+});
+
+describe('write rate limit', () => {
+  // A fresh app per test, so each starts with an empty in-memory counter.
+  const limitedApp = () =>
+    createApp({
+      ...testPhotoDeps(),
+      sql,
+      logger: createLogger('info', silent),
+      trustProxy: 0,
+      allowedOrigins: [TEST_ORIGIN],
+      cookieSecure: false,
+      writeRateLimit: { windowMs: 60_000, limit: 3 },
+    });
+  const write = (target: Express, method: 'post' | 'put' | 'delete', path: string, as: string, body?: object) => {
+    const req = request(target)[method](`/api/v1/housing${path}`).set('origin', TEST_ORIGIN).set('cookie', as);
+    return body ? req.send(body) : req;
+  };
+
+  it('allows the limit, then answers 429 RATE_LIMITED and changes nothing', async () => {
+    const target = limitedApp();
+    const { cookie: as } = await loginAdmin(target, owner, { email: 'limited@example.org' });
+    for (let i = 0; i < 3; i++) expect((await write(target, 'post', '', as, input)).status).toBe(201);
+    const over = await write(target, 'post', '', as, input);
+    expect(over.status).toBe(429);
+    expect(errorBody.parse(over.body).error.code).toBe('RATE_LIMITED');
+    expect(await total()).toBe(3);
+    const logged = await owner<{ n: number }[]>`select count(*)::int as n from public.housing_activity_log where action = 'create'`;
+    expect(logged[0]!.n).toBe(3);
+  });
+
+  it('counts per admin, not per IP', async () => {
+    const target = limitedApp();
+    const { cookie: first } = await loginAdmin(target, owner, { email: 'first@example.org' });
+    const { cookie: second } = await loginAdmin(target, owner, { email: 'second@example.org' });
+    for (let i = 0; i < 3; i++) await write(target, 'post', '', first, input);
+    expect((await write(target, 'post', '', first, input)).status).toBe(429);
+    expect((await write(target, 'post', '', second, input)).status).toBe(201);
+  });
+
+  it('counts a bulk request as one write and covers the photo routes', async () => {
+    const target = limitedApp();
+    const { cookie: as } = await loginAdmin(target, owner, { email: 'bulk@example.org' });
+    const { project_type: _type, ...row } = input;
+    const bulk = { project_type: 'tin', mode: 'assign_serial', rows: [row, row, row, row] };
+    expect((await write(target, 'post', '/bulk', as, bulk)).status).toBe(200);
+    const { id } = await insertRecord(sql);
+    expect((await write(target, 'delete', `/${id}/photo?kind=prev`, as)).status).toBe(200);
+    expect((await write(target, 'put', `/${id}`, as, { name: 'নতুন নাম' })).status).toBe(200);
+    expect((await write(target, 'delete', `/${id}/photo?kind=prev`, as)).status).toBe(429);
+  });
+
+  it('never counts reads or the activity log', async () => {
+    const target = limitedApp();
+    const { cookie: as } = await loginAdmin(target, owner, { email: 'reader@example.org' });
+    for (let i = 0; i < 5; i++) {
+      expect((await request(target).get('/api/v1/housing').set('cookie', as)).status).toBe(200);
+      expect((await write(target, 'post', '/activity', as, { action: 'export', details: {} })).status).toBe(201);
+    }
+    expect((await write(target, 'post', '', as, input)).status).toBe(201);
+  });
+
+  it('still answers 401 without a session, whatever the count', async () => {
+    const target = limitedApp();
+    for (let i = 0; i < 5; i++) expect((await request(target).post('/api/v1/housing').set('origin', TEST_ORIGIN).send(input)).status).toBe(401);
   });
 });

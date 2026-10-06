@@ -206,7 +206,7 @@ Migrations are not rolled back automatically. After the first staging run they a
   - A bulk request counts as one.
 - **Done when:** Server tests and `test:contract:rest` pass.
 - **Depends on:** none
-- **Status:** todo
+- **Status:** done
 
 ### U3. GitHub Actions CI
 - **Goal:** Every push and pull request runs the full suite against PostgreSQL 17 and reports one pass or fail.
@@ -367,6 +367,6 @@ All server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$P
 ## Progress
 - **Branch:** `migrate/c6-deploy`
 - **Updated:** 2026-10-06 09:55
-- **Next:** U2, add `DEFAULT_WRITE_RATE_LIMIT` and the limiter in `housing-admin.ts`'s guard
+- **Next:** U7, install SheetJS 0.20.3 from the CDN tarball and run the import tests
 - **Uncommitted:** none
 - **Notes:** Unit order: U1, U2, U7, U3, U4, U5, U6 (U3 depends on U7 for a clean audit).
