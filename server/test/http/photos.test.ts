@@ -216,7 +216,10 @@ describe('GET /api/v1/photos/:id for a project a visitor may not see', () => {
     await insertProject(owner, { key: 'ph_grp', is_group: true, is_published: false });
     await insertProject(owner, { key: 'ph_child', parent_key: 'ph_grp' });
     const photo = await photoIn('ph_child');
-    expect((await request(app).get(photo)).status).toBe(404);
+    for (const res of [await request(app).get(photo), await request(app).head(photo)]) {
+      expect(res.status).toBe(404);
+      expect(res.headers['cache-control']).toBe('no-store');
+    }
   });
 
   it('serves an admin the draft\'s photo, never cached', async () => {

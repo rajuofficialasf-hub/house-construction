@@ -113,12 +113,17 @@ describe('housing_bulk_update_by_serial with custom and private fields', () => {
     expect((await row(1))?.private).toEqual({ phone: '01711222333', nid: '1234567890' });
   });
 
-  it('accepts an unchanged archived private key already stored', async () => {
+  it('accepts an unchanged archived private key already stored, and refuses a new value for it', async () => {
     const { id } = await record(1);
     await insertPrivate(app, id, { phone: '01711222333' });
     await owner`update public.housing_project_fields set is_active = false where project_key = ${P} and key = 'phone'`;
-    await bulk([{ serial_no: 1, extra: { nid: '1234567890' } }], P);
+    await bulk([{ serial_no: 1, extra: { phone: '01711222333', nid: '1234567890' } }], P);
     expect((await row(1))?.private).toEqual({ phone: '01711222333', nid: '1234567890' });
+    await expect(bulk([{ serial_no: 1, extra: { phone: '01711999888' } }], P)).rejects.toMatchObject({
+      code: 'HC400',
+      detail: 'private.phone',
+      hint: 'row_index=0',
+    });
   });
 
   it('does not clear a private key named in _clear', async () => {

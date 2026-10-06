@@ -23,6 +23,18 @@ const app = createApp({
   publicReadOrigins: [PARTNER],
   cookieSecure: false,
 });
+// Every write limit is 1 per admin and every read limit 1 per IP, so a route's second call shows
+// whether its limiter runs.
+const limited = createApp({
+  ...testPhotoDeps(),
+  sql,
+  logger: createLogger('info', silent),
+  trustProxy: 0,
+  allowedOrigins: [TEST_ORIGIN],
+  cookieSecure: false,
+  writeRateLimit: { windowMs: 60_000, limit: 1 },
+  readRateLimit: { windowMs: 60_000, limit: 1 },
+});
 const P = 'auth_p';
 
 type Method = 'get' | 'post' | 'put' | 'delete';
@@ -65,7 +77,10 @@ const name = (r: AdminRoute) => `${r.method.toUpperCase()} ${r.path}`;
 
 describe.each(ROUTES.map((r) => [name(r), r] as const))('%s', (_name, route) => {
   it('refuses a caller with no session with 401', async () => {
-    expect((await call(route)).status).toBe(401);
+    const res = await call(route);
+    expect(res.status).toBe(401);
+    // The activity log is never cached, refusals included.
+    if (route.path.includes('/activity')) expect(res.headers['cache-control']).toBe('private, no-store');
   });
 
   it("refuses a disabled admin's cookie with 401", async () => {
@@ -87,5 +102,20 @@ describe.each(ROUTES.map((r) => [name(r), r] as const))('%s', (_name, route) => 
     expect(preflight.headers['access-control-allow-origin']).toBeUndefined();
     const res = await call(route, { origin: PARTNER });
     expect(res.headers['access-control-allow-origin']).toBeUndefined();
+  });
+});
+
+describe.each(ROUTES.map((r, i) => [name(r), r, i] as const))('%s rate limit', (_name, route, i) => {
+  it('answers 429 once its limit is used up', async () => {
+    // A fresh admin per route, so each route starts with its own allowance.
+    const { cookie: as } = await loginAdmin(limited, owner, { email: `limit${i}@example.org`, role: 'main_admin' });
+    const send = () => {
+      const req = request(limited)[route.method](route.path.replace('ID', id)).set('origin', TEST_ORIGIN).set('cookie', as);
+      return route.body ? req.send(route.body) : req;
+    };
+    expect((await send()).status).not.toBe(429);
+    const over = await send();
+    expect(over.status).toBe(429);
+    expect(over.body.error.code).toBe('RATE_LIMITED');
   });
 });

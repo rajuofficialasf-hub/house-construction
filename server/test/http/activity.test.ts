@@ -6,8 +6,11 @@ import request from 'supertest';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { createApp } from '../../src/app.js';
+import { requireAdmin } from '../../src/auth/middleware.js';
 import { activityEntry, pageMeta } from '../../src/housing/schemas.js';
 import { createLogger } from '../../src/logger.js';
+import { activityRouter } from '../../src/routes/v1/activity.js';
+import { privateNoStore } from '../../src/routes/v1/projects.js';
 import { appDb, insertField, insertPrivate, insertProject, insertRecord, ownerDb, resetTestData } from '../support/db.js';
 import { loginAdmin, TEST_ORIGIN } from '../support/session.js';
 import { testPhotoDeps } from '../support/storage.js';
@@ -112,5 +115,17 @@ describe('the old /api/v1/housing/activity', () => {
       .set('cookie', cookie)
       .send({ action: 'private_update' });
     expect(res.status).toBe(400);
+  });
+});
+
+describe('the activity router', () => {
+  // It has no router-wide guard (it is mounted at /api/v1), so each route, reads included, must carry its own.
+  it('puts the admin guard before any work on every route', () => {
+    const routes = activityRouter({ sql }).stack.flatMap((layer) => (layer.route ? [layer.route] : []));
+    expect(routes.length).toBeGreaterThan(0);
+    for (const route of routes) {
+      const handlers = (route as unknown as { stack: { handle: unknown }[] }).stack.map((layer) => layer.handle);
+      expect(handlers.find((handle) => handle !== privateNoStore)).toBe(requireAdmin);
+    }
   });
 });

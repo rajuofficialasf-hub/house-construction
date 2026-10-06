@@ -102,7 +102,8 @@ describe('GET /api/v1/projects/:key/next-serial', () => {
     expect(unknown.headers['cache-control']).toBe(draft.headers['cache-control']);
   });
 
-  it('answers 400 for a bad key', async () => {
+  it('answers an admin null for an unknown key, and 400 for a bad key', async () => {
+    expect((await get('/projects/no_such/next-serial', cookie)).body).toEqual({ data: { project_type: 'no_such', next_serial: null } });
     expect((await get('/projects/Bad-Key/next-serial')).status).toBe(400);
   });
 });
@@ -123,6 +124,15 @@ describe('POST /api/v1/records/:id/serial', () => {
     expect((await get('/projects/ys_a/next-serial')).body.data.next_serial).toBe(41);
     const next = await insertRecord(sql, { project_type: 'ys_a' });
     expect(next.serial_no).toBe(41);
+  });
+
+  it('never reissues a serial a record moved away from', async () => {
+    const ids = [];
+    for (let i = 0; i < 5; i += 1) ids.push((await insertRecord(sql, { project_type: 'ys_a' })).id);
+    await owner`delete from public.housing_beneficiaries where id = ${ids[1]!}`;
+    expect((await move(ids[4]!, { serial_no: 2 })).status).toBe(200);
+    expect((await get('/projects/ys_a/next-serial')).body.data.next_serial).toBe(6);
+    expect((await insertRecord(sql, { project_type: 'ys_a' })).serial_no).toBe(6);
   });
 
   it('changes and logs nothing for the same serial', async () => {

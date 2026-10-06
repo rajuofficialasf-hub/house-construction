@@ -160,6 +160,14 @@ describe('both bulk routes', () => {
     expect(res.body.data.inserted).toBe(500);
   }, 30_000);
 
+  it('updates 500 rows with custom and private values within the statement timeout', async () => {
+    await bulk('post', { mode: 'assign_serial', rows: Array.from({ length: 500 }, () => row({ extra: { amount: 1 } })) });
+    const rows = Array.from({ length: 500 }, (_, i) => ({ serial_no: i + 1, address: 'ক'.repeat(1000), extra: { amount: i, phone: '01711222333' } }));
+    const res = await bulk('put', { rows });
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ updated: 500, missing: [] });
+  }, 30_000);
+
   it('refuses a body over 10 MB with 413', async () => {
     const res = await bulk('post', { mode: 'assign_serial', rows: [row({ name: 'x'.repeat(10.5 * 1024 * 1024) })] });
     expect(res.status).toBe(413);

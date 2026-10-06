@@ -121,6 +121,17 @@ describe('activity log v2: custom and private values', () => {
     ]);
   });
 
+  it('logs an added and a removed extra key with a null side', async () => {
+    await insertField(owner, { project_key: P, key: 'item', type: 'text' });
+    const rec = await insertRecord(app, { project_type: P, extra: { amount: 5 } });
+    await app`update public.housing_beneficiaries set extra = '{"item": "টিন"}'::jsonb where id = ${rec.id}`;
+    const [entry] = await logOf('update');
+    expect(entry?.details).toEqual({
+      changes: { 'extra.amount': { old: 5, new: null }, 'extra.item': { old: null, new: 'টিন' } },
+      photo_kinds: [],
+    });
+  });
+
   it('logs a private insert and update by key name only', async () => {
     const rec = await insertRecord(app, { project_type: P, name: 'রহিম' });
     await withActor(app, admin, async (tx) => {
