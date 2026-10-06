@@ -2374,7 +2374,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** the P5 verification (full suites, migrate cycle, 50k timing), then P6 from U30.
+- **Next:** P6, U30 (`restRequest` headers and the real REST `ProjectsApi`), with U33 able to run beside it.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
@@ -2551,3 +2551,11 @@ Run these at the end of P1:
     - The server reads the session cookie whatever the request's origin. A partner page that sent a cookie would get admin data in the body, but the browser won't let it read the body, because the response has no `Access-Control-Allow-Credentials` (and the cookie is `SameSite=Lax`). U27's test asserts that header, not an emptied body.
     - The stats and overview response schemas (`projectStats`, `projectOverview` in `server/src/projects/schemas.ts`) feed OpenAPI and the HTTP tests' parsing.
     - U28 found the document already complete: every main-admin route says "Main admin only" and lists 403, and `If-Match` and the 409s were documented in P4. The unit added the tests that keep it so (a pinned list of the seven main-admin routes, read from the routers' handler chains) and bumped the document to 0.16.
+  - **P5 done (2026-10-06):** U26–U29 are committed (bf05776..21099b3). There is no per-chunk simplify or review; they run over P5–P7.
+    - **Full run:** server 1067, UI 165, contract 40, admin-rest 35, `test:all` 53. Typecheck and lint are clean. `db:migrate`, `db:rollback`, `db:migrate` and `db:seed` (twice) are clean on the dev database.
+    - **Timing at 50k records** (one project, dev database, the function alone):
+      - The first version took ~1050 ms full and ~930 ms light, because `count(distinct …)` sorts Bangla text under the `en_US` locale.
+      - 21099b3 compares bytes for the distinct counts and sums a category's values in one grouped pass. That gives ~255 ms full and ~115 ms light and overview, with byte-identical output, under the 300 ms target. No index was needed.
+      - **`0016` was edited after it first ran,** on the local dev and test databases only, with nothing pushed. Re-apply it with `npm --prefix server run db:rollback` then `db:migrate`.
+      - The dev database's `demo` counter stays at 50006, because serials are never reused, and its activity log holds the 50k timing deletes. `docker compose down -v` and a fresh migrate and seed reset both.
+    - `main` had not moved at the end of P5.
