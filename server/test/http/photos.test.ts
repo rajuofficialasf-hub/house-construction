@@ -78,13 +78,13 @@ const binary = (req: request.Test) =>
   });
 
 describe('GET /api/v1/photos/:id', () => {
-  it('serves a photo to anyone, with the image headers and a year of caching', async () => {
+  it('serves a photo to anyone, with the image headers and a day of caching', async () => {
     const { photo, thumb } = await uploaded();
     const res = await binary(request(app).get(photo));
     expect(res.status).toBe(200);
     expect(res.headers).toMatchObject({
       'content-type': 'image/webp',
-      'cache-control': 'public, max-age=31536000, immutable',
+      'cache-control': 'public, max-age=86400',
       'x-content-type-options': 'nosniff',
       'cross-origin-resource-policy': 'cross-origin',
       'content-disposition': 'inline',

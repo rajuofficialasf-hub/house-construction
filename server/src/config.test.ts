@@ -3,6 +3,7 @@ import { ConfigError, loadConfig } from './config.js';
 
 const valid = {
   NODE_ENV: 'production',
+  HOST: '0.0.0.0',
   PORT: '8080',
   LOG_LEVEL: 'warn',
   TRUST_PROXY: '2',
@@ -25,6 +26,7 @@ describe('loadConfig', () => {
   it('parses a valid environment', () => {
     expect(loadConfig(valid)).toEqual({
       NODE_ENV: 'production',
+      HOST: '0.0.0.0',
       PORT: 8080,
       LOG_LEVEL: 'warn',
       TRUST_PROXY: 2,
@@ -46,13 +48,17 @@ describe('loadConfig', () => {
       STORAGE_DRIVER: 'nas',
       STORAGE_ROOT: valid.STORAGE_ROOT,
     });
-    expect(config).toMatchObject({ NODE_ENV: 'development', PORT: 3001, LOG_LEVEL: 'info', TRUST_PROXY: 0 });
+    expect(config).toMatchObject({ NODE_ENV: 'development', HOST: '127.0.0.1', PORT: 3001, LOG_LEVEL: 'info', TRUST_PROXY: 0 });
   });
 
   it('names a missing DATABASE_URL', () => {
     const { DATABASE_URL: _omit, ...env } = valid;
     expect(() => loadConfig(env)).toThrow(ConfigError);
     expect(() => loadConfig(env)).toThrow(/DATABASE_URL/);
+  });
+
+  it('names an empty HOST', () => {
+    expect(() => loadConfig({ ...valid, HOST: ' ' })).toThrow(/HOST/);
   });
 
   it('names a non-numeric PORT', () => {

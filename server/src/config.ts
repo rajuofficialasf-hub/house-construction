@@ -22,6 +22,9 @@ const baseUrl = z
 // value is missing or malformed (NE-CFG-01).
 const configSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  // Loopback by default, so on a server only the local nginx can reach the API and every
+  // X-Forwarded-For it sees came from that proxy (NE-SEC-10). Docker sets 0.0.0.0.
+  HOST: z.string().trim().min(1).default('127.0.0.1'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3001),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   TRUST_PROXY: z.coerce.number().int().min(0).default(0),

@@ -186,7 +186,7 @@ Migrations are not rolled back automatically. After the first staging run they a
   - Compose: `docker compose up -d db api`, then `curl localhost:3001/api/v1/readyz` from the host still answers 200.
 - **Done when:** Server tests pass, and the compose API still answers from the host.
 - **Depends on:** none
-- **Status:** todo
+- **Status:** done
 
 ### U2. Per-admin write rate limit
 - **Goal:** Each admin gets at most 120 writes a minute; the next one gets 429 `RATE_LIMITED`.
@@ -367,6 +367,6 @@ All server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$P
 ## Progress
 - **Branch:** `migrate/c6-deploy`
 - **Updated:** 2026-10-06 09:55
-- **Next:** U1, add `HOST` to `server/src/config.ts`
+- **Next:** U2, add `DEFAULT_WRITE_RATE_LIMIT` and the limiter in `housing-admin.ts`'s guard
 - **Uncommitted:** none
 - **Notes:** Unit order: U1, U2, U7, U3, U4, U5, U6 (U3 depends on U7 for a clean audit).

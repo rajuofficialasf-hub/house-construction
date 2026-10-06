@@ -28,7 +28,9 @@ function start(): void {
     storage: createStorage(config),
     publicApiUrl: config.PUBLIC_API_URL,
   });
-  const server = app.listen(config.PORT, () => logger.info({ port: config.PORT }, 'housing API listening'));
+  const server = app.listen(config.PORT, config.HOST, () =>
+    logger.info({ host: config.HOST, port: config.PORT }, 'housing API listening'),
+  );
 
   // Stop taking new connections, let in-flight requests finish, then close the pool (NE-ERR-04).
   let stopping = false;

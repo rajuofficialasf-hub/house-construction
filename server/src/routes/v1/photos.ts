@@ -37,8 +37,9 @@ export function photosRouter(sql: Sql, storage: StorageDriver, photoRateLimit: R
       'Content-Type': file.content_type,
       'Content-Length': file.size_bytes,
       'Content-Disposition': 'inline',
-      // A file id never changes content: a new photo gets a new id and URL.
-      'Cache-Control': 'public, max-age=31536000, immutable',
+      // A file id never changes content (a new photo gets a new id and URL), but a deleted photo
+      // must leave browser and CDN caches within a day, so no year-long immutable caching.
+      'Cache-Control': 'public, max-age=86400',
       // helmet's same-origin default would stop the site (another port or host) and other apps
       // from showing the image.
       'Cross-Origin-Resource-Policy': 'cross-origin',

@@ -37,6 +37,8 @@ services:
     command: ["sh", "-c", "npm run db:migrate && exec npm run dev"]
     environment:
       NODE_ENV: development
+      # The API defaults to loopback; inside the container it must listen on all interfaces.
+      HOST: 0.0.0.0
       PORT: 3001
       LOG_LEVEL: info
       TRUST_PROXY: 0
