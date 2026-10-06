@@ -68,7 +68,8 @@ if (!enabled) {
   async function makeRest(): Promise<ContractHarness> {
     await resetTestData(owner)
     await owner.file(seedFile)
-    await insertAdmin(owner, { email: ADMIN.email, passwordHash })
+    // The contract deletes records and photos, which only the main admin may do.
+    await insertAdmin(owner, { email: ADMIN.email, passwordHash, role: 'main_admin' })
     jar.clear()
     return { api: createRestHousingApi(baseUrl), auth: createRestAuthProvider(baseUrl), admin: ADMIN }
   }

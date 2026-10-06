@@ -46,7 +46,7 @@ beforeAll(async () => {
 });
 beforeEach(async () => {
   await resetTestData(owner);
-  const session = await loginAdmin(app, owner);
+  const session = await loginAdmin(app, owner, { role: 'main_admin' });
   cookie = session.cookie;
   adminId = session.admin.id;
 });

@@ -20,8 +20,6 @@ const loginBody = z.object({
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const LOGIN_FAILURES_PER_WINDOW = 10;
 
-const toUser = (admin: AdminPrincipal) => ({ ...admin, role: 'admin' as const });
-
 export function authRouter(deps: AuthDeps, cookie: SessionCookie): Router {
   const router = Router();
   router.use((_req, res, next) => {
@@ -51,7 +49,7 @@ export function authRouter(deps: AuthDeps, cookie: SessionCookie): Router {
     }
     req.log.info({ adminId: result.admin.id }, 'admin logged in');
     res.cookie(cookie.name, result.token, cookie.options);
-    res.json({ data: { expires_at: result.expiresAt.toISOString(), user: toUser(result.admin) } });
+    res.json({ data: { expires_at: result.expiresAt.toISOString(), user: result.admin } });
   });
 
   // Always 204, so a tab whose session already ended can still log out cleanly.
@@ -65,7 +63,7 @@ export function authRouter(deps: AuthDeps, cookie: SessionCookie): Router {
   });
 
   router.get('/me', requireAdmin, (req, res) => {
-    res.json({ data: toUser(req.admin as AdminPrincipal) });
+    res.json({ data: req.admin as AdminPrincipal });
   });
 
   return router;

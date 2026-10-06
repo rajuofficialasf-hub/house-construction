@@ -48,7 +48,7 @@ beforeAll(async () => {
 });
 beforeEach(async () => {
   await resetTestData(owner);
-  cookie = (await loginAdmin(app, owner)).cookie;
+  cookie = (await loginAdmin(app, owner, { role: 'main_admin' })).cookie;
   warnings.length = 0;
 });
 afterAll(async () => {

@@ -8,7 +8,12 @@ export interface AdminPrincipal {
   id: string;
   email: string;
   name: string | null;
+  /** Read with the session on every request, so a role change applies without a new login. */
+  role: AdminRole;
 }
+
+/** A main_admin may also delete; see server/db/migrations/0012_admin_roles.sql. */
+export type AdminRole = 'admin' | 'main_admin';
 
 export interface AuthDeps {
   sql: Sql;

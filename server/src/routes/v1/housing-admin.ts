@@ -2,7 +2,7 @@ import express, { Router, type Request } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import type { IncomingMessage } from 'node:http';
 import { z } from 'zod';
-import { requireAdmin } from '../../auth/middleware.js';
+import { requireAdmin, requireMainAdmin } from '../../auth/middleware.js';
 import type { Actor, Sql } from '../../db.js';
 import { AppError } from '../../errors.js';
 import { listActivity, logEvent } from '../../housing/activity.js';
@@ -156,7 +156,7 @@ export function housingAdminRouter({
     res.json({ data: await savePhoto({ sql, storage, publicApiUrl }, actorOf(req), id, upload, req.log) });
   });
 
-  router.delete('/:id/photo', requireAdmin, async (req, res) => {
+  router.delete('/:id/photo', requireMainAdmin, async (req, res) => {
     const { id } = idParams.parse(req.params);
     const { kind } = deletePhotoQuery.parse(req.query);
     const record = await deletePhoto({ sql, storage }, actorOf(req), id, kind, req.log);
@@ -164,7 +164,7 @@ export function housingAdminRouter({
     res.json({ data: record });
   });
 
-  router.delete('/:id', requireAdmin, async (req, res) => {
+  router.delete('/:id', requireMainAdmin, async (req, res) => {
     if (!(await deleteRecord(sql, storage, actorOf(req), idParams.parse(req.params).id, req.log))) throw notFound();
     res.status(204).end();
   });

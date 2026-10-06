@@ -22,7 +22,7 @@ interface AdminRow extends AdminPrincipal {
 export async function login(deps: AuthDeps, email: string, password: string): Promise<LoginResult> {
   const { sql, now } = deps;
   const [row] = await sql<AdminRow[]>`
-    select id, email, name, password_hash, disabled_at is not null as disabled
+    select id, email, name, role, password_hash, disabled_at is not null as disabled
     from public.housing_admins where email = ${email.trim().toLowerCase()}`;
   if (!row || row.disabled) {
     await verifyDummy(password);
@@ -30,7 +30,7 @@ export async function login(deps: AuthDeps, email: string, password: string): Pr
   }
   if (!(await verifyPassword(row.password_hash, password))) return { ok: false, reason: 'bad_password' };
 
-  const admin: AdminPrincipal = { id: row.id, email: row.email, name: row.name };
+  const admin: AdminPrincipal = { id: row.id, email: row.email, name: row.name, role: row.role };
   const upgraded = needsUpgrade(row.password_hash) ? await hashPassword(password) : undefined;
   const at = now();
   const session = await withActor(sql, admin, async (tx) => {

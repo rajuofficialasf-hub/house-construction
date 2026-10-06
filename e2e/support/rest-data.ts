@@ -70,5 +70,5 @@ export async function resetRestData(): Promise<void> {
   await owner`insert into public.housing_beneficiaries ${owner(rows)}`
   if (files.length) await owner`insert into public.housing_files ${owner(files)}`
   await owner`truncate public.housing_activity_log`
-  await insertAdmin(owner, { email: MOCK_ADMIN.email, name: MOCK_ADMIN.name, passwordHash: await adminHash })
+  await insertAdmin(owner, { email: MOCK_ADMIN.email, name: MOCK_ADMIN.name, passwordHash: await adminHash, role: 'main_admin' })
 }

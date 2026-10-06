@@ -37,3 +37,13 @@ export const requireAdmin: RequestHandler = (req, _res, next) => {
   if (!req.admin) throw new AppError('UNAUTHENTICATED', 'লগইন করুন');
   next();
 };
+
+/** Refuses the request unless the session's admin is the main admin, the only one who may delete. */
+export const requireMainAdmin: RequestHandler = (req, _res, next) => {
+  if (!req.admin) throw new AppError('UNAUTHENTICATED', 'লগইন করুন');
+  if (req.admin.role !== 'main_admin') {
+    req.log.warn({ adminId: req.admin.id }, 'delete refused: not the main admin');
+    throw new AppError('FORBIDDEN', 'শুধু মূল এডমিন মুছতে পারেন');
+  }
+  next();
+};

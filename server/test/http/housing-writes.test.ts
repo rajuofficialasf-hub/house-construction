@@ -35,7 +35,7 @@ let adminId = '';
 
 beforeEach(async () => {
   await resetTestData(owner);
-  const session = await loginAdmin(app, owner);
+  const session = await loginAdmin(app, owner, { role: 'main_admin' });
   cookie = session.cookie;
   adminId = session.admin.id;
 });
@@ -252,7 +252,8 @@ describe('write rate limit', () => {
 
   it('counts a bulk request as one write and covers the photo routes', async () => {
     const target = limitedApp();
-    const { cookie: as } = await loginAdmin(target, owner, { email: 'bulk@example.org' });
+    // The session from beforeEach: the only main admin, who may delete, with no writes yet.
+    const as = cookie;
     const { project_type: _type, ...row } = input;
     const bulk = { project_type: 'tin', mode: 'assign_serial', rows: [row, row, row, row] };
     expect((await write(target, 'post', '/bulk', as, bulk)).status).toBe(200);

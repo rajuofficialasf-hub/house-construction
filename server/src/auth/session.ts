@@ -42,6 +42,6 @@ export async function authenticate({ sql, now }: AuthDeps, tokenHash: Buffer): P
       and a.disabled_at is null
       and s.last_seen_at > ${new Date(at.getTime() - IDLE_TIMEOUT_MS)}
       and s.expires_at > ${at}
-    returning a.id, a.email, a.name`;
+    returning a.id, a.email, a.name, a.role`;
   return admin ?? null;
 }

@@ -102,7 +102,7 @@ function ok(description: string, data: JsonSchema, meta?: JsonSchema) {
 const ERROR_DESCRIPTIONS = {
   400: 'Invalid parameter or body (VALIDATION_ERROR); details.field names it, and details.row_index the row of a bulk body',
   401: 'No admin session (UNAUTHENTICATED)',
-  403: 'The Origin header is missing or not allowed (FORBIDDEN)',
+  403: 'The Origin header is missing or not allowed, or a delete comes from an admin who is not the main admin (FORBIDDEN)',
   404: 'No such record or photo (NOT_FOUND)',
   409: 'The serial is already in use in that project (CONFLICT)',
   413: 'The body, a photo or the number of rows is too large (PAYLOAD_TOO_LARGE)',
@@ -217,7 +217,7 @@ export function buildOpenApiDocument(): OpenApiDocument {
           requestBody: body(updateBody),
           responses: { 200: ok('The updated record', ref('HousingRecord')), ...errors(400, 401, 403, 404, 429, 500) },
         }),
-        delete: admin('Delete a record; its serial is never reused', {
+        delete: admin('Delete a record; its serial is never reused. Main admin only', {
           parameters: idParam,
           responses: { 204: { description: 'Deleted' }, ...errors(400, 401, 403, 404, 429, 500) },
         }),
@@ -275,7 +275,7 @@ export function buildOpenApiDocument(): OpenApiDocument {
           },
           responses: { 200: ok('The record with its new photo URLs and photo_updated_at', ref('HousingRecord')), ...errors(400, 401, 403, 404, 413, 429, 500) },
         }),
-        delete: admin('Remove the record\'s photo and thumbnail of one kind; succeeds when there is none', {
+        delete: admin('Remove the record\'s photo and thumbnail of one kind; succeeds when there is none. Main admin only', {
           parameters: [...idParam, ...parameters(deletePhotoQuery, 'query', { kind: 'prev or current' })],
           responses: { 200: ok('The record', ref('HousingRecord')), ...errors(400, 401, 403, 404, 429, 500) },
         }),
