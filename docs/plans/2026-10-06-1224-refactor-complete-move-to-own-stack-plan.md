@@ -1265,7 +1265,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** P3. Run `ae-plan` on this file to add P3's units (bulk v2, photos with photo mode, `years`, `next-serial`, `/activity`, record and private log v2 in `0014`), then `ae-work`.
+- **Next:** P4. Run `ae-plan` on this file to add P4's units (project and field writes, `0015`, covers, config activity log), then `ae-work`.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
@@ -1347,3 +1347,16 @@ Run these at the end of P1:
       - an allowlist for `POST /activity`
       - keep the 1-day visitor photo cache
       - trim the tests duplicated between U13 and U14, with one shared auth test for P3's admin routes
+  - **U13–U18 notes:**
+    - `CLIENT_EVENT_ACTIONS` is `import_run`, `photo_bulk_run`, `records_export` and `category_merge`. `login` and `logout` are left out because the server logs them itself (the REST adapter already skips them). P4 adds its `project_*` and `field_*` names to `SERVER_LOGGED_ACTIONS`.
+    - `years` and `next-serial` use a light `visibleProject` lookup in `records/reads.ts` instead of `getProject`, because they don't need the fields. `recordProject` reuses it.
+    - `requireMainAdminForPhotos` carries the contract's photo-delete message. Guard-coverage tests accept it.
+    - `privateNoStore` now lives in `routes/v1/projects.ts` beside `sessionAwareCaching`.
+    - `POST /records/:id/serial` relies on `housing_change_serial` for the lock, the same-serial no-op and the unknown-id 404 (P0002).
+    - The photo tests clear the NAS test folder before each test, because files from earlier tests stay on disk.
+  - **P3 done (2026-10-06):** U13–U18 are committed (175d53a..283e426).
+    - **Full run:** server 842, UI 165, contract 40, admin-rest 35, `test:all` 53. Typecheck and lint are clean.
+    - **`ae-simplify`** applied 7 changes. **`ae-review`** ran correctness, standards, security, database and testing reviewers. Only the testing reviewer had findings: no 429 tests on the new limiters and no guard-coverage test for the activity router (both P2), plus small P3 gaps. All were fixed in 283e426.
+    - **Left for later chunks:**
+      - `housing_next_serial` returns null for a leaf with no counter row. P4's `project_create` must insert the counter.
+      - Shared route helpers (`actorOf`, the limiters, `bulkJson`) still live in `housing-admin.ts` and `housing.ts`, which P9 deletes. Move them when the `/housing` routes go.
