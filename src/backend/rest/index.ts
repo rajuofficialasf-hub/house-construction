@@ -9,8 +9,7 @@
  */
 import type { HousingApi } from '../interfaces/housingApi'
 import type { ImageStorage } from '../interfaces/imageStorage'
-import type { ProjectsApi } from '../interfaces/projectsApi'
-import { createLegacyProjectsApi, fromLegacyStats, LEGACY_GROUP_KEY, legacyNotSupported, legacyProjectType } from '../legacyProjectsApi'
+import { fromLegacyStats, LEGACY_GROUP_KEY, legacyNotSupported, legacyProjectType } from '../legacyProjectsApi'
 import {
   DEFAULT_PAGE_SIZE,
   HousingApiError,
@@ -31,6 +30,7 @@ import type { AdminUsersApi } from '../interfaces/adminUsersApi'
 
 export { ENDPOINTS } from './endpoints'
 export { createRestAuthProvider } from './authProvider'
+export { createRestProjectsApi } from './projectsApi'
 
 function notImplemented(method: string): never {
   throw new HousingApiError('NOT_IMPLEMENTED', `REST অ্যাডাপ্টার: ${method} এখনো তৈরি হয়নি`)
@@ -122,10 +122,6 @@ function restStats(baseUrl: string) {
     const { data } = await restRequest<{ data: HousingStats }>(baseUrl, ENDPOINTS.housing.stats(projectQuery(key)))
     return fromLegacyStats(data, key)
   }
-}
-
-export function createRestProjectsApi(baseUrl: string): ProjectsApi {
-  return createLegacyProjectsApi(restStats(baseUrl))
 }
 
 export function createRestHousingApi(baseUrl: string): HousingApi {

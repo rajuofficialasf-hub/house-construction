@@ -2033,7 +2033,7 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
   - the end-to-end proof is U35's contract run against the real server
 - **Done when:** `npm test` passes and `rg "legacyProjectsApi" src/backend/rest` is empty.
 - **Depends on:** U27 (overview route)
-- **Status:** todo
+- **Status:** done
 
 ### U31. REST `HousingApi` on the new routes
 - **Goal:** Every `HousingApi` method calls its v1 route, carries `union_name`, `extra` and private values, and no `/housing` path is left in the adapter.
@@ -2374,7 +2374,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** P6, U30 (`restRequest` headers and the real REST `ProjectsApi`), with U33 able to run beside it.
+- **Next:** U31 (REST `HousingApi` on the new routes, `endpoints.ts` without `/housing`).
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
@@ -2559,3 +2559,6 @@ Run these at the end of P1:
       - **`0016` was edited after it first ran,** on the local dev and test databases only, with nothing pushed. Re-apply it with `npm --prefix server run db:rollback` then `db:migrate`.
       - The dev database's `demo` counter stays at 50006, because serials are never reused, and its activity log holds the 50k timing deletes. `docker compose down -v` and a fresh migrate and seed reset both.
     - `main` had not moved at the end of P5.
+  - **P6 build notes:**
+    - U30: `rest/index.ts` still imports the legacy stats helpers for `HousingApi`, so U30's "no `legacyProjectsApi` in `src/backend/rest`" check moves to U31, which removes them.
+    - The cover upload sends one `photo` part, because the receiver's `thumb` is optional and the server makes both variants.

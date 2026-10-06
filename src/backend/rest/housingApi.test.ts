@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { HousingApiError, type HousingRecord } from '../interfaces/types'
-import { createRestHousingApi, createRestProjectsApi } from './index'
+import { createRestHousingApi } from './index'
 
 // REST HousingApi: সঠিক মেথড, URL ও body পাঠায়, Supabase অ্যাডাপ্টারের মতোই page/page_size সীমিত করে,
 // আর সার্ভারের উত্তর থেকে HousingApi-র আকার ফেরত দেয় (docs/api/API_CONTRACT.md)।
@@ -287,16 +287,5 @@ describe('createRestHousingApi on the single-project server', () => {
     expect(await api.getPrivate('x')).toEqual({})
     expect(await api.getPrivateMany('tin', ['x'])).toEqual({})
     await expect(api.setPrivate('x', { phone: '1' })).rejects.toMatchObject({ code: 'NOT_IMPLEMENTED' })
-  })
-
-  it('serves the three fallback housing projects and refuses project edits', async () => {
-    stubFetch(() => json(200, { data: { total: 2, by_district: { শেরপুর: 2 } } }))
-    const projects = createRestProjectsApi(BASE)
-    expect(await projects.backendMode()).toBe('legacy')
-    expect((await projects.list()).map((p) => p.key)).toEqual(['housing', 'semi_pucca', 'tin'])
-    const overview = await projects.overview()
-    expect(overview.global).toEqual({ projects: 2, total: 2, districts: 1 })
-    await expect(projects.get('nope')).rejects.toMatchObject({ code: 'NOT_FOUND' })
-    await expect(projects.create({ key: 'k', slug: 'k', name_bn: 'ক', name_en: 'k' })).rejects.toMatchObject({ code: 'NOT_IMPLEMENTED' })
   })
 })

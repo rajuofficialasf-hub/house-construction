@@ -10,6 +10,8 @@ interface RequestOptions {
   body?: unknown
   /** multipart হলে FormData দিন (Content-Type ব্রাউজার বসায়) */
   formData?: FormData
+  /** বাড়তি হেডার, যেমন প্রকল্প বদলের If-Match */
+  headers?: Record<string, string>
 }
 
 const KNOWN_CODES: ApiErrorCode[] = [
@@ -36,7 +38,7 @@ function codeFromStatus(status: number): ApiErrorCode {
 
 export async function restRequest<T>(baseUrl: string, path: string, opts: RequestOptions = {}): Promise<T> {
   if (!baseUrl) throw new HousingApiError('CONFIG_ERROR', 'VITE_API_BASE_URL সেট নেই')
-  const headers: Record<string, string> = { accept: 'application/json' }
+  const headers: Record<string, string> = { ...opts.headers, accept: 'application/json' }
   if (opts.body !== undefined) headers['content-type'] = 'application/json; charset=utf-8'
   let res: Response
   try {
