@@ -183,7 +183,7 @@ describe('public-read CORS', () => {
   );
 
   it('gives it no grant for a path outside the list', async () => {
-    const res = await request(app).get('/api/v1/projects/self_reliance/records').set('origin', PARTNER);
+    const res = await request(app).get('/api/v1/projects/self_reliance/cover').set('origin', PARTNER);
     expect(res.headers['access-control-allow-origin']).toBeUndefined();
   });
 });

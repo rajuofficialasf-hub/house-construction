@@ -17,6 +17,7 @@ import { housingReadRouter, type ReadRateLimit } from './routes/v1/housing.js';
 import { openapiRouter } from './routes/v1/openapi.js';
 import { photosRouter } from './routes/v1/photos.js';
 import { projectsReadRouter } from './routes/v1/projects.js';
+import { recordsReadRouter } from './routes/v1/records.js';
 import { createPhotoReceiver, type PhotoReceiverOptions } from './photos/process.js';
 import type { StorageDriver } from './storage/index.js';
 
@@ -58,6 +59,11 @@ const PUBLIC_READ_ROUTES = [
   /^\/api\/v1\/projects\/?$/i,
   /^\/api\/v1\/projects\/[^/]+\/?$/i,
   /^\/api\/v1\/projects\/[^/]+\/fields\/?$/i,
+  /^\/api\/v1\/projects\/[^/]+\/records\/?$/i,
+  /^\/api\/v1\/projects\/[^/]+\/records\/serial\/[^/]+\/?$/i,
+  /^\/api\/v1\/projects\/[^/]+\/records\/serials\/?$/i,
+  // Anchored, so /records/:id/private never matches.
+  /^\/api\/v1\/records\/[^/]+\/?$/i,
 ];
 
 /** Paths other apps may read: the housing reads (not the admin-only activity log), the project registry, photos and the API description. */
@@ -147,6 +153,9 @@ export function createApp({
   const receivePhoto = createPhotoReceiver({ ...photoUpload, storage });
   app.use('/api/v1/housing', housingAdminRouter({ sql, storage, publicApiUrl, receivePhoto, writeRateLimit }));
   app.use('/api/v1/housing', housingReadRouter(sql, readRateLimit));
+  // Full paths at the root, before the projects router, whose router-wide limiter would otherwise
+  // also count /projects/:key/records.
+  app.use('/api/v1', recordsReadRouter(sql, readRateLimit));
   app.use('/api/v1/projects', projectsReadRouter(sql, readRateLimit));
   app.use('/api/v1/photos', photosRouter(sql, storage, photoRateLimit));
 

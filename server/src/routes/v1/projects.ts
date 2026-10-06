@@ -10,9 +10,10 @@ import { DEFAULT_READ_RATE_LIMIT, readRateLimiter, type ReadRateLimit } from './
 
 const notFound = () => new AppError('NOT_FOUND', 'প্রকল্প পাওয়া যায়নি');
 
-const viewerOf = (req: Request): Viewer => ({ admin: req.admin !== undefined });
+export const viewerOf = (req: Request): Viewer => ({ admin: req.admin !== undefined });
 
-const sessionAwareCaching: RequestHandler = (req, res, next) => {
+/** Answers vary on the cookie, and an admin's is never stored by any cache. */
+export const sessionAwareCaching: RequestHandler = (req, res, next) => {
   res.vary('Cookie');
   if (req.admin) res.set('cache-control', 'private, no-store');
   next();

@@ -33,6 +33,7 @@ import {
   YEAR_MIN,
 } from './housing/schemas.js';
 import { project, projectField, projectKeyParams, projectListQuery } from './projects/schemas.js';
+import { projectRecord, projectRecordsParams, projectSerialParams, recordListQuery } from './records/schemas.js';
 
 // The OpenAPI 3.1 description of the /api/v1 housing routes, served at /api/v1/openapi.json for
 // other apps (docs/api/API_CONTRACT.md §1). Parameter and body schemas come from the same zod
@@ -133,6 +134,12 @@ const LIST_DOCS: Record<string, string> = {
 };
 
 /** Builds the document. Call once at startup; it never changes while the process runs. */
+const RECORD_LIST_DOCS: Record<string, string> = {
+  union_name: 'Exact match after trim and NFC',
+  q: 'Partial, case-insensitive match over name, father_or_husband_name, address and the searchable public fields',
+  sort: 'serial_no, year, name, created_at, union_name, or extra.<key> for a public field (otherwise serial_no); ties by serial_no',
+};
+
 export function buildOpenApiDocument(): OpenApiDocument {
   const reads = (summary: string, operation: Omit<Operation, 'summary' | 'tags'>): { get: Operation } => ({
     get: { summary, tags: ['housing'], ...operation },
@@ -152,7 +159,7 @@ export function buildOpenApiDocument(): OpenApiDocument {
     openapi: '3.1.0',
     info: {
       title: 'Housing project API',
-      version: '0.14',
+      version: '0.15',
       description:
         'Public, read-only access to the housing project records: no login is needed, and browser apps must be listed in PUBLIC_READ_ORIGINS and call without credentials. The housing-admin operations are for this site\'s admins only.',
     },
@@ -308,6 +315,39 @@ export function buildOpenApiDocument(): OpenApiDocument {
           responses: { 200: ok('The fields', { type: 'array', items: ref('ProjectField') }), ...errors(400, 404, 429, 500) },
         },
       },
+      '/projects/{key}/records': {
+        get: {
+          summary:
+            "A project's records with filters, search, sort and paging; f.<key>=<value> filters by a public, active, filterable custom field (other keys are ignored, at most 10); a draft only for an admin session",
+          tags: ['records'],
+          parameters: [...parameters(projectRecordsParams, 'path'), ...parameters(recordListQuery, 'query', RECORD_LIST_DOCS)],
+          responses: { 200: ok('One page and its totals', { type: 'array', items: ref('ProjectRecord') }, ref('PageMeta')), ...errors(400, 404, 429, 500) },
+        },
+      },
+      '/projects/{key}/records/serial/{n}': {
+        get: {
+          summary: 'One record by project and serial',
+          tags: ['records'],
+          parameters: parameters(projectSerialParams, 'path'),
+          responses: { 200: ok('The record', ref('ProjectRecord')), ...errors(400, 404, 429, 500) },
+        },
+      },
+      '/projects/{key}/records/serials': {
+        get: {
+          summary: 'Records by serial, in serial order; missing serials are left out',
+          tags: ['records'],
+          parameters: [...parameters(projectRecordsParams, 'path'), ...parameters(serialsQuery, 'query', { nos: '1-100 comma-separated serials' })],
+          responses: { 200: ok('The records found', { type: 'array', items: ref('ProjectRecord') }), ...errors(400, 404, 429, 500) },
+        },
+      },
+      '/records/{id}': {
+        get: {
+          summary: "One record; a draft project's only for an admin session. A visitor's extra holds only public fields",
+          tags: ['records'],
+          parameters: idParam,
+          responses: { 200: ok('The record', ref('ProjectRecord')), ...errors(400, 404, 429, 500) },
+        },
+      },
       '/photos/{id}': {
         get: {
           summary: 'A photo or thumbnail, by the id in a record\'s *_photo_url or *_thumb_url; cacheable for a year',
@@ -330,6 +370,7 @@ export function buildOpenApiDocument(): OpenApiDocument {
     components: {
       schemas: {
         HousingRecord: jsonSchema(housingRecord, 'output'),
+        ProjectRecord: jsonSchema(projectRecord, 'output'),
         Project: jsonSchema(project, 'output'),
         ProjectField: jsonSchema(projectField, 'output'),
         PageMeta: jsonSchema(pageMeta, 'output'),

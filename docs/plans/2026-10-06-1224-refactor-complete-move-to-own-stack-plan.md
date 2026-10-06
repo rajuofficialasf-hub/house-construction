@@ -612,7 +612,7 @@ These settle what research turned up. They add to Technical decisions and change
   - **OpenAPI:** the drift test passes.
 - **Done when:** the tests pass, and `curl 'localhost:3001/api/v1/projects/tin/records?page_size=2'` on the dev stack returns seeded records with `union_name` and `extra`.
 - **Depends on:** U7 (the widened `insertField`, and `extra` validated on insert)
-- **Status:** todo
+- **Status:** done
 
 ### U10. Record writes
 - **Goal:** Admins create records in any non-group project, patch them, and a `main_admin` deletes them. The guard messages from U7 reach the client.
@@ -797,7 +797,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** U9 (record reads). Lane B (U8, U12) runs in a parallel worktree and merges before U10.
+- **Next:** U10 (record writes): `createBody` and `patchBody` in `server/src/records/schemas.ts`, then `records-admin.ts`.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
@@ -841,3 +841,9 @@ Run these at the end of P1:
     - The plain-admin photo-delete 403 case lives in `main-admin.test.ts`. The new file-survival test was added to `housing-photos.test.ts` instead, so U12 stayed inside its file list.
     - The main_admin race tests hold a SHARE lock on `housing_admins` to force both calls past the check; they failed with the raw `23505` before the fix.
     - Three U12 tests passed before any change (the CLI invalid-role message, the photo 403 and the draft-group direct GET): they pin behaviour that already worked.
+  - **U9 notes:**
+    - `viewerOf` and `sessionAwareCaching` are now exported from `routes/v1/projects.ts`.
+    - The records router is mounted before the projects router, whose router-wide limiter would otherwise also count `/projects/:key/records`.
+    - The CORS cases sit in `records-reads.test.ts` (as `projects-reads.test.ts` does), not in `security.test.ts`.
+    - The database collation (`en_US`) doesn't order Bangla by code point, so the name-sort test checks that `asc` and `desc` mirror each other.
+    - `test/db/search-indexes.test.ts` ("activity indexes…") failed once in a full run and passed on rerun. It depends on the planner, so it was already flaky and P2 didn't cause it.
