@@ -12,8 +12,7 @@ psql -v ON_ERROR_STOP=1 -d postgres \
   -v app_password="$HOUSING_APP_PASSWORD" \
   -f "$roles_sql"
 
-# housing_source_test stands in for the Supabase database in the import tests (server/test/support/source.ts).
-for db in housing housing_test housing_source_test; do
+for db in housing housing_test; do
   psql -v ON_ERROR_STOP=1 -d postgres <<SQL
 create database $db owner housing_owner;
 revoke all on database $db from public;
