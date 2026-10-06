@@ -86,7 +86,10 @@ export default defineConfig({
       ? [
           {
             name: 'admin-rest',
-            testDir: './e2e/mock',
+            // The admin specs, plus the project-registry ones that only the server can run: the mock keeps
+            // its fixed three projects (docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md, "P7 decisions").
+            testDir: './e2e',
+            testMatch: ['mock/**/*.spec.ts', 'admin/**/*.spec.ts'],
             use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${ADMIN_REST_PORT}` },
           },
         ]

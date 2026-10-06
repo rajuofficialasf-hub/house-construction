@@ -2254,7 +2254,7 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
   - every existing `e2e/mock` spec still passes on `admin-rest` and `mock`
 - **Done when:** `npm run test:e2e:rest-admin` and `npm run test:e2e:mock` pass.
 - **Depends on:** P6 done (the adapter must call the new routes)
-- **Status:** todo
+- **Status:** done
 
 ### U38. Specs: wizard, settings, builders, covers
 - **Goal:** The project-registry flows `main` added are covered end to end on the server.
@@ -2374,7 +2374,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** U37 (admin-rest groundwork: `e2e/admin/`, the reset with the demo project and a plain admin, `loginAs`).
+- **Next:** U38 (specs: wizard, settings, fields and stat-card builders, covers), then U39.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
