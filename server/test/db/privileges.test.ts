@@ -86,6 +86,22 @@ describe('function privileges', () => {
     expect(row).toEqual({ insert: true, leaves: true });
   });
 
+  it('lets housing_app run the stats and overview functions', async () => {
+    const [row] = await app`
+      select has_function_privilege('public.housing_project_stats(text, boolean, boolean)', 'execute') as stats,
+             has_function_privilege('public.housing_projects_overview(boolean)', 'execute') as overview,
+             has_function_privilege('public.housing_project_counted_leaves(text, boolean)', 'execute') as leaves`;
+    expect(row).toEqual({ stats: true, overview: true, leaves: true });
+  });
+
+  it('keeps the stats functions plain invoker, so they read only what housing_app may read', async () => {
+    const rows = await owner`
+      select proname, prosecdef from pg_proc
+      where proname in ('housing_project_stats', 'housing_projects_overview', 'housing_project_counted_leaves') order by proname`;
+    expect(rows.every((r) => r.prosecdef === false)).toBe(true);
+    expect(rows).toHaveLength(3);
+  });
+
   it('runs the counter and config-log triggers as the owner with a fixed search_path', async () => {
     const rows = await owner`
       select proname, prosecdef, proconfig from pg_proc

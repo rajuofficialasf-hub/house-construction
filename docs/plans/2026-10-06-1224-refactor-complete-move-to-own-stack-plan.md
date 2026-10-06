@@ -1829,7 +1829,7 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
   - **Migrations:** down then up leaves no function behind (the global setup's rollback).
 - **Done when:** `npm --prefix server run db:migrate`, `db:rollback`, `db:migrate` run clean on the dev database, and the new tests and the whole server suite pass.
 - **Depends on:** none
-- **Status:** todo
+- **Status:** done
 
 ### U27. Stats and overview routes
 - **Goal:** `GET /api/v1/projects/:key/stats[?light=1]` and `GET /api/v1/projects/overview[?drafts=1]` serve the U26 functions with the visibility rules.
@@ -2374,7 +2374,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** `ae-doc-review` on the P5–P7 sections, then the user's go-ahead, then `ae-work` on U26 (P5 → P6 → P7 as one batch).
+- **Next:** U27 (stats and overview routes in `projectsReadRouter`), then U28, U29; P5 → P6 → P7 as one batch.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
