@@ -1,5 +1,5 @@
 import { expect, test } from '../support/backend'
-import { fillLogin, MOCK_ADMIN } from '../support/auth'
+import { fillLogin, loginAsAdmin, MOCK_ADMIN } from '../support/auth'
 
 const ADMIN_ROUTES = [
   '/housing/admin/semi-pucca',
@@ -23,6 +23,25 @@ test.describe('admin route protection', () => {
     await page.goto('/housing/admin/activity')
     await expect(page).toHaveURL(/\/housing\/admin\/login/)
     await fillLogin(page, MOCK_ADMIN.email, MOCK_ADMIN.password)
+    await expect(page).toHaveURL(/\/housing\/admin\/activity$/)
+  })
+
+  test('a server error on the session check offers a retry instead of the login page', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'admin-rest', 'only the REST backend asks the server for the session')
+    await loginAsAdmin(page, '')
+    await page.route('**/api/v1/auth/me', (route) =>
+      route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":{"code":"INTERNAL_ERROR","message":"x"}}' }),
+    )
+    await page.goto('/housing/admin/activity')
+    await expect(page.getByRole('alert')).toContainText('সার্ভারে সংযোগ করা যায়নি।')
+    await expect(page).toHaveURL(/\/housing\/admin\/activity$/)
+    await page.goto('/housing/admin/login')
+    await expect(page.getByRole('button', { name: 'লগইন' })).toBeVisible()
+
+    await page.goto('/housing/admin/activity')
+    await page.unroute('**/api/v1/auth/me')
+    await page.getByRole('button', { name: 'আবার চেষ্টা করুন' }).click()
+    await expect(page.getByRole('button', { name: 'লগআউট' })).toBeVisible()
     await expect(page).toHaveURL(/\/housing\/admin\/activity$/)
   })
 

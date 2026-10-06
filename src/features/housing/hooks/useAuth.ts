@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { getAuthProvider } from '../backend/factory'
-import type { AuthUser } from '../backend/interfaces/types'
+import { HousingApiError, type AuthUser } from '../backend/interfaces/types'
 
 export interface AuthState {
-  status: 'loading' | 'ready'
+  /** 'error': সার্ভারে পৌঁছানো যায়নি, তাই লগইন আছে কি না অজানা (লগআউট ধরা হয় না) */
+  status: 'loading' | 'ready' | 'error'
   user: AuthUser | null
   isAdmin: boolean
 }
@@ -13,7 +14,7 @@ const INITIAL: AuthState = { status: 'loading', user: null, isAdmin: false }
 /**
  * বর্তমান লগইন অবস্থা (AuthProvider.currentUser + isAdmin), সেশন বদলালে আপডেট।
  * শুধু UI দেখানো/লুকানোর জন্য; প্রকৃত অনুমতি ব্যাকএন্ডে যাচাই হয়।
- * ব্যাকএন্ড কনফিগ না থাকলে (CONFIG_ERROR) → ready, user null।
+ * ব্যাকএন্ড কনফিগ না থাকলে (CONFIG_ERROR) → ready, user null। অন্য এররে (নেটওয়ার্ক, 5xx) → error।
  */
 export function useAuth(): AuthState {
   const [state, setState] = useState<AuthState>(INITIAL)
@@ -28,8 +29,9 @@ export function useAuth(): AuthState {
         const user = await auth.currentUser()
         const isAdmin = user ? await auth.isAdmin() : false
         if (alive) setState({ status: 'ready', user, isAdmin })
-      } catch {
-        if (alive) setState({ status: 'ready', user: null, isAdmin: false })
+      } catch (err) {
+        const configMissing = err instanceof HousingApiError && err.code === 'CONFIG_ERROR'
+        if (alive) setState({ status: configMissing ? 'ready' : 'error', user: null, isAdmin: false })
       }
     }
 

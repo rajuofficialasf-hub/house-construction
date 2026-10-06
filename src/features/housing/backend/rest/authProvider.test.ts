@@ -57,6 +57,49 @@ describe('createRestAuthProvider', () => {
     expect(await createRestAuthProvider(BASE).currentUser()).toBeNull()
   })
 
+  it('keeps "unknown" instead of logging out when /me fails for another reason, and asks again next time', async () => {
+    for (const failure of [() => json(500, { error: { code: 'INTERNAL_ERROR', message: 'x' } }), () => { throw new TypeError('offline') }]) {
+      let down = true
+      const fetchMock = stubFetch(() => (down ? failure() : json(200, { data: USER })))
+      const auth = createRestAuthProvider(BASE)
+      await expect(auth.currentUser()).rejects.toBeInstanceOf(HousingApiError)
+      await expect(auth.isAdmin()).rejects.toBeInstanceOf(HousingApiError)
+      down = false
+      expect(await auth.currentUser()).toEqual(USER)
+      expect(fetchMock).toHaveBeenCalledTimes(3)
+    }
+  })
+
+  it('caches a 401 as logged out without asking again', async () => {
+    const fetchMock = stubFetch(() => json(401, { error: { code: 'UNAUTHENTICATED', message: 'লগইন করুন' } }))
+    const auth = createRestAuthProvider(BASE)
+    expect(await auth.currentUser()).toBeNull()
+    expect(await auth.isAdmin()).toBe(false)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  // Vitest fails the run on an unhandled rejection, so this also proves the failed /me is caught.
+  it('ignores a message from another tab while the server is unreachable', async () => {
+    let down = false
+    stubFetch((url) => {
+      if (down) throw new TypeError('offline')
+      return url.endsWith('/login') ? json(200, { data: { expires_at: '2026-10-12T08:00:00.000Z', user: USER } }) : json(200, { data: USER })
+    })
+    const otherTab = createRestAuthProvider(BASE)
+    const seen: (AuthUser | null)[] = []
+    otherTab.onAuthChange((u) => seen.push(u))
+    expect(await otherTab.currentUser()).toEqual(USER)
+    const thisTab = createRestAuthProvider(BASE)
+    await thisTab.login('admin@example.org', 'pw')
+    down = true
+    // A second announcement from this tab reaches the other tab while the server is down.
+    new BroadcastChannel('housing-auth').postMessage('changed')
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(seen).not.toContain(null)
+    down = false
+    expect(await otherTab.currentUser()).toEqual(USER)
+  })
+
   it('reports logged out once the server has ended the session', async () => {
     const fetchMock = stubFetch((url) => (url.endsWith('/logout') ? new Response(null, { status: 204 }) : json(200, { data: USER })))
     const auth = createRestAuthProvider(BASE)

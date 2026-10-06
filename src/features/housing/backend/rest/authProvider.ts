@@ -4,7 +4,7 @@
  * onAuthChange: এই অ্যাডাপ্টারের login/logout এ, আর অন্য ট্যাবের login/logout এ (BroadcastChannel) callback।
  */
 import type { AuthProvider } from '../interfaces/authProvider'
-import type { AuthUser } from '../interfaces/types'
+import { HousingApiError, type AuthUser } from '../interfaces/types'
 import { ENDPOINTS } from './endpoints'
 import { restRequest } from './http'
 
@@ -29,20 +29,29 @@ export function createRestAuthProvider(baseUrl: string): AuthProvider {
   const getChannel = () => {
     if (channel === undefined) {
       channel = typeof BroadcastChannel === 'function' ? new BroadcastChannel('housing-auth') : null
-      channel?.addEventListener('message', () => void fetchMe().then(emit))
+      // সার্ভারে পৌঁছানো না গেলে অবস্থা অজানাই থাকে; পরের currentUser() আবার জিজ্ঞেস করবে।
+      channel?.addEventListener('message', () => void fetchMe().then(emit, () => {}))
     }
     return channel
   }
   const announce = () => getChannel()?.postMessage('changed')
 
+  /**
+   * শুধু 401 মানে লগআউট (null, ক্যাশ হয়)। নেটওয়ার্ক বা 5xx এ লগইন অবস্থা অজানা: কিছু ক্যাশ না করে
+   * এরর উপরে যায়, যাতে সার্ভার সাময়িক বন্ধ থাকলে এডমিনকে লগইন পেইজে পাঠানো না হয়।
+   */
   async function fetchMe(): Promise<AuthUser | null> {
     try {
       const res = await restRequest<MeResponse>(baseUrl, ENDPOINTS.auth.me())
       cached = res.data
       return res.data
-    } catch {
-      cached = null
-      return null
+    } catch (err) {
+      if (err instanceof HousingApiError && err.code === 'UNAUTHENTICATED') {
+        cached = null
+        return null
+      }
+      cached = undefined
+      throw err
     }
   }
 

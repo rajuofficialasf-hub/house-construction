@@ -245,7 +245,7 @@ Everything the new stack needs exists on staging and is prepared for production 
   - The login page shows the form on `'error'`.
 - **Done when:** `npm test`, `npm run lint`, `npm run build` and `npm run i18n-check` (Node 24) pass, and `npm run test:e2e:rest-admin` stays green.
 - **Depends on:** none
-- **Status:** todo
+- **Status:** done
 
 ### U2. Search and activity-log indexes
 - **Goal:** Search and the activity filters use indexes, with a perf check the rehearsal can run.
@@ -380,9 +380,10 @@ Server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$PATH`
 ## Progress
 - **Branch:** `migrate/c7-cutover`
 - **Updated:** 2026-10-06 11:10
-- **Next:** U1, characterization tests for `fetchMe` in `src/features/housing/backend/rest/authProvider.test.ts`
+- **Next:** U2, write `server/db/migrations/0010_search_and_activity_indexes.sql` after `0008_read_indexes.sql`
 - **Uncommitted:** none
 - **Notes:**
   - `origin/main` was not ahead; `dev-forhad` already equals `migrate/c6-deploy` (`7397bbb`), so there was nothing to merge or port.
   - Photo bodies are streamed to a private temp file (not held in memory) before the sharp checks and `storage.put`, to keep `NS-04`; the plan's "holds at most one 5 MB body" means that file.
   - `i18n-check` runs under the installed Node 26 (needs ≥ 24).
+  - U1: the repo has no React component test setup (no jsdom/testing-library), so the `RequireAdmin` and login-page checks are a Playwright test in `e2e/mock/route-protection.spec.ts` that runs only in `admin-rest`. The retry button reloads the page. `HousingLoginPage.tsx` needed no change: it only redirects on `ready` + admin.

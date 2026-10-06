@@ -7,7 +7,8 @@ export const LOGIN_PATH = '/housing/admin/login'
 
 /**
  * Protected layout route: /housing/admin/* এর জন্য।
- * লগইন যাচাই চলাকালে হালকা লোডিং; এডমিন না হলে লগইন পেইজে পাঠায় (ফেরার পাথ state.from এ)।
+ * লগইন যাচাই চলাকালে হালকা লোডিং; সার্ভারে পৌঁছানো না গেলে আবার চেষ্টার বোতাম;
+ * এডমিন না হলে লগইন পেইজে পাঠায় (ফেরার পাথ state.from এ)।
  * এটি শুধু UI-স্তরের গার্ড; প্রকৃত অনুমতি ব্যাকএন্ড (RLS / সার্ভার) যাচাই করে।
  */
 export function RequireAdmin() {
@@ -18,6 +19,18 @@ export function RequireAdmin() {
     return (
       <div className="container-page py-20 text-center text-sm text-slate-500" aria-busy="true">
         {t('লগইন যাচাই হচ্ছে…')}
+      </div>
+    )
+  }
+
+  // সার্ভারে পৌঁছানো না গেলে লগইন পেইজে পাঠানো ভুল হতো: সেশন হয়তো ঠিকই আছে।
+  if (auth.status === 'error') {
+    return (
+      <div className="container-page py-20 text-center" role="alert">
+        <p className="text-sm text-slate-600">{t('সার্ভারে সংযোগ করা যায়নি।')}</p>
+        <button type="button" className="mt-4 inline-flex h-10 items-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-100" onClick={() => window.location.reload()}>
+          {t('আবার চেষ্টা করুন')}
+        </button>
       </div>
     )
   }
