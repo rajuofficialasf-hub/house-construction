@@ -1887,7 +1887,7 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
   - the existing drift, `$ref` and no-`$schema` checks stay
 - **Done when:** `openapi.test.ts` passes and the served document validates as OpenAPI 3.1 in the existing check.
 - **Depends on:** U27
-- **Status:** todo
+- **Status:** done
 
 ### U29. Dev seed gains a draft project with custom and private fields
 - **Goal:** A fresh local stack has a draft project that exercises custom public fields, a private field, unions and stats, for the walkthrough and the P6 and P7 harnesses.
@@ -2374,7 +2374,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** U28 (OpenAPI complete), then U29; P5 → P6 → P7 as one batch.
+- **Next:** U29 (dev seed's draft `demo` project), then the P5 verification; P5 → P6 → P7 as one batch.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
@@ -2550,3 +2550,4 @@ Run these at the end of P1:
     - The public-read CORS tests live in each feature's HTTP test file; there is no `cors.test.ts`. U27's are in `server/test/http/projects-stats.test.ts`.
     - The server reads the session cookie whatever the request's origin. A partner page that sent a cookie would get admin data in the body, but the browser won't let it read the body, because the response has no `Access-Control-Allow-Credentials` (and the cookie is `SameSite=Lax`). U27's test asserts that header, not an emptied body.
     - The stats and overview response schemas (`projectStats`, `projectOverview` in `server/src/projects/schemas.ts`) feed OpenAPI and the HTTP tests' parsing.
+    - U28 found the document already complete: every main-admin route says "Main admin only" and lists 403, and `If-Match` and the 409s were documented in P4. The unit added the tests that keep it so (a pinned list of the seven main-admin routes, read from the routers' handler chains) and bumped the document to 0.16.

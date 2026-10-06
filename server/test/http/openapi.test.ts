@@ -1,7 +1,8 @@
-import type { Router } from 'express';
+import type { RequestHandler, Router } from 'express';
 import request from 'supertest';
 import { afterAll, describe, expect, it } from 'vitest';
 import { createApp } from '../../src/app.js';
+import { requireMainAdmin, requireMainAdminForCovers, requireMainAdminForPhotos } from '../../src/auth/middleware.js';
 import { createLogger } from '../../src/logger.js';
 import { buildOpenApiDocument } from '../../src/openapi.js';
 import { healthRouter } from '../../src/routes/v1/health.js';
@@ -29,6 +30,18 @@ function routesOf(prefix: string, router: Router): string[] {
   return router.stack.flatMap((layer) => {
     const route = layer.route as { path: string; methods: Record<string, boolean> } | undefined;
     if (!route) return [];
+    const path = `${prefix}${route.path === '/' ? '' : route.path}`.replace(/:([a-z_]+)/g, '{$1}');
+    return Object.keys(route.methods).map((method) => `${method.toUpperCase()} ${path}`);
+  });
+}
+
+const MAIN_ADMIN_GUARDS = new Set<RequestHandler>([requireMainAdmin, requireMainAdminForPhotos, requireMainAdminForCovers]);
+
+/** `METHOD /path` of each route whose handler chain includes a main-admin guard. */
+function mainAdminRoutesOf(prefix: string, router: Router): string[] {
+  return router.stack.flatMap((layer) => {
+    const route = layer.route as { path: string; methods: Record<string, boolean>; stack: { handle: RequestHandler }[] } | undefined;
+    if (!route?.stack.some((l) => MAIN_ADMIN_GUARDS.has(l.handle))) return [];
     const path = `${prefix}${route.path === '/' ? '' : route.path}`.replace(/:([a-z_]+)/g, '{$1}');
     return Object.keys(route.methods).map((method) => `${method.toUpperCase()} ${path}`);
   });
@@ -88,6 +101,51 @@ describe('GET /api/v1/openapi.json', () => {
       expect(operation.responses).toHaveProperty('401');
     }
     expect(document.components.securitySchemes.adminSession).toMatchObject({ type: 'apiKey', in: 'cookie' });
+  });
+
+  it('gives every operation a success response that describes its body, or a 204', () => {
+    for (const [path, item] of Object.entries(document.paths)) {
+      for (const [method, operation] of Object.entries(item)) {
+        const success = Object.entries(operation.responses).filter(([status]) => status.startsWith('2'));
+        expect(success.length, `${method} ${path}`).toBeGreaterThan(0);
+        for (const [status, response] of success) {
+          if (status === '204') continue;
+          expect((response as { content?: unknown }).content, `${method} ${path} ${status}`).toBeDefined();
+        }
+      }
+    }
+  });
+
+  it('says which operations only the main admin may use, and lists their 403', () => {
+    const deps = { sql, ...testPhotoDeps(), receivePhoto: () => Promise.reject(new Error('unused')) };
+    const guarded = [
+      ...mainAdminRoutesOf('/housing', housingAdminRouter(deps)),
+      ...mainAdminRoutesOf('', recordsAdminRouter(deps)),
+      ...mainAdminRoutesOf('', projectsAdminRouter(deps)),
+    ];
+    expect(guarded.sort()).toEqual([
+      'DELETE /fields/{id}',
+      'DELETE /housing/{id}',
+      'DELETE /housing/{id}/photo',
+      'DELETE /projects/{key}',
+      'DELETE /projects/{key}/cover',
+      'DELETE /records/{id}',
+      'DELETE /records/{id}/photos/{slot}',
+    ]);
+    for (const route of guarded) {
+      const [method, path] = route.split(' ') as [string, string];
+      const operation = document.paths[path]?.[method.toLowerCase() as 'delete'];
+      expect(operation?.summary, route).toMatch(/main admin only/i);
+      expect(operation?.responses, route).toHaveProperty('403');
+    }
+  });
+
+  it('documents If-Match on a project update, with its 409', () => {
+    const patch = document.paths['/projects/{key}']?.patch;
+    expect(patch?.parameters?.find((p) => p.name === 'If-Match')).toMatchObject({ in: 'header', required: false });
+    expect(patch?.responses).toHaveProperty('409');
+    expect(document.paths['/projects']?.post?.responses).toHaveProperty('409');
+    expect(document.paths['/projects/{key}/fields']?.post?.responses).toHaveProperty('409');
   });
 
   it('leaves the admin auth routes out', () => {

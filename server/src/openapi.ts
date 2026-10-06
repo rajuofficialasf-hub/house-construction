@@ -73,11 +73,11 @@ import {
   serialBody,
 } from './records/schemas.js';
 
-// The OpenAPI 3.1 description of the /api/v1 housing routes, served at /api/v1/openapi.json for
-// other apps (docs/api/API_CONTRACT.md §1). Parameter and body schemas come from the same zod
-// schemas the routes parse with; test/http/openapi.test.ts fails if a route and its entry drift
-// apart. The housing writes are listed as admin-only; the login routes (/auth/*) are left out on
-// purpose, because only this site uses them.
+// The OpenAPI 3.1 description of every /api/v1 route apart from /auth, served at
+// /api/v1/openapi.json for other apps (docs/api/PROJECTS_API_CONTRACT.md). Parameter and body
+// schemas come from the same zod schemas the routes parse with; test/http/openapi.test.ts fails if
+// a route and its entry drift apart, or a main-admin route stops saying so. Writes are listed as
+// admin-only; the login routes (/auth/*) are left out on purpose, because only this site uses them.
 
 type JsonSchema = Record<string, unknown>;
 
@@ -212,7 +212,7 @@ export function buildOpenApiDocument(): OpenApiDocument {
     openapi: '3.1.0',
     info: {
       title: 'Housing project API',
-      version: '0.15',
+      version: '0.16',
       description:
         'Public, read-only access to the housing project records: no login is needed, and browser apps must be listed in PUBLIC_READ_ORIGINS and call without credentials. The housing-admin operations are for this site\'s admins only.',
     },
