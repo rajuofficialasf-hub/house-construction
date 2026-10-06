@@ -21,7 +21,8 @@
     "admin-ui-check": "node scripts/admin-ui-check.mjs",
     "build-unions": "node scripts/build-unions.mjs",
     "geo-check": "tsx --tsconfig tsconfig.app.json scripts/geo-check.mjs",
-    "baseline-check": "node scripts/baseline-check.mjs"
+    "baseline-check": "node scripts/baseline-check.mjs",
+    "stats-filter-check": "node scripts/stats-filter-check.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",

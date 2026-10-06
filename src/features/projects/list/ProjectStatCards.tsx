@@ -10,23 +10,30 @@ import { ErrorNotice } from '@/features/housing/components/ErrorNotice'
 
 interface Props {
   project: Project
-  /** পেইজের একটিই stats কল (ProjectListPage) */
+  /** মোট stats, অথবা ফিল্টার থাকলে ফিল্টার অনুযায়ী stats (ProjectListPage ঠিক করে) */
   stats: StatsState
+  /** true = সংখ্যাগুলো বাছাই করা ফিল্টার অনুযায়ী — কার্ডের ওপরে ছোট করে জানানো হয় */
+  filtered?: boolean
 }
 
 const ICON_CLASS = 'h-5 w-5 sm:h-6 sm:w-6'
 
 /**
  * প্রকল্পের পরিসংখ্যান কার্ড (M-ধাপ ১৩): যত কার্ড প্রকল্পের কনফিগে (`stat_cards`), তত — লেবেল pick() দিয়ে, আইকন
- * statIcons থেকে, টাকা formatTaka (৳), সংখ্যা count-up; লোডের সময় স্কেলেটন। ফিল্টারে বদলায় না (মোট)।
+ * statIcons থেকে, টাকা formatTaka (৳), সংখ্যা count-up; লোডের সময় স্কেলেটন। ফিল্টার দিলে ফিল্টার অনুযায়ী (SQL ১৫; ২০২৬-১০-০৬)।
  * ঘর নির্মাণে আগের হুবহু চারটি কার্ড (মোট উপকারভোগী, বিভাগ, জেলা, উপজেলা)।
  */
-export function ProjectStatCards({ project, stats }: Props) {
+export function ProjectStatCards({ project, stats, filtered = false }: Props) {
   if (stats.status === 'error') return <ErrorNotice title={t('পরিসংখ্যান লোড করা যায়নি')} error={stats.error} />
   const cards = project.stat_cards ?? []
   if (!cards.length) return null
   return (
     <section aria-label={t('পরিসংখ্যান')} aria-busy={stats.status === 'loading'}>
+      {filtered && (
+        <p className="mb-2 text-sm font-medium text-brand-700" role="status">
+          {t('পরিসংখ্যান: বাছাই করা ফিল্টার অনুযায়ী')}
+        </p>
+      )}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {cards.map((c) =>
           stats.status === 'ready' ? (

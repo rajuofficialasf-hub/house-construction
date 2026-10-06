@@ -203,6 +203,15 @@ const results = []
 const started = Date.now()
 /** পেইজগুলো ডাটাবেসের কোন টেবিল/RPC ডেকেছে (Supabase REST পাথ → সংখ্যা) */
 const apiHits = new Map()
+// SQL ১৫ (project_stats_filtered) না থাকলে ফিল্টার-পাতায় একবার 404 আসে আর adapter মোটে ফিরে যায় — জানা অবস্থা, ত্রুটি নয়
+const FILTERED_MISSING = await (async () => {
+  const url = (process.env.VITE_SUPABASE_URL ?? '').replace(/\/+$/, '')
+  const key = process.env.VITE_SUPABASE_ANON_KEY ?? ''
+  if (!url || !key || LEGACY) return false
+  const r = await fetch(`${url}/rest/v1/rpc/project_stats_filtered`, { method: 'POST', headers: { apikey: key, authorization: `Bearer ${key}`, 'content-type': 'application/json' }, body: '{"p_key":"semi_pucca"}' }).catch(() => null)
+  return !!r && r.status === 404
+})()
+if (FILTERED_MISSING) console.log('(তথ্য) ডাটাবেসে project_stats_filtered নেই (SQL ১৫ বাকি) — ফিল্টারে কার্ড মোট দেখায়; ঐ কলের 404 উপেক্ষা')
 
 console.log(`Smoke${LEGACY ? ' (পুরনো-ডাটাবেস মোড)' : ''}: ${BASE} · প্রস্থ ${WIDTHS.join('/')} · ভাষা ${LANGS.join('/')} · স্ক্রিনশট → ${path.relative(process.cwd(), OUT)}`)
 console.log(`ব্রাউজার: ${BROWSER}${semiSerial ? '' : '\n(বিস্তারিত পেইজ বাদ — .env.local নেই বা কোনো রেকর্ড নেই)'}\n`)
@@ -238,7 +247,9 @@ try {
       })
       page.on('pageerror', (e) => errors.push(`page error: ${e.message}`))
       page.on('console', (m) => {
-        if (m.type() === 'error') errors.push(`console: ${m.text().slice(0, 240)}`)
+        if (m.type() !== 'error') return
+        if (FILTERED_MISSING && /project_stats_filtered/.test(m.location()?.url ?? '')) return
+        errors.push(`console: ${m.text().slice(0, 240)}`)
       })
 
       for (const pg of PAGES) {
@@ -296,7 +307,7 @@ process.exit(failed.length ? 2 : 0)
 function backendPathCheck() {
   const n = (k) => apiHits.get(k) ?? 0
   const p = []
-  const NEW = ['projects', 'project_fields', 'beneficiary_private', 'rpc/project_stats', 'rpc/projects_overview']
+  const NEW = ['projects', 'project_fields', 'beneficiary_private', 'rpc/project_stats', 'rpc/project_stats_filtered', 'rpc/projects_overview']
   if (LEGACY) {
     for (const k of NEW) if (n(k)) p.push(`পুরনো-ডাটাবেস মোডে "${k}" ডাকা হয়েছে (${n(k)} বার) — সিমুলেশন কাজ করছে না`)
     if (!n('rpc/housing_stats')) p.push('পুরনো-ডাটাবেস মোডে housing_stats একবারও ডাকা হয়নি — স্ট্যাট কোথা থেকে এল?')

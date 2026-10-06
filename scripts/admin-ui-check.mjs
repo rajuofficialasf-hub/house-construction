@@ -85,7 +85,8 @@ function usageOf(key) {
   return { count: [...m.values()].reduce((a, b) => a + b, 0), values: [...m].map(([value, n]) => ({ value, n })) }
 }
 /** নকল project_stats('demo') — 11_project_rpcs.sql › project_stats এর শেপে, demoRecs থেকে (M-ধাপ ১৩) */
-function demoStats() {
+function demoStats(recs = demoRecs) {
+  const demoRecs = recs
   const inc = (o, k, by = 1) => (o[k] = (o[k] ?? 0) + by)
   const s = { total: demoRecs.length, by_year: {}, by_division: {}, by_district: {}, by_upazila: {}, by_location: {}, by_union: {}, by_project: { demo: demoRecs.length }, fields: {} }
   const money = allFields().filter((f) => f.project_key === 'demo' && f.type === 'money' && f.visibility === 'public')
@@ -113,6 +114,25 @@ function demoStats() {
   s.distinct = { divisions: Object.keys(s.by_division).length, districts: Object.keys(s.by_district).length, upazilas: Object.keys(s.by_location).length, unions: Object.keys(s.by_union).length }
   return s
 }
+/**
+ * নকল project_stats_filtered('demo', p_filters) — 15_filtered_stats.sql এর নিয়মে demoRecs ছেঁকে হালকা শেপ (M-ধাপ: ফিল্টার-স্ট্যাট)।
+ * filteredMode = 'missing' হলে SQL ১৫ না-চালানো ডাটাবেসের মতো 404
+ */
+let filteredMode = 'ok'
+const filteredCalls = []
+function demoFilteredStats(fl) {
+  const pub = allFields().filter((x) => x.project_key === 'demo' && x.visibility === 'public' && x.is_active !== false)
+  const like = (v, q) => typeof v === 'string' && v.toLowerCase().includes(q.toLowerCase())
+  const recs = demoRecs.filter((r) =>
+    (fl.year === undefined || r.year === fl.year) &&
+    (!fl.division || r.division === fl.division) && (!fl.district || r.district === fl.district) &&
+    (!fl.upazila || r.upazila === fl.upazila) && (!fl.union_name || r.union_name === fl.union_name) &&
+    Object.entries(fl.fields ?? {}).every(([k, v]) => !pub.some((x) => x.key === k && x.filterable) || r.extra?.[k] === v) &&
+    (!fl.q || like(r.name, fl.q) || like(r.father_or_husband_name, fl.q) || like(r.address, fl.q) || pub.some((x) => x.searchable && like(r.extra?.[x.key], fl.q))))
+  const st = demoStats(recs)
+  for (const v of Object.values(st.fields)) delete v.by_value
+  return { total: st.total, distinct: st.distinct, by_project: st.by_project, fields: st.fields, filtered: true }
+}
 /** demo এর অনুরোধ হলে নকল উত্তর দিয়ে true, নইলে undefined */
 async function fakeRecords(u, method, req, respond0) {
   // উত্তর দিলে true (await এর পর respond এর Promise undefined হয় — তাই আলাদা চিহ্ন)
@@ -127,6 +147,11 @@ async function fakeRecords(u, method, req, respond0) {
   const one = accept.includes('vnd.pgrst.object')
   const send = (rows) => (one ? (rows[0] ? respond(200, rows[0]) : respond(406, { code: 'PGRST116', message: 'JSON object requested, multiple (or no) rows returned', details: 'The result contains 0 rows', hint: null })) : respond(200, rows, { 'content-range': rows.length ? `0-${rows.length - 1}/${rows.length}` : '*/0' }))
   if (u.pathname === '/rest/v1/rpc/project_stats' && body?.p_key === 'demo') return respond(200, demoStats())
+  if (u.pathname === '/rest/v1/rpc/project_stats_filtered' && body?.p_key === 'demo') {
+    filteredCalls.push(body.p_filters)
+    if (filteredMode === 'missing') return respond(404, { code: 'PGRST202', message: 'Could not find the function public.project_stats_filtered', details: null, hint: null })
+    return respond(200, demoFilteredStats(body.p_filters ?? {}))
+  }
   if (u.pathname === '/rest/v1/rpc/housing_next_serial' && body?.p_project_type === 'demo')return respond(200, String(demoRecs.reduce((m, r) => Math.max(m, r.serial_no), 0) + 1))
   if (u.pathname === '/rest/v1/rpc/project_field_rename_value' && body?.p_project === 'demo') {
     writes.push({ method, path: u.pathname, search: u.search, body })
@@ -293,7 +318,7 @@ async function handle(req) {
     return respond(200, 'null')
   }
 
-  const readRpc = ['projects_overview', 'project_stats', 'housing_stats', 'housing_years', 'housing_next_serial']
+  const readRpc = ['projects_overview', 'project_stats', 'project_stats_filtered', 'housing_stats', 'housing_years', 'housing_next_serial']
   const isRead = method === 'GET' || (method === 'POST' && readRpc.some((n) => u.pathname === `/rest/v1/rpc/${n}`))
   if (isRead) {
     // লাইভ থেকে anon হিসেবে আনা (নকল টোকেন বাদ), দরকারে নকল খসড়া যোগ
@@ -1220,8 +1245,20 @@ for (const [w, mobile] of [[1280, false], [390, true]]) {
   ok('ক্যাটাগরি-ড্রপডাউনে ডাটার ৭টি মান', catOpts?.opts.length === 8, JSON.stringify(catOpts?.opts))
   await selectByLabel(p, 'উপকরণের ক্যাটাগরি', 'ছাগল')
   ok('ড্রপডাউনে "ছাগল" → ?f_category=ছাগল, তালিকায় ২ জন', params(p).f_category === 'ছাগল' && (await rows(p)) === 2, `${JSON.stringify(params(p))} rows=${await rows(p)}`)
+  // ফিল্টার অনুযায়ী পরিসংখ্যান (SQL ১৫): কার্ড বদলায়, ওপরে ছোট লেখা; ড্রপডাউনের বিকল্প মোট থেকেই
+  await sleep(1500)
+  s = await text(p)
+  const goat = demoRecs.filter((r) => r.extra?.category === 'ছাগল')
+  const goatSum = goat.reduce((a, r) => a + (r.extra?.amount ?? 0), 0)
+  const moneyF = s.match(/মোট টাকা\s+([^\n]+)/)?.[1]
+  ok('ফিল্টার "ছাগল" → কার্ড: মোট উপকারভোগী ২, মোট টাকা = ছাগলের যোগফল, মোট ক্যাটাগরি ১; "পরিসংখ্যান: বাছাই করা ফিল্টার অনুযায়ী"', /মোট উপকারভোগী\s+২/.test(s) && Number(ascii(moneyF ?? '')) === goatSum && /মোট ক্যাটাগরি\s+১(?!\d|[০-৯])/.test(s) && s.includes('পরিসংখ্যান: বাছাই করা ফিল্টার অনুযায়ী'), `${moneyF} (চাই ${goatSum})`)
+  ok('RPC project_stats_filtered এ p_filters = {fields:{category:"ছাগল"}} (তালিকার একই ফিল্টার)', JSON.stringify(filteredCalls.at(-1)) === JSON.stringify({ fields: { category: 'ছাগল' } }), JSON.stringify(filteredCalls.at(-1)))
+  ok('ফিল্টার দিলেও ক্যাটাগরি-ড্রপডাউনে সব ৭টি মান (মোট stats থেকে)', (await optionsOf(p, 'উপকরণের ক্যাটাগরি'))?.opts.length === 8)
   await selectByLabel(p, 'উপকরণের ক্যাটাগরি', '')
   ok('"সব" বাছলে ফিল্টার ওঠে (১০ জন)', !('f_category' in params(p)) && (await rows(p)) === 10)
+  await sleep(1500)
+  s = await text(p)
+  ok('ফিল্টার উঠলে কার্ড আবার মোট (১০), "ফিল্টার অনুযায়ী" লেখা নেই', /মোট উপকারভোগী\s+১০/.test(s) && !s.includes('বাছাই করা ফিল্টার অনুযায়ী'))
 
   // ইউনিয়ন ফিল্টার: উপজেলা না বাছা পর্যন্ত বন্ধ; বিকল্প by_union থেকে
   let un = await optionsOf(p, 'ইউনিয়ন/পৌরসভা')
@@ -1236,6 +1273,8 @@ for (const [w, mobile] of [[1280, false], [390, true]]) {
   ok(`ইউনিয়ন "করেরহাট" → ?union=করেরহাট, ${wantU} জন`, params(p).union === 'করেরহাট' && params(p).upazila === 'মীরসরাই' && (await rows(p)) === wantU, `${JSON.stringify(params(p))} rows=${await rows(p)}`)
   await selectByLabel(p, 'উপকরণের ক্যাটাগরি', 'গাভী')
   ok('ইউনিয়ন + উপকরণের ক্যাটাগরি "গাভী" একসাথে → ১ জন (রহিমা)', params(p).f_category === 'গাভী' && (await rows(p)) === 1 && (await p.evaluate(() => document.querySelector('table tbody').innerText)).includes('রহিমা'))
+  await sleep(1500)
+  ok('কার্ডও একই: মোট উপকারভোগী ১, উপজেলা ১ (বিভাগ+জেলা+উপজেলা+ইউনিয়ন+ক্যাটাগরি)', /মোট উপকারভোগী\s+১(?![০-৯])/.test(await text(p)) && JSON.stringify(filteredCalls.at(-1)) === JSON.stringify({ division: 'চট্টগ্রাম', district: 'চট্টগ্রাম', upazila: 'মীরসরাই', union_name: 'করেরহাট', fields: { category: 'গাভী' } }), JSON.stringify(filteredCalls.at(-1)))
   const lw = calls.filter((c) => c.includes('housing_beneficiaries')).at(-1) ?? ''
   ok('তালিকার অনুরোধে union_name=eq. আর extra=cs.{"category":"গাভী"}', decodeURIComponent(lw).includes('union_name=eq.করেরহাট') && decodeURIComponent(lw).includes('extra=cs.{"category":"গাভী"}'), decodeURIComponent(lw).slice(0, 200))
   await selectByLabel(p, 'উপজেলা', 'সীতাকুন্ড')
@@ -1243,6 +1282,17 @@ for (const [w, mobile] of [[1280, false], [390, true]]) {
   await p.screenshot({ path: '.smoke/list-demo-1280.png', fullPage: true })
   ok('/demo তালিকায় কোনো page error নেই', p.errors.length === 0, p.errors.join(' | '))
   await p.close()
+
+  // SQL ১৫ না থাকলে: ফিল্টার দিলেও কার্ড মোট দেখায় (আগের আচরণ), লেখা নেই, পাতা ভাঙে না
+  filteredMode = 'missing'
+  const pm = await newPage()
+  await pm.goto(BASE + '/demo?f_category=' + encodeURIComponent('ছাগল'), { waitUntil: 'domcontentloaded' })
+  await settle(pm)
+  await sleep(1500)
+  const sm = await text(pm)
+  ok('SQL ১৫ না থাকলে: ফিল্টারে তালিকা ২ জন, কার্ড মোট ১০ (আগের মতো), "ফিল্টার অনুযায়ী" লেখা নেই, page error নেই', /মোট উপকারভোগী\s+১০/.test(sm) && !sm.includes('বাছাই করা ফিল্টার অনুযায়ী') && (await rows(pm)) === 2 && pm.errors.length === 0, pm.errors.join(' | '))
+  await pm.close()
+  filteredMode = 'ok'
 
   // ১০২৪px, দুই ভাষায়: অনুভূমিক স্ক্রল নেই
   for (const lang of ['bn', 'en']) {

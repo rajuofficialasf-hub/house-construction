@@ -27,7 +27,7 @@ export function createRestHousingApi(_baseUrl: string): HousingApi {
     delete: async () => notImplemented('delete'), // DELETE ENDPOINTS.records.byId
     bulkInsert: async () => notImplemented('bulkInsert'), // POST ENDPOINTS.projects.recordsBulk
     bulkUpdateBySerial: async () => notImplemented('bulkUpdateBySerial'), // PUT  ENDPOINTS.projects.recordsBulk
-    stats: async () => notImplemented('stats'), // GET  ENDPOINTS.projects.stats(key) ?light=1
+    stats: async () => notImplemented('stats'), // GET  ENDPOINTS.projects.stats(key) ?light=1 · ফিল্টারে ?year=&division=&district=&upazila=&union=&f.<key>=&q= (v১.৬)
     years: async () => notImplemented('years'), // GET  ENDPOINTS.projects.years(key)
     filterOptions: async () => notImplemented('filterOptions'), // years + stats থেকে ক্লায়েন্টে তৈরি
     uploadPhoto: async () => notImplemented('uploadPhoto'), // PUT  ENDPOINTS.records.photo(id, slot) (multipart)

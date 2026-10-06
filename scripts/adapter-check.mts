@@ -125,6 +125,7 @@ const rec = { id: 'r1', project_type: 'semi_pucca', serial_no: 1, year: 2024, na
     if (target === 'projects') return { data: [FALLBACK_PROJECTS[0], FALLBACK_PROJECTS[1], housingNoUnion, sr].map(({ fields: _f, ...p }) => p), error: null }
     if (target === 'project_fields') return { data: fieldRows, error: null }
     if (target === 'rpc:project_stats') return { data: { total: 3, distinct: { unions: 2 }, by_union: { 'ঢাকা|সাভার|আশুলিয়া': 2 }, fields: {} }, error: null }
+    if (target === 'rpc:project_stats_filtered') return { data: { total: 1, distinct: { divisions: 1, districts: 1, upazilas: 1, unions: 1 }, by_project: { self_reliance: 1 }, fields: {}, filtered: true }, error: null }
     if (target === 'housing_beneficiaries') {
       if (ops.some((o) => o[0] === 'range' || o[0] === 'in')) return { data: [rec], error: null, count: 1 }
       const pt = ops.find((o) => o[0] === 'eq' && o[1][0] === 'id') ? 'self_reliance' : 'semi_pucca'
@@ -148,6 +149,14 @@ const rec = { id: 'r1', project_type: 'semi_pucca', serial_no: 1, year: 2024, na
   ok('নতুন DB: ফিল্টার whitelist — শুধু filterable পাবলিক (category, amount); item/phone/অচেনা বাদ', contains.join() === '{"category":"গরু ছাগল"},{"amount":5000}', contains.join(' '))
   ok('নতুন DB: সার্চে searchable কাস্টম ফিল্ড যোগ', String(lops.find((o) => o[0] === 'or')?.[1][0]).includes('extra->>category.ilike'))
   ok('নতুন DB: extra.<key> অনুযায়ী সাজানো → extra->amount', lops.some((o) => o[0] === 'order' && o[1][0] === 'extra->amount'))
+
+  // ফিল্টার অনুযায়ী পরিসংখ্যান (SQL ১৫): list() এর একই whitelist ও পরিষ্কার-নিয়মে p_filters
+  const fs1 = await api.stats('self_reliance', { filters: { year: 2025, district: ' ঢাকা ', union_name: 'আশুলিয়া', fields: { category: '  গরু   ছাগল ', amount: '5000', item: 'x', phone: '017', hacked: 'y' }, q: ' রহিম (%), ' } })
+  const pf = lastArgs(log, 'rpc:project_stats_filtered')
+  ok('ফিল্টার-স্ট্যাট: project_stats_filtered(key, p_filters) — whitelist (category, amount = number), NFC/trim, সার্চ পরিষ্কার', pf.p_key === 'self_reliance' && JSON.stringify(pf.p_filters) === JSON.stringify({ year: 2025, district: 'ঢাকা', union_name: 'আশুলিয়া', q: 'রহিম', fields: { category: 'গরু ছাগল', amount: 5000 } }) && fs1.filtered === true, JSON.stringify(pf.p_filters))
+  const before15 = log.length
+  const fs2 = await api.stats('self_reliance', { filters: { fields: { hacked: 'y' }, q: '  ' } })
+  ok('ফিল্টার-স্ট্যাট: কার্যকর ফিল্টার না থাকলে সাধারণ project_stats (filtered নেই)', !log.slice(before15).some((l) => l.target === 'rpc:project_stats_filtered') && fs2.filtered === undefined)
   ok('নতুন DB: ইউনিয়ন ফিল্টার', lops.some((o) => o[0] === 'eq' && o[1][0] === 'union_name' && o[1][1] === 'আশুলিয়া'))
   await api.list({ project_type: 'self_reliance', sort: 'extra.phone' })
   ok('নতুন DB: গোপন ফিল্ড দিয়ে সাজানো যায় না (serial_no এ ফেরে)', log.filter((l) => l.target === 'housing_beneficiaries').at(-1)!.ops.some((o) => o[0] === 'order' && o[1][0] === 'serial_no'))

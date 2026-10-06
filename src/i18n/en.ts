@@ -916,4 +916,5 @@ Object.assign(EN, {
   'সংরক্ষণ': 'Save',
   'সংরক্ষণ হয়নি': 'Not saved',
   'সব প্রকল্প (পরে নতুন প্রকল্প হলে সেটিও)': 'All projects (including ones added later)',
+  'পরিসংখ্যান: বাছাই করা ফিল্টার অনুযায়ী': 'Statistics: for the selected filters',
 })

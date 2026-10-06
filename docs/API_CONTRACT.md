@@ -1,7 +1,7 @@
 # As-Sunnah Foundation প্রকল্প-প্ল্যাটফর্ম — REST API চুক্তি (API_CONTRACT.md)
 
 > নিজস্ব সার্ভারের ডেভেলপারের জন্য। ফ্রন্টএন্ডের `rest` অ্যাডাপ্টার (`src/backend/rest/`, পাথ `src/backend/rest/endpoints.ts`) ঠিক এই চুক্তি অনুযায়ী কল করবে।
-> সংস্করণ: **১.৫** — সর্বশেষ আপডেট: ২০২৬-১০-০৬ (পর্ব চ, M-ধাপ ১৮–১৯: প্রকল্পভিত্তিক ইউজার — ভূমিকা `main_admin`/`editor`, `/api/auth/me` এ `all_projects`/`projects`, "মোছার সমান" কাজ শুধু মূল এডমিন, ইউজার-ব্যবস্থাপনা `/api/admin/users`)
+> সংস্করণ: **১.৬** — সর্বশেষ আপডেট: ২০২৬-১০-০৬ (ফিল্টার অনুযায়ী পরিসংখ্যান: `GET /api/projects/:key/stats` এ তালিকার ফিল্টার; আগের ১.৫ — প্রকল্পভিত্তিক ইউজার)
 > সার্ভারের প্রযুক্তি (ভাষা/ফ্রেমওয়ার্ক/DB) অনির্ধারিত; এই চুক্তি প্রযুক্তি-নিরপেক্ষ। "TBD" অংশ এখনো চূড়ান্ত নয়। ধাপ ১৩ (নিজস্ব সার্ভার) স্থগিত।
 > রেফারেন্স বাস্তবায়ন: Supabase (`supabase/sql/*.sql` — ট্রিগার ও RLS এ প্রতিটি নিয়ম আছে; `src/backend/supabase/`)। দুই জায়গায় নিয়ম আলাদা হলে **এই চুক্তি সংশোধন করে** মেলাতে হবে।
 
@@ -323,6 +323,7 @@ body `{ "keys": ["housing", "self_reliance", "skill"] }` → সেই ক্র
 ### ৪.৩ পরিসংখ্যান, বছর, পরের সিরিয়াল
 
 - **GET `/api/projects/:key/stats?light=1`** → `{ "data": ProjectStats }` (§৩.৬)। `light=1`: `by_union` ও ক্যাটাগরির `by_value` বাদ (হোম কার্ড)। গ্রুপের key = উপ-প্রকল্প মিলিয়ে।
+- **ফিল্টার অনুযায়ী (v১.৬):** একই endpoint এ তালিকার ফিল্টার — `year`, `division`, `district`, `upazila`, `union`, `f.<key>`, `q` (§৪.৪.১ এর **হুবহু** নিয়ম: একই NFC, একই whitelist — শুধু পাবলিক, সক্রিয়, `filterable` ফিল্ড; সার্চ নাম/পিতা-স্বামী/ঠিকানা আর `searchable` পাবলিক ফিল্ডে; অচেনা/গোপন key নীরবে বাদ)। অন্তত একটি কার্যকর ফিল্টার থাকলে উত্তর **হালকা** শেপে: `total`, `distinct`, `by_project`, `fields` (টাকা/সংখ্যায় `sum`/`count`, ক্যাটাগরিতে `distinct`) আর `"filtered": true`; `by_year`/`by_division`/`by_district`/`by_upazila`/`by_location`/`by_union` = `{}`। ফিল্টার ছাড়া উত্তর আগের মতো (`filtered` নেই)। শর্ত: ফিল্টার-ফলের `total` = একই ফিল্টারে `GET …/records` এর `meta.total`। খসড়া প্রকল্পে এডমিন ছাড়া `total: 0`। ফ্রন্টএন্ড এটি তালিকা-পাতার কার্ডে ব্যবহার করে (ড্রপডাউন ও মানচিত্র ফিল্টার ছাড়া stats থেকে)। Supabase: RPC `project_stats_filtered(p_key, p_filters jsonb)` (`15_filtered_stats.sql`)।
 - **GET `/api/projects/:key/years`** → `{ "data": [2025, 2024, 2023] }` (নতুন থেকে পুরনো; ডাটা না থাকলে `[]`)।
 - **GET `/api/projects/:key/next-serial`** → `{ "data": { "project_type": "tin", "next_serial": 301 } }` — **পূর্বাভাস** (কাউন্টার + ১); প্রকৃত বরাদ্দ POST এ atomic। প্রকল্পটি খসড়া বা গ্রুপ আর কলকারী এডমিন নন → `next_serial: null` (খসড়ার রেকর্ড-সংখ্যা ফাঁস হয় না)।
 
@@ -554,6 +555,7 @@ Supabase রেফারেন্সে এগুলো `supabase/sql/10b_projec
 | ২০২৬-১০-০৫ | ১.১ | `POST /api/projects/:key/records/private` (অনেক রেকর্ডের গোপন মান একসাথে, ≤ ১০০; গোপনসহ CSV এক্সপোর্ট — M-ধাপ ১০); ক্লায়েন্ট-ইভেন্ট `records_export` |
 | ২০২৬-১০-০৫ | ১.২ | বাল্ক আপডেট: গোপন key → গোপন অংশে মার্জ (TBD ৪ চূড়ান্ত), `_clear` শুধু পাবলিক, শীটের `(মুছুন)` রীতি (ফ্রন্টএন্ড → `_clear`); টাকার সীমা ১০০০ কোটি = 1e10 (আগে 1e11 লেখা ছিল, যা আসলে ১০,০০০ কোটি; Supabase: `13_money_limit.sql`) — M-ধাপ ১১ |
 | ২০২৬-১০-০৬ | ১.৪ | কভার ছবি: `ProjectsApi.uploadCover` / `deleteCover` (§৪.১.৮ — WebP ≤ ৫ MB, ত্রুটির কোড, মোছা মূল এডমিন), কভারের ক্যাশ-ভাঙা ও হোম কার্ডের নিয়ম — M-ধাপ ১৫। (রেজিস্ট্রি আগে থেকেই এক কলে: `GET /api/projects?include=fields`; Supabase অ্যাডাপ্টারও এখন এক কলে — ফিল্ড embed) |
+| ২০২৬-১০-০৬ | ১.৬ | ফিল্টার অনুযায়ী পরিসংখ্যান: `GET /api/projects/:key/stats` এ তালিকার ফিল্টার (§৪.৩), হালকা শেপ + `filtered: true`; তালিকা-পাতার কার্ড ফিল্টারে বদলায়। Supabase: `15_filtered_stats.sql` |
 | ২০২৬-১০-০৬ | **১.৫** | **প্রকল্পভিত্তিক ইউজার (পর্ব চ, M-ধাপ ১৮–১৯):** ভূমিকা `main_admin`/`editor` (পুরনো `admin` = editor + সব প্রকল্প), `/api/auth/me` ও লগইনে `all_projects`, `projects`; রেকর্ড লেখা নিজের প্রকল্পে; প্রকল্প/ফিল্ডের সেটিং শুধু মূল এডমিন; "মোছার সমান" কাজ (থাকা ছবি বদল, মান ফাঁকা করা, সিরিয়াল বদল) শুধু মূল এডমিন (`403`, `details.field`); `GET/PUT /api/admin/users` (§৪.৬); লগ `admin_user_update`; প্রকল্পের ইউজার শুধু নিজের প্রকল্পের লগ দেখেন। Supabase: `14_project_users.sql` |
 | ২০২৬-১০-০৬ | ১.৩ | ক্লায়েন্ট-ইভেন্ট `category_merge`; `photo_bulk_run` প্রকল্প ধরে আলাদা; ছবির ফাইলনাম: প্রিফিক্স = file_prefix/key/slug (অঙ্কসহ), শুধু-পরের-ছবি প্রকল্পে আগে/পরে না লিখলে `current`, `prev` হলে ভুল — M-ধাপ ১২ |
 

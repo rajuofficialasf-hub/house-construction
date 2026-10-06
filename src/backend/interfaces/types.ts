@@ -343,7 +343,15 @@ export interface ProjectStats extends HousingStats {
   by_union: Record<string, number>
   /** পাবলিক টাকা/সংখ্যা/ক্যাটাগরি ফিল্ড অনুযায়ী */
   fields: Record<string, FieldStats>
+  /**
+   * ফিল্টার অনুযায়ী গোনা (`stats(key, { filters })`, SQL ১৫ `project_stats_filtered`) হলে true — তখন শুধু total, distinct,
+   * by_project ও fields ভরা (by_year … {})। ফিল্টার চাওয়া হলেও ডাটাবেসে ফাংশনটি না থাকলে false (মোট ফেরত আসে)।
+   */
+  filtered?: boolean
 }
+
+/** পরিসংখ্যানের ফিল্টার — তালিকার ফিল্টারের হুবহু অংশ (একই whitelist ও মিলের নিয়ম) */
+export type StatsFilters = Pick<ListParams, 'year' | 'division' | 'district' | 'upazila' | 'union_name' | 'fields' | 'q'>
 
 /** হোম পেইজের কার্ডের একটি ছবি (প্রকাশিত রেকর্ড থেকে) */
 export interface OverviewFeatured {
