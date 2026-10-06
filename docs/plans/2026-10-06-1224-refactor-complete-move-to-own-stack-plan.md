@@ -2277,7 +2277,7 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
 - **Tests:** the specs above, about 12 to 15 cases in all.
 - **Done when:** `npm run test:e2e:rest-admin` passes twice in a row (no flakes).
 - **Depends on:** U37
-- **Status:** todo
+- **Status:** done
 
 ### U39. Specs: import, CSV export, category rename, AE1
 - **Goal:** The data flows with custom and private fields, and the delete rule, are covered end to end.
@@ -2374,7 +2374,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** U38 (specs: wizard, settings, fields and stat-card builders, covers), then U39.
+- **Next:** U39 (specs: import with custom and private fields, CSV export with private columns, category rename, AE1), then U40.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
@@ -2584,3 +2584,8 @@ Run these at the end of P1:
     - `docker compose up` serves the UI with `VITE_HOUSING_BACKEND=rest` against `http://localhost:3001`, and the API's overview lists the seeded projects.
     - **public-rest found a stale spec:** `e2e/live/detail.spec.ts` read the serial from the list's first column, which `main`'s newest-year-first default (M-step 17) turned into the row's place ("ক্রম"). On the mock, row 1 happens to be serial 1, which hid it. The spec now reads the serial from the row's detail link.
     - `main` had not moved at the end of P6.
+    - **U38** (14 cases in `e2e/admin/`, helpers in `e2e/support/projects.ts`):
+      - The field drawer locks key, type and visibility once records hold values, so the UI never sends that change. The spec checks the lock, then sends the PATCH from inside the page and gets the guard's 400.
+      - The stale-edit case and the duplicate-slug case are both covered: the duplicate in the wizard, through a stale project list.
+      - The cover is checked in the settings preview, not on a home card, because `demo` is a draft.
+      - Toasts are `role="status"` with no accessible name, so the specs match them by role plus text.
