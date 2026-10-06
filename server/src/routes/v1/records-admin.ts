@@ -50,7 +50,8 @@ export function recordsAdminRouter({ sql, storage, writeRateLimit = DEFAULT_WRIT
 
   // Private values (§4.4.8). Admin-only, reads included; never on the public-read CORS list. Each
   // save and bulk read leaves a security-event line with key names or a count, never a value
-  // (NE-LOG-03); the activity-log rows come with P3's log v2.
+  // (NE-LOG-03). The activity log doesn't record private saves yet; its log v2 does, in a later chunk
+  // of docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md.
   router.get('/records/:id/private', privateNoStore, requireAdmin, async (req, res) => {
     const data = await getPrivate(sql, idParams.parse(req.params).id);
     if (!data) throw recordNotFound();

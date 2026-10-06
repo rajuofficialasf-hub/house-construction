@@ -153,7 +153,11 @@ describe('concurrent main_admin changes', () => {
         await tx`lock table public.housing_admins in share mode`;
         const settled = Promise.allSettled([change(first), change(second)]);
         // Both writes wait on the lock, so both checks have run.
-        while ((await waiting()) !== 2) await new Promise((resolve) => setTimeout(resolve, 10));
+        // Bounded, so a change that fails before reaching the lock reports its own error, not a timeout.
+        for (let tries = 0; (await waiting()) !== 2; tries++) {
+          if (tries === 500) throw new Error(`both changes never waited on the lock: ${JSON.stringify(await Promise.race([settled, 'pending']))}`);
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        }
         return { results: settled };
       });
       return await results;

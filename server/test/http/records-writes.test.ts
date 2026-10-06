@@ -248,6 +248,33 @@ describe('DELETE /api/v1/records/:id', () => {
   });
 });
 
+describe('write limit', () => {
+  it('counts every record write per admin and answers 429 past the limit, changing nothing', async () => {
+    const limited = createApp({
+      sql,
+      storage: local.storage,
+      publicApiUrl: TEST_PUBLIC_API_URL,
+      logger: createLogger('info', silent),
+      trustProxy: 0,
+      allowedOrigins: [TEST_ORIGIN],
+      cookieSecure: false,
+      writeRateLimit: { windowMs: 60_000, limit: 1 },
+    });
+    const { cookie: as } = await loginAdmin(limited, owner, { email: 'limited@example.org' });
+    const write = (method: 'post' | 'patch', path: string, body?: object) => {
+      const req = request(limited)[method](`/api/v1${path}`).set('origin', TEST_ORIGIN).set('cookie', as);
+      return body ? req.send(body) : req;
+    };
+    const created = await write('post', `/projects/${P}/records`, input);
+    expect(created.status).toBe(201);
+    const { id } = one.parse(created.body).data;
+    const patched = await write('patch', `/records/${id}`, { name: 'বদল' });
+    expect(patched.status).toBe(429);
+    expect(patched.body.error.code).toBe('RATE_LIMITED');
+    expect((await stored(id))?.name).toBe(input.name);
+  });
+});
+
 describe('auth and origin', () => {
   // The router has no router-wide guard (it is mounted at /api/v1), so each route must carry its own.
   it('puts an admin guard before any work on every route of the admin router', () => {

@@ -246,6 +246,24 @@ describe('errors', () => {
   });
 });
 
+describe('read limit', () => {
+  it('answers 429 past the per-IP limit across the record reads', async () => {
+    const limited = createApp({
+      ...testPhotoDeps(),
+      sql,
+      logger: createLogger('info', silent),
+      trustProxy: 0,
+      allowedOrigins: [TEST_ORIGIN],
+      cookieSecure: false,
+      readRateLimit: { windowMs: 60_000, limit: 1 },
+    });
+    expect((await request(limited).get(`/api/v1/projects/${P}/records`)).status).toBe(200);
+    const over = await request(limited).get(`/api/v1/records/${ids.a}`);
+    expect(over.status).toBe(429);
+    expect(over.body.error.code).toBe('RATE_LIMITED');
+  });
+});
+
 describe('mounting', () => {
   it('leaves an unknown path under /api/v1 a 404', async () => {
     expect((await get('/nothing')).status).toBe(404);

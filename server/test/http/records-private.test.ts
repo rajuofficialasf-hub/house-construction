@@ -146,6 +146,29 @@ describe('POST /api/v1/projects/:key/records/private', () => {
   });
 });
 
+describe('write limit', () => {
+  it('counts the bulk read and saves per admin, and answers 429 past the limit', async () => {
+    const limited = createApp({
+      ...testPhotoDeps(),
+      sql,
+      logger: createLogger('info', capture),
+      trustProxy: 0,
+      allowedOrigins: [TEST_ORIGIN],
+      cookieSecure: false,
+      writeRateLimit: { windowMs: 60_000, limit: 1 },
+    });
+    const { cookie: as } = await loginAdmin(limited, owner, { email: 'limited@example.org' });
+    const post = () => request(limited).post(`/api/v1/projects/${P}/records/private`).set('origin', TEST_ORIGIN).set('cookie', as).send({ ids: [id] });
+    expect((await post()).status).toBe(200);
+    const over = await post();
+    expect(over.status).toBe(429);
+    expect(over.headers['cache-control']).toBe('private, no-store');
+    const put = await request(limited).put(`/api/v1/records/${id}/private`).set('origin', TEST_ORIGIN).set('cookie', as).send({ data: { phone: PHONE } });
+    expect(put.status).toBe(429);
+    expect(one.parse((await get(`/records/${id}/private`)).body).data).toEqual({});
+  });
+});
+
 describe('who may read them', () => {
   beforeEach(() => insertPrivate(sql, id, { phone: PHONE }));
 

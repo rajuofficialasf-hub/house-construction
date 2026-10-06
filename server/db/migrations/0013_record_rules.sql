@@ -146,7 +146,7 @@ begin
     raise exception 'ইউনিয়ন আবশ্যক' using errcode = 'HC400', detail = 'union_name';
   end if;
 
-  -- Photo mode (R8)
+  -- The project's photo mode: which photos its records may hold
   if p.photo_mode <> 'before_after'
      and (new.prev_photo_url is not null or new.prev_thumb_url is not null)
      and (is_ins or new.prev_photo_url is distinct from old.prev_photo_url or new.prev_thumb_url is distinct from old.prev_thumb_url) then
