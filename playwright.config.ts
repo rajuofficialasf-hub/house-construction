@@ -137,6 +137,8 @@ export default defineConfig({
               PUBLIC_API_URL: ADMIN_REST_API_URL,
               STORAGE_DRIVER: 'nas',
               STORAGE_ROOT: E2E_STORAGE_ROOT,
+              // One run is one IP, and the specs load far more admin pages a minute than a person does.
+              READ_RATE_LIMIT: '100000',
             },
           },
           {

@@ -47,6 +47,9 @@ const configSchema = z.object({
     .default('true')
     .transform((value) => value === 'true'),
   PUBLIC_API_URL: baseUrl,
+  // Public reads allowed per IP per minute, when the default (DEFAULT_READ_RATE_LIMIT) is too low:
+  // the Playwright admin-rest server, where one test run is one IP. Production leaves it unset.
+  READ_RATE_LIMIT: z.coerce.number().int().min(1).optional(),
 }).superRefine((config, ctx) => {
   // One role per origin, so nobody has to work out which list wins.
   for (const value of config.PUBLIC_READ_ORIGINS) {

@@ -103,6 +103,17 @@ describe('loadConfig', () => {
     expect(config.ALLOWED_ORIGINS).toEqual(['https://a.example.org', 'https://b.example.org']);
   });
 
+  it('leaves the per-IP read limit to the default unless READ_RATE_LIMIT is set', () => {
+    expect(loadConfig(valid).READ_RATE_LIMIT).toBeUndefined();
+    expect(loadConfig({ ...valid, READ_RATE_LIMIT: '100000' }).READ_RATE_LIMIT).toBe(100000);
+  });
+
+  it('refuses a READ_RATE_LIMIT that is not a positive whole number', () => {
+    for (const bad of ['0', '-5', '1.5', 'lots']) {
+      expect(() => loadConfig({ ...valid, READ_RATE_LIMIT: bad }), bad).toThrow(ConfigError);
+    }
+  });
+
   it('defaults PUBLIC_READ_ORIGINS to none', () => {
     expect(loadConfig(valid).PUBLIC_READ_ORIGINS).toEqual([]);
     expect(loadConfig({ ...valid, PUBLIC_READ_ORIGINS: '' }).PUBLIC_READ_ORIGINS).toEqual([]);

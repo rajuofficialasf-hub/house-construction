@@ -27,6 +27,7 @@ function start(): void {
     cookieSecure: config.COOKIE_SECURE,
     storage: createStorage(config),
     publicApiUrl: config.PUBLIC_API_URL,
+    ...(config.READ_RATE_LIMIT && { readRateLimit: { windowMs: 60_000, limit: config.READ_RATE_LIMIT } }),
   });
   const server = app.listen(config.PORT, config.HOST, () =>
     logger.info({ host: config.HOST, port: config.PORT }, 'housing API listening'),
