@@ -135,6 +135,59 @@ describe('roles', () => {
   });
 });
 
+describe('concurrent main_admin changes', () => {
+  /**
+   * Runs both changes on their own connections so they truly overlap. A SHARE lock on the table lets
+   * each pass its "no other main_admin" check but holds its write, so both reach the unique index
+   * housing_admins_one_main_admin together once the lock is released.
+   */
+  async function race(change: (sql: typeof owner) => Promise<unknown>) {
+    const connections = [ownerDb(), ownerDb(), ownerDb()] as const;
+    const [locker, first, second] = connections;
+    const waiting = async () =>
+      (await owner<{ n: number }[]>`
+        select count(*)::int as n from pg_locks where relation = 'public.housing_admins'::regclass and not granted`)[0]?.n;
+    try {
+      // Wrapped, so the transaction commits (releasing the lock) without waiting for the changes.
+      const { results } = await locker.begin(async (tx) => {
+        await tx`lock table public.housing_admins in share mode`;
+        const settled = Promise.allSettled([change(first), change(second)]);
+        // Both writes wait on the lock, so both checks have run.
+        while ((await waiting()) !== 2) await new Promise((resolve) => setTimeout(resolve, 10));
+        return { results: settled };
+      });
+      return await results;
+    } finally {
+      await Promise.all(connections.map((c) => c.end()));
+    }
+  }
+
+  const expectOneWinner = (results: PromiseSettledResult<unknown>[]) => {
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    const [lost] = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
+    expect(lost?.reason).toBeInstanceOf(AdminCliError);
+    expect((lost?.reason as Error).message).toMatch(/^a main admin already exists: [ab]@example\.org; demote them first with set-role$/);
+  };
+
+  it('lets one of two concurrent main_admin creates win, and refuses the other in plain words', async () => {
+    let n = 0;
+    const emails = ['a@example.org', 'b@example.org'];
+    const results = await race((sql) => createAdmin(sql, { email: emails[n++] as string, password: PASSWORD, role: 'main_admin' }));
+    expectOneWinner(results);
+    expect(await owner`select count(*)::int as n from public.housing_admins`).toEqual([{ n: 1 }]);
+  });
+
+  it('lets one of two concurrent promotions win, and refuses the other in plain words', async () => {
+    await createAdmin(owner, { email: 'a@example.org', password: PASSWORD });
+    await createAdmin(owner, { email: 'b@example.org', password: PASSWORD });
+    let n = 0;
+    const emails = ['a@example.org', 'b@example.org'];
+    const results = await race((sql) => setRole(sql, emails[n++] as string, 'main_admin'));
+    expectOneWinner(results);
+    expect(await owner`select count(*)::int as n from public.housing_admins where role = 'main_admin'`).toEqual([{ n: 1 }]);
+  });
+});
+
 describe('listAdmins', () => {
   it('lists admins by email without their hashes', async () => {
     await createAdmin(owner, { email: 'b@example.org', password: PASSWORD });

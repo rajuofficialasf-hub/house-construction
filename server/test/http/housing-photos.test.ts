@@ -212,6 +212,19 @@ describe('DELETE /api/v1/housing/:id/photo', () => {
     expect((await remove(id, '?kind=side')).status).toBe(400);
     expect((await remove(id, '?kind=prev&kind=current')).status).toBe(400);
   });
+
+  it('refuses a plain admin with 403 and leaves the stored files readable', async () => {
+    const { id } = await insertRecord(sql);
+    await upload(id, 'current');
+    const keys = (await fileRows(id)).map((f) => f.storage_key);
+    const { cookie: plainCookie } = await loginAdmin(app, owner, { email: 'plain@example.org', role: 'admin' });
+    const res = await request(app).delete(`/api/v1/housing/${id}/photo?kind=current`).set('origin', TEST_ORIGIN).set('cookie', plainCookie);
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+    expect(keys).toHaveLength(2);
+    for (const key of keys) expect(await exists(local.storage, key)).toBe(true);
+    expect((await fileRows(id)).every((f) => f.deleted_at === null)).toBe(true);
+  });
 });
 
 describe('DELETE /api/v1/housing/:id with photos', () => {

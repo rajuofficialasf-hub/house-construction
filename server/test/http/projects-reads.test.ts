@@ -71,6 +71,16 @@ describe('GET /api/v1/projects as a visitor', () => {
     expect(keys).not.toContain('hidden_child');
   });
 
+  it('404s a direct GET of a published sub-project of a draft group, which an admin still gets', async () => {
+    await insertProject(owner, { key: 'hidden_group', is_group: true, is_published: false });
+    await insertProject(owner, { key: 'hidden_child', parent_key: 'hidden_group', is_published: true });
+    expect((await get('/projects/hidden_child')).status).toBe(404);
+    expect((await get('/projects/hidden_child/fields')).status).toBe(404);
+    const res = await get('/projects/hidden_child', await adminCookie());
+    expect(res.status).toBe(200);
+    expect(one.parse(res.body).data.key).toBe('hidden_child');
+  });
+
   it('embeds only public fields, archived ones included, in sort_order', async () => {
     const res = await get('/projects?include=fields');
     const selfReliance = list.parse(res.body).data.find((p) => p.key === 'self_reliance');

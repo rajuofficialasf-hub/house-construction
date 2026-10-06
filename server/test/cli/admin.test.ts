@@ -89,7 +89,8 @@ describe('admin CLI', () => {
   it('refuses an invalid role before touching the database', async () => {
     const res = await cli(['create', '--email', 'cli@example.org', '--role', 'root'], `${PASSWORD}\n`);
     expect(res.code).toBe(1);
-    expect(res.stderr).toMatch(/role/);
+    // The CLI's own message, not the database CHECK's, proves the CLI caught it first.
+    expect(res.stderr.trim()).toBe('the role must be admin or main_admin, got root');
     expect(await owner`select count(*)::int as n from public.housing_admins`).toEqual([{ n: 0 }]);
   });
 

@@ -1,3 +1,4 @@
+import postgres from 'postgres';
 import type { Sql, Tx } from '../db.js';
 import { emailSchema, MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from './credentials.js';
 import { hashPassword } from './password.js';
@@ -37,6 +38,10 @@ async function logChange(tx: Tx, action: string, email: string, extra: LogExtra 
   await tx`select public.housing_log_event(${action}, ${tx.json({ email, ...extra })})`;
 }
 
+const ONE_MAIN_ADMIN = 'housing_admins_one_main_admin';
+
+const mainAdminExists = (email: string) => new AdminCliError(`a main admin already exists: ${email}; demote them first with set-role`);
+
 /**
  * Refuses to make a second main_admin, naming the one who holds the role, so the operator knows
  * whom to demote. Locks that row so a concurrent change waits; the unique index
@@ -46,7 +51,21 @@ async function assertNoOtherMainAdmin(tx: Tx, exceptId: string | null): Promise<
   const [holder] = await tx<{ email: string }[]>`
     select email from public.housing_admins
     where role = 'main_admin' and id is distinct from ${exceptId} for update`;
-  if (holder) throw new AdminCliError(`a main admin already exists: ${holder.email}; demote them first with set-role`);
+  if (holder) throw mainAdminExists(holder.email);
+}
+
+/**
+ * Two changes that both found no main_admin (neither had a row to lock) meet at the unique index.
+ * The loser gets the same plain refusal as assertNoOtherMainAdmin, not the raw 23505.
+ */
+async function refuseSecondMainAdmin<T>(sql: Sql, change: Promise<T>): Promise<T> {
+  try {
+    return await change;
+  } catch (err) {
+    if (!(err instanceof postgres.PostgresError) || err.code !== '23505' || err.constraint_name !== ONE_MAIN_ADMIN) throw err;
+    const [holder] = await sql<{ email: string }[]>`select email from public.housing_admins where role = 'main_admin'`;
+    throw holder ? mainAdminExists(holder.email) : new AdminCliError('another change to the main admin ran at the same time; try again');
+  }
 }
 
 /** Updates the admin with this email inside a transaction, or throws when there is none. */
@@ -74,7 +93,7 @@ export async function createAdmin(
   const role = input.role ?? 'admin';
   checkPassword(input.password);
   const passwordHash = await hashPassword(input.password);
-  return (await sql.begin(async (tx) => {
+  const created = sql.begin(async (tx) => {
     if (role === 'main_admin') await assertNoOtherMainAdmin(tx, null);
     const [admin] = await tx<AdminPrincipal[]>`
       insert into public.housing_admins (email, name, password_hash, role)
@@ -84,7 +103,8 @@ export async function createAdmin(
     if (!admin) throw new AdminCliError(`an admin with email ${email} already exists`);
     await logChange(tx, 'admin_create', email);
     return admin;
-  })) as AdminPrincipal;
+  });
+  return (await refuseSecondMainAdmin(sql, created)) as AdminPrincipal;
 }
 
 /** Sets a new password and ends the admin's sessions, so a leaked session dies with the old password. */
@@ -111,7 +131,7 @@ export async function setDisabled(sql: Sql, email: string, disabled: boolean): P
  * reads it each time. Only one admin may be main_admin.
  */
 export async function setRole(sql: Sql, email: string, role: AdminRole): Promise<void> {
-  await changeAdmin(
+  const changed = changeAdmin(
     sql,
     email,
     'admin_role_set',
@@ -121,6 +141,7 @@ export async function setRole(sql: Sql, email: string, role: AdminRole): Promise
     },
     { role },
   );
+  await refuseSecondMainAdmin(sql, changed);
 }
 
 export interface AdminListing extends AdminPrincipal {
