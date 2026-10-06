@@ -13,3 +13,5 @@ export const LazyImportPage = lazy(() => import('../import/ImportPage').then((m)
 /** ছবি বাল্ক আপডেট ও একটিভিটি লগ (M-ধাপ ১২-এ features/housing থেকে সরানো — যেকোনো প্রকল্পের) */
 export const LazyPhotoBulkPage = lazy(() => import('../photos/PhotoBulkPage').then((m) => ({ default: m.PhotoBulkPage })))
 export const LazyActivityPage = lazy(() => import('../activity/ActivityPage').then((m) => ({ default: m.ActivityPage })))
+/** ইউজার-ব্যবস্থাপনা (পর্ব চ, M-ধাপ ১৯) — শুধু মূল এডমিন */
+export const LazyAdminUsersPage = lazy(() => import('../users/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage })))

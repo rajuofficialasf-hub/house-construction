@@ -125,6 +125,8 @@ export interface AnalyzeOptions {
   unions?: UnionData | null
   /** ক্যাটাগরির এক-বানান: ফিল্ডের key → { শীটের মান → যে বানানে } */
   categoryFixes?: Record<string, Record<string, string>>
+  /** false = "(মুছুন)" চলে না — প্রকল্পের ইউজার; মান ফাঁকা করা শুধু মূল এডমিন (পর্ব চ, প্রশ্ন ২৪)। না দিলে true */
+  canClear?: boolean
 }
 
 const SYSTEM_TEXT: ImportFieldId[] = ['father_or_husband_name', 'address']
@@ -153,6 +155,9 @@ export function analyzeRows(fileRows: string[][], mapping: Mapping, fields: read
       const f = byId.get(id)
       if (f?.required || (f?.def?.source === 'system' && ['year', 'name', 'division', 'district', 'upazila'].includes(id))) {
         errors.push(tr('«{label}» আবশ্যক — মোছা যায় না', { label: f?.label_bn ?? id }))
+        bad.add(id)
+      } else if (opts.canClear === false) {
+        errors.push(tr('«{label}» মুছতে পারেন শুধু মূল এডমিন — "(মুছুন)" সরান', { label: f?.label_bn ?? id }))
         bad.add(id)
       } else if (f?.private) {
         warnings.push(tr('«{label}» গোপন — "(মুছুন)" এখানে চলে না, রেকর্ডের ফর্মে মুছুন', { label: f.label_bn }))

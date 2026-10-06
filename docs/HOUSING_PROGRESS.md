@@ -53,7 +53,7 @@
 | ৩৪ | ✅ (২০২৬-১০-০৬; ৩/৩ ✅ — ফল "আগেই চালানো হয়েছে": আগে একবার চালানো ছিল, এবার কিছু বদলায়নি; ফিঙ্গারপ্রিন্ট অপরিবর্তিত) `supabase/sql/13_money_limit.sql` চালানো — টাকার সর্বোচ্চ সীমা **১০০০ কোটি** (আপনার সিদ্ধান্ত, ২০২৬-১০-০৫; শুধু একটি ফাংশনের সংখ্যা বদলায়, ডাটা নয় — আলাদা ব্যাকআপ লাগে না)। শেষে ৩ সারি ✅ আসা চাই। ১০০০ কোটির বেশি টাকার রেকর্ড থাকলে নিজে থামে (তালিকাসহ)। ফেরাতে: `rollback/13_rollback.sql`। ততদিন ফর্ম/ইম্পোর্ট নিজেই ১০০০ কোটিতে থামায় | M-ধাপ ১১ | `supabase/sql/13_money_limit.sql`; পর্ব ২ → M-ধাপ ১১ |
 | **পর্ব চ** | **বড় ডাটা, ডিফল্ট ক্রম ও প্রকল্পভিত্তিক ইউজার (পরিকল্পনা → পর্ব চ, M-ধাপ ১৭–২০)** | | |
 | ৩৫ | **আগে `npm run dev` আবার চালু** (নতুন কোড এই ফোল্ডারেই আছে — "প্রকল্পের ইউজার" ভূমিকা চেনে); তারপর SQL Editor-এ ক্রমে: `backup/before_14.sql` (৪ সারি ✅) → `14_project_users.sql` (৫ সারি ✅; সারি ১-এ ভূমিকা দেখুন) → `checks/14_selftest.sql` (শেষ সারি "১৭ ✅ · ০ ❌") → `checks/14_rollback_rehearsal.sql` (৫ সারি ✅) — চারটির ফলাফল AI-কে; শেষে `npm run security-check` (SKIP ছাড়া সব PASS) | M-১৮ | পর্ব ২ → M-ধাপ ১৮ → §৪ |
-| ৩৬ | Supabase → Authentication → Add user (প্রতিটি ইউজার, ইমেইল-পাসওয়ার্ড), তারপর প্যানেল → ইউজার-পাতায় প্রকল্প বরাদ্দ | M-১৯ | পরিকল্পনা পর্ব চ |
+| ৩৬ | (সারি ৩৫-এর **পরে**) Supabase → Authentication → Users → Add user (প্রতিটি ইউজার, ইমেইল-পাসওয়ার্ড, Auto Confirm), তারপর প্যানেল → **ইউজার** পাতায় প্রকল্প বরাদ্দ; একটি পরীক্ষার ইউজারে লগইন করে যোগ/এডিট চলে আর ফাঁকা করা/ছবি বদল/সেটিংস আটকায় কি না দেখা | M-১৯ | পর্ব ২ → M-ধাপ ১৯ → §৪ |
 
 **সুপারিশকৃত ক্রম:** ১ → ২ → ৩ → ৪ (SQL 01–07) → ৫ → ৬ → ৭ → ৮ → ১৯ (security-check) → ১৫ এর লগইন পরীক্ষা → ১৮ (ইম্পোর্ট) → ১১–১২ (ছবি মাইগ্রেশন) → ২০ (ম্যানুয়াল যাচাই)।
 
@@ -121,11 +121,13 @@ src/
       types.ts                  # ProjectKey, Project, ProjectField, FieldType, PhotoMode, GeoDepth, StatCardDef, ProjectStats, ProjectOverview, HousingRecord (union_name, extra), ListParams (union_name, fields, sort), HousingApiError …
       housingApi.ts             # HousingApi: রেকর্ড, stats (project_stats), গোপন মান (getPrivate/setPrivate), ছবি, লগ
       projectsApi.ts            # ProjectsApi: রেজিস্ট্রি, ওভারভিউ, প্রকল্প/ফিল্ড তৈরি-বদল-ক্রম, ফিল্ডের ব্যবহার, ক্যাটাগরির বানান একীকরণ (M-ধাপ ৪)
+      adminUsersApi.ts          # AdminUsersApi: ইউজার-তালিকা ও যোগ/বদল — শুধু মূল এডমিন (M-ধাপ ১৯)
       authProvider.ts, imageStorage.ts, index.ts
     supabase/                   # সব ফ্যাক্টরি `GetClient` (() => SupabaseClient) নেয় — ব্রাউজারে anon, স্ক্রিপ্টে service_role
       client.ts                 # getSupabase() (env, anon key, lazy), GetClient টাইপ, TABLE, STORAGE_BUCKET
       errors.ts                 # Supabase এরর → HousingApiError
-      session.ts                # assertAdmin(getClient), adminRole() (main_admin/admin; rpc housing_current_admin, cache)
+      session.ts                # adminInfo() (ভূমিকা main_admin/editor/admin, allProjects, projects; rpc housing_current_admin, cache), assertAdmin, assertMainAdmin
+      adminUsersApi.ts          # createSupabaseAdminUsersApi — RPC housing_admin_users / housing_admin_user_save (SQL ১৪; না থাকলে CONFIG_ERROR) (M-ধাপ ১৯)
       legacy.ts                 # পুরনো ডাটাবেসে চলা: "নেই" এরর চেনা, মনে রাখা, withFallback(), VITE_SIMULATE_LEGACY_DB (M-ধাপ ৪)
       stats.ts                  # project_stats, না থাকলে housing_stats → একই শেপ (M-ধাপ ৪)
       housingApi.ts             # createSupabaseHousingApi(getClient, storage, {trustedServer?, projects?}) — ফিল্টার whitelist, লেখার payload নিয়ম, ছবি-মোড
@@ -139,7 +141,10 @@ src/
       authProvider.ts           # REST AuthProvider (login/logout/me, listeners, cross-tab storage event) — ধাপ ১০
       index.ts                  # HousingApi/ProjectsApi/ImageStorage stub (ধাপ ১৩)
   features/admin/               # এডমিন প্যানেল (M-ধাপ ৭)
-    layout/AdminLayout.tsx      # বাম সাইডবার (lg+), ফোনে ড্রয়ার, ৪৪px টাচ-টার্গেট; রেকর্ড-লিংক রেজিস্ট্রি থেকে; লগআউট
+    layout/AdminLayout.tsx      # বাম সাইডবার (lg+), ফোনে ড্রয়ার, ৪৪px টাচ-টার্গেট; রেকর্ড-লিংক রেজিস্ট্রি থেকে (শুধু নিজের প্রকল্প); লগআউট
+    layout/RoleGate.tsx         # ভূমিকা অনুযায়ী পাতা — প্রকল্পের সেটিংস ও ইউজার-পাতা শুধু মূল এডমিন, নইলে বার্তা (M-ধাপ ১৯)
+    adminUser.ts                # AdminUserContext (RequireAdmin দেয়), useAdminUser, isMainAdmin, canEditProject (M-ধাপ ১৯)
+    users/AdminUsersPage.tsx    # /admin/users — ইউজারের তালিকা, যোগ/বদল (প্রকল্প, সব প্রকল্প, চালু/বন্ধ); SQL ১৪ না থাকলে নির্দেশনা (M-ধাপ ১৯)
     ui/                         # Field (লেবেল+ত্রুটি+aria), Badge, Step, styles (inputClass, বোতাম, কার্ড)
     projects/                   # projectRules (slug/key/প্রিফিক্স — ডাটাবেসের নিয়মের প্রতিরূপ, বাংলা ত্রুটি), projectTemplates (৪টি টেমপ্লেট + buildProjectInput), publishChecklist, UnpublishDialog
       fieldRules.ts             # ফিল্ডের key (fieldKeyFrom, §৫.৩), সংরক্ষিত key, SENSITIVE_LABEL, tableColumns (৯-কলামের গণনা) (M-ধাপ ৮)
@@ -2547,3 +2552,48 @@ M-ধাপ ২-এ এই মানগুলো `checks/10_verify.sql` এ ব�
 ### ৬. পরের ধাপে কী করতে হবে
 - সারি ৩৫-এর ফলাফল পাঠানোর পরে **M-ধাপ ১৯** — প্যানেল: ইউজার পাতা ও অনুমতি অনুযায়ী প্যানেল।
 - পেস্ট করুন: `M-ধাপ ১৯ শুরু করো (পরিকল্পনা: docs/MULTI_PROJECT_PLAN.md)`
+
+## M-ধাপ ১৯ — প্যানেল: ইউজার-পাতা ও অনুমতি অনুযায়ী প্যানেল (২০২৬-১০-০৬) — ✅ কোড ও নকল-সেশনে পরীক্ষা সম্পন্ন · লাইভে আগে সারি ৩৫ (SQL ১৪), তারপর সারি ৩৬ (আপনি)
+
+### ১. কী তৈরি বা পরিবর্তন হয়েছে
+- **নতুন পাতা `/admin/users`** (`features/admin/users/AdminUsersPage.tsx`, শুধু মূল এডমিন): ইউজারের তালিকা (ইমেইল, ভূমিকা, প্রকল্প, চালু/বন্ধ, শেষ লগইন); "নতুন ইউজার যোগ" / "বদলান" ফর্ম — ইমেইল, "সব প্রকল্প", প্রকল্পের চেকলিস্ট (গ্রুপ বাছলে তার উপ-প্রকল্প নিজে টিক ও বন্ধ), চালু/বন্ধ। ওপরে দুই ধাপের নির্দেশনা (আগে Supabase → Add user)। SQL ১৪ না থাকলে ফর্মের বদলে স্পষ্ট বার্তা "আগে ডাটাবেসে SQL ১৪ চালাতে হবে (চেকলিস্ট সারি ৩৫…)"।
+- **ব্যাকএন্ড:** `AdminUsersApi` (`interfaces/adminUsersApi.ts`; Supabase: `supabase/adminUsersApi.ts` → RPC `housing_admin_users` / `housing_admin_user_save`; REST: `/api/admin/users` stub); `AuthUser` এ `allProjects`, `projects`; `session.ts` এ `adminInfo()` ও `assertMainAdmin()` (১৪-এর আগের উত্তরে `all_projects` নেই → সব প্রকল্প)।
+- **প্যানেল অনুমতি অনুযায়ী** (`features/admin/adminUser.ts` — `useAdminUser`, `isMainAdmin`, `canEditProject`; `layout/RoleGate.tsx`):
+  - মেনু: প্রকল্পের ইউজার "প্রকল্পসমূহ" দেখেন না; "ইউজার" শুধু মূল এডমিন; রেকর্ড-লিংক শুধু নিজের প্রকল্পের।
+  - ড্যাশবোর্ড, রেকর্ড-পাতার ট্যাব, ইম্পোর্ট/ছবি বাল্ক/লগের প্রকল্প-তালিকা: শুধু নিজের প্রকল্প; অন্য প্রকল্পের রেকর্ড-URL → ৪০৪; "নতুন প্রকল্প" ও সেটিংসের লিংক লুকানো; `/admin/projects…` ও `/admin/users` → "এই অংশ শুধু মূল এডমিনের"।
+  - রেকর্ড-ফর্ম: "সিরিয়াল বদলান…" শুধু মূল এডমিন; আগে ভরা ঘর ফাঁকা করলে "আগের মান মুছে ফাঁকা করতে পারেন শুধু মূল এডমিন" (কাস্টম ও গোপন ঘরেও); থাকা ছবিতে আপলোডার নেই, মোছার বোতাম নেই ("ছবি আগে থেকেই আছে — বদলাতে বা মুছতে পারেন শুধু মূল এডমিন")। খালি ছবির ঘরে নতুন ছবি দেওয়া যায়।
+  - ইম্পোর্ট (আপডেট মোড): `(মুছুন)` → সেই সারি ভুল ("«…» মুছতে পারেন শুধু মূল এডমিন — "(মুছুন)" সরান"); নিয়মের লেখাও বদলায়।
+  - ছবি বাল্ক: থাকা ছবির সারি লাল, "ছবি আছে, বদলানো যাবে না n" — আপলোড হয় না; বাকিগুলো আগের মতো।
+- একটিভিটি লগে নতুন কাজের ধরন **"ইউজার যোগ/বদল"** (`admin_user_update`)।
+- **API চুক্তি v১.৫** (`docs/API_CONTRACT.md`): ভূমিকা, `/api/auth/me` এ `all_projects`/`projects`, "মোছার সমান" কাজের `403` ও `details.field`, `GET/PUT /api/admin/users` (§৪.৬), লগ `admin_user_update`।
+- ইংরেজি অনুবাদ: নতুন ৩৩টি লেখা। নির্দেশিকা `docs/ADMIN_GUIDE.md` §১ ও নতুন §১ক (ইউজার যোগ)।
+
+### ২. গুরুত্বপূর্ণ সিদ্ধান্ত ও কারণ
+- **প্যানেলে শুধু দেখানো/লুকানো; আসল নিষেধ ডাটাবেসে (SQL ১৪)।** কেউ ব্রাউজারে কোড বদলালেও ডাটাবেস আটকায়।
+- **প্রকল্পের সেটিংস "পড়া-শুধু" নয়, পুরো পাতাই বন্ধ (বার্তাসহ)** — পরিকল্পনায় "পড়া-শুধু" লেখা ছিল; সেটিংসের প্রতিটি ঘর বন্ধ করার চেয়ে এটা সহজ ও ভুলের ঝুঁকি কম। ভুল মনে হলে বলবেন।
+- **SQL ১৪-এর আগেও প্যানেল আগের মতো চলে:** পুরনো `admin` ভূমিকা = সব প্রকল্প + সেটিংস (তখনকার ডাটাবেসের নিয়ম); ইউজার-পাতা তখন শুধু নির্দেশনা দেখায়।
+- **ইউজার মোছা নেই — "বন্ধ" করা যায়** (লগ ও ইতিহাসে নাম থাকে)। মূল এডমিনের সারি এখান থেকে বদলায় না।
+- ইউজারের প্রকল্প বদলালে তিনি লগইন থাকা অবস্থায় প্যানেলের মেনু পরের রিলোডে বদলায়; ডাটাবেসের নিষেধ সঙ্গে সঙ্গে।
+
+### ৩. পরিচিত সমস্যা ও বাকি কাজ
+- **লাইভে SQL ১৪ এখনো চালানো হয়নি** (AI যাচাই: `housing_my_project_keys` → PGRST202, `housing_admin_projects` → PGRST205)। তাই এখন লাইভে ইউজার-পাতা "SQL ১৪ চালাতে হবে" দেখাবে, আর প্রকল্পভিত্তিক নিষেধ চালু নয়।
+- আসল ইউজার-সেশনে (নকল নয়) পরীক্ষা সারি ৩৫–৩৬-এর পরে, আপনার (§৪)।
+
+### ৪. আমাকে (ব্যবহারকারীকে) যা করতে হবে
+1. **আগে চেকলিস্ট সারি ৩৫** (SQL ১৪ — M-ধাপ ১৮ → §৪); `npm run dev` আবার চালু করুন।
+2. **সারি ৩৬:** Supabase → Authentication → Users → **Add user** → ইমেইল + পাসওয়ার্ড, "Auto Confirm User" চালু। তারপর প্যানেল → **ইউজার** → ইমেইল লিখে একটি প্রকল্প (যেমন খসড়া "পরীক্ষা প্রকল্প") বাছুন → সংরক্ষণ।
+3. অন্য ব্রাউজারে (বা Incognito) সেই ইউজারে লগইন: মেনুতে শুধু ঐ প্রকল্প; একটি রেকর্ড যোগ ও এডিট করুন (চলবে); তারপর একটি ভরা ঘর ফাঁকা করে সংরক্ষণ, থাকা ছবি বদল, `/admin/projects` খোলা চেষ্টা করুন — সব আটকানো উচিত।
+4. পরীক্ষা শেষে ইউজারটিকে "বন্ধ" করতে পারেন (ইউজার-পাতা → বদলান → "চালু" টিক তুলুন)।
+
+### ৫. কিভাবে টেস্ট করতে হবে
+| পরীক্ষা | ফল |
+|---|---|
+| `admin-ui-check` ২১৪/২১৪ (+২১, নতুন অংশ Q): নকল **প্রকল্পের ইউজার** (শুধু demo) — মেনু, ড্যাশবোর্ড, তিনটি বন্ধ পাতা, অন্য প্রকল্প ৪০৪, ফর্মে সিরিয়াল/ছবি লক ও ফাঁকা-করা আটকানো (কিছু পাঠানো হয় না), ইম্পোর্টে `(মুছুন)` ভুল, ছবি বাল্কে থাকা ছবি বাদ ও নতুনটি আপলোড; **১৪-এর আগের `admin`** আগের মতো; **মূল এডমিনের ইউজার-পাতা** — তালিকা, গ্রুপ-চেকবক্স, অচেনা ইমেইল, প্রকল্প না বাছা, নতুন ইউজার সংরক্ষণ (RPC এর ইনপুট হুবহু); **SQL ১৪ না থাকলে** নির্দেশনা। সব লেখা নকল — লাইভে কিছু যায়নি | ✅ |
+| `smoke` ১৪৩/১৪৩ ও `--legacy` ১২৩/১২৩ (পাবলিক পাতা অপরিবর্তিত) | ✅ |
+| `adapter-check` ৩৮/৩৮, `security-check` ৪১/৪১, `baseline-check` ৫/৫ (ঘর নির্মাণের লাইভ মান অক্ষত), `photo-check` ১৪/১৪, `geo-check` ৫৪/৫৪, `field-types-check` ১২২/১২২, `content-check` ✓ | ✅ |
+| গেট: `tsc -b`, `oxlint` (০ সতর্কতা), `npm run build`, `i18n-check` (সব অনুবাদ আছে) | ✅ |
+| লাইভে সারি ৩৫ → ৩৬ (আপনি, §৪) | ⏳ |
+
+### ৬. পরের ধাপে কী করতে হবে
+- **M-ধাপ ২০** — যাচাই ও নির্দেশিকা (সারি ৩৫–৩৬-এর পরে হলে ভালো, যাতে আসল ইউজার-সেশনের ফলও মেলানো যায়)।
+- পেস্ট করুন: `M-ধাপ ২০ শুরু করো (পরিকল্পনা: docs/MULTI_PROJECT_PLAN.md)`

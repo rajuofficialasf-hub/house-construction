@@ -28,8 +28,8 @@ export function createRestAuthProvider(baseUrl: string): AuthProvider {
   async function fetchMe(): Promise<AuthUser | null> {
     try {
       const res = await restRequest<MeResponse>(baseUrl, ENDPOINTS.auth.me())
-      cached = res.data
-      return res.data
+      cached = withProjects(res.data)
+      return cached
     } catch {
       cached = null
       return null
@@ -43,8 +43,9 @@ export function createRestAuthProvider(baseUrl: string): AuthProvider {
         auth: false,
       })
       if (res.data.access_token) setToken(res.data.access_token)
-      emit(res.data.user)
-      return res.data.user
+      const user = withProjects(res.data.user)
+      emit(user)
+      return user
     },
 
     async logout() {
@@ -78,4 +79,10 @@ export function createRestAuthProvider(baseUrl: string): AuthProvider {
       }
     },
   }
+}
+
+/** সার্ভার পুরনো চুক্তির হলে (all_projects/projects নেই) — আগের নিয়ম: সবাই সব প্রকল্পে (চুক্তি v১.৫) */
+function withProjects(u: AuthUser): AuthUser {
+  const raw = u as AuthUser & { all_projects?: boolean }
+  return { ...u, allProjects: u.role === 'main_admin' || (raw.allProjects ?? raw.all_projects) !== false, projects: Array.isArray(u.projects) ? u.projects : [] }
 }

@@ -29,7 +29,9 @@ export function AdminLayout({ user, children }: { user: AuthUser; children: Reac
       title: t('প্যানেল'),
       items: [
         { to: '/admin', label: t('ড্যাশবোর্ড'), end: true },
-        { to: '/admin/projects', label: t('প্রকল্পসমূহ') },
+        // প্রকল্পের সেটিংস ও ইউজার শুধু মূল এডমিন (পর্ব চ, প্রশ্ন ২২)
+        ...(user.role === 'editor' ? [] : [{ to: '/admin/projects', label: t('প্রকল্পসমূহ') }]),
+        ...(user.role === 'main_admin' ? [{ to: '/admin/users', label: t('ইউজার') }] : []),
       ],
     },
     { title: t('রেকর্ড'), items: records },

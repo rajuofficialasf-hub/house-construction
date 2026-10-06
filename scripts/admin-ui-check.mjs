@@ -70,6 +70,9 @@ const overviewExtra = []
 
 // ---- নকল রেকর্ড-ভাণ্ডার (M-ধাপ ১০): খসড়া demo প্রকল্পের রেকর্ড, গোপন মান, ক্যাটাগরির মান — সব এখানেই, লাইভে কিছু নয়
 let adminRole = 'main_admin'
+let adminExtra = {} // SQL ১৪ এর পর housing_current_admin এর বাড়তি ঘর (all_projects, projects) — {} = ১৪-এর আগের উত্তর
+let usersMode = 'ok' // 'ok' | 'missing' (SQL ১৪ চালানো হয়নি → PGRST202)
+const fakeUsers = [] // housing_admin_users এর নকল সারি (M-ধাপ ১৯)
 const fakeLog = [] // housing_activity_log এর নকল সারি (একটিভিটি পাতার পরীক্ষা)
 const logEvents = [] // housing_log_event (ক্লায়েন্ট-ইভেন্ট) এর body
 const demoRecs = [] // housing_beneficiaries এর সারি (project_type = demo)
@@ -282,7 +285,7 @@ async function handle(req) {
     if (u.pathname.endsWith('/logout')) return respond(204, '')
     return respond(200, SESSION)
   }
-  if (u.pathname === '/rest/v1/rpc/housing_current_admin') return respond(200, [{ role: adminRole, email: USER.email }])
+  if (u.pathname === '/rest/v1/rpc/housing_current_admin') return respond(200, [{ role: adminRole, email: USER.email, ...adminExtra }])
   if (await fakeRecords(u, method, req, respond)) return
   if (u.pathname === '/rest/v1/housing_activity_log') return respond(200, fakeLog, { 'content-range': fakeLog.length ? `0-${fakeLog.length - 1}/${fakeLog.length}` : '*/0' })
   if (u.pathname === '/rest/v1/rpc/housing_log_event') {
@@ -353,6 +356,19 @@ async function handle(req) {
     return accept.includes('vnd.pgrst.object') ? respond(200, { key }) : respond(200, [{ key }])
   }
   if (u.pathname === '/rest/v1/rpc/projects_reorder') return respond(200, '3')
+  // ---- ইউজার-ব্যবস্থাপনা (M-ধাপ ১৯): নকল RPC; usersMode = 'missing' হলে SQL ১৪ না-চালানো ডাটাবেসের মতো 404
+  if (u.pathname === '/rest/v1/rpc/housing_admin_users' || u.pathname === '/rest/v1/rpc/housing_admin_user_save') {
+    if (usersMode === 'missing') return respond(404, { code: 'PGRST202', message: 'Could not find the function', details: null, hint: null })
+    if (u.pathname.endsWith('/housing_admin_users')) return respond(200, fakeUsers)
+    const known = { 'new-user@example.org': '00000000-0000-0000-0000-0000000000c1', 'editor@example.org': '00000000-0000-0000-0000-0000000000c2' }
+    const em = String(body.p_email).toLowerCase()
+    if (!known[em]) return respond(400, { code: 'P0002', message: `«${body.p_email}» ইমেইলে কোনো অ্যাকাউন্ট নেই — আগে Supabase → Authentication → Add user দিয়ে অ্যাকাউন্ট খুলুন`, details: 'email', hint: null })
+    let row = fakeUsers.find((x) => x.email === em)
+    const createdNow = !row
+    if (!row) fakeUsers.push((row = { user_id: known[em], email: em, role: 'editor', created_at: new Date().toISOString(), last_sign_in_at: null }))
+    Object.assign(row, { all_projects: body.p_all_projects, projects: body.p_projects, is_active: body.p_active })
+    return respond(200, { user_id: row.user_id, email: em, created: createdNow })
+  }
   // ---- ফিল্ড বিল্ডার (M-ধাপ ৮): নকল ফিল্ড-অবস্থা (created.fields + addedFields), GET এ ফেরত আসে
   if (u.pathname === '/rest/v1/rpc/project_field_usage') return respond(200, usageOf(body.p_key))
   if (u.pathname === '/rest/v1/rpc/project_fields_reorder') {
@@ -1512,6 +1528,164 @@ for (const [w, mobile] of [[1280, false], [390, true]]) {
   await cv2.close()
   created.project.cover_path = null
   adminRole = 'main_admin'
+}
+
+// ---------------------------------------------------------------- Q. প্রকল্পের ইউজার ও ইউজার-পাতা (পর্ব চ, M-ধাপ ১৯) — সব নকল
+{
+  const ts = new Date().toISOString()
+  const demoName = created.project.name_bn
+  const rec = (serial, name, extra = {}) => ({ id: `00000000-0000-0000-0000-00000000f${String(serial).padStart(3, '0')}`, project_type: 'demo', serial_no: serial, year: 2025, name, father_or_husband_name: `পিতা ${serial}`, division: 'চট্টগ্রাম', district: 'চট্টগ্রাম', upazila: 'মীরসরাই', union_name: '', address: '', extra: { category: 'গাভী', amount: 1, item_name: 'দুগ্ধবতী' }, prev_photo_url: null, prev_thumb_url: null, current_photo_url: null, current_thumb_url: null, prev_photo_source: null, current_photo_source: null, photo_updated_at: null, created_at: ts, updated_at: ts, ...extra })
+  demoRecs.length = 0
+  demoRecs.push(rec(1, 'রহিমা', { current_photo_url: `${SB}/storage/v1/object/public/housing-photos/housing/demo/0001/current.webp`, current_thumb_url: `${SB}/storage/v1/object/public/housing-photos/housing/demo/0001/current_thumb.webp`, photo_updated_at: ts }), rec(2, 'করিম'))
+
+  // --- প্রকল্পের ইউজার (editor, শুধু demo)
+  adminRole = 'editor'
+  adminExtra = { all_projects: false, projects: ['demo'] }
+  const p = await newPage()
+  await p.goto(BASE + '/admin', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  const nav = await p.evaluate(() => document.querySelector('nav[aria-label="এডমিন মেনু"]')?.innerText ?? '')
+  const navHrefs = await p.evaluate(() => [...document.querySelectorAll('nav[aria-label="এডমিন মেনু"] a')].map((a) => a.getAttribute('href')))
+  ok('প্রকল্পের ইউজার: মেনুতে "প্রকল্পসমূহ" ও "ইউজার" নেই; রেকর্ডে শুধু নিজের প্রকল্প; ভূমিকা "প্রকল্পের ইউজার"', !nav.includes('প্রকল্পসমূহ') && !navHrefs.includes('/admin/users') && navHrefs.includes('/admin/records/demo') && !navHrefs.some((h) => /\/admin\/records\/(semi_pucca|tin)/.test(h)) && (await text(p)).includes('প্রকল্পের ইউজার'), navHrefs.join(' '))
+  let s = await text(p)
+  const dashHrefs = await p.evaluate(() => [...document.querySelectorAll('main a')].map((a) => a.getAttribute('href')))
+  ok('ড্যাশবোর্ড: "নতুন প্রকল্প"/সেটিংস লিংক নেই, অন্য প্রকল্পের রেকর্ড-লিংক নেই', !s.includes('নতুন প্রকল্প') && !dashHrefs.some((h) => h?.startsWith('/admin/projects')) && !dashHrefs.some((h) => /\/admin\/records\/(semi_pucca|tin)/.test(h ?? '')), dashHrefs.join(' '))
+  for (const path of ['/admin/projects', '/admin/projects/demo', '/admin/users']) {
+    await p.goto(BASE + path, { waitUntil: 'domcontentloaded' })
+    await settle(p)
+    s = await text(p)
+    ok(`${path} → "এই অংশ শুধু মূল এডমিনের" বার্তা (পাতা খোলে না)`, s.includes('এই অংশ শুধু মূল এডমিনের') && !s.includes('নতুন ইউজার যোগ') && !s.includes('প্রকল্পের ক্রম'))
+  }
+  await p.goto(BASE + '/admin/records/semi_pucca', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  ok('অন্য প্রকল্পের রেকর্ড-পাতা (semi_pucca) → ৪০৪', /৪০৪|পাওয়া যায়নি/.test(await text(p)), (await text(p)).slice(0, 120))
+
+  // রেকর্ড এডিট: সিরিয়াল-বোতাম নেই, থাকা ছবি লক, আগের মান ফাঁকা করা যায় না
+  await p.goto(BASE + '/admin/records/demo/1/edit', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  s = await text(p)
+  const delPhoto = await p.evaluate(() => [...document.querySelectorAll('button')].some((b) => /ছবি মুছুন/.test(b.textContent)))
+  ok('এডিট: "সিরিয়াল বদলান…" নেই, লেখা "সিরিয়াল বদলাতে পারেন শুধু মূল এডমিন"; থাকা ছবি লক (মোছার বোতাম নেই)', !s.includes('সিরিয়াল বদলান…') && s.includes('লক করা — সিরিয়াল বদলাতে পারেন শুধু মূল এডমিন') && s.includes('ছবি আগে থেকেই আছে — বদলাতে বা মুছতে পারেন শুধু মূল এডমিন') && !delPhoto, s.match(/লক করা[^\n]*/)?.[0])
+  const father = await p.evaluateHandle(() => [...document.querySelectorAll('input')].find((i) => i.value === 'পিতা 1' || i.value === 'পিতা ১') ?? null)
+  let before = writes.length
+  if (father.asElement()) {
+    await clearInput(p, father.asElement())
+    await clickText(p, 'button', 'সংরক্ষণ করুন')
+    await sleep(400)
+  }
+  s = await text(p)
+  ok('ভরা ঘর ফাঁকা করে সংরক্ষণ → "আগের মান মুছে ফাঁকা করতে পারেন শুধু মূল এডমিন", কিছু পাঠানো হয় না', !!father.asElement() && s.includes('আগের মান মুছে ফাঁকা করতে পারেন শুধু মূল এডমিন') && writes.length === before)
+
+  // ইম্পোর্ট: "(মুছুন)" → ভুল সারি
+  fs.writeFileSync('.smoke/import-editor.csv', '﻿' + ['সিরিয়াল,উপকরণের নাম/বিবরণ', '1,(মুছুন)', '2,নতুন বিবরণ'].join('\r\n') + '\r\n')
+  await p.goto(BASE + '/admin/import?project=demo', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  const impOpts = await p.$eval('#imp-project', (x) => [...x.options].map((o) => o.value))
+  await p.evaluate(() => [...document.querySelectorAll('input[name="mode"]')][1].click())
+  await sleep(100)
+  s = await text(p)
+  ok('ইম্পোর্ট: প্রকল্প-তালিকায় শুধু demo; আপডেট-নিয়মে "মান মুছে ফাঁকা করতে পারেন শুধু মূল এডমিন"', impOpts.join() === 'demo' && s.includes('মান মুছে ফাঁকা করতে পারেন শুধু মূল এডমিন'), impOpts.join())
+  await (await p.$('#imp-file')).uploadFile('.smoke/import-editor.csv')
+  await settle(p)
+  s = await text(p)
+  ok('ইম্পোর্ট: "(মুছুন)" সারি → ভুল ("মুছতে পারেন শুধু মূল এডমিন"), বাকিটা চলে', s.includes('মুছতে পারেন শুধু মূল এডমিন — "(মুছুন)" সরান') && s.includes('ভুল ১ (বাদ যাবে)'), s.match(/মুছতে[^\n]*/)?.[0])
+
+  // ছবি বাল্ক: থাকা ছবিতে ওভাররাইট আটকানো; নতুন ছবি চলে
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
+  fs.mkdirSync('.smoke/photos/editor', { recursive: true })
+  const files = ['demo_0001.jpg', 'demo_0002.jpg'].map((n) => {
+    fs.writeFileSync(`.smoke/photos/editor/${n}`, png)
+    return `.smoke/photos/editor/${n}`
+  })
+  await p.goto(BASE + '/admin/photos?project=demo', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  await (await p.$('input[type="file"]')).uploadFile(...files)
+  await settle(p)
+  s = await text(p)
+  const row1 = await p.evaluate(() => [...document.querySelectorAll('tbody tr')].find((tr) => tr.textContent.includes('demo_0001.jpg'))?.innerText.replace(/\s+/g, ' ') ?? '')
+  const btn = await p.evaluate(() => [...document.querySelectorAll('button')].map((b) => b.textContent.trim()).find((x) => /আপলোড/.test(x)) ?? '')
+  ok('ছবি বাল্ক: থাকা ছবি (#১) → "বদলাতে পারেন শুধু মূল এডমিন", গণনায় "ছবি আছে, বদলানো যাবে না ১"; ওভাররাইট নেই, বোতাম "১টি ছবি আপলোড করুন"', row1.includes('বদলাতে পারেন শুধু মূল এডমিন') && s.includes('ছবি আছে, বদলানো যাবে না ১') && s.includes('মিলেছে ১') && !s.includes('ওভাররাইট হবে') && btn === '১টি ছবি আপলোড করুন', `${row1} · ${btn}`)
+  before = writes.length
+  await clickText(p, 'button', '১টি ছবি আপলোড করুন')
+  await p.waitForFunction(() => document.body.innerText.includes('সফল ১'), { timeout: 20000 }).catch(() => {})
+  await settle(p)
+  const w = writes.slice(before).map((x) => x.path)
+  ok('আপলোড: শুধু #২ (নতুন ছবি); #১ এর ছবিতে কোনো লেখা নয়', w.some((x) => x.includes('/housing/demo/0002/current')) && !w.some((x) => x.includes('/housing/demo/0001/')), w.join(', '))
+  ok('প্রকল্পের ইউজারের পাতাগুলোতে কোনো page error নেই', p.errors.length === 0, p.errors.join(' | '))
+  await p.close()
+
+  // --- ১৪-এর আগের "admin" (all_projects ঘর নেই) — আগের মতোই সব প্রকল্প ও সেটিংস
+  adminRole = 'admin'
+  adminExtra = {}
+  const a = await newPage()
+  await a.goto(BASE + '/admin/projects', { waitUntil: 'domcontentloaded' })
+  await settle(a)
+  s = await text(a)
+  const aHrefs = await a.evaluate(() => [...document.querySelectorAll('nav[aria-label="এডমিন মেনু"] a')].map((x) => x.getAttribute('href')))
+  ok('১৪-এর আগের এডমিন: প্রকল্পসমূহ খোলে, সব প্রকল্পের রেকর্ড-লিংক, "ইউজার" নেই', !s.includes('এই অংশ শুধু মূল এডমিনের') && aHrefs.includes('/admin/projects') && aHrefs.includes('/admin/records/semi_pucca') && aHrefs.includes('/admin/records/demo') && !aHrefs.includes('/admin/users'), aHrefs.join(' '))
+  await a.close()
+
+  // --- মূল এডমিন: ইউজার-পাতা
+  adminRole = 'main_admin'
+  adminExtra = { all_projects: true, projects: [] }
+  fakeUsers.length = 0
+  fakeUsers.push(
+    { user_id: USER.id, email: USER.email, role: 'main_admin', all_projects: true, is_active: true, projects: [], created_at: ts, last_sign_in_at: ts },
+    { user_id: '00000000-0000-0000-0000-0000000000c2', email: 'editor@example.org', role: 'editor', all_projects: false, is_active: true, projects: ['housing'], created_at: ts, last_sign_in_at: null },
+  )
+  const m = await newPage()
+  await m.goto(BASE + '/admin/users', { waitUntil: 'domcontentloaded' })
+  await settle(m)
+  s = await text(m)
+  const mNav = await m.evaluate(() => [...document.querySelectorAll('nav[aria-label="এডমিন মেনু"] a')].map((x) => x.getAttribute('href')))
+  ok('মূল এডমিন: মেনুতে "ইউজার"; তালিকায় ২ জন — মূল এডমিন "সব প্রকল্প", editor "ঘর নির্মাণ প্রকল্প"', mNav.includes('/admin/users') && s.includes('মোট ২ জন') && /editor@example\.org\s+প্রকল্পের ইউজার\s+ঘর নির্মাণ প্রকল্প/.test(s) && s.includes('নতুন ইউজার যোগ') && s.includes('Authentication → Users → Add user'), s.match(/editor@example[^\n]*/)?.[0])
+  // গ্রুপ বাছলে উপ-প্রকল্প নিজে টিক ও বন্ধ
+  await clickText(m, 'button', 'বদলান')
+  await sleep(200)
+  const semi = await m.evaluate(() => { const l = [...document.querySelectorAll('form label')].find((x) => x.textContent.includes('সেমিপাকা')); const i = l?.querySelector('input'); return i ? { checked: i.checked, disabled: i.disabled } : null })
+  ok('এডিট-ফর্ম: ইমেইল বদলানো যায় না; গ্রুপ "ঘর নির্মাণ" বাছা → সেমিপাকা টিক ও বন্ধ', (await m.$eval('#user-email', (x) => x.readOnly && x.value)) === 'editor@example.org' && semi?.checked && semi?.disabled, JSON.stringify(semi))
+  await clickText(m, 'button', 'বাতিল — নতুন ইউজার')
+  await sleep(100)
+  const tick = (n) => m.evaluate((x) => [...document.querySelectorAll('form label')].find((l) => l.textContent.includes(x))?.querySelector('input')?.click(), n)
+  // অচেনা ইমেইল → বাংলা বার্তা
+  await (await m.$('#user-email')).type('nobody@example.org')
+  await tick(demoName)
+  let wb = writes.length
+  await clickText(m, 'button', 'সংরক্ষণ')
+  await settle(m)
+  s = await text(m)
+  ok('অচেনা ইমেইল → "ইমেইলে কোনো অ্যাকাউন্ট নেই — আগে Supabase → Authentication → Add user"', s.includes('ইমেইলে কোনো অ্যাকাউন্ট নেই') && writes.slice(wb).some((x) => x.path.endsWith('/housing_admin_user_save')))
+  // প্রকল্প না বেছে → ক্লায়েন্টেই আটকায়
+  await tick(demoName)
+  await clearInput(m, await m.$('#user-email'))
+  await (await m.$('#user-email')).type('new-user@example.org')
+  wb = writes.length
+  await clickText(m, 'button', 'সংরক্ষণ')
+  await settle(m)
+  s = await text(m)
+  ok('প্রকল্প না বেছে সংরক্ষণ → "অন্তত একটি প্রকল্প বাছুন", কিছু পাঠানো হয় না', s.includes('অন্তত একটি প্রকল্প বাছুন') && !writes.slice(wb).some((x) => x.path.endsWith('/housing_admin_user_save')))
+  await tick(demoName)
+  wb = writes.length
+  await clickText(m, 'button', 'সংরক্ষণ')
+  await settle(m)
+  s = await text(m)
+  const sent = writes.slice(wb).find((x) => x.path.endsWith('/housing_admin_user_save'))?.body
+  ok('নতুন ইউজার সংরক্ষণ → RPC এ {email, all_projects:false, projects:[demo], active:true}; "যোগ হয়েছে", তালিকায় ৩ জন', JSON.stringify(sent) === JSON.stringify({ p_email: 'new-user@example.org', p_all_projects: false, p_projects: ['demo'], p_active: true }) && s.includes('new-user@example.org যোগ হয়েছে') && s.includes('মোট ৩ জন'), JSON.stringify(sent))
+  await m.screenshot({ path: '.smoke/admin-users.png', fullPage: true })
+  ok('ইউজার-পাতায় কোনো page error নেই', m.errors.length === 0, m.errors.join(' | '))
+  await m.close()
+
+  // SQL ১৪ চালানো হয়নি → স্পষ্ট নির্দেশনা, ফর্ম নেই
+  usersMode = 'missing'
+  const mm = await newPage()
+  await mm.goto(BASE + '/admin/users', { waitUntil: 'domcontentloaded' })
+  await settle(mm)
+  s = await text(mm)
+  ok('SQL ১৪ না থাকলে: "আগে ডাটাবেসে SQL ১৪ চালাতে হবে (চেকলিস্ট সারি ৩৫…)", ফর্ম নেই', s.includes('SQL ১৪ চালাতে হবে') && s.includes('সারি ৩৫') && !s.includes('নতুন ইউজার যোগ'))
+  await mm.close()
+  usersMode = 'ok'
+  adminExtra = {}
+  demoRecs.length = 0
 }
 
 // ---------------------------------------------------------------- E. ফোনে ড্রয়ার

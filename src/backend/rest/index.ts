@@ -6,6 +6,7 @@
 import type { HousingApi } from '../interfaces/housingApi'
 import type { ImageStorage } from '../interfaces/imageStorage'
 import type { ProjectsApi } from '../interfaces/projectsApi'
+import type { AdminUsersApi } from '../interfaces/adminUsersApi'
 import { HousingApiError } from '../interfaces/types'
 
 export { ENDPOINTS } from './endpoints'
@@ -73,5 +74,13 @@ export function createRestImageStorage(_baseUrl: string): ImageStorage {
     move: async () => notImplemented('move'),
     publicUrl: () => notImplemented('publicUrl'),
     pathFromUrl: () => null,
+  }
+}
+
+/** ইউজার-ব্যবস্থাপনা (চুক্তি v১.৫ §৪.৭) — নিজস্ব সার্ভারে পরে */
+export function createRestAdminUsersApi(_baseUrl: string): AdminUsersApi {
+  return {
+    list: async () => notImplemented('adminUsers.list'), // GET  ENDPOINTS.adminUsers.list
+    save: async () => notImplemented('adminUsers.save'), // PUT  ENDPOINTS.adminUsers.save
   }
 }

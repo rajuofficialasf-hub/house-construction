@@ -11,4 +11,5 @@ export { createSupabaseHousingApi, type SupabaseHousingApiOptions } from './hous
 export { createSupabaseProjectsApi, type SupabaseProjectsApiOptions } from './projectsApi'
 export { createSupabaseAuthProvider } from './authProvider'
 export { createSupabaseImageStorage } from './imageStorage'
+export { createSupabaseAdminUsersApi } from './adminUsersApi'
 export { STORAGE_BUCKET, TABLE, type GetClient } from './client'

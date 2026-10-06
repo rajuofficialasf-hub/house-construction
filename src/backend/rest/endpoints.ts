@@ -13,6 +13,11 @@ export const ENDPOINTS = {
     logout: () => '/api/auth/logout', // POST
     me: () => '/api/auth/me', // GET
   },
+  /** ইউজার-ব্যবস্থাপনা (শুধু মূল এডমিন; চুক্তি v১.৫ §৪.৭) — GET তালিকা · PUT যোগ/বদল (ইমেইল দিয়ে) */
+  adminUsers: {
+    list: () => '/api/admin/users',
+    save: () => '/api/admin/users',
+  },
   projects: {
     /** GET ?include=fields&drafts=1 (খসড়া ও গোপন ফিল্ড শুধু এডমিন) · POST (এডমিন; প্রকল্প + fields একসাথে) */
     list: () => '/api/projects',

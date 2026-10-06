@@ -524,6 +524,38 @@ export interface AuthUser {
   name: string | null
   /** housing_admins টেবিল থেকে: main_admin (মোছা ও সেটিংস পারেন), editor (প্রকল্পের ইউজার) বা পুরনো admin */
   role: AdminRole
+  /** মূল এডমিন বা "সব প্রকল্প" এর ইউজার (SQL ১৪-এর আগে সবাই) — তখন projects দেখা হয় না */
+  allProjects: boolean
+  /** যেসব প্রকল্পে যোগ/এডিট করতে পারেন (গ্রুপ-বরাদ্দে উপ-প্রকল্পসহ) — শুধু UI দেখানো/লুকানোর জন্য; নিষেধ ডাটাবেসে */
+  projects: ProjectKey[]
+}
+
+/** ইউজার-তালিকার একটি সারি (housing_admin_users; পর্ব চ) */
+export interface AdminUserRow {
+  user_id: string
+  email: string
+  role: AdminRole
+  all_projects: boolean
+  is_active: boolean
+  /** বরাদ্দ প্রকল্প/গ্রুপের key (all_projects হলে খালি) */
+  projects: ProjectKey[]
+  created_at: string
+  last_sign_in_at: string | null
+}
+
+/** ইউজার যোগ/বদল (housing_admin_user_save) */
+export interface AdminUserInput {
+  email: string
+  all_projects: boolean
+  projects: ProjectKey[]
+  is_active: boolean
+}
+
+export interface AdminUserSaveResult {
+  user_id: string
+  email: string
+  /** নতুন ইউজার (আগে এডমিন তালিকায় ছিলেন না) */
+  created: boolean
 }
 
 export interface UploadTarget {

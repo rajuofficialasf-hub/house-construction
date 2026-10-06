@@ -6,6 +6,7 @@ import { formatBanglaNumber, toBanglaNumber } from '@/lib/banglaNumber'
 import { DEFAULT_PAGE_SIZE, getHousingApi, HousingApiError, type ActivityEntry, type ActivityListParams, type Page, type Project } from '@/backend'
 import { FIELD_VALUE_SPECS, formatField, resolveFields, type FieldDef } from '@/features/projects/fields'
 import { useProject, useProjects } from '@/features/projects/registry'
+import { canEditProject, useAdminUser } from '../adminUser'
 import { ErrorNotice } from '@/features/housing/components/ErrorNotice'
 import { Pagination } from '@/features/housing/components/Pagination'
 import { ACTION_CLASS, ACTION_LABEL, formatDateTime } from '@/features/housing/utils/activityLabels'
@@ -106,7 +107,10 @@ type State = { status: 'loading'; data: Page<ActivityEntry> | null } | { status:
 export function ActivityPage() {
   useDocumentTitle(t('একটিভিটি লগ'))
   const [sp, setSp] = useSearchParams()
-  const projects = useProjects()
+  const me = useAdminUser()
+  const allProjects = useProjects()
+  // প্রকল্পের ইউজার শুধু নিজের প্রকল্পের লগ দেখেন (ডাটাবেসও তাই দেয়) — ফিল্টারেও শুধু সেগুলো (পর্ব চ)
+  const projects = useMemo(() => allProjects.filter((p) => canEditProject(me, p.key)), [allProjects, me])
   const page = Math.max(1, Number(sp.get('page')) || 1)
   const params = useMemo<ActivityListParams>(
     () => ({
