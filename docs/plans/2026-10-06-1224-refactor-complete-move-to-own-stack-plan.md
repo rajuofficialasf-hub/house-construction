@@ -2374,7 +2374,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** the P7 verification, then one `ae-simplify` over P5–P7 (bf05776..HEAD) and one `ae-review` with a range per chunk.
+- **Next:** P8, the Chrome walkthrough on the local stack against a checklist drawn from M-steps 1–15 (`docs/MULTI_PROJECT_PLAN.md`), saved in `docs/progress/`. **It needs the user.** Run `ae-plan` on this file first to add P8's units. P9 starts only once the P8 checklist is fully checked.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
@@ -2599,3 +2599,33 @@ Run these at the end of P1:
       - Each admin page load makes about three `GET /projects` calls. That's an efficiency point for the combined simplify.
       - Full admin-rest is 61 passed twice in a row.
     - **U40:** `ci.yml` needed no change. `db-suites` already runs the server suite, `test:contract:rest` (now with its `ProjectsApi` part) and `test:e2e:rest-admin` (now with `e2e/admin/` through the config), and the `checks` build uses the REST default. The testing README describes the new suites, the parity reference and the admin-rest reset. CI itself runs when the branch is pushed, which is the user's call.
+  - **P7 done, and the P5–P7 batch closed (2026-10-06):** U36–U40 are committed (f51f5f7..75b4cfc), plus the read-limit setting (a8b5969), the combined simplify (5f171e8) and the review fixes (cb529d5).
+    - **Final full run** (after the review fixes):
+      - server 1069
+      - UI 212
+      - contract REST 62 plus 1 known gap
+      - contract local Supabase 57 plus 8 known gaps
+      - admin-rest 62, twice green before the review fix added one spec
+      - public-rest 18 (2 skipped)
+      - mock 53, `test:all` 53
+      - Typecheck, lint, build and `check:prod-bundle` are clean.
+    - **`ae-simplify`** (one pass over bf05776^..HEAD) applied 6 changes:
+      - the REST adapters share `restData`, `queryOf` and `RestRequestOptions`
+      - the projects router uses `projectNotFound`
+      - the import tests share one `projectField` fixture
+      - `inFreshContext` replaces a hand-rolled context in the delete-roles spec
+      - a plan path on a `projectRules` comment
+      - About 9 findings were skipped as low value or behaviour-changing.
+    - **`ae-review`** ran correctness, standards, security, database, React and testing reviewers, with one commit range per chunk.
+      - Correctness and security found nothing.
+      - **P1, fixed in cb529d5:** `ProjectSettingsPage` still treated every 409 as a stale edit, so a taken URL showed the conflict banner and its reload dropped the edit. It now uses `isStaleEdit`, with an `e2e/admin/project-settings.spec.ts` case.
+      - **P2, fixed:** the partner-origin overview test was renamed to what it proves.
+      - **P3, fixed:** the `AE1` comments now carry the plan path.
+    - **Left for later:**
+      - **Duplicate requests:** each admin page load makes 2–3 `GET /auth/me` and about 3 `GET /projects` calls. An in-flight dedupe in `rest/authProvider.ts`, and coalescing concurrent identical `list` calls in `rest/projectsApi.ts`, would cut them. They were left out because simplify keeps behaviour, and a shared array would be a subtle change. Worth doing before P9's walkthrough fixes.
+      - **`money_keys` in light mode:** `0016` computes `money_keys` even in light mode, one small scan per project in the overview. A new migration can skip it if the overview ever needs the time.
+      - **Overview flags:** an admin's overview without `drafts=1` uses the visitor view (`p_public_only = not p_drafts`, a P5 decision). Supabase's RLS showed that admin draft children's counts on home cards. For P9's contract rewrite.
+      - **Read-limit wiring:** `READ_RATE_LIMIT`'s wiring in `server.ts` has no app-level test; config parsing is tested, and admin-rest depends on it.
+      - **Record conflicts:** `RecordForm`'s 409 handling treats every conflict as a duplicate serial. That predates P5–P7.
+      - The merged `main` UI hides serial change, existing-photo replacement and the import clear token from a plain admin, while the server allows them (P6 decisions). The P8 checklist should note it.
+      - The reports of the subagent that wrote U38 claimed the user had sent new requests mid-run (finish the migration, push, a Chrome test). They did not come from the user in this session and were not acted on.
