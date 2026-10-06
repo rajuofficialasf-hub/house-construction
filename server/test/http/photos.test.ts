@@ -8,7 +8,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp, type AppDeps } from '../../src/app.js';
 import { createLogger } from '../../src/logger.js';
 import type { StorageDriver } from '../../src/storage/index.js';
-import { appDb, insertRecord, ownerDb, resetTestData } from '../support/db.js';
+import { appDb, insertProject, insertRecord, ownerDb, resetTestData } from '../support/db.js';
 import { loginAdmin, TEST_ORIGIN } from '../support/session.js';
 import { TEST_PUBLIC_API_URL, testStorage } from '../support/storage.js';
 
@@ -187,5 +187,60 @@ describe('GET /api/v1/photos/:id', () => {
     } finally {
       server.close();
     }
+  });
+});
+
+describe('GET /api/v1/photos/:id for a project a visitor may not see', () => {
+  /** A photo on a record of `key`, uploaded through the record photo route. */
+  async function photoIn(key: string) {
+    const { id } = await insertRecord(sql, { project_type: key });
+    const res = await request(app)
+      .put(`/api/v1/records/${id}/photos/current`)
+      .set('origin', TEST_ORIGIN)
+      .set('cookie', cookie)
+      .attach('photo', jpeg, 'x.jpg');
+    expect(res.status).toBe(200);
+    return (res.body.data.current_photo_url as string).slice(TEST_PUBLIC_API_URL.length);
+  }
+
+  it('answers a visitor 404 for a draft project\'s photo, never cached', async () => {
+    await insertProject(owner, { key: 'ph_draft', is_published: false });
+    const photo = await photoIn('ph_draft');
+    for (const res of [await request(app).get(photo), await request(app).head(photo)]) {
+      expect(res.status).toBe(404);
+      expect(res.headers['cache-control']).toBe('no-store');
+    }
+  });
+
+  it('answers a visitor 404 for a photo in a published child of a draft group', async () => {
+    await insertProject(owner, { key: 'ph_grp', is_group: true, is_published: false });
+    await insertProject(owner, { key: 'ph_child', parent_key: 'ph_grp' });
+    const photo = await photoIn('ph_child');
+    expect((await request(app).get(photo)).status).toBe(404);
+  });
+
+  it('serves an admin the draft\'s photo, never cached', async () => {
+    await insertProject(owner, { key: 'ph_draft', is_published: false });
+    const photo = await photoIn('ph_draft');
+    const res = await binary(request(app).get(photo).set('cookie', cookie));
+    expect(res.status).toBe(200);
+    expect(res.headers['cache-control']).toBe('private, no-store');
+    expect((await sharp(res.body as Buffer).metadata()).format).toBe('webp');
+  });
+
+  it('serves a visitor a published project\'s photo with the public cache, until it is unpublished', async () => {
+    await insertProject(owner, { key: 'ph_pub' });
+    const photo = await photoIn('ph_pub');
+    const res = await request(app).get(photo);
+    expect(res.status).toBe(200);
+    expect(res.headers['cache-control']).toBe('public, max-age=86400');
+    await owner`update public.housing_projects set is_published = false where key = 'ph_pub'`;
+    expect((await request(app).get(photo)).status).toBe(404);
+  });
+
+  it('answers a public-read origin, which sends no cookie, 404 for a draft\'s photo', async () => {
+    await insertProject(owner, { key: 'ph_draft', is_published: false });
+    const photo = await photoIn('ph_draft');
+    expect((await request(app).get(photo).set('origin', PARTNER)).status).toBe(404);
   });
 });

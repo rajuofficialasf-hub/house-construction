@@ -452,7 +452,7 @@ export function buildOpenApiDocument(): OpenApiDocument {
       },
       '/photos/{id}': {
         get: {
-          summary: 'A photo or thumbnail, by the id in a record\'s *_photo_url or *_thumb_url; cacheable for a year',
+          summary: "A photo or thumbnail, by the id in a record's *_photo_url or *_thumb_url; a draft project's only for an admin session. Visitors may cache it for a day",
           tags: ['photos'],
           parameters: idParam,
           responses: {

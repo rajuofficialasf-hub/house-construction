@@ -6,6 +6,7 @@ import { idParams } from '../../housing/schemas.js';
 import { findLiveFile } from '../../photos/serve.js';
 import { StorageNotFoundError, type StorageDriver } from '../../storage/index.js';
 import { readRateLimiter, type ReadRateLimit } from './housing.js';
+import { viewerOf } from './projects.js';
 
 // GET /api/v1/photos/:id: every photo the site shows comes through here, whichever driver holds
 // it, so the browser never sees a bucket URL or storage key (NS-10, NS-41; contract §5).
@@ -22,8 +23,11 @@ export function photosRouter(sql: Sql, storage: StorageDriver, photoRateLimit: R
   router.use(readRateLimiter(photoRateLimit, 'photo reads rate-limited'));
 
   router.get('/:id', async (req, res) => {
+    // A refusal is never cached, so a photo isn't stuck as missing once its project is published.
+    res.set('Cache-Control', 'no-store');
     const { id } = idParams.parse(req.params);
-    const file = await findLiveFile(sql, id);
+    const viewer = viewerOf(req);
+    const file = await findLiveFile(sql, id, viewer);
     if (!file) throw notFound();
     let body;
     try {
@@ -38,8 +42,9 @@ export function photosRouter(sql: Sql, storage: StorageDriver, photoRateLimit: R
       'Content-Length': file.size_bytes,
       'Content-Disposition': 'inline',
       // A file id never changes content (a new photo gets a new id and URL), but a deleted photo
-      // must leave browser and CDN caches within a day, so no year-long immutable caching.
-      'Cache-Control': 'public, max-age=86400',
+      // must leave browser and CDN caches within a day, so no year-long immutable caching. An
+      // admin may be shown a draft's photo, so that answer is never stored by any cache.
+      'Cache-Control': viewer.admin ? 'private, no-store' : 'public, max-age=86400',
       // helmet's same-origin default would stop the site (another port or host) and other apps
       // from showing the image.
       'Cross-Origin-Resource-Policy': 'cross-origin',

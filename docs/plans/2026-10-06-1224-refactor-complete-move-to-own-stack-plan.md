@@ -1096,7 +1096,7 @@ These settle what P3's research turned up. They add to Technical decisions, the 
   - the existing serving, rate-limit and CORS cases pass
 - **Done when:** the tests pass.
 - **Depends on:** none (it touches only `photos/serve.ts`, `routes/v1/photos.ts` and their test, so it can run beside lane A)
-- **Status:** todo
+- **Status:** done
 
 ### U17. Years, next serial and serial change
 - **Goal:** The site lists a project's years and the admin form shows the next serial. An admin moves a record to another serial without the old one ever being reissued.
