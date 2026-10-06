@@ -27,7 +27,7 @@ export async function putPrivate(sql: Sql, actor: Actor, id: string, data: Priva
   return withActor(sql, actor, async (tx) => {
     const locked = await tx`select id from public.housing_beneficiaries where id = ${id} for update`;
     if (locked.length === 0) return null;
-    const json = tx.json(data as Parameters<typeof tx.json>[0]);
+    const json = tx.json(data as never);
     const [updated] = await tx<{ data: PrivateValues }[]>`
       update public.housing_beneficiary_private set data = ${json} where record_id = ${id} returning data`;
     if (updated) return updated.data;

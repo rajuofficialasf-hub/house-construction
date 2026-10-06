@@ -166,7 +166,7 @@ describe('concurrent main_admin changes', () => {
     expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
     const [lost] = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
     expect(lost?.reason).toBeInstanceOf(AdminCliError);
-    expect((lost?.reason as Error).message).toMatch(/^a main admin already exists: [ab]@example\.org; demote them first with set-role$/);
+    expect((lost?.reason as Error | undefined)?.message).toMatch(/^a main admin already exists: [ab]@example\.org; demote them first with set-role$/);
   };
 
   it('lets one of two concurrent main_admin creates win, and refuses the other in plain words', async () => {

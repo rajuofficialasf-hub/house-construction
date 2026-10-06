@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import type { Sql } from '../../db.js';
-import { AppError } from '../../errors.js';
-import { getRecord, getRecordsBySerials, listProjectRecords, recordProject } from '../../records/reads.js';
+import { getRecord, getRecordsBySerials, listProjectRecords, recordNotFound, recordProject } from '../../records/reads.js';
 import { fieldFilters, idParams, projectRecordsParams, projectSerialParams, recordListQuery, serialsQuery } from '../../records/schemas.js';
 import { DEFAULT_READ_RATE_LIMIT, readRateLimiter, type ReadRateLimit } from './housing.js';
 import { sessionAwareCaching, viewerOf } from './projects.js';
@@ -9,8 +8,6 @@ import { sessionAwareCaching, viewerOf } from './projects.js';
 // The single-record reads (docs/api/PROJECTS_API_CONTRACT.md §4.4.1–§4.4.3). Mounted at /api/v1 with
 // full paths and no router.use(), so its limiter and caching touch only these routes. Public, but an
 // admin session also reaches drafts, so answers vary on the cookie.
-
-const notFound = () => new AppError('NOT_FOUND', 'রেকর্ড পাওয়া যায়নি');
 
 export function recordsReadRouter(sql: Sql, readRateLimit: ReadRateLimit = DEFAULT_READ_RATE_LIMIT): Router {
   const router = Router();
@@ -29,7 +26,7 @@ export function recordsReadRouter(sql: Sql, readRateLimit: ReadRateLimit = DEFAU
     const { key, n } = projectSerialParams.parse(req.params);
     const viewer = viewerOf(req);
     const [record] = await getRecordsBySerials(sql, await recordProject(sql, key, viewer), [n], viewer);
-    if (!record) throw notFound();
+    if (!record) throw recordNotFound();
     res.json({ data: record });
   });
 
@@ -42,7 +39,7 @@ export function recordsReadRouter(sql: Sql, readRateLimit: ReadRateLimit = DEFAU
 
   router.get('/records/:id', ...read, async (req, res) => {
     const record = await getRecord(sql, idParams.parse(req.params).id, viewerOf(req));
-    if (!record) throw notFound();
+    if (!record) throw recordNotFound();
     res.json({ data: record });
   });
 

@@ -10,7 +10,7 @@ import type { RecordCreateBody, RecordPatchBody } from './schemas.js';
 /** Inserts a record in a non-group project; with no serial_no the trigger assigns the next one. */
 export async function createProjectRecord(sql: Sql, actor: Actor, project: RecordProject, body: RecordCreateBody): Promise<ProjectRecord> {
   return withActor(sql, actor, async (tx) => {
-    const row = { ...body, project_type: project.key, extra: tx.json(body.extra as Parameters<typeof tx.json>[0]) };
+    const row = { ...body, project_type: project.key, extra: tx.json(body.extra as never) };
     const [created] = await tx<ProjectRecord[]>`
       insert into public.housing_beneficiaries ${tx(row)} returning ${tx(ADMIN_RECORD_COLUMNS)}`;
     if (!created) throw new Error('insert returned no row');
@@ -21,7 +21,7 @@ export async function createProjectRecord(sql: Sql, actor: Actor, project: Recor
 /** Changes only the given fields; a sent extra replaces the whole column. Null when the record doesn't exist. */
 export async function patchRecord(sql: Sql, actor: Actor, id: string, patch: RecordPatchBody): Promise<ProjectRecord | null> {
   return withActor(sql, actor, async (tx) => {
-    const changes = patch.extra === undefined ? patch : { ...patch, extra: tx.json(patch.extra as Parameters<typeof tx.json>[0]) };
+    const changes = patch.extra === undefined ? patch : { ...patch, extra: tx.json(patch.extra as never) };
     const [updated] = await tx<ProjectRecord[]>`
       update public.housing_beneficiaries set ${tx(changes)} where id = ${id} returning ${tx(ADMIN_RECORD_COLUMNS)}`;
     return updated ?? null;

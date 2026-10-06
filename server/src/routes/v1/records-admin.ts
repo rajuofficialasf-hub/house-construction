@@ -1,9 +1,8 @@
 import { Router, type RequestHandler } from 'express';
 import { requireAdmin, requireMainAdmin } from '../../auth/middleware.js';
 import type { Sql } from '../../db.js';
-import { AppError } from '../../errors.js';
 import { deleteRecord } from '../../housing/writes.js';
-import { recordProject } from '../../records/reads.js';
+import { recordNotFound, recordProject } from '../../records/reads.js';
 import { getPrivate, getPrivateMany, putPrivate } from '../../records/private.js';
 import { idParams, privateBody, privateManyBody, projectRecordsParams, recordCreateBody, recordPatchBody } from '../../records/schemas.js';
 import { createProjectRecord, patchRecord } from '../../records/writes.js';
@@ -13,8 +12,6 @@ import { actorOf, DEFAULT_WRITE_RATE_LIMIT, writeRateLimiter, type WriteRateLimi
 // The single-record admin routes (docs/api/PROJECTS_API_CONTRACT.md §4.4.4–§4.4.6). Mounted at
 // /api/v1 with full paths and no router.use(), so each route names its own guard: the admin check
 // first (deny by default, NE-SEC-03), then the per-admin write limit.
-
-const notFound = () => new AppError('NOT_FOUND', 'রেকর্ড পাওয়া যায়নি');
 
 /** Private values are never stored by any cache; set first, so a refusal carries it too. */
 export const privateNoStore: RequestHandler = (_req, res, next) => {
@@ -42,12 +39,12 @@ export function recordsAdminRouter({ sql, storage, writeRateLimit = DEFAULT_WRIT
   router.patch('/records/:id', requireAdmin, limitWrites, async (req, res) => {
     const { id } = idParams.parse(req.params);
     const record = await patchRecord(sql, actorOf(req), id, recordPatchBody.parse(req.body));
-    if (!record) throw notFound();
+    if (!record) throw recordNotFound();
     res.json({ data: record });
   });
 
   router.delete('/records/:id', requireMainAdmin, limitWrites, async (req, res) => {
-    if (!(await deleteRecord(sql, storage, actorOf(req), idParams.parse(req.params).id, req.log))) throw notFound();
+    if (!(await deleteRecord(sql, storage, actorOf(req), idParams.parse(req.params).id, req.log))) throw recordNotFound();
     res.status(204).end();
   });
 
@@ -56,7 +53,7 @@ export function recordsAdminRouter({ sql, storage, writeRateLimit = DEFAULT_WRIT
   // (NE-LOG-03); the activity-log rows come with P3's log v2.
   router.get('/records/:id/private', privateNoStore, requireAdmin, async (req, res) => {
     const data = await getPrivate(sql, idParams.parse(req.params).id);
-    if (!data) throw notFound();
+    if (!data) throw recordNotFound();
     res.json({ data });
   });
 
@@ -65,7 +62,7 @@ export function recordsAdminRouter({ sql, storage, writeRateLimit = DEFAULT_WRIT
     const body = privateBody.parse(req.body);
     const actor = actorOf(req);
     const data = await putPrivate(sql, actor, id, body.data);
-    if (!data) throw notFound();
+    if (!data) throw recordNotFound();
     req.log.info({ event: 'private_update', actor: actor.id, record_id: id, keys: Object.keys(body.data) }, 'private values saved');
     res.json({ data });
   });

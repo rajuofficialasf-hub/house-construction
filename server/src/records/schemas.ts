@@ -7,7 +7,6 @@ import {
   MAX_PAGE_SIZE,
   recordFields,
   serialNo,
-  serialsQuery,
   writeText,
   YEAR_MAX,
   YEAR_MIN,
@@ -17,8 +16,7 @@ import { projectKey } from '../projects/schemas.js';
 // Request and response shapes of the single-record routes (docs/api/PROJECTS_API_CONTRACT.md
 // §3.3, §4.4). The routes parse with these and the OpenAPI document is built from them.
 
-export { idParams } from '../housing/schemas.js';
-export { serialsQuery };
+export { idParams, serialsQuery } from '../housing/schemas.js';
 
 /** A custom field's key, as housing_project_fields_key_format allows (0011_projects_registry.sql). */
 export const FIELD_KEY = /^[a-z][a-z0-9_]{0,39}$/;
@@ -145,4 +143,5 @@ export type PrivateBody = z.infer<typeof privateBody>;
 
 export const privateManyBody = z.strictObject({ ids: z.array(z.uuid()).max(MAX_PRIVATE_IDS) });
 
-export const privateValues = z.record(z.string(), z.union([z.string(), z.number()]));
+/** A record's private values have the same shape as its public custom values. */
+export const privateValues = extraValues;

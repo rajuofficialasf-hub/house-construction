@@ -9,6 +9,7 @@ import type { RecordListQuery } from './schemas.js';
 // extra; an admin session sees every project and extra as stored
 // (docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md, "P2 decisions").
 
+// project_type is any registered project key here, not the old routes' two-value enum.
 export type ProjectRecord = Omit<HousingRecord, 'project_type'> & {
   project_type: string;
   union_name: string;
@@ -23,7 +24,8 @@ export interface RecordProject {
   sortable: Set<string>;
 }
 
-const notFound = () => new AppError('NOT_FOUND', 'প্রকল্প পাওয়া যায়নি');
+const projectNotFound = () => new AppError('NOT_FOUND', 'প্রকল্প পাওয়া যায়নি');
+export const recordNotFound = () => new AppError('NOT_FOUND', 'রেকর্ড পাওয়া যায়নি');
 
 /** Every column of a record as an admin reads it, for a write's returning list (no table alias). */
 export const ADMIN_RECORD_COLUMNS = [...RECORD_COLUMNS, 'union_name', 'extra'] as const;
@@ -58,7 +60,7 @@ export async function recordProject(sql: Sql, key: string, viewer: Viewer): Prom
       select key, type, filterable, searchable from public.housing_project_fields
       where project_key = ${key} and visibility = 'public' and is_active`,
   ]);
-  if (!project) throw notFound();
+  if (!project) throw projectNotFound();
   if (project.is_group) {
     throw new AppError('VALIDATION_ERROR', 'প্রকল্প-গ্রুপে সরাসরি রেকর্ড নেই; উপ-প্রকল্প বাছুন', { field: 'key', reason: 'group' });
   }
