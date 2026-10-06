@@ -71,12 +71,29 @@ function zodDetails(err: ZodError): ErrorDetails {
 
 const SERIAL_KEY = 'housing_beneficiaries_project_serial_key';
 
+// A field key as the guards write it in DETAIL: a column (`union_name`) or `extra.<key>`.
+const GUARD_FIELD = /^[a-z_]+(\.[a-z][a-z0-9_]*)?$/;
+
+/**
+ * Errors our own triggers raise with SQLSTATE class HC. We wrote their text (fixed words, a label
+ * and a field key), so the message reaches the client; DETAIL does only when it is a field key, so
+ * nothing the client sent is echoed. Matched by code, since a raised error has no constraint name.
+ */
+function guardError(err: postgres.PostgresError): AppError | undefined {
+  const field = err.detail && GUARD_FIELD.test(err.detail) ? err.detail : undefined;
+  const details = field ? { field } : undefined;
+  if (err.code === 'HC400') return new AppError('VALIDATION_ERROR', err.message, details);
+  if (err.code === 'HC409') return new AppError('CONFLICT', err.message, details);
+  return undefined;
+}
+
 /**
  * Postgres errors the client caused, by SQLSTATE, with fixed messages: Postgres's own text names
  * tables and key values, so it never reaches the client (NE-SEC-11). Anything unlisted, a missing
  * grant (42501) included, is our bug and stays a 500.
  */
 function postgresError(err: postgres.PostgresError): AppError | undefined {
+  if (err.code.startsWith('HC')) return guardError(err);
   switch (err.code) {
     case '23505':
       // housing_change_serial raises its own 23505 with no constraint (0002_serial.sql).
@@ -118,8 +135,12 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
     return;
   }
   // The zod schemas should stop bad input before SQL; a constraint error means they missed a case.
+  // Never the message or DETAIL: only the field key that guardError checked.
   if (err instanceof postgres.PostgresError && known.code === 'VALIDATION_ERROR') {
-    req.log.warn({ code: err.code, constraint: err.constraint_name }, 'database refused input the schema let through');
+    req.log.warn(
+      { code: err.code, constraint: err.constraint_name, field: known.details?.field },
+      'database refused input the schema let through',
+    );
   }
   res.status(known.status).json({
     error: { code: known.code, message: known.message, ...(known.details && { details: known.details }) },

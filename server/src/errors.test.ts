@@ -116,3 +116,93 @@ describe('errorHandler with Postgres errors', () => {
     expect(JSON.stringify(res.body)).not.toContain('duplicate');
   });
 });
+
+// The ported record triggers raise class HC with our own Bangla text and the field key in DETAIL
+// (docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md, "The guards' own errors reach the client").
+describe('errorHandler with guard (HC) errors', () => {
+  const MESSAGE = 'টাকার পরিমাণ সঠিক নয়';
+  const guardError = (code: string, detail?: string) =>
+    new postgres.PostgresError({ message: MESSAGE, code, ...(detail !== undefined && { detail }) } as never);
+
+  // Records what the handler logs, so a test can see exactly which fields reach the log.
+  function appLogging(err: unknown) {
+    const logged: unknown[] = [];
+    const log = { warn: (obj: unknown) => logged.push(obj), error: (obj: unknown) => logged.push(obj) };
+    const app = express();
+    app.use((req, _res, next) => {
+      req.log = log as never;
+      next();
+    });
+    app.get('/boom', () => {
+      throw err;
+    });
+    app.use(errorHandler);
+    return { app, logged };
+  }
+
+  it('passes an HC400 message and its field key through as a 400', async () => {
+    const res = await request(appThrowing(guardError('HC400', 'extra.amount'))).get('/boom');
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: { code: 'VALIDATION_ERROR', message: MESSAGE, details: { field: 'extra.amount' } } });
+  });
+
+  it('accepts a plain column name as the field key', async () => {
+    const res = await request(appThrowing(guardError('HC400', 'union_name'))).get('/boom');
+    expect(res.body.error.details).toEqual({ field: 'union_name' });
+  });
+
+  it('passes an HC409 message through as a 409', async () => {
+    const res = await request(appThrowing(guardError('HC409', 'key'))).get('/boom');
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: { code: 'CONFLICT', message: MESSAGE, details: { field: 'key' } } });
+  });
+
+  it('sends no details when DETAIL is missing', async () => {
+    const res = await request(appThrowing(guardError('HC400'))).get('/boom');
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: { code: 'VALIDATION_ERROR', message: MESSAGE } });
+  });
+
+  it.each(['extra.Bad Key', "x'; drop", '', 'extra.amount.deep', 'Key (serial_no)=(7) already exists.'])(
+    'leaves out a DETAIL that is not a field key (%j)',
+    async (detail) => {
+      const res = await request(appThrowing(guardError('HC400', detail))).get('/boom');
+      expect(res.status).toBe(400);
+      expect(res.body).toEqual({ error: { code: 'VALIDATION_ERROR', message: MESSAGE } });
+    },
+  );
+
+  it('keeps any other HC code a generic 500', async () => {
+    const res = await request(appThrowing(guardError('HC500', 'extra.amount'))).get('/boom');
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({ error: { code: 'INTERNAL_ERROR', message: 'সার্ভারে সমস্যা হয়েছে' } });
+  });
+
+  it('keeps the fixed message for a non-HC error even when its DETAIL looks like a field key', async () => {
+    const err = new postgres.PostgresError({ message: 'new row violates check', code: '23514', detail: 'extra.amount' } as never);
+    const res = await request(appThrowing(err)).get('/boom');
+    expect(res.body).toEqual({ error: { code: 'VALIDATION_ERROR', message: 'ইনপুট সঠিক নয়', details: { reason: 'constraint' } } });
+  });
+
+  it('keeps a 23505 on the serial key a 409', async () => {
+    const err = new postgres.PostgresError({
+      message: 'duplicate key',
+      code: '23505',
+      constraint_name: 'housing_beneficiaries_project_serial_key',
+    } as never);
+    const res = await request(appThrowing(err)).get('/boom');
+    expect(res.status).toBe(409);
+    expect(res.body.error.message).toBe('এই সিরিয়াল আগে থেকেই আছে');
+  });
+
+  it('logs the code and the checked field, never the message or the raw DETAIL', async () => {
+    const { app, logged } = appLogging(guardError('HC400', 'extra.amount'));
+    await request(app).get('/boom');
+    expect(logged).toEqual([{ code: 'HC400', constraint: undefined, field: 'extra.amount' }]);
+
+    const bad = appLogging(guardError('HC400', "x'; drop"));
+    await request(bad.app).get('/boom');
+    expect(bad.logged).toEqual([{ code: 'HC400', constraint: undefined, field: undefined }]);
+    expect(JSON.stringify(bad.logged)).not.toContain(MESSAGE);
+  });
+});
