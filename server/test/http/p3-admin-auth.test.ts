@@ -58,6 +58,11 @@ const ROUTES: AdminRoute[] = [
   { method: 'put', path: '/api/v1/projects/order', body: { keys: ['tin'] } },
   { method: 'patch', path: `/api/v1/projects/${P}`, body: { name_bn: 'ক' } },
   { method: 'delete', path: '/api/v1/projects/nope' },
+  { method: 'post', path: `/api/v1/projects/${P}/fields`, body: { key: 'a', label_bn: 'ক', type: 'text' } },
+  { method: 'put', path: `/api/v1/projects/${P}/fields/order`, body: { ids: [] } },
+  // Any uuid serves for the auth checks; ID is a record's.
+  { method: 'patch', path: '/api/v1/fields/ID', body: { label_bn: 'ক' } },
+  { method: 'delete', path: '/api/v1/fields/ID' },
 ];
 
 let id = '';

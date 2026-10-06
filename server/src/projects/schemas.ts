@@ -242,6 +242,11 @@ export const projectPatchBody = z
   .refine(nonEmpty, { message: 'nothing to change', params: { reason: 'empty' } });
 export type ProjectPatchBody = z.infer<typeof projectPatchBody>;
 
+export const fieldIdParams = z.object({ id: z.uuid() });
+
+/** A project has at most 40 fields. */
+export const fieldOrderBody = z.strictObject({ ids: z.array(z.uuid()).min(1).max(40) });
+
 /** The registry is small; 200 matches the list cap in reads.ts. */
 export const projectOrderBody = z.strictObject({ keys: z.array(projectKey).min(1).max(200) });
 

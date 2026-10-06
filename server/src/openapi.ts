@@ -38,6 +38,10 @@ import {
 } from './housing/schemas.js';
 import {
   project,
+  fieldCreateBody,
+  fieldIdParams,
+  fieldOrderBody,
+  fieldPatchBody,
   projectCreateBody,
   projectField,
   projectKeyParams,
@@ -385,6 +389,29 @@ export function buildOpenApiDocument(): OpenApiDocument {
           parameters: parameters(projectKeyParams, 'path'),
           responses: { 200: ok('The fields', { type: 'array', items: ref('ProjectField') }), ...errors(400, 404, 429, 500) },
         },
+        post: admin('Add a field to a project, after its last field unless sort_order is given; groups hold no fields, and a project at most 40', {
+          parameters: parameters(projectKeyParams, 'path'),
+          requestBody: body(fieldCreateBody),
+          responses: { 201: ok('The new field', ref('ProjectField')), ...errors(400, 401, 403, 404, 409, 429, 500) },
+        }, 'projects-admin'),
+      },
+      '/projects/{key}/fields/order': {
+        put: admin("Set the project's field sort_order 10, 20, ... in the given order; other projects' ids are ignored and nothing is logged", {
+          parameters: parameters(projectKeyParams, 'path'),
+          requestBody: body(fieldOrderBody),
+          responses: { 204: { description: 'Reordered' }, ...errors(400, 401, 403, 404, 429, 500) },
+        }, 'projects-admin'),
+      },
+      '/fields/{id}': {
+        patch: admin('Change some of a field\'s settings; archive with is_active false, restore with true. Once a record holds a value, key, type and visibility stay', {
+          parameters: parameters(fieldIdParams, 'path'),
+          requestBody: body(fieldPatchBody),
+          responses: { 200: ok('The field', ref('ProjectField')), ...errors(400, 401, 403, 404, 409, 429, 500) },
+        }, 'projects-admin'),
+        delete: admin('Delete a field no record holds a value for; archive it otherwise. Main admin only', {
+          parameters: parameters(fieldIdParams, 'path'),
+          responses: { 204: { description: 'Deleted' }, ...errors(400, 401, 403, 404, 429, 500) },
+        }, 'projects-admin'),
       },
       '/projects/{key}/records': {
         get: {

@@ -1,4 +1,4 @@
-import type { Sql } from '../db.js';
+import type { Sql, Tx } from '../db.js';
 import type { z } from 'zod';
 import type { project, projectField, ProjectListQuery } from './schemas.js';
 
@@ -31,13 +31,19 @@ const PROJECT_COLUMNS = [
 /** The registry is small and admin-made; this caps a list without paging. */
 const MAX_PROJECTS = 200;
 
-function fieldsOf(sql: Sql, keys: string[], viewer: Viewer) {
+/** A field's response columns, for a select or a returning clause. */
+export function fieldColumns(sql: Sql | Tx) {
   // min_value and max_value are numeric, which postgres.js returns as strings.
+  return sql`
+    id, project_key, key, label_bn, label_en, help_bn, help_en, type, options, required, visibility,
+    show_in_table, show_in_card, show_in_detail, filterable, searchable, fill_down, max_length,
+    min_value::float8 as min_value, max_value::float8 as max_value, import_aliases, sort_order, is_active,
+    created_at, updated_at`;
+}
+
+function fieldsOf(sql: Sql, keys: string[], viewer: Viewer) {
   return sql<ProjectFieldRow[]>`
-    select id, project_key, key, label_bn, label_en, help_bn, help_en, type, options, required, visibility,
-      show_in_table, show_in_card, show_in_detail, filterable, searchable, fill_down, max_length,
-      min_value::float8 as min_value, max_value::float8 as max_value, import_aliases, sort_order, is_active,
-      created_at, updated_at
+    select ${fieldColumns(sql)}
     from public.housing_project_fields
     where project_key = any(${keys}) and (${viewer.admin} or visibility = 'public')
     order by project_key, sort_order, key`;

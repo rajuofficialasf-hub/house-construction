@@ -1603,7 +1603,7 @@ These settle what P4's research turned up. They add to Technical decisions, the 
   - **Guard coverage and OpenAPI:** the U22 tests pass with the new routes.
 - **Done when:** the tests pass.
 - **Depends on:** U22 (same router and schemas)
-- **Status:** todo
+- **Status:** done
 
 ### U24. Field usage and category value rename
 - **Goal:** Before archiving or merging, an admin sees how many records use a field and, for a public field, its most common values (a private field gives only the count, as in the reference). An admin merges one spelling into another across a project, and each changed record is logged.

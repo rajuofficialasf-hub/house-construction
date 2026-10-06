@@ -1,7 +1,8 @@
 import { withActor, type Actor, type Sql, type Tx } from '../db.js';
-import type { ProjectCreateBody, ProjectPatchBody } from './schemas.js';
+import { fieldColumns, type ProjectFieldRow } from './reads.js';
+import type { FieldCreateBody, FieldPatchBody, ProjectCreateBody, ProjectPatchBody } from './schemas.js';
 
-// The project registry writes (docs/api/PROJECTS_API_CONTRACT.md §4.1). Each runs in one withActor()
+// The project registry writes (docs/api/PROJECTS_API_CONTRACT.md §4.1, §4.2). Each runs in one withActor()
 // transaction, so the config log trigger records the session's admin. The guards in
 // 0015_project_guards.sql check every rule and raise HC400 with a field key; who may write is the
 // route's check.
@@ -59,4 +60,50 @@ export async function deleteProject(sql: Sql, actor: Actor, key: string): Promis
 /** Sets sort_order 10, 20, ... in the given order; unknown keys are ignored and nothing is logged. */
 export async function reorderProjects(sql: Sql, actor: Actor, keys: string[]): Promise<void> {
   await withActor(sql, actor, (tx) => tx`select public.housing_projects_reorder(${keys})`);
+}
+
+/** The options column is jsonb; the rest bind as they are. */
+function fieldValues<T extends { options?: string[] }>(tx: Tx, values: T): T {
+  return values.options === undefined ? values : { ...values, options: tx.json(values.options) };
+}
+
+/**
+ * Adds a field to a project, after its last field unless sort_order is given. Null when the project
+ * doesn't exist; the guard refuses a group and the 41st field.
+ */
+export async function createField(sql: Sql, actor: Actor, projectKey: string, body: FieldCreateBody): Promise<ProjectFieldRow | null> {
+  return withActor(sql, actor, async (tx) => {
+    const [found] = await tx<{ next: number }[]>`
+      select (select coalesce(max(sort_order), 0) + 10 from public.housing_project_fields where project_key = ${projectKey}) as next
+      from public.housing_projects where key = ${projectKey}`;
+    if (!found) return null;
+    const row = { sort_order: found.next, ...fieldValues(tx, body), project_key: projectKey };
+    const [created] = await tx<ProjectFieldRow[]>`insert into public.housing_project_fields ${tx(row)} returning ${fieldColumns(tx)}`;
+    if (!created) throw new Error('insert returned no row');
+    return created;
+  });
+}
+
+/** Changes only the given columns; null when the field doesn't exist. The guard keeps a used field's identity. */
+export async function updateField(sql: Sql, actor: Actor, id: string, patch: FieldPatchBody): Promise<ProjectFieldRow | null> {
+  return withActor(sql, actor, async (tx) => {
+    const [updated] = await tx<ProjectFieldRow[]>`
+      update public.housing_project_fields set ${tx(fieldValues(tx, patch))} where id = ${id} returning ${fieldColumns(tx)}`;
+    return updated ?? null;
+  });
+}
+
+/** Deletes an unused field; false when it doesn't exist. The guard refuses one with values. */
+export async function deleteField(sql: Sql, actor: Actor, id: string): Promise<boolean> {
+  return withActor(sql, actor, async (tx) => (await tx`delete from public.housing_project_fields where id = ${id} returning id`).length > 0);
+}
+
+/** Orders a project's fields; false when the project doesn't exist. Other projects' ids are ignored. */
+export async function reorderFields(sql: Sql, actor: Actor, projectKey: string, ids: string[]): Promise<boolean> {
+  return withActor(sql, actor, async (tx) => {
+    const [found] = await tx`select 1 from public.housing_projects where key = ${projectKey}`;
+    if (!found) return false;
+    await tx`select public.housing_project_fields_reorder(${projectKey}, ${ids}::uuid[])`;
+    return true;
+  });
 }

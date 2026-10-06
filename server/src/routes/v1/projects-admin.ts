@@ -3,11 +3,30 @@ import { requireAdmin, requireMainAdmin } from '../../auth/middleware.js';
 import type { Sql } from '../../db.js';
 import { AppError } from '../../errors.js';
 import { getProject } from '../../projects/reads.js';
-import { ifMatch, projectCreateBody, projectKeyParams, projectOrderBody, projectPatchBody } from '../../projects/schemas.js';
-import { createProject, deleteProject, reorderProjects, updateProject } from '../../projects/writes.js';
+import {
+  fieldCreateBody,
+  fieldIdParams,
+  fieldOrderBody,
+  fieldPatchBody,
+  ifMatch,
+  projectCreateBody,
+  projectKeyParams,
+  projectOrderBody,
+  projectPatchBody,
+} from '../../projects/schemas.js';
+import {
+  createField,
+  createProject,
+  deleteField,
+  deleteProject,
+  reorderFields,
+  reorderProjects,
+  updateField,
+  updateProject,
+} from '../../projects/writes.js';
 import { actorOf, DEFAULT_WRITE_RATE_LIMIT, writeRateLimiter, type WriteRateLimit } from './shared.js';
 
-// The project registry admin routes (docs/api/PROJECTS_API_CONTRACT.md §4.1). Mounted at /api/v1
+// The project registry admin routes (docs/api/PROJECTS_API_CONTRACT.md §4.1, §4.2). Mounted at /api/v1
 // with full paths and no router.use(), before the projects read router, so each route names its own
 // guard: the admin check first (deny by default, NE-SEC-03), then the per-admin write limit. Every
 // delete is the main admin's.
@@ -18,6 +37,7 @@ export interface ProjectsAdminDeps {
 }
 
 const projectNotFound = () => new AppError('NOT_FOUND', 'প্রকল্প পাওয়া যায়নি');
+const fieldNotFound = () => new AppError('NOT_FOUND', 'ফিল্ড পাওয়া যায়নি');
 const ADMIN = { admin: true };
 
 /** The If-Match header as a timestamp, or undefined when it isn't sent. */
@@ -62,6 +82,32 @@ export function projectsAdminRouter({ sql, writeRateLimit = DEFAULT_WRITE_RATE_L
   router.delete('/projects/:key', requireMainAdmin, limitWrites, async (req, res) => {
     const { key } = projectKeyParams.parse(req.params);
     if (!(await deleteProject(sql, actorOf(req), key))) throw projectNotFound();
+    res.status(204).end();
+  });
+
+  router.post('/projects/:key/fields', requireAdmin, limitWrites, async (req, res) => {
+    const { key } = projectKeyParams.parse(req.params);
+    const field = await createField(sql, actorOf(req), key, fieldCreateBody.parse(req.body));
+    if (!field) throw projectNotFound();
+    res.status(201).json({ data: field });
+  });
+
+  router.put('/projects/:key/fields/order', requireAdmin, limitWrites, async (req, res) => {
+    const { key } = projectKeyParams.parse(req.params);
+    if (!(await reorderFields(sql, actorOf(req), key, fieldOrderBody.parse(req.body).ids))) throw projectNotFound();
+    res.status(204).end();
+  });
+
+  router.patch('/fields/:id', requireAdmin, limitWrites, async (req, res) => {
+    const { id } = fieldIdParams.parse(req.params);
+    const field = await updateField(sql, actorOf(req), id, fieldPatchBody.parse(req.body));
+    if (!field) throw fieldNotFound();
+    res.json({ data: field });
+  });
+
+  router.delete('/fields/:id', requireMainAdmin, limitWrites, async (req, res) => {
+    const { id } = fieldIdParams.parse(req.params);
+    if (!(await deleteField(sql, actorOf(req), id))) throw fieldNotFound();
     res.status(204).end();
   });
 
