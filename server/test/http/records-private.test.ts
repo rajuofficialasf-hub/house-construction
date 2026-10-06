@@ -120,6 +120,14 @@ describe('GET and PUT /api/v1/records/:id/private', () => {
     await send('put', `/records/${id}/private`, { data: { phone: PHONE } });
     expect(events('private_update')).toEqual([expect.objectContaining({ actor: adminId, record_id: id, keys: ['phone'] })]);
   });
+
+  it('logs a single read with the actor and the record id, and no value', async () => {
+    await insertPrivate(sql, id, { phone: PHONE });
+    await get(`/records/${id}/private`);
+    const [event] = events('private_read');
+    expect(event).toEqual(expect.objectContaining({ actor: adminId, record_id: id }));
+    expect(JSON.stringify(event)).not.toContain(PHONE);
+  });
 });
 
 describe('POST /api/v1/projects/:key/records/private', () => {

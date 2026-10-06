@@ -1209,7 +1209,7 @@ These settle what P3's research turned up. They add to Technical decisions, the 
   - **OpenAPI:** the drift test passes with the new router listed.
 - **Done when:** the tests pass.
 - **Depends on:** U13 (for the `private_update` listing case)
-- **Status:** todo
+- **Status:** done
 
 ### P3 order and parallel lanes
 

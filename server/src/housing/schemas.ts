@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { projectKey } from '../projects/schemas.js';
 
 // Request and response shapes of the public housing reads (docs/api/API_CONTRACT.md §3, §4).
 // The routes parse with the request schemas, and the OpenAPI document is built from all of them,
@@ -89,8 +90,28 @@ export const MAX_BULK_ROWS = 500;
 export const MAX_DETAILS_BYTES = 8192;
 export const MAX_SOURCE = 2000;
 const ACTION = /^[a-z_]{1,40}$/;
-/** Actions the server logs itself (activity trigger, login, logout); a client may not post them. */
-export const SERVER_LOGGED_ACTIONS: ReadonlySet<string> = new Set(['login', 'logout', 'create', 'update', 'delete', 'photo_update', 'serial_change']);
+/** Actions the server logs itself (activity triggers, login, logout); a client may not post them. */
+export const SERVER_LOGGED_ACTIONS: ReadonlySet<string> = new Set([
+  'login',
+  'logout',
+  'create',
+  'update',
+  'delete',
+  'photo_update',
+  'serial_change',
+  'private_update',
+]);
+
+/**
+ * The only events a client may post to /api/v1/activity (contract §4.5): summaries of work the
+ * browser did. An allowlist, so a server action nobody remembered to list can't be forged; login
+ * and logout are logged by the server itself (docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md,
+ * "P3 decisions").
+ */
+export const CLIENT_EVENT_ACTIONS = ['import_run', 'photo_bulk_run', 'records_export', 'category_merge'] as const;
+
+/** How deep the activity list may page; past it a filter is the way in, not a long OFFSET scan. */
+export const MAX_ACTIVITY_PAGE = 10_000;
 
 /** Trimmed and NFC-normalized before the length check, so stored text compares exactly (contract §3.3). */
 export function writeText(min: number, max: number) {
@@ -234,6 +255,18 @@ export const activityBody = z.strictObject({
     .default({}),
 });
 export type ActivityBody = z.infer<typeof activityBody>;
+
+/** The /api/v1/activity query: any registry key for project_type, and a bounded page. */
+export const projectActivityQuery = activityQuery.extend({
+  project_type: projectKey.optional(),
+  page: intParam(1, MAX_ACTIVITY_PAGE).default(1),
+});
+
+/** The /api/v1/activity body: a client event from CLIENT_EVENT_ACTIONS, for any registry key. */
+export const projectActivityBody = activityBody.extend({
+  action: z.enum(CLIENT_EVENT_ACTIONS, { message: 'এই action ক্লায়েন্ট পাঠাতে পারে না' }),
+  project_type: projectKey.optional(),
+});
 
 // Responses. Strict objects, so a test that parses a response also proves no extra column leaks.
 

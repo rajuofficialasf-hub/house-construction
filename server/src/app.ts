@@ -10,6 +10,7 @@ import type { Sql } from './db.js';
 import { errorHandler, notFoundHandler } from './errors.js';
 import { originCheck } from './http/origin.js';
 import { buildOpenApiDocument } from './openapi.js';
+import { activityRouter } from './routes/v1/activity.js';
 import { authRouter } from './routes/v1/auth.js';
 import { healthRouter } from './routes/v1/health.js';
 import { BULK_PATH, housingAdminRouter, type WriteRateLimit } from './routes/v1/housing-admin.js';
@@ -167,6 +168,7 @@ export function createApp({
   // Full paths at the root, before the projects router, whose router-wide limiter would otherwise
   // also count /projects/:key/records.
   app.use('/api/v1', recordsAdminRouter({ sql, storage, publicApiUrl, receivePhoto, writeRateLimit }));
+  app.use('/api/v1', activityRouter({ sql, readRateLimit, writeRateLimit }));
   app.use('/api/v1', recordsReadRouter(sql, readRateLimit));
   app.use('/api/v1/projects', projectsReadRouter(sql, readRateLimit));
   app.use('/api/v1/photos', photosRouter(sql, storage, photoRateLimit));

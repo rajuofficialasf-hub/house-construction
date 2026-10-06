@@ -8,6 +8,7 @@ import {
   bulkUpdateBody,
   bulkUpdateResult,
   changeSerialBody,
+  CLIENT_EVENT_ACTIONS,
   createBody,
   deletePhotoQuery,
   errorBody,
@@ -18,12 +19,15 @@ import {
   idParams,
   INT4_MAX,
   listQuery,
+  MAX_ACTIVITY_PAGE,
   MAX_BULK_ROWS,
   MAX_PAGE_SIZE,
   MAX_SERIALS,
   nextSerial,
   nextSerialQuery,
   pageMeta,
+  projectActivityBody,
+  projectActivityQuery,
   projectTypeQuery,
   serialParams,
   serialsParams,
@@ -359,6 +363,28 @@ export function buildOpenApiDocument(): OpenApiDocument {
           requestBody: body(recordCreateBody),
           responses: { 201: ok('The new record', ref('ProjectRecord')), ...errors(400, 401, 403, 404, 409, 429, 500) },
         }, 'records-admin'),
+      },
+      '/activity': {
+        get: admin('The activity log, newest first. Private-value changes list only the field names (masked); never cached', {
+          parameters: parameters(projectActivityQuery, 'query', {
+            action: 'Exact action, e.g. update, private_update or import_run',
+            project_type: 'A project key',
+            record_id: 'Entries about one record',
+            actor_email: 'Case-insensitive part of the acting admin\'s email; %, _ and \\ match literally',
+            from: 'Entries at or after this time (ISO 8601 with an offset)',
+            to: 'Entries at or before this time (ISO 8601 with an offset)',
+            page: `Page number, 1-${MAX_ACTIVITY_PAGE}; default 1`,
+            page_size: `Rows per page, 1-${MAX_PAGE_SIZE}; default ${DEFAULT_PAGE_SIZE}`,
+          }),
+          responses: { 200: ok('One page of entries and its totals', { type: 'array', items: ref('ActivityEntry') }, ref('PageMeta')), ...errors(400, 401, 429, 500) },
+        }, 'activity'),
+        post: admin(`Record a client event: one of ${CLIENT_EVENT_ACTIONS.join(', ')}. The actor is the session's admin`, {
+          requestBody: body(projectActivityBody),
+          responses: {
+            201: ok('The new entry', { type: 'object', required: ['id'], properties: { id: { type: 'integer' } } }),
+            ...errors(400, 401, 403, 429, 500),
+          },
+        }, 'activity'),
       },
       '/projects/{key}/years': {
         get: {

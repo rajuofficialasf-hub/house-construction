@@ -39,6 +39,8 @@ const ROUTES: AdminRoute[] = [
   { method: 'put', path: '/api/v1/records/ID/photos/current' },
   { method: 'delete', path: '/api/v1/records/ID/photos/current' },
   { method: 'post', path: '/api/v1/records/ID/serial', body: { serial_no: 5 } },
+  { method: 'get', path: '/api/v1/activity' },
+  { method: 'post', path: '/api/v1/activity', body: { action: 'import_run' } },
 ];
 
 let id = '';

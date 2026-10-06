@@ -115,12 +115,14 @@ export function recordsAdminRouter({
   });
 
   // Private values (§4.4.8). Admin-only, reads included; never on the public-read CORS list. Each
-  // save and bulk read leaves a security-event line with key names or a count, never a value
-  // (NE-LOG-03). The activity log doesn't record private saves yet; its log v2 does, in a later chunk
-  // of docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md.
+  // read and save leaves a security-event line with key names, a record id or a count, never a value
+  // (NE-LOG-03). Saves also get an activity row with the changed key names from the trigger in
+  // 0014_record_functions_v2.sql.
   router.get('/records/:id/private', privateNoStore, requireAdmin, async (req, res) => {
-    const data = await getPrivate(sql, idParams.parse(req.params).id);
+    const { id } = idParams.parse(req.params);
+    const data = await getPrivate(sql, id);
     if (!data) throw recordNotFound();
+    req.log.info({ event: 'private_read', actor: actorOf(req).id, record_id: id }, 'private values read');
     res.json({ data });
   });
 

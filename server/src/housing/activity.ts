@@ -2,8 +2,13 @@ import { withActor, type Actor, type Sql } from '../db.js';
 import { likePattern, toPage, type Page } from './reads.js';
 import type { ActivityBody, ActivityQuery } from './schemas.js';
 
-// The admin activity log (docs/api/API_CONTRACT.md §4.9গ). Record writes are logged by the trigger
-// in 0005_activity_log.sql; this file reads the log and records the client's own events.
+/** Either route's query: /api/v1/activity takes any registry key, /housing/activity only its two. */
+type AnyActivityQuery = Omit<ActivityQuery, 'project_type'> & { project_type?: string | undefined };
+type AnyActivityBody = Omit<ActivityBody, 'action' | 'project_type'> & { action: string; project_type?: string | undefined };
+
+// The admin activity log (docs/api/API_CONTRACT.md §4.9গ, docs/api/PROJECTS_API_CONTRACT.md §4.5).
+// Record and private-value writes are logged by the triggers (0014_record_functions_v2.sql); this
+// file reads the log and records the client's own events.
 
 export interface ActivityEntry {
   id: number;
@@ -19,7 +24,7 @@ export interface ActivityEntry {
 }
 
 /** One page of the log, newest first, with the filtered total. */
-export async function listActivity(sql: Sql, query: ActivityQuery): Promise<Page<ActivityEntry>> {
+export async function listActivity(sql: Sql, query: AnyActivityQuery): Promise<Page<ActivityEntry>> {
   const conditions = [sql`true`];
   if (query.action) conditions.push(sql`action = ${query.action}`);
   if (query.project_type) conditions.push(sql`project_type = ${query.project_type}`);
@@ -42,7 +47,7 @@ export async function listActivity(sql: Sql, query: ActivityQuery): Promise<Page
 }
 
 /** Records a client event (an import run, a bulk photo run) for the admin; returns its id. */
-export async function logEvent(sql: Sql, actor: Actor, body: ActivityBody): Promise<number> {
+export async function logEvent(sql: Sql, actor: Actor, body: AnyActivityBody): Promise<number> {
   return withActor(sql, actor, async (tx) => {
     const [row] = await tx<{ id: number }[]>`
       select public.housing_log_event(${body.action}, ${tx.json(body.details as never)}, ${body.project_type ?? null})::float8 as id`;
