@@ -2314,7 +2314,7 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
 - **Tests:** a CI run on the pushed branch is green, or a local `act` run if pushing is not wanted yet. Pushing is the user's call.
 - **Done when:** the README table matches `package.json` and `ci.yml`, and the local runs of every suite listed there pass.
 - **Depends on:** U38, U39
-- **Status:** todo
+- **Status:** done
 
 ### P7 order and parallel lanes
 
@@ -2374,7 +2374,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** U40 (CI and the testing README), then the P7 verification and the combined simplify and review.
+- **Next:** the P7 verification, then one `ae-simplify` over P5–P7 (bf05776..HEAD) and one `ae-review` with a range per chunk.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
@@ -2598,3 +2598,4 @@ Run these at the end of P1:
       - The server gained an optional `READ_RATE_LIMIT`, set high only in the admin-rest `webServer`; production keeps 300.
       - Each admin page load makes about three `GET /projects` calls. That's an efficiency point for the combined simplify.
       - Full admin-rest is 61 passed twice in a row.
+    - **U40:** `ci.yml` needed no change. `db-suites` already runs the server suite, `test:contract:rest` (now with its `ProjectsApi` part) and `test:e2e:rest-admin` (now with `e2e/admin/` through the config), and the `checks` build uses the REST default. The testing README describes the new suites, the parity reference and the admin-rest reset. CI itself runs when the branch is pushed, which is the user's call.
