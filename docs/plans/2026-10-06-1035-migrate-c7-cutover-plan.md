@@ -332,7 +332,7 @@ Everything the new stack needs exists on staging and is prepared for production 
 - **Tests:** the script itself: it exits 0 after `verify --photos` passes and both admins log in with their Supabase passwords, and the scratch database and storage folder are gone afterwards. Run it once with a deliberately broken photo URL in the source to see the gap reported.
 - **Done when:** `npm run test:import:supabase-local` passes locally (Docker and the Supabase CLI), and its timing is written in `docs/testing/README.md` next to the command and in the runbook's section 19 time column as the local baseline.
 - **Depends on:** U5
-- **Status:** todo
+- **Status:** done
 
 ### U8. Runbook, checklist and docs
 - **Goal:** A person can rehearse, cut over, verify, monitor and roll back from the runbook alone.
@@ -380,7 +380,7 @@ Server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$PATH`
 ## Progress
 - **Branch:** `migrate/c7-cutover`
 - **Updated:** 2026-10-06 11:10
-- **Next:** U7, write `scripts/import-supabase-local.mjs` on top of `scripts/contract-supabase-local.mjs`
+- **Next:** U8, write runbook section 19 (cutover) and section 20 (checklist)
 - **Uncommitted:** none
 - **Notes:**
   - `origin/main` was not ahead; `dev-forhad` already equals `migrate/c6-deploy` (`7397bbb`), so there was nothing to merge or port.
@@ -392,3 +392,4 @@ Server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$PATH`
   - U4: `encodeVariant(image, variant)` plus `VARIANT_WIDTHS`, `WEBP_QUALITY` and `MAX_INPUT_PIXELS` are exported from `server/src/photos/process.ts`. Supabase answers a missing public object with HTTP 400 and a "not found" body, so 400 + "not found" counts as a gap like 404 (to confirm against the local stack in U7). `copyPhotos` stops all workers at the first failure before removing what they wrote.
   - U5: verify compares per-row md5s keyed by id instead of one aggregate checksum, so a failure names the differing ids. An admin hash that is now argon2id counts as matching: a login with the imported hash replaced it. The end-of-import verify runs without `--photos`; a failed check sets exit code 1.
   - U6: the read contract has one test that sends writes without a session; the new `writeProbes: false` option skips it for real-data runs. `readonlyFetch` also waits out a 429 (the site's read limit is per IP). The browser guard aborts every non-read request in `public-rest` and `edge-rest`, on any origin. `test:e2e:edge` wasn't run locally (it needs a freshly seeded database, which would wipe the dev data); CI runs it.
+  - U7: the plugin's stack guard blocks new `@supabase/supabase-js` imports, so the script calls Supabase's auth, REST and storage HTTP APIs with `fetch` (it also survives C8). Confirmed on the local stack: a missing public object answers HTTP 400 `{"statusCode":"404","error":"not_found"}`. Local baseline on 20 records: import 0.5 s, verify with photos 0.3 s.

@@ -25,6 +25,7 @@
     "check:prod-bundle": "node scripts/check-prod-bundle.mjs",
     "test:contract:supabase-local": "node scripts/contract-supabase-local.mjs",
     "test:contract:rest": "node scripts/contract-rest.mjs",
+    "test:import:supabase-local": "node scripts/import-supabase-local.mjs",
     "test:contract:rest-readonly": "REST_READONLY_URL=${REST_READONLY_URL:-http://localhost:3001} vitest run tests/contract/rest.readonly.contract.test.ts"
   },
   "dependencies": {
