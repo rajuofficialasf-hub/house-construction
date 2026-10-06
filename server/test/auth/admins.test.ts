@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { AdminCliError, createAdmin, listAdmins, setDisabled, setPassword, setRole } from '../../src/auth/admins.js';
+import { AdminCliError, createAdmin, listAdmins, parseRole, setDisabled, setPassword, setRole } from '../../src/auth/admins.js';
 import { verifyPassword } from '../../src/auth/password.js';
 import { login } from '../../src/auth/service.js';
 import { authenticate } from '../../src/auth/session.js';
@@ -131,8 +131,7 @@ describe('roles', () => {
 
   it('refuses an unknown email or role', async () => {
     await expect(setRole(owner, 'nobody@example.org', 'admin')).rejects.toThrow(AdminCliError);
-    await createAdmin(owner, { email: 'a@example.org', password: PASSWORD });
-    await expect(setRole(owner, 'a@example.org', 'root')).rejects.toThrow(AdminCliError);
+    expect(() => parseRole('root')).toThrow(AdminCliError);
   });
 });
 

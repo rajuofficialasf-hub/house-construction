@@ -1,7 +1,7 @@
 import type { Sql, Tx } from '../db.js';
 import { emailSchema, MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from './credentials.js';
 import { hashPassword } from './password.js';
-import type { AdminPrincipal, AdminRole } from './types.js';
+import { ADMIN_ROLES, type AdminPrincipal, type AdminRole } from './types.js';
 
 // Creating and changing admins. Only the admin CLI calls these, connected as the schema owner:
 // the API role has no right to insert admins or change anything but a password hash.
@@ -24,15 +24,16 @@ function checkPassword(password: string): void {
   }
 }
 
-const ROLES = ['admin', 'main_admin'] as const satisfies readonly AdminRole[];
-
 export function parseRole(role: string): AdminRole {
-  const found = ROLES.find((r) => r === role);
-  if (!found) throw new AdminCliError(`the role must be ${ROLES.join(' or ')}, got ${role}`);
+  const found = ADMIN_ROLES.find((r) => r === role);
+  if (!found) throw new AdminCliError(`the role must be ${ADMIN_ROLES.join(' or ')}, got ${role}`);
   return found;
 }
 
-async function logChange(tx: Tx, action: string, email: string, extra: { role?: AdminRole } = {}): Promise<void> {
+/** Logged with the email; never a password or hash. */
+type LogExtra = { role?: AdminRole };
+
+async function logChange(tx: Tx, action: string, email: string, extra: LogExtra = {}): Promise<void> {
   await tx`select public.housing_log_event(${action}, ${tx.json({ email, ...extra })})`;
 }
 
@@ -54,7 +55,7 @@ async function changeAdmin(
   email: string,
   action: string,
   change: (tx: Tx, id: string) => Promise<void>,
-  extra: { role?: AdminRole } = {},
+  extra: LogExtra = {},
 ): Promise<void> {
   const address = parseEmail(email);
   await sql.begin(async (tx) => {
@@ -109,17 +110,16 @@ export async function setDisabled(sql: Sql, email: string, disabled: boolean): P
  * Gives the admin a role. The new role applies on their next request, since the session lookup
  * reads it each time. Only one admin may be main_admin.
  */
-export async function setRole(sql: Sql, email: string, role: string): Promise<void> {
-  const parsed = parseRole(role);
+export async function setRole(sql: Sql, email: string, role: AdminRole): Promise<void> {
   await changeAdmin(
     sql,
     email,
     'admin_role_set',
     async (tx, id) => {
-      if (parsed === 'main_admin') await assertNoOtherMainAdmin(tx, id);
-      await tx`update public.housing_admins set role = ${parsed}, updated_at = now() where id = ${id}`;
+      if (role === 'main_admin') await assertNoOtherMainAdmin(tx, id);
+      await tx`update public.housing_admins set role = ${role}, updated_at = now() where id = ${id}`;
     },
-    { role: parsed },
+    { role },
   );
 }
 

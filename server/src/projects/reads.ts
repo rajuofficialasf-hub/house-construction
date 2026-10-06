@@ -1,5 +1,6 @@
 import type { Sql } from '../db.js';
-import type { ProjectListQuery } from './schemas.js';
+import type { z } from 'zod';
+import type { project, projectField, ProjectListQuery } from './schemas.js';
 
 // The project registry reads (docs/api/PROJECTS_API_CONTRACT.md §4.1). Unlike the housing reads,
 // the answer depends on who asks: a visitor sees only projects in housing_public_project_keys()
@@ -11,67 +12,13 @@ export interface Viewer {
   admin: boolean;
 }
 
-export interface ProjectFieldRow {
-  id: string;
-  project_key: string;
-  key: string;
-  label_bn: string;
-  label_en: string;
-  help_bn: string;
-  help_en: string;
-  type: string;
-  options: unknown[];
-  required: boolean;
-  visibility: 'public' | 'admin';
-  show_in_table: boolean;
-  show_in_card: boolean;
-  show_in_detail: boolean;
-  filterable: boolean;
-  searchable: boolean;
-  fill_down: boolean;
-  max_length: number | null;
-  min_value: number | null;
-  max_value: number | null;
-  import_aliases: string[];
-  sort_order: number;
-  is_active: boolean;
-  created_at: Date;
-  updated_at: Date;
-}
+type Timestamps = { created_at: Date; updated_at: Date };
 
-export interface ProjectRow {
-  key: string;
-  parent_key: string | null;
-  is_group: boolean;
-  slug: string;
-  name_bn: string;
-  name_en: string;
-  summary_bn: string;
-  summary_en: string;
-  description_bn: string;
-  description_en: string;
-  unit_bn: string;
-  unit_en: string;
-  photo_mode: string;
-  prev_label_bn: string;
-  prev_label_en: string;
-  current_label_bn: string;
-  current_label_en: string;
-  geo_depth: string;
-  core_fields: Record<string, unknown>;
-  stat_cards: Record<string, unknown>[];
-  display: Record<string, unknown>;
-  file_prefix: string | null;
-  icon: string;
-  accent: string;
-  cover_path: string | null;
-  sort_order: number;
-  is_published: boolean;
-  show_on_home: boolean;
-  created_at: Date;
-  updated_at: Date;
-  fields?: ProjectFieldRow[];
-}
+/** A field as read from the database: the response shape, with Date timestamps until JSON. */
+export type ProjectFieldRow = Omit<z.infer<typeof projectField>, keyof Timestamps> & Timestamps;
+
+/** A project as read from the database, with its fields when they were asked for. */
+export type ProjectRow = Omit<z.infer<typeof project>, keyof Timestamps | 'fields'> & Timestamps & { fields?: ProjectFieldRow[] };
 
 // Named, never `*` (DB-Q-05).
 const PROJECT_COLUMNS = [
@@ -120,6 +67,8 @@ export async function getProject(sql: Sql, key: string, viewer: Viewer): Promise
 
 /** A project's fields, or null when the project doesn't exist or the viewer may not see it. */
 export async function listProjectFields(sql: Sql, key: string, viewer: Viewer): Promise<ProjectFieldRow[] | null> {
-  const found = await getProject(sql, key, viewer);
-  return found ? (found.fields ?? []) : null;
+  const [visible] = await sql`
+    select 1 from public.housing_projects
+    where key = ${key} and (${viewer.admin} or key = any(public.housing_public_project_keys()))`;
+  return visible ? fieldsOf(sql, [key], viewer) : null;
 }

@@ -13,7 +13,8 @@ export interface AdminPrincipal {
 }
 
 /** A main_admin may also delete; see server/db/migrations/0012_admin_roles.sql. */
-export type AdminRole = 'admin' | 'main_admin';
+export const ADMIN_ROLES = ['admin', 'main_admin'] as const;
+export type AdminRole = (typeof ADMIN_ROLES)[number];
 
 export interface AuthDeps {
   sql: Sql;
