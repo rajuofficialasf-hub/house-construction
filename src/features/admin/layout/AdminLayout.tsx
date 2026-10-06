@@ -15,7 +15,16 @@ interface NavItem {
  * সব লিংক/বোতাম কমপক্ষে ৪৪px উঁচু (আঙুলে চাপার জন্য)। রেকর্ড-লিংক রেজিস্ট্রি থেকে (এখন ঘর নির্মাণের উপ-প্রকল্প;
  * জেনেরিক রেকর্ড-পাতা M-ধাপ ১০-এ)।
  */
-export function AdminLayout({ user, children }: { user: AuthUser; children: ReactNode }) {
+export function AdminLayout({
+  user,
+  onLeaving,
+  children,
+}: {
+  user: AuthUser
+  /** লগআউট শুরু/ব্যর্থ — RequireAdmin তখন লগইন পেইজে পাঠায় না, যাতে লগআউটের পর হোমে যাওয়া যায় */
+  onLeaving?: (leaving: boolean) => void
+  children: ReactNode
+}) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const [drawer, setDrawer] = useState(false)
@@ -64,11 +73,13 @@ export function AdminLayout({ user, children }: { user: AuthUser; children: Reac
   const logout = async () => {
     setBusy(true)
     setError(null)
+    onLeaving?.(true)
     try {
       await getHousingApi().logActivity('logout')
       await getAuthProvider().logout()
       navigate('/', { replace: true })
     } catch (err) {
+      onLeaving?.(false)
       setError(HousingApiError.from(err).message)
     } finally {
       setBusy(false)

@@ -1,4 +1,5 @@
 import { t } from '@/i18n'
+import { useState } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router'
 import { useAuth } from '../hooks/useAuth'
 import { AdminLayout } from '@/features/admin/layout/AdminLayout'
@@ -14,6 +15,8 @@ export const LOGIN_PATH = '/admin/login'
 export function RequireAdmin() {
   const auth = useAuth()
   const location = useLocation()
+  // নিজের লগআউট চলাকালে সেশন শেষ হলে লগইন পেইজে নয় — AdminLayout হোমে নিয়ে যায়
+  const [leaving, setLeaving] = useState(false)
 
   if (auth.status === 'loading') {
     return (
@@ -36,11 +39,12 @@ export function RequireAdmin() {
   }
 
   if (!auth.user || !auth.isAdmin) {
+    if (leaving) return null
     return <Navigate to={LOGIN_PATH} replace state={{ from: location.pathname + location.search }} />
   }
 
   return (
-    <AdminLayout user={auth.user}>
+    <AdminLayout user={auth.user} onLeaving={setLeaving}>
       <Outlet />
     </AdminLayout>
   )
