@@ -7,7 +7,8 @@
 export const EN: Record<string, string> = {
   // ---------------------------------------------------------------- সাইট / লেআউট
   'আস-সুন্নাহ ফাউন্ডেশন': 'As-Sunnah Foundation',
-  'মানবতার সেবায় নিবেদিত': 'Dedicated to serving humanity',
+  'এই প্রতিষ্ঠান মানবতার শিক্ষক, মানুষের মুক্তি ও শান্তির দূত, মানবসেবার আদর্শ, মহানবী মুহাম্মদ সা.-এর পদাঙ্ক অনুসরণ করে আর্তমানবতার সেবায় একটি আদর্শ কল্যাণসমাজ বিনির্মাণে যথাশক্তি প্রচেষ্টা চালিয়ে যাচ্ছে।':
+    'This institution is striving to build an ideal welfare society by following the footsteps of the Prophet of Humanity, the Messenger of Human Freedom and Peace, the ideal of human service, the Prophet Muhammad (PBUH), in the service of humanity.',
   'হোম': 'Home',
   'খসড়া — শুধু এডমিন দেখছেন': 'Draft — only admins can see this',
   'প্রধান মেনু': 'Main menu',
