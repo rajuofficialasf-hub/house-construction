@@ -13,16 +13,22 @@ export function ownerDb(): Sql {
 }
 
 /**
- * Empties every housing table and zeroes the serial counters, so each test starts from the
- * state of a fresh install. TRUNCATE doesn't fire row triggers, so nothing is logged.
+ * Empties every housing table, restores the project registry to the rows the migrations seed and
+ * zeroes their serial counters, so each test starts from the state of a fresh install. TRUNCATE
+ * doesn't fire row triggers, so nothing is logged.
  */
 export async function resetTestData(owner: Sql): Promise<void> {
   await owner`truncate public.housing_activity_log, public.housing_serial_changes, public.housing_files,
-    public.housing_beneficiaries, public.housing_admin_sessions, public.housing_admins restart identity`;
+    public.housing_beneficiary_private, public.housing_beneficiaries, public.housing_project_fields,
+    public.housing_projects, public.housing_admin_sessions, public.housing_admins restart identity`;
+  await owner`select public.housing_seed_projects()`;
+  await owner`delete from public.housing_serial_counters
+    where project_type not in (select key from public.housing_projects)`;
   await owner`update public.housing_serial_counters set last_serial = 0`;
 }
 
-export type ProjectType = 'semi_pucca' | 'tin';
+/** A project key; the seeded leaf projects are semi_pucca and tin. */
+export type ProjectType = string;
 
 export interface RecordInput {
   project_type?: ProjectType;
@@ -34,6 +40,8 @@ export interface RecordInput {
   upazila?: string;
   father_or_husband_name?: string;
   address?: string;
+  union_name?: string;
+  extra?: Record<string, unknown>;
   created_at?: Date;
 }
 
@@ -53,6 +61,8 @@ export async function insertRecord(sql: Sql | Tx, input: RecordInput = {}): Prom
     upazila: input.upazila ?? 'উলিপুর',
     father_or_husband_name: input.father_or_husband_name ?? '',
     address: input.address ?? '',
+    union_name: input.union_name ?? '',
+    extra: sql.json((input.extra ?? {}) as Parameters<typeof sql.json>[0]),
     ...(input.serial_no !== undefined && { serial_no: input.serial_no }),
     ...(input.created_at && { created_at: input.created_at }),
   };
@@ -87,4 +97,65 @@ export async function insertAdmin(owner: Sql, input: AdminInput = {}): Promise<I
     insert into public.housing_admins ${owner(row)} returning id, email, name`;
   if (!inserted) throw new Error('insert returned no row');
   return inserted;
+}
+
+export interface ProjectInput {
+  key: string;
+  parent_key?: string | null;
+  is_group?: boolean;
+  slug?: string;
+  name_bn?: string;
+  name_en?: string;
+  file_prefix?: string | null;
+  is_published?: boolean;
+  sort_order?: number;
+  photo_mode?: 'before_after' | 'after_only' | 'none';
+}
+
+/**
+ * Inserts a project as the owner, with a serial counter when it can hold records. Defaults make a
+ * published, top-level project whose slug and file prefix derive from its key.
+ */
+export async function insertProject(owner: Sql, input: ProjectInput): Promise<void> {
+  const isGroup = input.is_group ?? false;
+  const row = {
+    key: input.key,
+    parent_key: input.parent_key ?? null,
+    is_group: isGroup,
+    slug: input.slug ?? input.key.replaceAll('_', '-'),
+    name_bn: input.name_bn ?? `প্রকল্প ${input.key}`,
+    name_en: input.name_en ?? `Project ${input.key}`,
+    file_prefix: input.file_prefix === undefined ? (isGroup ? null : input.key.replaceAll('_', '').slice(0, 16)) : input.file_prefix,
+    is_published: input.is_published ?? true,
+    sort_order: input.sort_order ?? 100,
+    photo_mode: input.photo_mode ?? 'after_only',
+  };
+  await owner`insert into public.housing_projects ${owner(row)}`;
+  if (!isGroup) await owner`insert into public.housing_serial_counters (project_type) values (${input.key})`;
+}
+
+export interface FieldInput {
+  project_key: string;
+  key: string;
+  label_bn?: string;
+  type?: 'text' | 'long_text' | 'number' | 'money' | 'category' | 'date' | 'phone';
+  visibility?: 'public' | 'admin';
+  is_active?: boolean;
+  sort_order?: number;
+}
+
+/** Inserts a project field as the owner and returns its id. */
+export async function insertField(owner: Sql, input: FieldInput): Promise<string> {
+  const row = {
+    project_key: input.project_key,
+    key: input.key,
+    label_bn: input.label_bn ?? input.key,
+    type: input.type ?? (input.visibility === 'admin' ? 'phone' : 'text'),
+    visibility: input.visibility ?? 'public',
+    is_active: input.is_active ?? true,
+    sort_order: input.sort_order ?? 10,
+  };
+  const [inserted] = await owner<{ id: string }[]>`insert into public.housing_project_fields ${owner(row)} returning id`;
+  if (!inserted) throw new Error('insert returned no row');
+  return inserted.id;
 }

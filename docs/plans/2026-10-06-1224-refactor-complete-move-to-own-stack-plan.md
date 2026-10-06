@@ -286,7 +286,7 @@ Only P1 is planned in full below. Each later chunk gets its own units from `ae-p
   - the existing `test/db/*` and `test/http/*` suites still pass with the widened helpers
 - **Done when:** `npm --prefix server test` is green, including the global setup's full up, down, up cycle.
 - **Depends on:** none
-- **Status:** todo
+- **Status:** done
 
 ### U3. Migration `0012_admin_roles`
 - **Goal:** Every admin has the role `admin` or `main_admin`, with at most one `main_admin`.
@@ -431,8 +431,22 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** P1 U2, write migration `0011_projects_registry.sql` from `supabase/sql/10_projects.sql`.
+- **Next:** P1 U3, migration `0012_admin_roles.sql` (role column, CHECK, one-`main_admin` index).
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
   - The user confirmed that nothing is deployed and no users carry over (2026-10-06), so `0012` promotes no admin.
+  - **The Supabase import tooling was removed in P1, ahead of P9.** That covers:
+    - the server's `import:supabase` CLI and `src/import/`
+    - their tests and fixture
+    - the `housing_source_test` database
+    - `scripts/import-supabase-local.mjs`
+
+    `0011` gives records columns the Supabase source lacks, so the importer's tests broke. No data is imported (Key Decisions), so adapting the importer would have been thrown away. P9 still removes the rest of R16: `deploy/`, the edge service, the runbook, and bcrypt hash support if nothing else needs it.
+  - **Registry tables keep the server's `housing_` prefix:**
+    - `housing_projects`
+    - `housing_project_fields`
+    - `housing_beneficiary_private`
+
+    The test setup's down-migration check then covers them.
+  - **`housing_seed_projects()`** (owner-only) holds the seed rows, so `resetTestData` and the e2e reset restore the same registry.
