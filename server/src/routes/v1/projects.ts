@@ -1,8 +1,8 @@
 import { Router, type Request, type RequestHandler } from 'express';
 import type { Sql } from '../../db.js';
 import { AppError } from '../../errors.js';
-import { getProject, listProjectFields, listProjects, type Viewer } from '../../projects/reads.js';
-import { projectKeyParams, projectListQuery } from '../../projects/schemas.js';
+import { getProject, listProjectFields, listProjects, projectStats, projectsOverview, type Viewer } from '../../projects/reads.js';
+import { overviewQuery, projectKeyParams, projectListQuery, statsQuery } from '../../projects/schemas.js';
 import { DEFAULT_READ_RATE_LIMIT, readRateLimiter, type ReadRateLimit } from './shared.js';
 
 // The project registry reads (docs/api/PROJECTS_API_CONTRACT.md §4.1). Public, but an admin
@@ -29,10 +29,23 @@ export function projectsReadRouter(sql: Sql, readRateLimit: ReadRateLimit = DEFA
     res.json({ data: await listProjects(sql, projectListQuery.parse(req.query), viewerOf(req)) });
   });
 
+  // Before /:key, which would otherwise read "overview" as a project key.
+  router.get('/overview', async (req, res) => {
+    const { drafts } = overviewQuery.parse(req.query);
+    res.json({ data: await projectsOverview(sql, drafts === '1', viewerOf(req)) });
+  });
+
   router.get('/:key', async (req, res) => {
     const found = await getProject(sql, projectKeyParams.parse(req.params).key, viewerOf(req));
     if (!found) throw notFound();
     res.json({ data: found });
+  });
+
+  router.get('/:key/stats', async (req, res) => {
+    const { key } = projectKeyParams.parse(req.params);
+    const stats = await projectStats(sql, key, statsQuery.parse(req.query).light !== undefined, viewerOf(req));
+    if (stats === null) throw notFound();
+    res.json({ data: stats });
   });
 
   router.get('/:key/fields', async (req, res) => {

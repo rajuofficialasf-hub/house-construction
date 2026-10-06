@@ -1864,7 +1864,7 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
     - the route order: `GET /projects/overview` is not read as a key
 - **Done when:** the new HTTP tests and `openapi.test.ts` pass, and `curl localhost:3001/api/v1/projects/overview` on the seeded dev server returns the three registry projects.
 - **Depends on:** U26
-- **Status:** todo
+- **Status:** done
 
 ### U28. OpenAPI complete
 - **Goal:** `/api/v1/openapi.json` describes every mounted route apart from `/auth`, with its parameters, bodies, responses and admin rules.
@@ -2374,7 +2374,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** U27 (stats and overview routes in `projectsReadRouter`), then U28, U29; P5 → P6 → P7 as one batch.
+- **Next:** U28 (OpenAPI complete), then U29; P5 → P6 → P7 as one batch.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
@@ -2544,3 +2544,9 @@ Run these at the end of P1:
         - U38's stale-edit and duplicate-slug cases overlap the contract suite
         - the 50k timing run isn't in the P5 row
         - U28 could assert 403s from an explicit route list instead of reading the router stack
+  - **P5 build notes:**
+    - U26's tests are in `server/test/db/project-stats.test.ts`. A third function, `housing_project_counted_leaves(key, public_only)`, holds the shared leaf filter for stats and overview.
+    - Private fields are `visibility = 'admin'` in this schema (the `0011` CHECK). The plan's word "private" means that value.
+    - The public-read CORS tests live in each feature's HTTP test file; there is no `cors.test.ts`. U27's are in `server/test/http/projects-stats.test.ts`.
+    - The server reads the session cookie whatever the request's origin. A partner page that sent a cookie would get admin data in the body, but the browser won't let it read the body, because the response has no `Access-Control-Allow-Credentials` (and the cookie is `SameSite=Lax`). U27's test asserts that header, not an emptied body.
+    - The stats and overview response schemas (`projectStats`, `projectOverview` in `server/src/projects/schemas.ts`) feed OpenAPI and the HTTP tests' parsing.

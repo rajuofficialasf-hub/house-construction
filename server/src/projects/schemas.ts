@@ -31,6 +31,12 @@ export const projectListQuery = z.object({
 });
 export type ProjectListQuery = z.infer<typeof projectListQuery>;
 
+/** `?light=1` leaves out by_union's entries and the category breakdowns (the home page's cards). */
+export const statsQuery = z.object({ light: z.enum(['1', 'true']).optional() });
+
+/** `?drafts=1` adds drafts and the photo-less counts; honoured only for an admin session. */
+export const overviewQuery = z.object({ drafts: z.literal('1').optional() });
+
 const timestamp = z.iso.datetime({ offset: true });
 const jsonObject = z.record(z.string(), z.unknown());
 
@@ -260,3 +266,55 @@ export const ifMatch = z
   .string()
   .transform((value) => value.trim().replace(/^"(.*)"$/, '$1'))
   .pipe(z.iso.datetime({ offset: true }));
+
+const counts = z.record(z.string(), z.number().int());
+
+/** GET /projects/:key/stats, as src/backend/interfaces/types.ts ProjectStats describes it. */
+export const projectStats = z.strictObject({
+  total: z.number().int(),
+  by_year: counts,
+  by_division: counts,
+  by_district: counts,
+  by_upazila: counts,
+  by_location: counts,
+  distinct: z.strictObject({ divisions: z.number().int(), districts: z.number().int(), upazilas: z.number().int(), unions: z.number().int() }),
+  by_project: counts,
+  by_union: counts,
+  fields: z.record(
+    z.string(),
+    z.union([
+      z.strictObject({ type: z.enum(['money', 'number']), sum: z.number(), count: z.number().int() }),
+      z.strictObject({
+        type: z.literal('category'),
+        distinct: z.number().int(),
+        by_value: z.record(z.string(), z.strictObject({ n: z.number().int(), sums: z.record(z.string(), z.number()) })).optional(),
+      }),
+    ]),
+  ),
+});
+
+/** GET /projects/overview, as src/backend/interfaces/types.ts ProjectOverview describes it. */
+export const projectOverview = z.strictObject({
+  projects: z.array(
+    project
+      .pick({
+        key: true, parent_key: true, is_group: true, slug: true, name_bn: true, name_en: true, summary_bn: true,
+        summary_en: true, unit_bn: true, unit_en: true, photo_mode: true, icon: true, accent: true, cover_path: true,
+        sort_order: true, is_published: true, show_on_home: true, stat_cards: true,
+      })
+      .extend({
+        stats: projectStats,
+        featured: z
+          .strictObject({
+            project_type: projectKey,
+            serial_no: z.number().int(),
+            name: z.string(),
+            thumb_url: z.string(),
+            photo_updated_at: timestamp.nullable(),
+          })
+          .nullable(),
+        without_photo: z.number().int().nullable(),
+      }),
+  ),
+  global: z.strictObject({ projects: z.number().int(), total: z.number().int(), districts: z.number().int() }),
+});

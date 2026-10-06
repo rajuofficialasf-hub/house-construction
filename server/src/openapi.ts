@@ -47,9 +47,13 @@ import {
   projectField,
   projectKeyParams,
   projectListQuery,
+  overviewQuery,
   projectOrderBody,
+  projectOverview,
   projectPatchBody,
+  projectStats,
   renameValueBody,
+  statsQuery,
 } from './projects/schemas.js';
 import {
   bulkCreateBody,
@@ -352,6 +356,14 @@ export function buildOpenApiDocument(): OpenApiDocument {
           responses: { 201: ok('The new project with its fields', ref('Project')), ...errors(400, 401, 403, 409, 429, 500) },
         }, 'projects-admin'),
       },
+      '/projects/overview': {
+        get: {
+          summary: 'Every project the caller may see, in display order, with light stats, its newest record with a photo and totals over the published projects. Drafts and photo-less counts only for an admin session with drafts=1',
+          tags: ['projects'],
+          parameters: parameters(overviewQuery, 'query', { drafts: '1: include drafts and without_photo counts; ignored without an admin session' }),
+          responses: { 200: ok('The overview', ref('ProjectOverview')), ...errors(400, 429, 500) },
+        },
+      },
       '/projects/order': {
         put: admin('Set sort_order 10, 20, ... in the given order; unknown keys are ignored and nothing is logged', {
           requestBody: body(projectOrderBody),
@@ -476,6 +488,17 @@ export function buildOpenApiDocument(): OpenApiDocument {
             ...errors(400, 401, 403, 429, 500),
           },
         }, 'activity'),
+      },
+      '/projects/{key}/stats': {
+        get: {
+          summary: "Counts by year, place, union and child project, with sums of the public money and number fields and category breakdowns; a group's cover its children (only published ones without an admin session). A draft only for an admin session",
+          tags: ['records'],
+          parameters: [
+            ...parameters(projectKeyParams, 'path'),
+            ...parameters(statsQuery, 'query', { light: '1 or true: by_union is empty and categories carry no by_value (the home-page cards)' }),
+          ],
+          responses: { 200: ok('The stats', ref('ProjectStats')), ...errors(400, 404, 429, 500) },
+        },
       },
       '/projects/{key}/years': {
         get: {
@@ -651,6 +674,8 @@ export function buildOpenApiDocument(): OpenApiDocument {
         ProjectField: jsonSchema(projectField, 'output'),
         PageMeta: jsonSchema(pageMeta, 'output'),
         HousingStats: jsonSchema(housingStats, 'output'),
+        ProjectStats: jsonSchema(projectStats, 'output'),
+        ProjectOverview: jsonSchema(projectOverview, 'output'),
         FilterOptions: jsonSchema(filterOptions, 'output'),
         NextSerial: jsonSchema(nextSerial, 'output'),
         ActivityEntry: jsonSchema(activityEntry, 'output'),

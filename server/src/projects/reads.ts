@@ -101,3 +101,21 @@ export async function fieldUsage(sql: Sql, projectKey: string, fieldKey: string)
   if (!rows[0]) throw new Error('housing_project_field_usage returned no row');
   return rows[0].usage;
 }
+
+/**
+ * A project's stats, or null when it doesn't exist or the viewer may not see it. A visitor's
+ * stats of a published group count only its published children (housing_project_stats' p_public_only).
+ */
+export async function projectStats(sql: Sql, key: string, light: boolean, viewer: Viewer): Promise<unknown | null> {
+  const [row] = await sql<{ s: unknown }[]>`
+    select public.housing_project_stats(key, ${light}, ${!viewer.admin}) as s
+    from public.housing_projects
+    where key = ${key} and (${viewer.admin} or key = any(public.housing_public_project_keys()))`;
+  return row ? row.s : null;
+}
+
+/** Every project the viewer may see with light stats; drafts only for an admin who asks for them. */
+export async function projectsOverview(sql: Sql, drafts: boolean, viewer: Viewer): Promise<unknown> {
+  const [row] = await sql<{ o: unknown }[]>`select public.housing_projects_overview(${viewer.admin && drafts}) as o`;
+  return row?.o;
+}
