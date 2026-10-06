@@ -365,7 +365,7 @@ Server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$PATH`
 - **Personal data left on staging**: no hashes, access locked to operators, backups and the sweep paused, a same-day wipe including bucket versions, and a signed checklist line.
 - **The Supabase credential leaks**: a temporary read-only role with an expiry, prompted, never stored or logged, TLS verified, and dropped after the cutover.
 - **A malicious URL in a record steers the importer**: origin and segment checks, no redirects, the base URL's form checked.
-- **`--replace` wipes live data**: it needs the database name typed as a flag, and refuses when the target has newer writes than the source unless `--discard-new-writes`.
+- **`--replace` wipes live data**: it needs the target's `host:port/database` typed as a flag (so staging and production differ), and refuses when the target has newer writes than the source unless `--discard-new-writes`.
 - **nginx switch breaks other vhosts**: `nginx -t` before every reload, the old server block kept as a file, and the templates already pass `nginx -t` on 1.20 in CI.
 - **A bad day after the switch**: rollback within 72 hours as above; after that, fix forward. Supabase stays frozen and a final encrypted dump stays 30 days in the backup bucket.
 - **0010 needs to be undone**: it only adds an extension and indexes; its down section drops them, and no code depends on them.
