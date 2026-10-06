@@ -7,7 +7,7 @@ import { CliError } from '../cli/prompt.js';
 import type { SourceUser } from './source.js';
 
 /** Stored for an admin with no usable hash: verifyPassword never matches it. */
-export const UNUSABLE_HASH = '!';
+const UNUSABLE_HASH = '!';
 
 const BCRYPT_HASH = /^\$2[aby]\$\d\d\$/;
 
@@ -23,9 +23,14 @@ export interface TargetAdmin {
   updated_at: string;
 }
 
+export interface DisabledAdmin {
+  id: string;
+  reasons: DisabledReason[];
+}
+
 export interface MappedAdmins {
   admins: TargetAdmin[];
-  disabled: { id: string; reasons: DisabledReason[] }[];
+  disabled: DisabledAdmin[];
 }
 
 /**
@@ -36,7 +41,7 @@ export function mapAdmins(users: SourceUser[], { withoutPasswords, now }: { with
   const stamp = now.toISOString();
   const seen = new Set<string>();
   const admins: TargetAdmin[] = [];
-  const disabled: MappedAdmins['disabled'] = [];
+  const disabled: DisabledAdmin[] = [];
 
   for (const user of users) {
     const reasons: DisabledReason[] = [];

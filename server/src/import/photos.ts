@@ -14,6 +14,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
+import { setTimeout as sleep } from 'node:timers/promises';
 import type { ReadableStream as WebReadableStream } from 'node:stream/web';
 import sharp from 'sharp';
 import { CliError } from '../cli/prompt.js';
@@ -21,7 +22,7 @@ import { encodeVariant, MAX_INPUT_PIXELS, type PhotoVariant } from '../photos/pr
 import { photoUrl } from '../photos/service.js';
 import { sniffImage } from '../photos/sniff.js';
 import type { StorageDriver } from '../storage/index.js';
-import type { PhotoSlotRef } from './report.js';
+import type { PhotoGap, PhotoSlotRef } from './report.js';
 import type { SourceRecord, UrlColumn } from './source.js';
 import type { ImportedFile, PhotoResult } from './target.js';
 
@@ -77,7 +78,7 @@ export interface PhotoCopyOptions {
 
 export interface PhotoCopy {
   result: PhotoResult;
-  gaps: (PhotoSlotRef & { reason: 'not_found' | 'outside_base' })[];
+  gaps: PhotoGap[];
   generated: PhotoSlotRef[];
   /** Every key written, so the caller can remove them if the import transaction fails. */
   writtenKeys: string[];
@@ -127,7 +128,7 @@ export async function copyPhotos(records: readonly SourceRecord[], options: Phot
         res = await fetchFn(url, { redirect: 'manual', signal: AbortSignal.timeout(timeoutMs) });
       } catch (err) {
         if (attempt < retries) {
-          await new Promise((resolve) => setTimeout(resolve, retryDelayMs * 2 ** attempt));
+          await sleep(retryDelayMs * 2 ** attempt);
           continue;
         }
         throw new CliError(`${where}: could not fetch the photo (${err instanceof Error ? err.message : String(err)})`);
@@ -136,7 +137,7 @@ export async function copyPhotos(records: readonly SourceRecord[], options: Phot
       if (res.status === 404 || (res.status === 400 && /not.?found/i.test(await res.text()))) throw new NotFound();
       if (res.status >= 500 && attempt < retries) {
         await res.body?.cancel();
-        await new Promise((resolve) => setTimeout(resolve, retryDelayMs * 2 ** attempt));
+        await sleep(retryDelayMs * 2 ** attempt);
         continue;
       }
       if (res.status !== 200 || !res.body) {
@@ -152,24 +153,29 @@ export async function copyPhotos(records: readonly SourceRecord[], options: Phot
     }
   }
 
-  /** Stores `file` as `variant`, as it is when it's a clean WebP, re-encoded otherwise. */
-  async function store(file: string, variant: PhotoVariant, where: string, forceEncode: boolean): Promise<{ key: string; size: number }> {
-    let clean = false;
+  /** True when `file` decodes fully and is already a clean WebP that can be stored byte for byte. */
+  async function isCleanWebp(file: string, where: string): Promise<boolean> {
     try {
       const meta = await sharp(file, decodeOptions).metadata();
       await sharp(file, decodeOptions).stats(); // decodes every pixel: a broken image fails here
-      const size = (await stat(file)).size;
-      clean =
-        !forceEncode &&
+      return (
         meta.format === 'webp' &&
         (meta.pages ?? 1) === 1 &&
         !meta.exif && !meta.xmp && !meta.iptc && !meta.icc &&
-        (await riffCoversFile(file, size));
+        (await riffCoversFile(file, (await stat(file)).size))
+      );
     } catch {
       throw new CliError(`${where}: not a readable image`);
     }
+  }
+
+  /**
+   * Stores `file` as `variant`: as it is when it's a clean WebP, re-encoded otherwise. `fromCheckedPhoto`
+   * marks a file already checked as a photo, which only needs encoding (a thumb made from it).
+   */
+  async function store(file: string, variant: PhotoVariant, where: string, fromCheckedPhoto = false): Promise<{ key: string; size: number }> {
     let source = file;
-    if (!clean) {
+    if (fromCheckedPhoto || !(await isCleanWebp(file, where))) {
       source = `${file}.${variant}.webp`;
       await encodeVariant(sharp(file, decodeOptions), variant).toFile(source);
     }
@@ -221,7 +227,7 @@ export async function copyPhotos(records: readonly SourceRecord[], options: Phot
           }
           throw err;
         }
-        addFile(kind, variant, slot, await store(file, variant, where, false), src.objectPath);
+        addFile(kind, variant, slot, await store(file, variant, where), src.objectPath);
         if (variant === 'photo') {
           photoFile = file;
           photoName = src.objectPath;

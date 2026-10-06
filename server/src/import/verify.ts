@@ -2,6 +2,7 @@
 // the same queries run on Supabase and on this database, and every difference fails a named check.
 // Rows are compared by an md5 of each row's to_jsonb text, keyed by id, so a failure names the
 // differing ids and never prints a value.
+import { setTimeout as sleep } from 'node:timers/promises';
 import type { Sql } from '../db.js';
 import type { ImportReport } from './report.js';
 import { readOnly, URL_COLUMNS, type UrlColumn } from './source.js';
@@ -32,11 +33,14 @@ async function rowHashes(tx: Sql, table: string, without: readonly string[] = []
   return new Map(rows.map((r) => [r.id, r.h]));
 }
 
+/** Up to ten ids, so a long list stays readable. */
+const listIds = (ids: readonly string[]) => `${ids.slice(0, 10).join(', ')}${ids.length > 10 ? ', …' : ''}`;
+
 function compareRows(name: string, source: Map<string, string>, target: Map<string, string>): Check {
   const missing = [...source.keys()].filter((id) => !target.has(id));
   const extra = [...target.keys()].filter((id) => !source.has(id));
   const changed = [...source.keys()].filter((id) => target.has(id) && target.get(id) !== source.get(id));
-  const show = (label: string, ids: string[]) => (ids.length ? `${label} ${ids.length}: ${ids.slice(0, 10).join(', ')}${ids.length > 10 ? ', …' : ''}` : '');
+  const show = (label: string, ids: string[]) => (ids.length ? `${label} ${ids.length}: ${listIds(ids)}` : '');
   const problems = [show('missing', missing), show('extra', extra), show('different', changed)].filter(Boolean);
   return { name, ok: problems.length === 0, detail: problems.length ? problems.join('; ') : `${source.size} rows` };
 }
@@ -101,22 +105,30 @@ async function adminChecks(source: Sql, target: Sql): Promise<Check[]> {
       select id, email, password_hash as hash, disabled_at is not null as disabled from public.housing_admins order by id`,
   ]);
   const targetById = new Map(to.map((a) => [a.id, a]));
+  const sourceIds = new Set(from.map((a) => a.id));
   const missing = from.filter((a) => !targetById.has(a.id)).map((a) => a.id);
-  const extra = to.filter((a) => !from.some((s) => s.id === a.id)).map((a) => a.id);
-  const email = from.filter((a) => {
-    const t = targetById.get(a.id);
-    return t && t.email !== a.email && !UNIMPORTED_EMAIL.test(t.email);
-  });
+  const extra = to.filter((a) => !sourceIds.has(a.id)).map((a) => a.id);
+  const email = from
+    .filter((a) => {
+      const t = targetById.get(a.id);
+      return t && t.email !== a.email && !UNIMPORTED_EMAIL.test(t.email);
+    })
+    .map((a) => a.id);
   // A hash that is now argon2id was replaced by a successful login with the imported one.
-  const hash = from.filter((a) => {
-    const t = targetById.get(a.id);
-    return t && !t.disabled && t.hash !== a.hash && !t.hash.startsWith('$argon2id$');
-  });
-  const ids = (list: { id: string }[] | string[]) => list.map((x) => (typeof x === 'string' ? x : x.id)).join(', ');
+  const hash = from
+    .filter((a) => {
+      const t = targetById.get(a.id);
+      return t && !t.disabled && t.hash !== a.hash && !t.hash.startsWith('$argon2id$');
+    })
+    .map((a) => a.id);
   return [
-    { name: 'admins', ok: missing.length === 0 && extra.length === 0, detail: missing.length || extra.length ? `missing ${ids(missing)}; extra ${ids(extra)}` : `${from.length} admins` },
-    { name: 'admin emails', ok: email.length === 0, detail: email.length ? `different for ${ids(email)}` : 'same' },
-    { name: 'admin password hashes', ok: hash.length === 0, detail: hash.length ? `different for ${ids(hash)}` : 'same' },
+    {
+      name: 'admins',
+      ok: missing.length === 0 && extra.length === 0,
+      detail: missing.length || extra.length ? `missing ${listIds(missing)}; extra ${listIds(extra)}` : `${from.length} admins`,
+    },
+    { name: 'admin emails', ok: email.length === 0, detail: email.length ? `different for ${listIds(email)}` : 'same' },
+    { name: 'admin password hashes', ok: hash.length === 0, detail: hash.length ? `different for ${listIds(hash)}` : 'same' },
   ];
 }
 
@@ -167,7 +179,7 @@ async function photoHttpCheck(target: Sql, options: PhotoCheckOptions): Promise<
         if (res.status === 429 && attempt < 5) {
           await res.body?.cancel();
           const wait = Number(res.headers.get('retry-after') ?? '1');
-          await new Promise((resolve) => setTimeout(resolve, Math.min(Number.isFinite(wait) ? wait : 1, 60) * 1000));
+          await sleep(Math.min(Number.isFinite(wait) ? wait : 1, 60) * 1000);
           continue;
         }
         const ok = res.status === 200 && res.headers.get('content-type') === 'image/webp';
@@ -182,7 +194,7 @@ async function photoHttpCheck(target: Sql, options: PhotoCheckOptions): Promise<
   return {
     name: 'photo URLs answer 200',
     ok: failed.length === 0,
-    detail: failed.length ? `${failed.length} of ${rows.length} failed, records: ${unique.slice(0, 10).join(', ')}${unique.length > 10 ? ', …' : ''}` : `${rows.length} photos`,
+    detail: failed.length ? `${failed.length} of ${rows.length} failed, records: ${listIds(unique)}` : `${rows.length} photos`,
   };
 }
 
@@ -191,8 +203,12 @@ async function photoHttpCheck(target: Sql, options: PhotoCheckOptions): Promise<
  * explains photo gaps and generated thumbs; without it the photo count check is skipped.
  */
 export async function verifyImport(source: Sql, target: Sql, report: ImportReport | undefined, photos?: PhotoCheckOptions): Promise<Check[]> {
-  const readSource: Reader = (fn) => readOnly(source, (tx) => fn(tx as unknown as Sql));
-  const readTarget: Reader = (fn) => readOnly(target, (tx) => fn(tx as unknown as Sql));
+  const reader =
+    (sql: Sql): Reader =>
+    (fn) =>
+      readOnly(sql, (tx) => fn(tx as unknown as Sql));
+  const readSource = reader(source);
+  const readTarget = reader(target);
   const [s, t] = await Promise.all([readSource(readSide), readTarget(readSide)]);
   const checks: Check[] = [
     same('records per project', s.projects, t.projects),

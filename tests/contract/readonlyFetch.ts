@@ -2,6 +2,8 @@
 // production) without any chance of changing its data. Anything but GET, HEAD or OPTIONS throws
 // before a request is made. The site's read limit is per IP, so a 429 waits as told and retries.
 
+import { setTimeout as sleep } from 'node:timers/promises'
+
 const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]'])
 
@@ -24,7 +26,7 @@ export function createReadonlyFetch(inner: typeof fetch = fetch, { maxWaitSecond
       if (res.status !== 429 || attempt >= 5) return res
       await res.body?.cancel()
       const wait = Number(res.headers.get('retry-after') ?? '1')
-      await new Promise((resolve) => setTimeout(resolve, Math.min(Number.isFinite(wait) ? wait : 1, maxWaitSeconds) * 1000))
+      await sleep(Math.min(Number.isFinite(wait) ? wait : 1, maxWaitSeconds) * 1000)
     }
   }
 }

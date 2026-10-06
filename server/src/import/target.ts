@@ -7,7 +7,7 @@
 import type { Sql, Tx } from '../db.js';
 import { CliError } from '../cli/prompt.js';
 import type { TargetAdmin } from './admins.js';
-import type { Snapshot, SourceRecord, UrlColumn } from './source.js';
+import { URL_COLUMNS, type Snapshot, type UrlColumn } from './source.js';
 
 const WIPED_TABLES = ['housing_beneficiaries', 'housing_files', 'housing_serial_changes', 'housing_activity_log', 'housing_admins'] as const;
 
@@ -125,12 +125,10 @@ export async function writeImport(owner: Sql, input: ImportInput, options: Targe
 
     await tx`alter table public.housing_beneficiaries disable trigger housing_beneficiaries_activity_log`;
 
-    const records: SourceRecord[] = snapshot.records.map((r) => ({
+    // Every record's photo URLs come from the copy: a slot it couldn't fill stays empty.
+    const records = snapshot.records.map((r) => ({
       ...r,
-      prev_photo_url: photos.urls.get(r.id)?.prev_photo_url ?? null,
-      prev_thumb_url: photos.urls.get(r.id)?.prev_thumb_url ?? null,
-      current_photo_url: photos.urls.get(r.id)?.current_photo_url ?? null,
-      current_thumb_url: photos.urls.get(r.id)?.current_thumb_url ?? null,
+      ...Object.fromEntries(URL_COLUMNS.map((column) => [column, photos.urls.get(r.id)?.[column] ?? null])),
     }));
     const now = new Date().toISOString();
     await populate(tx, 'housing_beneficiaries', JSON.stringify(records));

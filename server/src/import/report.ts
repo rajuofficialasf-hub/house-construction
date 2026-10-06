@@ -1,7 +1,7 @@
 // The import's report: what the operator must look at, by id only. It never holds names,
 // addresses, emails, hashes or other column values, so it can be read on a shared screen.
 import { readFile, writeFile } from 'node:fs/promises';
-import type { DisabledReason } from './admins.js';
+import type { DisabledAdmin } from './admins.js';
 import type { UrlColumn } from './source.js';
 
 export interface PhotoSlotRef {
@@ -11,15 +11,17 @@ export interface PhotoSlotRef {
   slot: UrlColumn;
 }
 
+/** A photo the source points at that couldn't be copied: its slot stays empty. */
+export type PhotoGap = PhotoSlotRef & { reason: 'not_found' | 'outside_base' };
+
 export interface ImportReport {
   created_at: string;
   source: string;
   target: string;
-  /** A photo the source points at that couldn't be copied: its slot stays empty. */
-  photo_gaps: (PhotoSlotRef & { reason: 'not_found' | 'outside_base' })[];
+  photo_gaps: PhotoGap[];
   /** A thumb the source lacked, made from its photo. */
   generated_thumbs: PhotoSlotRef[];
-  admins_disabled: { id: string; reasons: DisabledReason[] }[];
+  admins_disabled: DisabledAdmin[];
 }
 
 /** Writes the report readable by its owner only, refusing to overwrite an earlier one. */
