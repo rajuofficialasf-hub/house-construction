@@ -1,7 +1,7 @@
 ---
 title: C6 CI, Staging and Production Deploy
 type: migrate
-status: in-progress
+status: done
 source: plan
 date: 2026-10-06
 doc_review: 2026-10-06
@@ -224,7 +224,7 @@ Migrations are not rolled back automatically. After the first staging run they a
   - `docker compose down -v && docker compose up -d db` still creates both databases with the changed init script.
 - **Done when:** A green run of `ci.yml` on `migrate/c6-deploy`, and the compose database still initializes.
 - **Depends on:** U1, U2, U7 (so CI covers the new tests and the audit is clean)
-- **Status:** in progress (workflow written and linted; a green run needs the branch pushed)
+- **Status:** done
 
 ### U4. PM2 ecosystem, deploy, backup and restore-drill scripts
 - **Goal:** The box runs the API, sweep and backup from one ecosystem file, and one command deploys or rolls back a release.
@@ -352,6 +352,17 @@ All server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$P
 - **The write limit stops a legitimate import**: 120 a minute is about 24,000 rows a minute at the UI's batch size, so this is unlikely. The limit is one constant to raise.
 
 ## Notes for later chunks
+- Built as planned, with these differences:
+  - nginx files are `box.conf.template`, `local.conf.template` and `api-proxy.conf.template`.
+  - Each environment's upstream is `housing_api_<env>`, because upstream names are global across the box's vhosts.
+  - `local.conf` listens on `HOUSING_LISTEN_PORT` (CI: 8080, host network).
+  - `npm run build:edge` builds into `.edge/dist`.
+  - `npm ci` runs with `--ignore-scripts` per command.
+  - `backup.sh` stages age's output in a temp file before uploading (`docs/learnings/tooling/streamed-backup-uploads-truncated-dump-on-failure.md`).
+- Local `edge-rest` needs a freshly seeded database. Photos uploaded through compose have `http://localhost:3001` URLs, which the CSP check correctly flags as cross-origin.
+- First CI run on `migrate/c6-deploy` (2026-10-06, run 37412586568): all four jobs green.
+- Review (2026-10-06): one P1 and two P2s, plus four P3s, all fixed (see the commit `fix(deploy): address C6 review notes`).
+- Box, AWS and Cloudflare steps were not run here (no access). Their ops checklist is section 18 of `docs/operations/runbook.md`.
 - C7: render and install the production vhost from `housing-box.conf.template` (it replaces the Supabase UI's server block), build the production UI with `rest`, and add production's `readyz` to the uptime monitor.
 - C7: `VITE_API_BASE_URL` and `PUBLIC_API_URL` are both the site origin, so the photo URLs written by the import are `https://<prod host>/api/v1/photos/<id>`.
 - C7: run the restore drill on a fresh production backup before the final cutover step.
@@ -363,39 +374,3 @@ All server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$P
 - Verification commands pass
 - `ae-review` has run, with no open P0 or P1
 - Code from abandoned attempts is removed
-
-## Progress
-- **Branch:** `migrate/c6-deploy`
-- **Updated:** 2026-10-06 09:55
-- **Next:** push `migrate/c6-deploy` (needs the user's yes) and confirm `ci.yml` is green, then set U3 and the plan to done
-- **Uncommitted:** none
-- **Notes:**
-  - Unit order: U1, U2, U7, U3, U4, U5, U6 (U3 depends on U7 for a clean audit).
-  - U3: `ci.yml` passes actionlint (with shellcheck), and both `01-init.sh` paths were checked on throwaway containers (compose mount, and CI-style `PG*` variables). The plan's "green run" check waits on a push, which needs the user's yes. Actions pinned: checkout v7.0.1, setup-node v7.0.0, cache v6.1.0, upload-artifact v7.0.1.
-  - U4 checks run in containers (the box is Linux; `mv -T` and `find -printf` are GNU-only):
-    - backup → restore-drill round trip on postgres:17 with a fake `aws` and a throwaway age key;
-    - `deploy.sh` with real PM2 on node:22: a good release went live, a broken one rolled back (exit 1, API still ready), and a redeploy skipped the build;
-    - `verify-restore.sql` exits 3 when a serial is above its counter. psql's `\quit` takes no exit code, so the check raises an exception instead.
-  - U5 as built:
-    - File names: `box.conf.template` and `local.conf.template` (not `housing-box…`/`local-edge.conf`). `api-proxy.conf.template` holds the shared proxy lines.
-    - Each environment's upstream is `housing_api_<env>`, because upstream names are global across the box's vhosts.
-    - `npm run build:edge` builds the rest UI into `.edge/dist` (gitignored).
-    - Checks:
-      - `nginx -t` passed on 1.20 with staging, production and local loaded together;
-      - curl confirmed the headers, the SPA fallback, immutable assets, the one-day photo cache, 413 for a 2 MB login body, and that a spoofed `X-Forwarded-For` is replaced by the client IP;
-      - `edge-rest` was green on a fresh seeded database (17 passed, 2 skipped), and a `connect-src 'none'` CSP made it fail.
-    - The local dev database's C5 photos have `http://localhost:3001` URLs, so `edge-rest` correctly flags them as cross-origin. The local edge run needs a fresh seed; CI's seed has none.
-  - U6: the restore drill was re-run as a plain `createdb` role (`housing_drill`, as the runbook sets up), not the superuser, and passed. The runbook sets the role passwords through `printf` piped into psql, so they never appear in `ps`.
-  - Full ae-test run (2026-10-06), all green:
-    - lint, typechecks, i18n, unit 166, bundle check, both audits 0;
-    - server 494, contract 40, admin-rest 34, mock e2e 53, public-rest 17, edge-rest 17 (fresh database);
-    - shellcheck and actionlint clean.
-  - Simplify: named the activity path, `render-nginx.sh` reuses `die`, and fixed a stale comment. Skipped: merging the read and write limiter builders (it touches `housing.ts`, outside the diff) and a composite action for the Playwright CI steps.
-  - Review (2026-10-06): one P1 and two P2s, plus four P3s, all fixed:
-    - **P1:** CI's edge nginx ran on the host network on port 80 while the step polled 8080. `local.conf` now listens on `HOUSING_LISTEN_PORT` (default 80; CI sets 8080).
-    - **P2:** a failed `pg_dump` could upload a truncated backup that Object Lock would keep. `backup.sh` now writes age's output to a temp file and uploads only after the pipeline succeeds.
-    - **P2:** the heartbeat URL went to curl as an argument; it now goes through `curl --config -`.
-    - **P3s:** the drill rejects a symlink or a path outside `/dev/shm` (with `realpath`); `/activity/` and `/Activity` aren't counted by the write limit (test added); a release that won't prune no longer fails a live deploy.
-    - Verified in containers: good and failed backups, the heartbeat, the drill, the identity checks, and nginx on 8080.
-  - The deploy script runs from the repo clone's working tree, so the runbook updates that tree before each deploy.
-  - `npm ci` runs with `--ignore-scripts` per command, not through `NPM_CONFIG_IGNORE_SCRIPTS`, which would also skip pre/post scripts on `npm run`.
