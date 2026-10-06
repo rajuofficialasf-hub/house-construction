@@ -230,7 +230,7 @@ Each chunk is one session that ends with green tests and commits. Chunks run in 
 |---|---|---|---|
 | **P1** | Foundation: stack profile, registry schema, admin roles end to end, project reads with draft and private visibility | R1 (partial), R6, R7 (reads), R2 (list/get), R9 | — |
 | **P2** | Record rules and single-record API: `0013`, `errors.ts` HC mapping, `GET/PATCH/DELETE /records/:id`, `POST /projects/:key/records`, list with `union_name`, `f.*`, `q` over searchable fields, `sort=extra.*`, `serial/:n`, `serials`, private `GET/PUT /records/:id/private` and `POST …/records/private`; plain admin can't null a photo URL; CORS gains `PATCH` | R1, R4, R7, R9 | P1 |
-| **P3** | Bulk and photos: `0014`, `POST/PUT …/records/bulk` v2 (`_clear`, `extra` merge, private keys routed), `POST /records/:id/serial`, `PUT/DELETE /records/:id/photos/:slot` with photo mode checked before storing (R8, AE3), the photo route's draft visibility check, `years`, `next-serial` (null for drafts unless admin), `GET/POST /activity`, record and private log v2 | R1, R4, R8, R9 | P2 |
+| **P3** | Bulk and photos: `0014`, `POST/PUT …/records/bulk` v2 (`_clear`, `extra` merge, private keys routed), `POST /records/:id/serial`, `PUT/DELETE /records/:id/photos/:slot` with photo mode checked before storing (R8, AE3), the photo route's draft visibility check, `years`, `next-serial` (null for drafts unless admin), `GET/POST /activity`, record and private log v2 | R1, R4, R6, R7, R8, R9 | P2 |
 | **P4** | Project and field writes: `0015`, `POST/PATCH(If-Match)/DELETE /projects`, publish and unpublish, `PUT /projects/order`, field create, update, archive, delete, reorder, usage, rename-value, covers `PUT/DELETE /projects/:key/cover` (draft covers 404 to visitors), config activity log | R2, R3, R6, R9 | P1 (P3 for the rename-value log) |
 | **P5** | Stats and overview: `0016`, `GET /projects/:key/stats?light=1` (`by_union`, `by_project`, field sums, category `by_value`), `GET /projects/overview` (`featured`, `without_photo`); OpenAPI complete for every route; dev seed gains a draft project with custom and private fields | R5, R1, R9 | P3, P4 |
 | **P6** | REST adapter and default: rewrite `src/backend/rest/endpoints.ts` and `index.ts` to the new routes with no legacy fallback; real `ProjectsApi`; REST default in `factory.ts`, `.env.example`, `compose.yaml`; move legacy into the mock; contract suite gains a `ProjectsApi` part and every new `HousingApi` method, run against REST and, while it still exists, local Supabase as the parity reference | R1, R10, R11 | P5 |
@@ -239,7 +239,7 @@ Each chunk is one session that ends with green tests and commits. Chunks run in 
 | **P9** | Removal: Supabase package, adapter, `supabase/` folder, scripts, tests, Playwright projects, env vars; `deploy/`, the edge service and jobs, the runbook; `import:supabase` and its tests and fixtures; `/housing` routes and `API_CONTRACT.md`; `PROJECTS_API_CONTRACT.md` corrected to the server as built; docs rewritten, including the mermaid pages in `docs/diagrams/` (`backend-architecture.md` loses the Supabase, deploy and cutover pictures and gains the registry tables; `test-strategy.md` loses the live-Supabase lanes); bundle check; AE4 search | R15, R16, R17, R18 | P8 checklist fully checked |
 | **P10** | Handoff guide: run, extend, test; `CLAUDE.md` profile final | R19 | P9 |
 
-P1 and P2 are planned in full below. Each later chunk gets its own units from `ae-plan` at its start, against the code as it is then.
+P1 to P3 are planned in full below. Each later chunk gets its own units from `ae-plan` at its start, against the code as it is then.
 
 ## Implementation units — P1 (Foundation)
 
@@ -770,6 +770,474 @@ These settle what research turned up. They add to Technical decisions and change
 - `ae-review` has run with no open P0 or P1.
 - P3's start runs `ae-plan` on this file to add P3's units.
 
+## Implementation units — P3 (Bulk, photos, years, next serial, activity)
+
+### P3 decisions
+
+These settle what P3's research turned up. They add to Technical decisions, the settled Deferred-to-Planning answers and the P2 decisions, and change none of them.
+
+- **`housing_bulk_update_by_serial` v2 replaces v1 in place, with the same signature and the same grant.**
+  - The old `PUT /housing/bulk` then runs v2 too. Its zod enum still allows only `semi_pucca` and `tin`, and v2 accepts both.
+  - One behaviour changes on the old route: v1 cleared `father_or_husband_name`, `address` and the two photo sources on `""`. v2 treats `""` as unchanged for every field, which is `main`'s Supabase behaviour and the contract (§4.4.7).
+  - Nothing relies on v1's clearing: the UI sends only non-empty cells (contract v1.2), and the REST adapter's `legacyPayload` strips `_clear`. A test on the old route pins the new behaviour.
+  - The private part does **not** use the reference's `on conflict do update`. That fires the BEFORE INSERT trigger with no `old` (U11), so an unchanged archived private key would be refused. The port updates `data = data || patch` first, and inserts only when no row was updated, the same as `putPrivate`.
+- **Bulk insert gets a SQL function too: `housing_bulk_insert_records(p_project_key text, p_rows jsonb, p_use_given_serial boolean) returns integer`.** The reference has none (the Supabase adapter inserts in chunks and is not all-or-nothing).
+  - The contract asks for `details.row_index` on the failing row (§4.4.7). A multi-row `INSERT` can't say which row a trigger refused, and a row-per-statement loop in TypeScript is 500 round trips (`DB-Q-03`). A plpgsql loop does both in one call.
+  - The function splits each row's `extra` into public and private keys the same way v2 update does, so a POST can carry private values too.
+  - The old `POST /housing/bulk` keeps its TypeScript multi-row insert unchanged.
+- **Both bulk functions report the failing row in `HINT`.**
+  - Each loops over `jsonb_array_elements(p_rows) with ordinality`. One outer `exception when sqlstate 'HC400' or sqlstate 'HC409'` handler re-raises with the same errcode, message and detail, plus `hint = 'row_index=<i>'`. `i` is 0-based, matching zod's `rows.<i>` path.
+  - The insert function also turns a `unique_violation` (the serial) into `HC409` with `DETAIL = 'serial_no'` and the row index. So a serial taken in the database is 409 with the row, and the TypeScript pre-check is not needed on the new route.
+  - `errors.ts` adds `details.row_index` for class `HC` only, and only when `hint` matches `^row_index=(\d{1,3})$`.
+  - The single outer handler costs one subtransaction per call, not per row.
+- **`housing_next_serial` is not changed.** This supersedes "`housing_next_serial` v2" in the settled `0014` row, which also predates `housing_bulk_insert_records`. U13 is the authority for what `0014` holds.
+  - The reference v2 adds only a visibility gate (`public_project_keys() or is_housing_admin()`). Authorization stays in the API (Technical decisions, `docs/learnings/security/postgres-session-setting-guards-are-spoofable.md`).
+  - Today's function already returns null for a key with no counter row, which covers groups and unknown keys.
+- **`GET /projects/:key/next-serial` answers 200 with `next_serial: null` for an unknown key, a group, and a project hidden from the caller.** The contract says null for a draft or group unless the caller is an admin (§4.3). Returning null for unknown keys too means a visitor still can't tell a draft key from an unknown one (the Visibility decision). A bad key format is 400.
+- **`GET /projects/:key/years` follows the record reads: a hidden or unknown key is 404.** A group key is allowed and covers its leaves through `housing_project_leaf_keys` (the port of `project_leaf_keys`, with the server's `housing_` prefix). For a visitor the leaves are also filtered by `housing_public_project_keys()`, so a draft child of a published group adds no years.
+- **The activity log v2 replaces `housing_log_record_change` in place and adds `housing_log_private_change`.**
+  - Both are `security definer`, like `0005`, because `housing_app` has only `select` on the log.
+  - The private trigger logs `private_update` with `{ fields: [<changed keys>], masked: true }` and never a value. When the record is gone (the delete cascade), it writes nothing.
+  - Public `extra` values are logged as old and new per key (`extra.<key>`). `extra` never holds a private key (the `0013` trigger), and the log is admin-only.
+- **Photo mode is checked before the body is read.**
+  - The receiver stores files as it streams them, so a check after it would store and then remove (contract §4.4.10, AE3).
+  - The route looks up the record's `photo_mode` first, and answers 404 or 400 before calling the receiver.
+  - The `0013` trigger stays as the backstop for a race with a `photo_mode` change.
+- **The receiver takes the slot from the caller.**
+  - `createPhotoReceiver`'s function gains an optional `{ kind }`. When it is given, a multipart `kind` field is refused as unexpected, the same as any other unknown field.
+  - The old route passes nothing and keeps reading the field.
+- **The photo service returns the caller's column list.** `savePhoto` and `deletePhoto` take the columns to return: `RECORD_COLUMNS` from `/housing`, `ADMIN_RECORD_COLUMNS` from the new routes. Neither route re-reads the record.
+- **A draft project's photo is 404 to a visitor.**
+  - `findLiveFile` takes the viewer and joins the file's record. For a visitor it also requires `b.project_type = any(public.housing_public_project_keys())`. The function returns `text[]`, so `in (select …)` would fail; every existing caller uses `= any`.
+  - Response headers:
+    - a visitor's 200 keeps `public, max-age=86400`
+    - an admin's 200 sends `private, no-store`
+    - a 404 sends `no-store`, so no browser keeps a stale 404 after an admin publishes
+  - A published photo cached by a visitor's browser stays cached for up to a day after an unpublish. This is accepted (user-decided at P3 doc review): file ids never change, so long caching is what keeps photo pages fast, no shared cache exists yet, and the same was true on Supabase's public bucket. A shorter TTL or `Vary` is revisited when hosting is designed.
+  - P4 adds covers to the join.
+- **P2 leftovers:**
+  - **A single private GET writes a security-event line** `{ event: 'private_read', actor, record_id }`, with no keys or values. This matches the bulk read's `private_read_many`. It is a pino line, not an activity row: the contract says reads aren't in the activity log (§4.4.8).
+  - **The project's fields query on the create and private routes stays.** It is one small query, and the bulk routes need the field list anyway.
+  - **Phone filter normalisation stays as it is.** Phones are private and never filterable.
+- **Client events can't forge server actions: `POST /activity` takes an allowlist** (user-decided at P3 doc review).
+  - `CLIENT_EVENT_ACTIONS` holds the client events the UI sends today (contract §4.5): `login`, `logout`, `import_run`, `photo_bulk_run`, `records_export` and `category_merge`. Anything else is 400.
+  - A denylist would let any server action someone forgot to list be forged.
+  - `SERVER_LOGGED_ACTIONS` stays as a second check and gains only `private_update`. P4 adds its `project_*` and `field_*` names in the unit that first writes them.
+  - The old `/housing/activity` route keeps its denylist (with `private_update` added) until P9.
+  - `details` stays a size-capped object, as in the old body. It is what the client said happened, not proof.
+- **`POST /activity` counts against the per-admin write limit** (120 a minute). The old router skips its limiter for `/activity`. The new routes follow the records-admin pattern, where every route names its own guard and limiter, and client events are a few per import or export.
+- **Names as built.** `recordProject`, `ADMIN_RECORD_COLUMNS` and `projectRecord` are the built names of U9's `projectForRecords`, `RECORD_V2_COLUMNS` and the record response schema. U14 and U15 use `recordProject`, which returns the project and its fields and refuses groups. U17 uses `getProject` (`server/src/projects/reads.ts`), because `years` and `next-serial` need only the project row and allow groups.
+- **New routes and their files:**
+  - Public reads (`years`, `next-serial`) go in `server/src/routes/v1/records.ts`. That router is mounted before the projects router, whose router-wide limiter would otherwise count them twice (U9 note).
+  - Admin writes go in `records-admin.ts`.
+  - `/activity` gets its own router, `server/src/routes/v1/activity.ts`, because it isn't a record route.
+
+### U13. Migration `0014_record_functions_v2`
+- **Goal:** The database can run the v2 bulk update and a v2 bulk insert for any project, and logs every record and private-value change, including `extra`-only, `union_name`-only and private changes.
+- **Requirements:** R4, R9 (all-or-nothing bulk, `_clear`, the activity row for every write).
+- **Files:**
+  - `server/db/migrations/0014_record_functions_v2.sql`
+  - `server/test/db/bulk-update.test.ts` (extend)
+  - `server/test/db/bulk-insert-records.test.ts` (new)
+  - `server/test/db/activity-log.test.ts` (extend)
+  - `server/test/db/privileges.test.ts`: the new grants
+- **Approach:**
+  - **`housing_project_leaf_keys(p_key text) returns text[]`**
+    - port `project_leaf_keys` from `supabase/sql/11_project_rpcs.sql:39`
+    - plain invoker, `stable`
+    - reads `housing_projects`
+    - it is not visibility-aware, so callers filter
+  - **`housing_bulk_update_by_serial(p_project_type text, p_rows jsonb)`**
+    - `create or replace` with the same signature, so the `0006` grant holds. Port `supabase/sql/11_project_rpcs.sql` lines 486–571, with these changes:
+      - an unknown or group key raises `HC400` with `DETAIL = 'project_type'`
+      - the 500-row (`22023`) and missing-serial (`23502`) raises stay as they are
+      - the private patch is update-then-insert (P3 decisions)
+      - the outer `HC` handler adds the row index (P3 decisions)
+    - Keep these from the reference:
+      - `admin_keys` includes archived private fields
+      - a private key in `_clear` is ignored
+      - values that are `null` or `""` are skipped
+      - the return is `{ updated, missing }`
+  - **`housing_bulk_insert_records(p_project_key text, p_rows jsonb, p_use_given_serial boolean) returns integer`** (new)
+    - the same project check and 500-row limit as the update
+    - per row: split `extra` by `admin_keys`, then `insert into housing_beneficiaries (...) values (...) returning id`
+      - `serial_no` is set only when `p_use_given_serial`
+      - `year` is `(r->>'year')::int`
+      - columns with a `''` default take `coalesce(r->>'x', '')`
+    - insert the private row only when the private part is not empty
+    - errors:
+      - `unique_violation` on `housing_beneficiaries_project_serial_key` only → `HC409` with `DETAIL = 'serial_no'`. Any other unique violation is re-raised unchanged.
+      - the outer handler adds the row index
+    - returns the number inserted
+  - **The row-index handler, in both bulk functions:**
+    - The project check and the 500-row check run before the guarded `begin … exception` block, so their errors carry no row.
+    - The row counter is a plain `integer` variable set at the start of each iteration. Plpgsql variables survive the block's rollback, so the handler can read it.
+    - The handler has `when sqlstate 'HC400' or sqlstate 'HC409'` and, in the insert function, a separate `when unique_violation` branch that checks `constraint_name` from `get stacked diagnostics`.
+    - The two bodies split `extra` the same way on purpose. Each carries a comment naming the other, so a fix to one is made in both.
+  - **Record log v2:** `create or replace function housing_log_record_change()`, porting `12_activity_log_v2.sql`. It keeps `security definer set search_path = public`, as in `0005`, with every table name schema-qualified.
+    - Create and delete snapshots gain `union_name` and `extra`.
+    - The update diff gains `union_name` and one `extra.<key>` entry per changed key, over the union of old and new keys.
+    - The action rule and photo handling stay as they are.
+  - **Private log:** `housing_log_private_change()` and the trigger `housing_beneficiary_private_activity_log`, `after insert or update or delete … for each row`.
+    - Ported from `12`, using the table names from `0011`, schema-qualified.
+    - `security definer set search_path = public`, as in `0005`.
+    - The changed keys are sorted, and zero changed keys writes no row.
+    - When the record is gone, it writes no row.
+  - Strip from the reference: `security definer` on the bulk update, RLS, `asf_meta`, `notify pgrst`, the self-test select, and the `anon`/`authenticated` grants.
+  - Check every new `raise` by hand: fixed text, a field key in `DETAIL`, never an input value.
+  - Grant `execute` to `housing_app` on `housing_project_leaf_keys(text)` and `housing_bulk_insert_records(text, jsonb, boolean)`. The `0006` revoke means nothing is inherited (`docs/learnings/database/postgres-default-privileges-public-execute.md`).
+  - **`-- migrate:down`:**
+    - drop the private trigger and its function, the insert function and leaf keys
+    - restore `0004`'s `housing_bulk_update_by_serial` and `0005`'s `housing_log_record_change` bodies verbatim
+    - nothing is destroyed. Activity rows written by v2 stay, so `DB-MIG-05` needs no undo note.
+  - Follow `server/db/migrations/0013_record_rules.sql` for layout, comments and the grant block.
+- **Tests** (`test/db/`, real Postgres, calls through `appDb()` inside a `withActor`-style `set_config` so the app role and the actor are proven):
+  - **Leaf keys:**
+    - a group returns its children in `sort_order`, then `key`, order
+    - a leaf returns itself
+    - an unknown key returns `{}`
+  - **Bulk update v2:**
+    - `extra` merges: an unsent key survives
+    - `_clear` empties `address` and `union_name`, nulls a photo source, and removes `extra.<key>`
+    - `""` and `null` leave a value unchanged, including `father_or_husband_name` (the v1 change)
+    - clearing a required public field, or a required core field that was set, is `HC400` with `hint = 'row_index=1'` when it is the second row
+    - a private key in `extra` lands in `housing_beneficiary_private` and never in `extra`: as an insert when no private row exists, and as a merge that keeps the other private keys when one does
+    - an unchanged archived private key in an existing row is accepted
+    - a private key in `_clear` changes nothing
+    - an unknown serial goes into `missing` and inserts nothing
+    - a group or unknown key is `HC400` with `DETAIL = 'project_type'` and no hint. The existing assertion at `bulk-update.test.ts:48` (`23514` for `brick`) changes to this.
+    - 501 rows is `22023`
+    - a failure in row 3 leaves rows 1 and 2 unchanged (all-or-nothing)
+  - **Bulk insert:**
+    - `assign_serial` gives consecutive serials
+    - `use_given_serial` keeps them and the counter ends at least at the highest
+    - a private key goes to the private table
+    - a serial already in the database is `HC409` with `DETAIL = 'serial_no'` and the right `row_index`
+    - a project check failure carries no hint
+    - an invalid custom value in the third row is `HC400` with `row_index=2` and nothing is inserted
+    - a draft project is accepted
+    - a group is `HC400`
+  - **Log v2:**
+    - an `extra`-only change writes `update` with `changes['extra.amount'] = { old, new }`
+    - a `union_name`-only change writes `update`
+    - a create snapshot holds `union_name` and `extra`
+    - the existing `{changes, photo_kinds}` assertions still pass
+    - a private insert and a private update each write `private_update` with `{ fields: [...], masked: true }`, the actor, `record_id`, `serial_no` and `record_name`
+    - a private write of the sentinel `01799999999` leaves no log row whose `details` text contains it
+    - rewriting the same private data writes no row
+    - deleting a record writes `delete` and no `private_update`
+  - **Privileges:**
+    - `housing_app` can execute the two new functions
+    - both log functions are `prosecdef` with `search_path=public` in `proconfig`
+    - the "no function granted to PUBLIC" test still passes
+- **Done when:**
+  - `npm --prefix server test` is green, including the global setup's up, down, up cycle and the old `housing-bulk` and `housing-activity` suites
+  - `npm --prefix server run db:migrate`, `db:rollback`, `db:migrate` and `db:seed` work on the dev database
+- **Depends on:** none
+- **Status:** todo
+
+### U14. Bulk insert and update routes v2
+- **Goal:** Admins import and update a project's records in batches of up to 500, with custom and private values, all or nothing. A failure names the row and the field.
+- **Requirements:** R1, R4, R9.
+- **Files:**
+  - `server/src/records/schemas.ts`: `bulkCreateBody` and `bulkUpdateBody`
+  - `server/src/records/writes.ts`: `bulkInsertRecords` and `bulkUpdateRecords`
+  - `server/src/routes/v1/records-admin.ts`: the two routes
+  - `server/src/routes/v1/housing-admin.ts`: export `checkRowCount` and the 10 MB parser so both routers share them
+  - `server/src/app.ts`: the 100 KB parser bypass matches the old `BULK_PATH` or, for POST and PUT only, the anchored `^/api/v1/projects/[a-z][a-z0-9_]*/records/bulk/?$` (the key regex's charset)
+  - `server/src/housing/schemas.ts`: correct the stale comment at line 168 (the import no longer sends `""` for blank cells)
+  - `server/src/errors.ts` and `server/src/errors.test.ts`: `details.row_index` from `hint`
+  - `server/src/openapi.ts`
+  - `server/test/http/records-bulk.test.ts` (new)
+  - `server/test/http/housing-bulk.test.ts`: one case for the `""` change
+  - `server/test/http/p3-admin-auth.test.ts` (new): the shared auth test
+- **Approach:**
+  - **Middleware, in this order, on both routes:** `requireAdmin`, `limitWrites`, the 10 MB parser, then `checkRowCount` (413 above 500, before zod). Follow `server/src/routes/v1/housing-admin.ts:57-79` and `:104-111`. No `router.use()`.
+  - **Project lookup first:** `recordProject` as an admin, so an unknown key is 404, a group is 400 and a draft is allowed.
+  - **`bulkCreateBody`:**
+    - `{ mode: 'use_given_serial' | 'assign_serial', rows }`
+    - each row is strict: the record-create fields, `serial_no` optional, and `extra` through `customValues`
+    - photo URLs and thumbs are refused (P2 decisions)
+    - `use_given_serial` needs a serial on every row, and a duplicate within the batch is 400 with `row_index`. Reuse the old body's checks in `server/src/housing/schemas.ts`.
+    - `assign_serial` drops `serial_no`
+  - **`bulkUpdateBody`:**
+    - `{ rows }`, each strict with `serial_no` required, every other field optional, and `extra` through `customValues`
+    - `null` and `""` are dropped for every field in the transform, so clearing happens only through `_clear`. The SQL function ignores them too. The old body drops only `null`, and keeps `""` for four fields.
+    - `_clear` is at most 50 entries, each `father_or_husband_name`, `address`, `union_name`, `prev_photo_source`, `current_photo_source` or `extra.<field key>`, deduped
+  - **Writes:** one `withActor` call each, binding the rows with `tx.json`:
+    - `select public.housing_bulk_insert_records(${key}, ${tx.json(rows)}, ${useGiven}) as inserted` → `{ data: { inserted, failed: [] } }`
+    - `select public.housing_bulk_update_by_serial(${key}, ${tx.json(rows)})` → `{ data: { updated, missing } }`
+  - Private values written by a bulk call get their activity row from U13's trigger, so the routes add no pino line.
+  - **`errors.ts`:**
+    - for class `HC`, add `row_index` when `err.hint` matches `^row_index=(\d{1,3})$`
+    - a non-matching hint is ignored
+    - the warn log adds `row_index` and still never logs the message
+- **Tests (follow `server/test/http/housing-bulk.test.ts`):**
+  - U13 holds the behaviour matrix (merge, `_clear`, private routing, `missing`, all-or-nothing). These tests cover only what the routes add (user-decided at P3 doc review).
+  - **POST:**
+    - one happy path: 200 rows with `union_name`, public `extra` and one private key are inserted, the private values are readable through `GET /records/:id/private`, and each record has a `create` log row with the actor
+    - a serial taken in the database is 409 with `row_index` and `field = 'serial_no'` in the body
+    - a duplicate in the batch is 400 with `row_index`
+    - a missing serial under `use_given_serial` is 400
+    - money `10000000001` in row 4 gives 400 with `details.row_index = 3` and `details.field = 'extra.<key>'`
+  - **PUT:**
+    - one happy path: `{ updated, missing }` comes back and a merged `extra` value is stored
+    - clearing a required field gives 400 with `row_index` in the body
+    - an `_clear` entry outside the list, such as `name` or `extra.Bad Key`, is 400 with no key text echoed
+  - **Both routes:**
+    - 501 rows is 413
+    - 500 rows succeed inside the statement timeout (as the old test does)
+    - a body over 10 MB is 413
+    - an unknown key `Bad Key!` in `extra` is 400 with no key text
+    - the sentinel `ZZ-SENTINEL-93` as a number value is not echoed
+    - a private phone sentinel `01799999999` in a row that fails validation (and in a row that fails a later row's check) appears in neither the 400 body, the captured log stream nor `housing_activity_log.details`
+    - a group key is 400
+    - an unknown project is 404
+    - a draft project works for an admin
+  - **Auth:**
+    - no session is 401, before the 10 MB body is parsed (the 413 check doesn't run)
+    - a plain admin may bulk write
+    - a 200 KB JSON body to another POST route, such as `/projects/x/records/private`, still gets the 100 KB cap (413)
+  - **Shared auth test** (new, `server/test/http/p3-admin-auth.test.ts`): one `it.each` over a table of P3's admin routes. For each route it checks:
+    - no session is 401
+    - a disabled admin's cookie is 401
+    - an origin off the list is 403 on writes
+    - a public-read origin gets no CORS grant
+    U14 creates it with the two bulk routes. U15, U17 and U18 each add their routes as rows.
+  - **Old route:** a `""` `address` in `PUT /housing/bulk` leaves the stored address unchanged.
+  - **`errors.test.ts`:**
+    - `hint: 'row_index=7'` gives `row_index: 7`
+    - `'row_index=x'`, `'row_index=1; drop'` and a hint on a non-`HC` error add nothing
+  - **Guard coverage:** the existing check still passes with the two new routes.
+- **Done when:** the tests pass, and the OpenAPI drift test lists both routes.
+- **Depends on:** U13
+- **Status:** todo
+
+### U15. Photo upload and delete on records v2
+- **Goal:** Admins upload a record's before or after photo, respecting the project's photo mode before any file is stored. Only a `main_admin` removes one.
+- **Requirements:** R1, R6, R8 (AE3), R9.
+- **Files:**
+  - `server/src/photos/process.ts`: the receiver's optional `{ kind }`
+  - `server/src/photos/service.ts`: `savePhoto` and `deletePhoto` take the column list to return
+  - `server/src/routes/v1/housing-admin.ts`: passes `RECORD_COLUMNS`, otherwise unchanged
+  - `server/src/records/reads.ts`: `recordPhotoMode(sql, id)`
+  - `server/src/records/schemas.ts`: `photoParams` (`id` uuid, `slot` `prev | current`)
+  - `server/src/routes/v1/records-admin.ts`: the two routes
+  - `server/src/app.ts`: pass `receivePhoto` and `publicApiUrl` to `recordsAdminRouter`
+  - `server/test/http/records-writes.test.ts:281` and `server/test/http/openapi.test.ts:65`: build the router with the new deps (`receivePhoto` as a stub and `testPhotoDeps().publicApiUrl`, as `openapi.test.ts:61` builds the housing router)
+  - `server/src/auth/middleware.ts`: `requireMainAdmin` takes an optional message. The plain export keeps today's text.
+  - `server/src/openapi.ts`
+  - `server/test/http/records-photos.test.ts` (new)
+  - `server/test/http/p3-admin-auth.test.ts`: two rows
+- **Approach:**
+  - **`PUT /records/:id/photos/:slot`:** `requireAdmin`, `limitWrites`, then the steps below.
+    1. Parse the params: a bad uuid or slot is 400.
+    2. `recordPhotoMode`: `select p.photo_mode from housing_beneficiaries b join housing_projects p on p.key = b.project_type where b.id = ${id}`.
+       - no row → 404
+       - `none` → 400 "এই প্রকল্পে ছবি নেই", with `details.field = '<slot>_photo_url'`
+       - `after_only` with `prev` → 400, with `field = 'prev_photo_url'` and `0013`'s photo-mode message
+    3. `receivePhoto(req, { kind: slot })`, then `savePhoto(..., ADMIN_RECORD_COLUMNS)`. The receiver's processing is unchanged, so it keeps the 5 MB (413) cap, magic-byte check, metadata strip, WebP and the concurrency limit. Only where it reads the slot from changes.
+  - **`DELETE /records/:id/photos/:slot`:** the `requireMainAdmin` guard built with the message "শুধু মূল এডমিন ছবি মুছতে পারেন" (§4.4.11), `limitWrites`, then `deletePhoto(..., ADMIN_RECORD_COLUMNS)`. It is idempotent with 200. A missing record is 404. Storage cleanup runs after commit, as today.
+  - Both return `{ data: Record }` in the strict `projectRecord` shape. The `photo_update` activity row comes from the record trigger.
+  - Follow `server/src/routes/v1/housing-admin.ts:150` and `server/test/http/housing-photos.test.ts` (sharp-built PNG, `testStorage()`).
+- **Tests:**
+  - **AE3:**
+    - on an `after_only` project, a `prev` upload is 400 with `field = 'prev_photo_url'`
+    - the storage folder holds no new file, `housing_files` has no new row, and the record is unchanged
+  - **`none`:** both slots are 400 with nothing stored.
+  - **`before_after`:**
+    - both slots upload
+    - the response holds `<slot>_photo_url` as `/api/v1/photos/<fileId>`, `union_name` and `extra`
+    - a replace tombstones the old file
+    - a `photo_update` log row has the actor
+  - **Plain admin:**
+    - may upload and replace
+    - gets 403 on DELETE with the photo message, and the URL, the file row and the stored file remain
+  - **`main_admin` DELETE:**
+    - clears the slot's photo and thumb and sets `photo_updated_at`
+    - a second DELETE is 200 with no new log row
+  - **Errors:**
+    - an unknown record is 404 on both, and the PUT stores nothing
+    - a bad slot (`side`) is 400
+    - a bad uuid is 400
+    - a 5 MB + 1 byte photo is 413
+    - a non-image is 400
+    - a multipart `kind` field is 400
+  - **Draft project:** an admin may upload.
+  - **Auth:** both routes are added to `p3-admin-auth.test.ts`.
+  - **Old route:** the `housing-photos` suite passes unchanged.
+  - **Guard coverage:** the check still passes.
+- **Done when:** the tests pass, and the OpenAPI drift test lists both routes.
+- **Depends on:** none in code. It shares files with U14 and U17, so it runs after U14 in lane A.
+- **Status:** todo
+
+### U16. Draft visibility on photo downloads
+- **Goal:** A visitor can't fetch a photo of a draft project's record, and an admin's photo responses are never cached by a shared cache.
+- **Requirements:** R7; the Technical decision "File downloads check visibility".
+- **Files:**
+  - `server/src/photos/serve.ts`: `findLiveFile(sql, id, viewer)`
+  - `server/src/routes/v1/photos.ts`: pass `viewerOf(req)`, set the headers
+  - `server/test/http/photos.test.ts` (extend)
+- **Approach:**
+  - **The lookup:** join `housing_beneficiaries b on b.id = f.record_id`. For a visitor, add `and b.project_type = any(public.housing_public_project_keys())`. An admin skips that condition. A tombstoned file and a file with no record stay 404 as today.
+  - **Headers** (P3 decisions):
+    - visitor 200: `public, max-age=86400`, as today
+    - admin 200: `private, no-store`
+    - 404: `no-store`
+  - **HEAD** follows the same rule.
+  - **The P4 hook:** a comment marks where P4 adds the cover join.
+- **Tests:**
+  - a visitor's GET and HEAD of a draft project's photo are 404, with `no-store`
+  - the same for a published child of a draft group
+  - an admin gets 200 with `private, no-store`, and the bytes match
+  - a published project's photo to a visitor is 200 with `public, max-age=86400`
+  - unpublishing the project (as owner in the test) makes the next visitor request 404
+  - a public-read origin (no cookie) gets 404 for the draft photo
+  - the existing serving, rate-limit and CORS cases pass
+- **Done when:** the tests pass.
+- **Depends on:** none (it touches only `photos/serve.ts`, `routes/v1/photos.ts` and their test, so it can run beside lane A)
+- **Status:** todo
+
+### U17. Years, next serial and serial change
+- **Goal:** The site lists a project's years and the admin form shows the next serial. An admin moves a record to another serial without the old one ever being reissued.
+- **Requirements:** R1, R7, R9.
+- **Files:**
+  - `server/src/records/reads.ts`: `projectYears` and `projectNextSerial`
+  - `server/src/records/writes.ts`: `changeRecordSerial`
+  - `server/src/records/schemas.ts`: `serialBody` (`{ serial_no }`, strict)
+  - `server/src/routes/v1/records.ts`: `GET /projects/:key/years` and `GET /projects/:key/next-serial`
+  - `server/src/routes/v1/records-admin.ts`: `POST /records/:id/serial`
+  - `server/src/app.ts`: two `PUBLIC_READ_ROUTES` entries
+  - `server/src/openapi.ts`
+  - `server/test/http/records-years-serial.test.ts` (new)
+  - `server/test/http/p3-admin-auth.test.ts`: one row
+- **Approach:**
+  - **`years`:**
+    - the read limiter and `sessionAwareCaching`
+    - `getProject(sql, key, viewer)` from `server/src/projects/reads.ts`: null is 404
+    - then `select distinct year from housing_beneficiaries where project_type = any(public.housing_project_leaf_keys(${key}))`, plus `and (${admin} or project_type = any(public.housing_public_project_keys()))` for the visibility filter (P3 decisions), ordered `year desc`
+    - returns `{ data: number[] }`. The list is bounded by the years that exist, so it has no limit parameter.
+  - **`next-serial`:**
+    - the same middleware
+    - the project lookup decides `null` for an unknown, group or hidden key, else `select public.housing_next_serial(${key})`
+    - returns `{ data: { project_type, next_serial } }`
+  - **Public-read CORS:** anchored entries `/projects/[^/]+/years/?$` and `/projects/[^/]+/next-serial/?$`.
+  - **`POST /records/:id/serial`:** `requireAdmin` and `limitWrites`, then one `withActor`:
+    1. lock the record `for update`. No row is 404.
+    2. If the serial is unchanged, return the record with no call and no log row (the Supabase adapter does the same).
+    3. Otherwise `select ${tx(ADMIN_RECORD_COLUMNS)} from public.housing_change_serial(${id}, ${serial})`.
+    - A taken serial is 409 through the existing `23505` mapping. Follow `server/src/housing/writes.ts:62`.
+- **Tests:**
+  - **`years`:**
+    - a leaf's years are distinct and newest first
+    - a group's years cover its children
+    - a draft child's years are absent for a visitor and present for an admin
+    - a draft key is 404 for a visitor and 200 for an admin, with `private, no-store`
+    - a disabled admin's cookie gets the visitor view (404)
+    - an unknown key is 404
+    - a project with no records gives `[]`
+    - a bad key is 400
+  - **`next-serial`:**
+    - a published leaf returns last + 1
+    - a draft returns null to a visitor and a number to an admin
+    - a group and an unknown key return null
+    - a bad key is 400
+    - a visitor's draft and unknown-key bodies are identical apart from `project_type`
+  - **Serial change:**
+    - 200 with the new serial, with `union_name` and `extra` kept
+    - a `serial_change` log row and a `housing_serial_changes` row
+    - the counter is at least the new serial
+    - a later create doesn't get the old serial
+    - an unchanged serial is 200 with no log row
+    - a taken serial is 409
+    - a missing record is 404
+    - `0`, `1.5`, a string or an extra key in the body is 400
+    - a plain admin may change it
+    - the route is added to `p3-admin-auth.test.ts`
+  - **CORS:** a public-read origin may GET `years` and `next-serial` without credentials.
+  - **OpenAPI:** the drift test passes.
+- **Done when:** the tests pass, and `curl localhost:3001/api/v1/projects/housing/years` on the dev stack returns the seeded years.
+- **Depends on:** U13 (`housing_project_leaf_keys`)
+- **Status:** todo
+
+### U18. Activity routes, server-only actions and the single private read line
+- **Goal:** Admins read the activity log for any project and post client events, a client can't forge a server-logged action, and a single private read leaves a security-event line.
+- **Requirements:** R1, R9; P2 leftovers.
+- **Files:**
+  - `server/src/housing/schemas.ts`:
+    - `SERVER_LOGGED_ACTIONS` gains `private_update`
+    - new `CLIENT_EVENT_ACTIONS` (P3 decisions)
+    - new `projectActivityQuery` and `projectActivityBody`, which take a registry key (the key regex) for `project_type` in place of the two-value enum. P9 drops the old ones.
+  - `server/src/housing/activity.ts`: `listActivity` and `logEvent` take the wider query and body types
+  - `server/src/routes/v1/activity.ts` (new)
+  - `server/src/app.ts`: mount it at `/api/v1` with no `router.use()`
+  - `server/src/routes/v1/records-admin.ts`: the `private_read` line on `GET /records/:id/private`
+  - `server/src/openapi.ts` and `server/test/http/openapi.test.ts` (router list)
+  - `server/test/http/activity.test.ts` (new)
+  - `server/test/http/p3-admin-auth.test.ts`: two rows
+  - `server/test/http/records-private.test.ts`: the new line
+- **Approach:**
+  - **`GET /activity`:** `privateNoStore`, `requireAdmin`, the read limiter, then `listActivity`.
+    - Query fields: `action` (`^[a-z_]{1,40}$`), `project_type` (key regex), `record_id` (uuid), `actor_email` (at most 254 characters, as the old query, partial, `ilike` escaped as in `server/src/housing/reads.ts`), `from` and `to` (ISO), `page` (at most 10000, so no deep `OFFSET` scan), and `page_size` (at most 100, default 50).
+    - Newest first, `at desc, id desc`. Returns `{ data, meta }`.
+  - **`POST /activity`:** `requireAdmin`, `limitWrites`, then `logEvent`.
+    - `action` must be in `CLIENT_EVENT_ACTIONS` and not in `SERVER_LOGGED_ACTIONS` (400)
+    - `project_type` is an optional key, checked for format only
+    - `details` follows the old body's limits
+    - returns 201 `{ data: { id } }`
+    - the actor comes from the session
+  - Neither route goes on `PUBLIC_READ_ROUTES`.
+  - The new router's own guard-coverage test checks every route, GETs included, because both are admin-only.
+  - **`private_read`:** log `{ event: 'private_read', actor, record_id }` after a successful read, beside the existing `private_update` line.
+- **Tests:**
+  - **List:**
+    - filters by `action`, by a non-seed `project_type`, by `record_id`, by a partial `actor_email` (with `%` matched literally), and by `from` and `to`
+    - paging `meta` is right
+    - `page_size=101` is 400
+    - a `private_update` row from U13 shows `fields` and `masked` with no value
+  - **Post:**
+    - a `records_export` event is 201 and listed with the session's actor
+    - every action a server trigger or route writes (`create`, `update`, `delete`, `photo_update`, `serial_change`, `private_update`), plus `project_publish` and an unlisted `made_up_event`, is 400
+    - each `CLIENT_EVENT_ACTIONS` entry is 201
+    - `Bad Action` is 400
+    - a `project_type` of a draft or registry key is accepted
+  - **Auth (`TS-13`):**
+    - both routes are added to `p3-admin-auth.test.ts`, the GET included
+    - a visitor's 401 carries `private, no-store`
+  - **The old route:** `POST /housing/activity` with `private_update` is now 400, and the `housing-activity` suite passes.
+  - **`private_read`:** a single GET logs the line with the actor and `record_id`, and the capturing stream holds no value (the U11 sentinel test gains this case).
+  - **OpenAPI:** the drift test passes with the new router listed.
+- **Done when:** the tests pass.
+- **Depends on:** U13 (for the `private_update` listing case)
+- **Status:** todo
+
+### P3 order and parallel lanes
+
+- **Lane A (sequential):** U13 → U14 → U15 → U17 → U18. They share `records-admin.ts`, `records/schemas.ts`, `app.ts` and `openapi.ts`.
+- **Lane B (parallel with A):** U16. It touches only the photo-serving files and their test.
+
+### Verification (P3)
+
+- `npm --prefix server run typecheck` and `npm --prefix server test` (needs `docker compose up -d db`)
+- `npx tsc -b`, `npm run lint` and `npm test` at the root
+- `npm run test:contract:rest` and `npm run test:e2e:rest-admin`: the old routes must still pass with the v2 bulk update and log functions
+- `npm run test:all`
+- `npm --prefix server run db:migrate`, `db:rollback`, `db:migrate` and `db:seed` on the dev database
+
+### Risks and rollback (P3)
+
+- **`0014` replaces two functions the old routes use** (`housing_bulk_update_by_serial`, `housing_log_record_change`). The old suites, `test:contract:rest` and `admin-rest` run in U13's and the chunk's done checks. Rolling back restores both bodies verbatim and drops what `0014` added. No data is lost.
+- **The old `PUT /housing/bulk` stops clearing on `""`** (P3 decisions). It matches `main` and the contract, and the UI never sends `""`.
+- **The photo receiver and service change for both routes.** The old `housing-photos` suite is the guard.
+- **Photo responses change their cache headers for admins and 404s.** Visitor responses for published photos are unchanged.
+
+### Definition of done (P3)
+
+- U13–U18 are done and their tests pass.
+- The P3 verification commands pass.
+- `ae-review` has run with no open P0 or P1.
+- P4's start runs `ae-plan` on this file to add P4's units.
+
 ## Verification
 
 Run these at the end of P1:
@@ -860,3 +1328,22 @@ Run these at the end of P1:
       - `GET /records/:id/private` writes no security-event line (the PUT and the bulk read do). P3's log v2 can decide whether single reads are logged.
       - The two admin routes that only need the project's existence also run its fields query (one small query).
       - A `phone` value given to a filter isn't digit-normalised. Phones are private and never filterable, so this has no effect today.
+  - **P3 planned (2026-10-06):** `ae-plan` added U13–U18 and the P3 decisions. The next step is `ae-work` on U13, with U16 able to run beside lane A. This replaces the "Next" line above. Choices made in planning:
+    - `housing_bulk_update_by_serial` v2 replaces v1 in place, so the old `PUT /housing/bulk` no longer clears on `""`.
+    - A new `housing_bulk_insert_records` function gives `row_index` for trigger errors.
+    - `housing_next_serial` is unchanged, and the API gates it.
+    - A single private GET gets a `private_read` pino line.
+  - **`ae-doc-review` ran on P3 (2026-10-06).**
+    - It fixed:
+      - the visitor filter on photos and years (`= any(...)`, not `in (select ...)`)
+      - the `bulk-update.test.ts:48` assertion
+      - the row-index handler's details and the serial-only `unique_violation`
+      - `search_path` on the log functions
+      - the anchored bulk-parser bypass
+      - `requireMainAdmin`'s photo message
+      - the router deps in two tests
+      - the `actor_email` limit and the `page` cap
+    - The user chose:
+      - an allowlist for `POST /activity`
+      - keep the 1-day visitor photo cache
+      - trim the tests duplicated between U13 and U14, with one shared auth test for P3's admin routes
