@@ -1,0 +1,16 @@
+# A plain-http housing vhost for the local edge (compose profile "edge") and CI: the same
+# locations and headers as the box, without TLS or Cloudflare. Rendered by deploy/render-nginx.sh.
+
+# Upstream names are global across the box's vhosts, so each environment has its own.
+upstream housing_api_${HOUSING_ENV} {
+    server ${HOUSING_API_UPSTREAM};
+    keepalive 8;
+}
+
+server {
+    listen 80;
+    server_name _;
+    server_tokens off;
+
+    include ${HOUSING_NGINX_DIR}/locations.conf;
+}

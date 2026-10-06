@@ -266,7 +266,7 @@ Migrations are not rolled back automatically. After the first staging run they a
   - A deliberately broken CSP (`img-src 'none'`, local only) makes it fail.
 - **Done when:** `nginx -t` passes in CI, the curl checks pass, and `test:e2e:edge` is green locally and in CI.
 - **Depends on:** U1, U3
-- **Status:** todo
+- **Status:** done
 
 ### U6. Runbook and doc updates
 - **Goal:** A person with box, AWS and Cloudflare access can set up staging and production, deploy, roll back and run a restore drill from the docs alone.
@@ -367,7 +367,7 @@ All server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$P
 ## Progress
 - **Branch:** `migrate/c6-deploy`
 - **Updated:** 2026-10-06 09:55
-- **Next:** U5, the nginx templates in `deploy/nginx/` and `deploy/render-nginx.sh`
+- **Next:** U6, write `docs/operations/runbook.md`, then the migration-notes, testing, roadmap and README updates
 - **Uncommitted:** none
 - **Notes:**
   - Unit order: U1, U2, U7, U3, U4, U5, U6 (U3 depends on U7 for a clean audit).
@@ -376,5 +376,14 @@ All server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$P
     - backup → restore-drill round trip on postgres:17 with a fake `aws` and a throwaway age key;
     - `deploy.sh` with real PM2 on node:22: a good release went live, a broken one rolled back (exit 1, API still ready), and a redeploy skipped the build;
     - `verify-restore.sql` exits 3 when a serial is above its counter. psql's `\quit` takes no exit code, so the check raises an exception instead.
+  - U5 as built:
+    - File names: `box.conf.template` and `local.conf.template` (not `housing-box…`/`local-edge.conf`). `api-proxy.conf.template` holds the shared proxy lines.
+    - Each environment's upstream is `housing_api_<env>`, because upstream names are global across the box's vhosts.
+    - `npm run build:edge` builds the rest UI into `.edge/dist` (gitignored).
+    - Checks:
+      - `nginx -t` passed on 1.20 with staging, production and local loaded together;
+      - curl confirmed the headers, the SPA fallback, immutable assets, the one-day photo cache, 413 for a 2 MB login body, and that a spoofed `X-Forwarded-For` is replaced by the client IP;
+      - `edge-rest` was green on a fresh seeded database (17 passed, 2 skipped), and a `connect-src 'none'` CSP made it fail.
+    - The local dev database's C5 photos have `http://localhost:3001` URLs, so `edge-rest` correctly flags them as cross-origin. The local edge run needs a fresh seed; CI's seed has none.
   - The deploy script runs from the repo clone's working tree, so the runbook updates that tree before each deploy.
   - `npm ci` runs with `--ignore-scripts` per command, not through `NPM_CONFIG_IGNORE_SCRIPTS`, which would also skip pre/post scripts on `npm run`.
