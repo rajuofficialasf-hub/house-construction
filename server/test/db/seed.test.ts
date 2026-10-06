@@ -24,18 +24,46 @@ beforeEach(() => resetTestData(owner));
 afterAll(() => owner.end());
 
 describe('db:seed', () => {
-  it('loads 12 semi_pucca and 8 tin records and moves the counters past them', async () => {
+  it('loads 6 demo, 12 semi_pucca and 8 tin records and moves the counters past them', async () => {
     await seed(testOwnerUrl);
     expect(await counts()).toEqual([
+      { project_type: 'demo', last_serial: 6, records: 6 },
       { project_type: 'semi_pucca', last_serial: 12, records: 12 },
       { project_type: 'tin', last_serial: 8, records: 8 },
     ]);
   });
 
-  it('can run twice without duplicating records', async () => {
+  it('can run twice without duplicating records, fields or private values', async () => {
     await seed(testOwnerUrl);
     await seed(testOwnerUrl);
-    expect((await counts()).map((r) => r.records)).toEqual([12, 8]);
+    expect((await counts()).map((r) => r.records)).toEqual([6, 12, 8]);
+    const [n] = await owner`
+      select (select count(*)::int from public.housing_project_fields where project_key = 'demo') as fields,
+             (select count(*)::int from public.housing_beneficiary_private) as private`;
+    expect(n).toEqual({ fields: 4, private: 6 });
+  });
+
+  it('makes demo a draft with public money, number and category fields and a private phone field', async () => {
+    await seed(testOwnerUrl);
+    const [project] = await owner`select is_published, photo_mode from public.housing_projects where key = 'demo'`;
+    expect(project).toEqual({ is_published: false, photo_mode: 'after_only' });
+    const fields = await owner`select key, type, visibility from public.housing_project_fields where project_key = 'demo' order by sort_order`;
+    expect(fields).toEqual([
+      { key: 'amount', type: 'money', visibility: 'public' },
+      { key: 'family_size', type: 'number', visibility: 'public' },
+      { key: 'trade', type: 'category', visibility: 'public' },
+      { key: 'phone', type: 'phone', visibility: 'admin' },
+    ]);
+    const [extra] = await owner`select extra from public.housing_beneficiaries where project_type = 'demo' and serial_no = 1`;
+    expect(extra?.extra).toEqual({ amount: 25000, family_size: 5, trade: 'দর্জি' });
+  });
+
+  it('keeps demo out of what a visitor sees', async () => {
+    await seed(testOwnerUrl);
+    const [row] = await owner`select public.housing_projects_overview(false) as o`;
+    const overview = row?.o as { projects: { key: string }[]; global: { total: number } };
+    expect(overview.projects.map((p) => p.key)).not.toContain('demo');
+    expect(overview.global.total).toBe(20);
   });
 
   it('refuses a database that is not on this machine', async () => {

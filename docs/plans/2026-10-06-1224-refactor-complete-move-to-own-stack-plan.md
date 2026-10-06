@@ -1906,7 +1906,7 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
   - the stats function as a visitor (`p_public_only`) omits `demo` from the overview's `global`
 - **Done when:** `npm --prefix server run db:seed` twice on the dev database is clean, and the seeded API's `GET /projects?drafts=1&include=fields` with an admin cookie lists `demo` with four fields.
 - **Depends on:** U26 (the seed test reads stats)
-- **Status:** todo
+- **Status:** done
 
 ### P5 order and parallel lanes
 
@@ -2374,7 +2374,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** U29 (dev seed's draft `demo` project), then the P5 verification; P5 → P6 → P7 as one batch.
+- **Next:** the P5 verification (full suites, migrate cycle, 50k timing), then P6 from U30.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
