@@ -431,7 +431,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** P1 finish: `ae-test` (full), then `ae-simplify` and `ae-review`.
+- **Next:** P2. Run `ae-plan` on this file to add P2's units (record rules `0013`, HC error mapping, single-record API, private values), then `ae-work`.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
@@ -449,6 +449,13 @@ Run these at the end of P1:
     - `housing_beneficiary_private`
 
     The test setup's down-migration check then covers them.
+  - **P1 done (2026-10-06):** U1–U6 are committed, and the full test run passed (server 554, UI 165, contract 40, admin-rest 35, `test:all` Playwright 53). `ae-simplify` was applied. `ae-review` found no P0, P1 or P2. P3s left for P2 to consider:
+    - `0011` grants `housing_app` writes on the three new tables before any write route exists. The P2 routes need them.
+    - Two concurrent first-`main_admin` creates fall back to the raw unique-index error. Only the CLI is affected.
+    - Photo-delete tests don't assert that the stored file survives a 403.
+    - The CLI invalid-role test can't tell the CLI check from the DB CHECK.
+    - There is no direct-GET test for a published child of a draft group.
+  - **Dev database:** migrated to `0012`. Existing dev admins are plain `admin`. Give yours delete rights with `npm --prefix server run admin -- set-role --email <you> --role main_admin`.
   - **U4 notes:**
     - The REST contract runner's admin (`tests/contract/rest.contract.test.ts`) is also `main_admin`, because the contract deletes.
     - The auth routes are not in the OpenAPI document by design, so the `role` enum lives only in the code.
