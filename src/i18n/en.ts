@@ -857,7 +857,7 @@ Object.assign(EN, {
 
 
   // ---------------------------------------------------------------- হোম পেইজ (M-ধাপ ১৫)
-  'আমাদের সেবা প্রকল্পসমূহ': 'Our service projects',
+  'আমাদের কার্যক্রমসমূহ': 'Our activities',
   'অসহায় ও দুস্থ মানুষের পাশে আমাদের প্রকল্পগুলোর অগ্রগতি, উপকারভোগীদের তথ্য ও ছবি এখানে সবার জন্য উন্মুক্ত।': 'Progress of our projects standing by the helpless and the needy, with beneficiary details and photos — open to everyone.',
   'মোট প্রকল্প': 'Projects',
   'মোট উপকারভোগী': 'Beneficiaries',

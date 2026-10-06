@@ -1469,7 +1469,7 @@ for (const [w, mobile] of [[1280, false], [390, true]]) {
   ok('একক কার্ড: কভার/ছবি না থাকলে রঙের গ্রেডিয়েন্ট + আইকন; "মোট টাকা ৳ ১২,৫০,০০০", "মোট ক্যাটাগরি ৪"; home নয় এমন কার্ড (জেলা) নেই', s && s.fallback && !s.img && s.text.includes('৳ ১২,৫০,০০০ মোট টাকা') && s.text.includes('৪ মোট ক্যাটাগরি') && !s.text.includes('জেলা কভার') && s.text.includes('প্রকল্প দেখুন'), s?.text)
   const hero = await p.evaluate(() => [...document.querySelectorAll('section dl dd')].slice(0, 3).map((d) => d.textContent))
   const bn = (n) => String(n).replace(/\d/g, (d) => '০১২৩৪৫৬৭৮৯'[d])
-  ok('হিরো: আস-সুন্নাহ ফাউন্ডেশন — "আমাদের সেবা প্রকল্পসমূহ"; মোট প্রকল্প/উপকারভোগী/জেলা = ওভারভিউর global', (await text(p)).includes('আমাদের সেবা প্রকল্পসমূহ') && hero.join(',') === [live.global.projects, live.global.total, live.global.districts].map(bn).join(','), `${hero.join(',')} ↔ ${JSON.stringify(live.global)}`)
+  ok('হিরো: আস-সুন্নাহ ফাউন্ডেশন — "আমাদের কার্যক্রমসমূহ"; মোট প্রকল্প/উপকারভোগী/জেলা = ওভারভিউর global', (await text(p)).includes('আমাদের কার্যক্রমসমূহ') && hero.join(',') === [live.global.projects, live.global.total, live.global.districts].map(bn).join(','), `${hero.join(',')} ↔ ${JSON.stringify(live.global)}`)
   const dataCalls = [...calls].map((c) => c.split(' ')[1].split('?')[0].replace('/rest/v1/', ''))
   ok('হোমে API কল ২টি: রেজিস্ট্রি (projects + ফিল্ড embed, এক কলে) আর projects_overview', calls.size === 2 && dataCalls.sort().join(',') === 'projects,rpc/projects_overview' && [...calls].some((c) => decodeURIComponent(c).includes('project_fields(*)')), [...calls].map((c) => c.slice(0, 90)).join(' || '))
   const cols = async (q) => q.evaluate(() => getComputedStyle(document.querySelector('[data-project-card]').closest('ul')).gridTemplateColumns.split(' ').length)
@@ -1486,7 +1486,7 @@ for (const [w, mobile] of [[1280, false], [390, true]]) {
     const over = await q.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)
     const c = await cols(q)
     const t2 = await text(q)
-    const words = lang === 'en' ? ['Our service projects', 'View project', 'Total amount'] : ['আমাদের সেবা প্রকল্পসমূহ', 'প্রকল্প দেখুন']
+    const words = lang === 'en' ? ['Our activities', 'View project', 'Total amount'] : ['আমাদের কার্যক্রমসমূহ', 'প্রকল্প দেখুন']
     ok(`${w}px (${lang}): অনুভূমিক ওভারফ্লো নেই, ${want} কলাম, লেখা ঠিক ভাষায়`, !over && c === want && words.every((x) => t2.includes(x)), `over=${over} cols=${c} ${words.filter((x) => !t2.includes(x)).join(',')}`)
     await q.screenshot({ path: `.smoke/home-${w}-${lang}.png`, fullPage: true })
     await q.close()
