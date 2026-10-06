@@ -107,6 +107,8 @@ describe('import-supabase import', () => {
     expect(trigger?.tgenabled).toBe('O');
 
     expect(res.stdout).toMatch(/records semi_pucca\s+3/);
+    expect(res.stdout).toContain('verify:');
+    expect(res.stdout).not.toContain('FAIL');
     expect(res.stdout).not.toContain('housing_owner_local');
     expect(res.stdout).not.toMatch(/admin@example\.org|প্রধান|\$2b\$/);
   });

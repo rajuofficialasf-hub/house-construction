@@ -6,6 +6,7 @@
 //
 //   import-supabase import --report <file> --photo-base <bucket URL> [--source-ca <file>]
 //       [--replace --confirm-db <target database>] [--discard-new-writes] [--without-passwords]
+//   import-supabase verify [--report <file>] [--source-ca <file>] [--photos [--photos-via <origin>]]
 import { accessSync, constants } from 'node:fs';
 import { parseArgs } from 'node:util';
 import postgres from 'postgres';
@@ -13,19 +14,22 @@ import { z } from 'zod';
 import { baseUrl, storageSchema } from '../config.js';
 import type { Sql } from '../db.js';
 import { mapAdmins } from '../import/admins.js';
-import { writeReport, type ImportReport } from '../import/report.js';
+import { readReport, writeReport, type ImportReport } from '../import/report.js';
 import { checkSource, describeDatabase, openSource, readSnapshot } from '../import/source.js';
 import { copyPhotos, parsePhotoBase, removeAll } from '../import/photos.js';
 import { checkTarget, writeImport, type TargetOptions } from '../import/target.js';
+import { verifyImport, type Check } from '../import/verify.js';
 import { createStorage } from '../storage/index.js';
 import { CliError, readSecret } from './prompt.js';
 
 const USAGE = `usage:
   import-supabase import --report <file> --photo-base <bucket URL> [--source-ca <file>]
-      [--replace --confirm-db <target database>] [--discard-new-writes] [--without-passwords]`;
+      [--replace --confirm-db <target database>] [--discard-new-writes] [--without-passwords]
+  import-supabase verify [--report <file>] [--source-ca <file>] [--photos [--photos-via <origin>]]`;
 
 const postgresUrl = z.url({ protocol: /^postgres(ql)?$/ });
-const importEnv = z.object({ DATABASE_MIGRATION_URL: postgresUrl, PUBLIC_API_URL: baseUrl }).and(storageSchema);
+const verifyEnv = z.object({ DATABASE_MIGRATION_URL: postgresUrl, PUBLIC_API_URL: baseUrl });
+const importEnv = verifyEnv.and(storageSchema);
 
 function parseEnv<T>(schema: z.ZodType<T>): T {
   const result = schema.safeParse(process.env);
@@ -99,6 +103,8 @@ async function runImport(values: Values): Promise<void> {
     };
     await writeReport(values.report, report);
     await printSummary(target, report);
+    console.log(`report: ${values.report}`);
+    printChecks(await verifyImport(source, target, report));
   } finally {
     await Promise.all([source.end(), target.end()]);
   }
@@ -119,6 +125,35 @@ async function printSummary(target: Sql, report: ImportReport): Promise<void> {
   console.log(`generated thumbs         ${report.generated_thumbs.length}`);
 }
 
+/** Prints every check; a failed one sets the exit code, so a script can't miss it. */
+function printChecks(checks: Check[]): void {
+  console.log('\nverify:');
+  for (const check of checks) console.log(`${check.ok ? 'ok  ' : 'FAIL'}  ${check.name.padEnd(48)} ${check.detail}`);
+  const failed = checks.filter((c) => !c.ok).length;
+  if (failed > 0) {
+    console.error(`verify: ${failed} check(s) failed`);
+    process.exitCode = 1;
+  }
+}
+
+async function runVerify(values: Values): Promise<void> {
+  const env = parseEnv(verifyEnv);
+  if (values['photos-via'] && !values.photos) throw new CliError('--photos-via needs --photos');
+  const via = values['photos-via'];
+  if (via && !(URL.canParse(via) && new URL(via).origin === via)) throw new CliError('--photos-via must be an origin like http://127.0.0.1:3201');
+  if (values['source-ca']) accessSync(values['source-ca'], constants.R_OK);
+  const report = values.report ? await readReport(values.report) : undefined;
+  const sourceUrl = await readSourceUrl(env.DATABASE_MIGRATION_URL);
+  const source = openSource(sourceUrl, values['source-ca']);
+  const target = postgres(env.DATABASE_MIGRATION_URL, { max: 1, onnotice: () => {} });
+  try {
+    console.log(`source: ${describeDatabase(sourceUrl)}; target: ${describeDatabase(env.DATABASE_MIGRATION_URL)}`);
+    printChecks(await verifyImport(source, target, report, values.photos ? { via, publicApiUrl: env.PUBLIC_API_URL } : undefined));
+  } finally {
+    await Promise.all([source.end(), target.end()]);
+  }
+}
+
 const OPTIONS = {
   report: { type: 'string' },
   'photo-base': { type: 'string' },
@@ -127,6 +162,8 @@ const OPTIONS = {
   'confirm-db': { type: 'string' },
   'discard-new-writes': { type: 'boolean' },
   'without-passwords': { type: 'boolean' },
+  photos: { type: 'boolean' },
+  'photos-via': { type: 'string' },
 } as const;
 type Values = ReturnType<typeof parseArgs<{ options: typeof OPTIONS; allowPositionals: true }>>['values'];
 
@@ -135,6 +172,7 @@ async function run(args: string[]): Promise<void> {
   const [command, ...extra] = positionals;
   if (extra.length > 0) throw new CliError(USAGE);
   if (command === 'import') return runImport(values);
+  if (command === 'verify') return runVerify(values);
   throw new CliError(USAGE);
 }
 

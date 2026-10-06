@@ -308,7 +308,7 @@ Everything the new stack needs exists on staging and is prepared for production 
   - Gaps and generated thumbs from the report balance the photo equation; without `--report` the equation is skipped with a warning.
 - **Done when:** `npm --prefix server test` passes.
 - **Depends on:** U4
-- **Status:** todo
+- **Status:** done
 
 ### U6. Read-only checks against a deployed origin
 - **Goal:** The public contract suite and the public specs can run against staging or production and can't send a write.
@@ -380,7 +380,7 @@ Server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$PATH`
 ## Progress
 - **Branch:** `migrate/c7-cutover`
 - **Updated:** 2026-10-06 11:10
-- **Next:** U5, write `server/src/import/verify.ts` and the `verify` subcommand
+- **Next:** U6, write `tests/contract/readonlyFetch.ts` and its unit test
 - **Uncommitted:** none
 - **Notes:**
   - `origin/main` was not ahead; `dev-forhad` already equals `migrate/c6-deploy` (`7397bbb`), so there was nothing to merge or port.
@@ -390,3 +390,4 @@ Server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$PATH`
   - U2: `pg_trgm` lives in its own `extensions` schema, not `public`. A trusted extension is installed as the bootstrap superuser, so its functions keep PUBLIC `EXECUTE` and the owner can't revoke it; `server/test/db/privileges.test.ts` caught that. The test reset in `server/test/support/global-setup.ts` now drops `extensions` too. Indexes reference `extensions.gin_trgm_ops`.
   - U3: rows travel as `to_jsonb` text and load with `jsonb_populate_recordset` in one statement per table (no 500-row batches), so timestamps keep their microseconds and `details` keeps exact numbers; the serial-change and log JSON is never parsed in JS. Bind that text as `${json}::text::jsonb`: a JS string bound straight to `::jsonb` is JSON-encoded a second time. The report goes to `--report <file>` (mode 600, never overwritten), not stdout. Existing local volumes need `housing_source_test` (`docker compose exec db createdb -U postgres -O housing_owner housing_source_test`). A staging re-run needs `--discard-new-writes` too, because staging's own log rows are newer than the source's.
   - U4: `encodeVariant(image, variant)` plus `VARIANT_WIDTHS`, `WEBP_QUALITY` and `MAX_INPUT_PIXELS` are exported from `server/src/photos/process.ts`. Supabase answers a missing public object with HTTP 400 and a "not found" body, so 400 + "not found" counts as a gap like 404 (to confirm against the local stack in U7). `copyPhotos` stops all workers at the first failure before removing what they wrote.
+  - U5: verify compares per-row md5s keyed by id instead of one aggregate checksum, so a failure names the differing ids. An admin hash that is now argon2id counts as matching: a login with the imported hash replaced it. The end-of-import verify runs without `--photos`; a failed check sets exit code 1.
