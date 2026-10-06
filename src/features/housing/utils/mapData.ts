@@ -2,7 +2,7 @@ import type { Feature, FeatureCollection, MultiLineString, Polygon, MultiPolygon
 import { feature, mesh } from 'topojson-client'
 import type { GeometryCollection, Topology } from 'topojson-specification'
 import { t } from '@/i18n'
-import { HousingApiError } from '../backend/interfaces/types'
+import { HousingApiError } from '../../../backend/interfaces/types'
 
 /** public/geo/bd-upazilas.json এর প্রতিটি উপজেলার properties (scripts/build-map.mjs) */
 export interface UpazilaProps {

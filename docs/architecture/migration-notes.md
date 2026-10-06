@@ -6,7 +6,7 @@ Source of truth for the target API: [../api/API_CONTRACT.md](../api/API_CONTRACT
 
 | Service | Used by | Replacement |
 |---|---|---|
-| Database plus auto REST (PostgREST) | `src/features/housing/backend/supabase/housingApi.ts` | Express routes plus SQL |
+| Database plus auto REST (PostgREST) | `src/backend/supabase/housingApi.ts` | Express routes plus SQL |
 | Auth (email and password) | `.../supabase/authProvider.ts` | Admin login endpoint, argon2 hashes, HttpOnly cookie session (no auth-core) |
 | Storage (`housing-photos`) | `.../supabase/imageStorage.ts` | Storage adapter in `server/`: S3 driver first, NAS driver later; photos served through the API |
 
@@ -80,7 +80,7 @@ Another developer keeps shipping features on the Supabase version while the new 
 
 **For everyone working on the current (Supabase) version:**
 
-1. Call the backend only through the adapter. Only files in `src/features/housing/backend/supabase/` may import `@supabase/supabase-js`. Components, pages and hooks use the backend from `backend/factory.ts`.
+1. Call the backend only through the adapter. Only files in `src/backend/supabase/` may import `@supabase/supabase-js`. Components, pages and hooks use the backend from `backend/factory.ts`.
 2. Add database changes as new numbered files in `supabase/sql/` (`10_...sql`, `11_...sql`). Do not edit files that have already run on the live project.
 3. When you add or change a data operation, update `docs/api/API_CONTRACT.md` in the same commit.
 

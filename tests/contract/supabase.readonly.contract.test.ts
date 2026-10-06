@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { describe, test } from 'vitest'
-import { createSupabaseAuthProvider, createSupabaseHousingApi, createSupabaseImageStorage } from '../../src/features/housing/backend/supabase'
+import { createSupabaseAuthProvider, createSupabaseHousingApi, createSupabaseImageStorage } from '../../src/backend/supabase'
 import { runHousingApiContract } from './housingApiContract'
 import type { ContractHarness } from './harness'
 

@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test'
-import { MOCK_ADMIN, MOCK_NON_ADMIN } from '../../src/features/housing/backend/mock/fixtures'
+import { MOCK_ADMIN, MOCK_NON_ADMIN } from '../../src/backend/mock/fixtures'
 
 export { MOCK_ADMIN, MOCK_NON_ADMIN }
 

@@ -1,8 +1,10 @@
 import { t } from '@/i18n'
 import { Link } from 'react-router'
 import { toBanglaNumber } from '@/lib/banglaNumber'
+import { useDocumentTitle } from '@/lib/useDocumentTitle'
 
 export function NotFoundPage() {
+  useDocumentTitle(t('পেইজটি পাওয়া যায়নি'))
   return (
     <section className="container-page flex flex-col items-center py-24 text-center">
       <p className="text-6xl font-bold text-brand-700">{toBanglaNumber(404)}</p>

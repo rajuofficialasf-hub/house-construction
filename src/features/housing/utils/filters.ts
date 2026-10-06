@@ -1,4 +1,4 @@
-import { nfc, normalizeGeo } from './geo'
+import { nfc, normalizeGeo } from '@/features/geo/geo'
 
 /** তালিকা পেইজের ফিল্টার (URL query params এর সাথে ১:১) */
 export interface HousingFilters {

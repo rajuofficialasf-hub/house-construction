@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { getAuthProvider } from '../backend/factory'
-import { HousingApiError, type AuthUser } from '../backend/interfaces/types'
+import { getAuthProvider } from '../../../backend/factory'
+import { HousingApiError, type AuthUser } from '../../../backend/interfaces/types'
 
 export interface AuthState {
   /** 'error': সার্ভারে পৌঁছানো যায়নি, তাই লগইন আছে কি না অজানা (লগআউট ধরা হয় না) */

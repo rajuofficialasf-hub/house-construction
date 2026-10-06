@@ -21,7 +21,7 @@ The suite exists so that nothing is lost when the backend moves from Supabase to
 | `npm run test:e2e:edge` | Playwright: the public flows (`e2e/live/`) through nginx 1.20 with the box's locations, security headers and CSP (project `edge-rest`). Any CSP violation fails the test; the dev seed's `https://example.com/` photo placeholders are the only exception | `npm run build:edge`, then `docker compose --profile edge up -d db api edge` on a database whose photo URLs use the edge origin: a fresh seed, not one with photos uploaded through `:3001` |
 | `npm run test:import:supabase-local` | The Supabase import end to end: resets the local Supabase stack, adds two admins, photos (one missing) and a serial change through Supabase's own APIs, imports into a scratch `housing_import_check` database, runs `verify --photos` against an API on it, logs both admins in with their Supabase passwords, then drops the database. Prints the timings (local baseline on 20 records: import 0.5 s, verify with photos 0.3 s). Never touches the live project | Docker (`docker compose up -d db`), the Supabase CLI and Node 22 |
 | `npm run test:contract:rest-readonly` | The read contract through the REST adapter against any running site: the compose API by default, or staging or production with `REST_READONLY_URL=https://<host>`. The fetch underneath refuses anything but GET, HEAD and OPTIONS, and the suite skips the one test that sends refused writes (`writeProbes: false`). Never in CI | a running API with data (`docker compose up -d db api` with the dev seed, or a deployed host) |
-| `npm run dev:mock` | The app on the mock backend, for manual checks. Admin login: see `MOCK_ADMIN` in `src/features/housing/backend/mock/fixtures.ts` | nothing |
+| `npm run dev:mock` | The app on the mock backend, for manual checks. Admin login: see `MOCK_ADMIN` in `src/backend/mock/fixtures.ts` | nothing |
 
 ## CI
 
@@ -46,13 +46,13 @@ The S3 storage tests don't run in CI, which holds no AWS keys. They run once by 
 
 ## The mock backend
 
-`VITE_HOUSING_BACKEND=mock` selects an in-memory backend (`src/features/housing/backend/mock/`). It implements the same three interfaces as Supabase and follows [../api/API_CONTRACT.md](../api/API_CONTRACT.md): per-project serial counters that never decrease, admin-only writes, activity log, photo paths by serial. It works only in dev and test; a production build contains none of its code. Photo bytes are not stored; the dev server answers `/__mock-photos/...` with a placeholder image.
+`VITE_HOUSING_BACKEND=mock` selects an in-memory backend (`src/backend/mock/`). It implements the same three interfaces as Supabase and follows [../api/API_CONTRACT.md](../api/API_CONTRACT.md): per-project serial counters that never decrease, admin-only writes, activity log, photo paths by serial. It works only in dev and test; a production build contains none of its code. Photo bytes are not stored; the dev server answers `/__mock-photos/...` with a placeholder image.
 
 The mock keeps its state across page reloads inside one browser context. `window.__housingMock.reset()` restores the seed and logs out.
 
 ## Re-pointing the suite at the new backend
 
-1. The REST `HousingApi` (`src/features/housing/backend/rest/index.ts`) calls the Express server for everything: reads, writes, photos and the activity log.
+1. The REST `HousingApi` (`src/backend/rest/index.ts`) calls the Express server for everything: reads, writes, photos and the activity log.
 2. `npm run test:contract:rest` runs the whole suite (`writes: true`) through the REST adapter against the real Express app (`createApp`) on the local `housing_test` database.
    - Before every test, the database is reset to `server/db/seed/dev.sql` plus one admin.
    - A cookie-jar fetch (`tests/contract/cookieJarFetch.ts`) keeps the session cookie and sends the site's `Origin`, as a browser does.

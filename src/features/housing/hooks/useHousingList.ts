@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getHousingApi } from '../backend/factory'
-import { HousingApiError, type HousingRecord, type ListParams, type Page } from '../backend/interfaces/types'
+import { getHousingApi } from '../../../backend/factory'
+import { HousingApiError, type HousingRecord, type ListParams, type Page } from '../../../backend/interfaces/types'
 
 export type ListState =
   | { status: 'loading'; data: Page<HousingRecord> | null }

@@ -13,7 +13,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import mapshaper from 'mapshaper'
-import { BD_GEO } from '../src/features/housing/data/bdGeo.ts'
+import { BD_GEO } from '../src/features/geo/data/bdGeo.ts'
 
 const args = Object.fromEntries(process.argv.slice(2).map((a, i, arr) => (a.startsWith('--') ? [a.slice(2), arr[i + 1] ?? true] : [])).filter((x) => x.length))
 const input = args.in

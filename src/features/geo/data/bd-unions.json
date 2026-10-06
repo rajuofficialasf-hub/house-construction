@@ -1,0 +1,619 @@
+{"v":1,"source":"nuhil/bangladesh-geocode@5622f68 (MIT, © 2014 Nuhil Mehdy)","d":{
+"কক্সবাজার":{
+"উখিয়া":[["জালিয়াপালং","Jaliapalong"],["পালংখালী","Palongkhali"],["রত্নাপালং","Ratnapalong"],["রাজাপালং","Rajapalong"],["হলদিয়াপালং","Holdiapalong"]],
+"কক্সবাজার সদর":[["ইসলামপুর","Islampur"],["ইসলামাবাদ","Islamabad"],["ঈদগাঁও","Eidgaon"],["খুরুশকুল","Khurushkhul"],["চৌফলদন্ডী","Chowfaldandi"],["জালালাবাদ","Jalalabad"],["ঝিলংঝা","Jhilongjha"],["পিএমখালী","Pmkhali"],["পোকখালী","Pokkhali"],["ভারুয়াখালী","Varuakhali"]],
+"কুতুবদিয়া":[["আলি আকবর ডেইল","Ali Akbar Deil"],["উত্তর ধুরুং","Uttar Dhurung"],["কৈয়ারবিল","Kaiyarbil"],["দক্ষিণ ধুরুং","Dakshi Dhurung"],["বড়ঘোপ","Baragho"],["লেমসিখালী","Lemsikhali"]],
+"চকরিয়া":[["কাইয়ার বিল","Kaiar Bil"],["কাকারা","Kakhara"],["কোনাখালী","Konakhali"],["খুটাখালী","Khuntakhali"],["চিরিঙ্গা","Chiringa"],["ডুলাহাজারা","Dulahazara"],["ঢেমুশিয়া","Demusia"],["পশ্চিম বড় ভেওলা","Paschim Bara Bheola"],["ফাঁসিয়াখালী","Fashiakhali"],["বড়ইতলী","Baraitali"],["বদরখালী","Badarkhali"],["বামু বিলছড়ি","Bamobil Chari"],["ভেওলা মানিক চর","Bheola Manik Char"],["শাহারবিল","Saharbil"],["সুরজপুর মানিকপুর","Surajpur Manikpur"],["হারবাঙ্গ","Harbang"]],
+"টেকনাফ":[["টেকনাফ সদর","Teknaf Sadar"],["বাহারছড়া","Baharchara"],["সাবরাং","Subrang"],["সেন্ট মার্টিন","Saintmartin"],["হোয়াইক্যং","Whykong"],["হ্নীলা","Hnila"]],
+"পেকুয়া":[["উজানটিয়া","Ujantia"],["টাইটং","Taitong"],["পেকুয়া","Pekua"],["বড় বাকিয়া","Barabakia"],["মগনামা","Magnama"],["রাজাখালী","Rajakhali"],["শীলখালী","Shilkhali"]],
+"মহেশখালী":[["কালারমারছড়া","Kalarmarchhara"],["কুতুবজোম","Kutubjum"],["ছোট মহেশখালী","Choto Moheshkhali"],["ধলঘাটা","Dhalghata"],["বড় মহেশখালী","Boro Moheshkhali"],["মাতারবাড়ী","Matarbari"],["শাপলাপুর","Shaplapur"],["হোয়ানক","Hoanak"]],
+"রামু":[["ঈদগড়","Eidghar"],["কচ্ছপিয়া","Kacchapia"],["কাউয়ারখোপ","Kauwarkho"],["খুনিয়াপালং","Khuniapalong"],["গর্জনিয়া","Garjoniya"],["চাকমারকুল","Chakmarkul"],["জোয়ারিয়া নালা","Jouarianala"],["দক্ষিণ মিঠাছড়ি","Dakkhin Mithachhari"],["ফতেখাঁরকুল","Fotekharkul"],["রশীদনগর","Rashidnagar"],["রাজারকুল","Rajarkul"]]
+},
+"কিশোরগঞ্জ":{
+"অষ্টগ্রাম":[["অষ্টগ্রাম সদর","Austagram Sadar"],["আদমপুর","Adampur"],["কলমা","Kalma"],["কাস্তুল","Kastul"],["খয়েরপুর-আব্দুল্লাপুর","Khyerpur-Abdullahpur"],["দেওঘর","Dewghar"],["পূর্ব অষ্টগ্রাম","Purba Austagram"],["বাঙ্গালপাড়া","Bangalpara"]],
+"ইটনা":[["ইটনা","Itna"],["এলংজুরী","Alonjori"],["চৌগাংগা","Chawganga"],["জয়সিদ্ধি","Joysiddi"],["ধনপুর","Dhonpur"],["বড়িবাড়ি","Boribari"],["বাদলা","Badla"],["মৃগা","Mriga"],["রায়টুটি","Raytoti"]],
+"কটিয়াদী":[["আচমিতা","Acmita"],["কারগাঁও","Kargaon"],["চান্দপুর","Chandpur"],["জালালপুর","Jalalpur"],["বনগ্রাম","Banagram"],["মসূয়া","Mosua"],["মুমুরদিয়া","Mumurdia"],["লোহাজুরী","Lohajuree"],["সহশ্রাম ধুলদিয়া","Shahasram Dhuldia"]],
+"করিমগঞ্জ":[["কাদিরজঙ্গল","Kadirjangal"],["কিরাটন","Kiraton"],["গুজাদিয়া","Gujadia"],["গুনধর","Gunodhar"],["জয়কা","Joyka"],["জাফরাবাদ","Zafrabad"],["দেহুন্দা","Dehunda"],["নিয়ামতপুর","Niamatpur"],["নোয়াবাদ","Noabad"],["বারঘড়িয়া","Barogharia"],["সুতারপাড়া","Sutarpara"]],
+"কিশোরগঞ্জ সদর":[["কর্শাকড়িয়াইল","Karshakarial"],["চৌদ্দশত","Chowddoshata"],["দানাপাটুলী","Danapatuli"],["বিন্নাটি","Binnati"],["বৌলাই","Bowlai"],["মহিনন্দ","Mohinanda"],["মাইজখাপন","Maizkhapan"],["মারিয়া","Maria"],["যশোদল","Joshodal"],["রশিদাবাদ","Rashidabad"],["লতিবাবাদ","Latibabad"]],
+"কুলিয়ারচর":[["উছমানপুর","Osmanpur"],["গোবরিয়া আব্দুল্লাহপুর","Gobaria Abdullahpur"],["ছয়সূতী","Chhaysuti"],["ফরিদপুর","Faridpur"],["রামদী","Ramdi"],["সালুয়া","Salua"]],
+"তাড়াইল":[["জাওয়ার","Jawar"],["তাড়াইল-সাচাইল","Tarail-Sachail"],["তালজাঙ্গা","Taljanga"],["দামিহা","Damiha"],["দিগদাইর","Digdair"],["ধলা","Dhola"],["রাউতি","Rauti"]],
+"নিকলী":[["কারপাশা","Karpasa"],["গুরই","Guroi"],["ছাতিরচর","Chatirchar"],["জারইতলা","Jaraitala"],["দামপাড়া","Dampara"],["নিকলী সদর","Nikli Sadar"],["সিংপুর","Singpur"]],
+"পাকুন্দিয়া":[["ইজারাসিন্দুর","Egarasindur"],["চান্দিপাশা","Chandipasha"],["চারফারাদি","Charfaradi"],["জাঙ্গালিয়া","Jangalia"],["নারান্দি","Narandi"],["পটুয়াভাঙ্গা","Patuavabga"],["পাকন্দিয়া","Pakundia"],["বুড়ুদিয়া","Burudia"],["সুখিয়া","Shukhia"],["হোসেনদি","Hosendi"]],
+"বাজিতপুর":[["কৈলাগ","Kailag"],["গাজীরচর","Gazirchar"],["দিঘীরপাড়","Dighirpar"],["দিলালপুর","Dilalpur"],["পিরিজপুর","Pirijpur"],["বলিয়ার্দী","Boliardi"],["মাইজচর","Maijchar"],["সরারচর","Sararchar"],["হালিমপুর","Halimpur"],["হিলচিয়া","Hilochia"],["হুমাইপর","Homypur"]],
+"ভৈরব":[["আগানগর","Aganagar"],["কালিকা প্রসাদ","Kalika Prashad"],["গজারিয়া","Gajaria"],["শিবপুর","Shibpur"],["শিমুলকান্দি","Shimulkandi"],["শ্রীনগর","Sreenagar"],["সাদেকপুর","Sadekpur"]],
+"মিঠামইন":[["কাটখাল","Katkhal"],["কেওয়ারজোর","Keoarjore"],["গোপদিঘী","Gopdighi"],["ঘাগড়া","Ghagra"],["ঢাকী","Dhaki"],["বৈরাটি","Bairati"],["মিঠামইন","Mithamoin"]],
+"হোসেনপুর":[["আড়াইবাড়িয়া","Araibaria"],["গোবিন্দপুর","Gobindapur"],["জিনারী","Jinari"],["পুমদি","Pumdi"],["সাহেদল","Sahedal"],["সিদলা","Sidhla"]]
+},
+"কুড়িগ্রাম":{
+"উলিপুর":[["গুনাইগাছ","Gunaigas"],["তবকপুর","Tobockpur"],["থেতরাই","Thetrai"],["দলদলিয়া","Daldalia"],["দুর্গাপুর","Durgapur"],["ধরণীবাড়ী","Dharanibari"],["ধামশ্রেণী","Dhamsreni"],["পান্ডুল","Pandul"],["বজরা","Bazra"],["বুড়াবুড়ী","Buraburi"],["বেগমগঞ্জ","Begumgonj"],["সাহেবের আলগা","Shahabiar Alga"],["হাতিয়া","Hatia"]],
+"কুড়িগ্রাম সদর":[["কাঁঠালবাড়ী","Kanthalbari"],["ঘোগাদহ","Ghogadhoh"],["পাঁচগাছি","Panchgachi"],["বেলগাছা","Belgacha"],["ভোগডাঙ্গা","Bhogdanga"],["মোগলবাসা","Mogolbasa"],["যাত্রাপুর","Jatrapur"],["হলোখানা","Holokhana"]],
+"চর রাজিবপুর":[["কোদালকাটি","Kodalkati"],["মোহনগঞ্জ","Mohongonj"],["রাজিবপুর","Rajibpur"]],
+"চিলমারী":[["অষ্টমীর চর","Austomirchar"],["চিলমারী","Chilmari"],["থানাহাট","Thanahat"],["নয়ারহাট","Nayarhat"],["রমনা","Ramna"],["রাণীগঞ্জ","Ranigonj"]],
+"নাগেশ্বরী":[["কঁচাকাঁটা","Kachakata"],["কালীগঞ্জ","Kaligonj"],["কেদার","Kedar"],["নারায়নপুর","Narayanpur"],["নুনখাওয়া","Noonkhawa"],["নেওয়াশী","Newyashi"],["বল্লভেরখাস","Bollobherkhas"],["বামনডাঙ্গা","Bamondanga"],["বেরুবাড়ী","Berubari"],["ভিতরবন্দ","Bhitorbond"],["রামখানা","Ramkhana"],["রায়গঞ্জ","Raigonj"],["সন্তোষপুর","Sontaspur"],["হাসনাবাদ","Hasnabad"]],
+"ফুলবাড়ী":[["কাশিপুর","Kashipur"],["নাওডাঙ্গা","Nawdanga"],["ফুলবাড়ী","Phulbari"],["বড়ভিটা","Baravita"],["ভাঙ্গামোড়","Bhangamor"],["শিমুলবাড়ী","Shimulbari"]],
+"ভুরুঙ্গামারী":[["আন্ধারীরঝাড়","Andharirjhar"],["চর-ভূরুঙ্গামারী","Char-Bhurungamari"],["জয়মনিরহাট","Joymonirhat"],["তিলাই","Tilai"],["পাইকেরছড়া","Paikarchara"],["পাথরডুবি","Pathordubi"],["বঙ্গসোনাহাট","Bangasonahat"],["বলদিয়া","Boldia"],["ভূরুঙ্গামারী","Bhurungamari"],["শিলখুড়ি","Shilkhuri"]],
+"রাজারহাট":[["উমর মজিদ","Umarmajid"],["ঘড়িয়ালডাঙ্গা","Gharialdanga"],["চাকিরপশার","Chakirpashar"],["ছিনাই","Chinai"],["নাজিমখাঁন","Nazimkhan"],["বিদ্যানন্দ","Biddanondo"],["রাজারহাট","Rajarhat"]],
+"রৌমারী":[["দাঁতভাঙ্গা","Dadevanga"],["বন্দবেড়","Bondober"],["যাদুরচর","Jadurchar"],["রৌমারী","Rowmari"],["শৌলমারী","Shoulemari"]]
+},
+"কুমিল্লা":{
+"কুমিল্লা সদর":[["আমড়াতলী","Amratoli"],["উত্তর দুর্গাপুর","North Durgapur"],["কালীর বাজার","Kalirbazer"],["জগন্নাথপুর","Jagannatpur"],["দক্ষিন দুর্গাপুর","South Durgapur"],["পাঁচথুবী","Panchthubi"]],
+"চান্দিনা":[["এতবারপুর","Etberpur"],["কেরণখাল","Keronkhal"],["গল্লাই","Gollai"],["জোয়াগ","Joag"],["দোল্লাই নবাবপুর","Dollai Nowabpur"],["বরকইট","Borcoit"],["বরকরই","Borcarai"],["বাড়েরা","Barera"],["বাতাঘাসি","Bataghashi"],["মহিচাইল","Mohichial"],["মাইজখার","Maijkhar"],["মাধাইয়া","Madhaiya"],["সুহিলপুর","Shuhilpur"]],
+"চৌদ্দগ্রাম":[["আলকরা","Alkara"],["কনকাপৈত","Kankapait"],["কালিকাপুর","Kalikapur"],["কাশিনগর","Kashinagar"],["গুনবতী","Goonabati"],["ঘোলপাশা","Ghulpasha"],["চিওড়া","Cheora"],["জগন্নাথদিঘী","Jagannatdighi"],["বাতিসা","Batisha"],["মুন্সীরহাট","Moonshirhat"],["শুভপুর","Shuvapur"],["শ্রীপুর","Sreepur"]],
+"তিতাস":[["কড়িকান্দি","Karikandi"],["কলাকান্দি","Kalakandi"],["জগতপুর","Jagatpur"],["জিয়ারকান্দি","Zearkandi"],["নারান্দিয়া","Narayandia"],["বলরামপুর","Balorampur"],["ভিটিকান্দি","Vitikandi"],["মজিদপুর","Majidpur"],["সাতানী","Satani"]],
+"দাউদকান্দি":[["উত্তর ইলিয়টগঞ্জ","North Eliotgonj"],["গোয়ালমারী","Goalmari"],["গৌরীপুর","Gouripur"],["জিংলাতলী","Zinglatoli"],["দক্ষিন ইলিয়টগঞ্জ","South Eliotgonj"],["দাউদকান্দি","Daudkandi"],["দৌলতপুর","Doulotpur"],["পদুয়া","Podua"],["পশ্চিম পাচঁগাছিয়া","West Passgacia"],["পশ্চিম মোহাম্মদপুর","West Mohammadpur"],["পুর্ব মোহাম্মদপুর","East Mohammadpur"],["বারপাড়া","Baropara"],["বিটেশ্বর","Betessor"],["মারুকা","Maruka"],["সুন্দলপুর","Sundolpur"]],
+"দেবিদ্বার":[["ইউসুফপুর","Yousufpur"],["উত্তর গুনাইঘর","North Gunaighor"],["এলাহাবাদ","Elahabad"],["জাফরগঞ্জ","Jafargonj"],["দক্ষিণ গুনাইঘর","South Gunaighor"],["ধামতী","Dhampti"],["ফতেহাবাদ","Fatehabad"],["বড়শালঘর","Boroshalghor"],["বরকামতা","Barkamta"],["ভানী","Vani"],["মোহনপুর","Mohanpur"],["রসুলপুর","Rasulpur"],["রাজামেহার","Rajameher"],["সুবিল","Subil"],["সুলতানপুর","Sultanpur"]],
+"নাঙ্গলকোট":[["আদ্রা","Adra"],["জোড্ডা","Judda"],["ঢালুয়া","Dhalua"],["দৌলখাঁড়","Doulkha"],["পেরিয়া","Paria"],["বক্সগঞ্জ","Boxgonj"],["বাঙ্গড্ডা","Bangadda"],["মক্রবপুর","Makrabpur"],["মোকরা","Mokara"],["রায়কোট","Raykot"],["সাতবাড়ীয়া","Satbaria"],["হেসাখাল","Heshakhal"]],
+"বরুড়া":[["আগানগর","Aganagar"],["আড্ডা","Adda"],["আদ্রা","Adra"],["উত্তর খোশবাস","North Khoshbas"],["উত্তর শিলমুড়ি","North Shilmuri"],["গালিমপুর","Galimpur"],["চিতড্ডা","Chitodda"],["ঝলম","Jhalam"],["দক্ষিন খোশবাস","South Khoshbas"],["দক্ষিন শিলমুড়ি","South Shilmuri"],["পয়ালগাছা","Payalgacha"],["ভবানীপুর","Bhabanipur"],["ভাউকসার","Bhaukshar"],["লক্ষীপুর","Laxmipur"],["শাকপুর","Shakpur"]],
+"বুড়িচং":[["পীরযাত্রাপুর","Pirjatrapur"],["বাকশীমূল","Bakshimul"],["বুড়িচং সদর","Burichang Sadar"],["ভারেল্লা","Varella"],["ময়নামতি","Moynamoti"],["মোকাম","Mokam"],["রাজাপুর","Rajapur"],["ষোলনল","Sholonal"]],
+"ব্রাহ্মণপাড়া":[["চান্দলা","Chandla"],["দুলালপুর","Dulalpur"],["ব্রাহ্মনপাড়া সদর","Brahmanpara Sadar"],["মাধবপুর","Madhabpur"],["মালাপাড়া","Malapara"],["শশীদল","Shashidal"],["শিদলাই","Shidli"],["সাহেবাবাদ","Shahebabad"]],
+"মনোহরগঞ্জ":[["উত্তর হাওলা","Uttarhowla"],["খিলা","Khela"],["ঝলম (উত্তর)","Jholam (North)"],["ঝলম (দক্ষিন)","Jholam (South)"],["নাথেরপেটুয়া","Natherpetua"],["বাইশগাঁও","Baishgaon"],["বিপুলাসার","Bipulashar"],["মৈশাতুয়া","Moishatua"],["লক্ষনপুর","Lokkhanpur"],["সরসপুর","Shoroshpur"],["হাসনাবাদ","Hasnabad"]],
+"মুরাদনগর":[["আকুবপুর","Akubpur"],["আন্দিকোট","Andicot"],["কামাল্লা","Camalla"],["চাপিতলা","Chapitala"],["ছালিয়াকান্দি","Salikandi"],["জাহাপুর","Jahapur"],["টনকী","Tanki"],["দারোরা","Darura"],["ধামঘর","Damgar"],["নবীপুর (পশ্চিম)","Nobipur (West)"],["নবীপুর (পুর্ব)","Nobipur (East)"],["পাহাড়পুর","Paharpur"],["পুর্বধৈইর (পশ্চিম)","Purbadair (West)"],["পুর্বধৈইর (পুর্ব)","Purbadair (East)"],["বাঙ্গরা (পশ্চিম)","Bangara (West)"],["বাঙ্গরা (পূর্ব)","Bangara (East)"],["বাবুটিপাড়া","Babutipara"],["মুরাদনগর সদর","Muradnagar Sadar"],["যাত্রাপুর","Jatrapur"],["রামচন্দ্রপুর (উত্তর)","Ramachandrapur (North)"],["রামচন্দ্রপুর (দক্ষিন)","Ramachandrapur (South)"],["শ্রীকাইল","Sreekil"]],
+"মেঘনা":[["গোবিন্দপুর","Govindapur"],["চন্দনপুর","Chandanpur"],["চালিভাঙ্গা","Chalibanga"],["বড়কান্দা","Barakanda"],["ভাওরখোলা","Vaorkhola"],["মানিকারচর","Manikarchar"],["রাধানগর","Radanagar"],["লুটেরচর","Luterchar"]],
+"লাকসাম":[["আজগরা","Azgora"],["উত্তরদা","Uttarda"],["কান্দিরপাড়","Kandirpar"],["গোবিন্দপুর","Gobindapur"],["বাকই","Bakoi"],["মুদাফফর গঞ্জ","Mudafargonj"],["লাকসাম পুর্ব","Laksam Purba"]],
+"লালমাই":[["পেরুল (উত্তর)","Perul (North)"],["পেরুল (দক্ষিন)","Perul (South)"],["বাগমারা (উত্তর)","Bagmara (North)"],["বাগমারা (দক্ষিন)","Bagmara (South)"],["বেলঘর (উত্তর)","Belgor (North)"],["বেলঘর (দক্ষিন)","Belgor (South)"],["ভূলইন (উত্তর)","Bhuloin (North)"],["ভূলইন (দক্ষিন)","Bhuloin (South)"]],
+"সদর দক্ষিণ":[["গলিয়ারা","Goliara"],["চৌয়ারা","Chuwara"],["জোড়কানন (পশ্চিম)","Jorkanonwest"],["জোড়কানন (পুর্ব)","Jorkanoneast"],["পেরুল (উত্তর)","Perul (North)"],["পেরুল (দক্ষিন)","Perul (South)"],["বাগমারা (উত্তর)","Bagmara (North)"],["বাগমারা (দক্ষিন)","Bagmara (South)"],["বারপাড়া","Baropara"],["বিজয়পুর","Bijoypur"],["বেলঘর (উত্তর)","Belgor (North)"],["বেলঘর (দক্ষিন)","Belgor (South)"],["ভূলইন (উত্তর)","Bhuloin (North)"],["ভূলইন (দক্ষিন)","Bhuloin (South)"]],
+"হোমনা":[["আছাদপুর","Asadpur"],["ঘাগুটিয়া","Gagutiea"],["ঘারমোড়া","Garmora"],["চান্দেরচর","Chanderchor"],["জয়পুর","Joypur"],["দুলালপুর","Dulalpur"],["নিলখী","Nilokhi"],["ভাষানিয়া","Vashania"],["মাথাভাঙ্গা","Mathabanga"]]
+},
+"কুষ্টিয়া":{
+"কুমারখালী":[["কয়া","Kaya"],["চরসাদীপুর","Charsadipur"],["চাঁদপুর","Chadpur"],["চাপড়া","Chapra"],["জগন্নাথপুর","Jagonnathpur"],["নন্দলালপুর","Nandolalpur"],["পান্টি","Panti"],["বাগুলাট","Bagulat"],["যদুবয়রা","Jaduboyra"],["শিলাইদহ","Shelaidah"],["সদকী","Sadki"]],
+"কুষ্টিয়া সদর":[["আইলচারা","Ailchara"],["আব্দালপুর","Abdulpur"],["আলামপুর","Alampur"],["উজানগ্রাম","Ujangram"],["গোস্বামী দুর্গাপুর","Goswami Durgapur"],["জিয়ারাখী","Ziaraakhi"],["ঝাউদিয়া","Jhaudia"],["পাটিকাবাড়ী","Patikabari"],["বটতৈল","Bottail"],["বারখাদা","Barkhada"],["মজমপুর","Mazampur"],["মনোহরদিয়া","Monohardia"],["হরিনারায়নপুর","Harinarayanpur"],["হাটশ হরিপুর","Hatash Haripur"]],
+"খোকসা":[["আমবাড়ীয়া","Ambaria"],["ওসমানপুর","Osmanpur"],["খোকসা","Khoksa"],["গোপগ্রাম","Gopgram"],["জয়ন্তীহাজরা","Joyntihazra"],["জানিপুর","Janipur"],["বেতবাড়ীয়া","Bethbaria"],["শিমুলিয়া","Shimulia"],["শোমসপুর","Shomospur"]],
+"দৌলতপুর":[["আড়িয়া","Aria"],["খলিশাকুন্ডি","Khalishakundi"],["চিলমারী","Chilmary"],["ড়ীয়া","Adabaria"],["দৌলতপুর","Daulatpur"],["পিয়ারপুর","Piarpur"],["প্রাগপুর","Pragpur"],["ফিলিপনগর","Philipnagor"],["বোয়ালি","Boalia"],["মথুরাপুর","Mothurapur"],["মরিচা","Moricha"],["রামকৃষ্ণপুর","Ramkrishnopur"],["রিফাইতপুর","Refaitpur"],["হোগলবাড়ীয়া","Hogolbaria"]],
+"ভেড়ামারা":[["চাঁদগ্রাম","Chandgram"],["জুনিয়াদহ","Juniadah"],["ধরমপুর","Dharampur"],["বাহাদুরপুর","Bahadurpur"],["বাহিরচর","Bahirchar"],["মোকারিমপুর","Mukarimpur"]],
+"মিরপুর":[["আমবাড়ীয়া","Ambaria"],["আমলা","Amla"],["কুর্শা","Kursha"],["চিথলিয়া","Chithalia"],["ছাতিয়ান","Chhatian"],["তালবাড়ীয়া","Talbaria"],["ধূবইল","Dhubail"],["পোড়াদহ","Poradaha"],["ফুলবাড়ীয়া","Fulbaria"],["বহলবাড়ীয়া","Bahalbaria"],["বারুইপাড়া","Baruipara"],["মালিহাদ","Malihad"],["সদরপুর","Sadarpur"]]
+},
+"খাগড়াছড়ি":{
+"খাগড়াছড়ি সদর":[["কমলছড়ি","Kamalchari"],["খাগরাছড়ি সদর","Khagrachhari Sadar"],["গোলাবাড়ী","Golabari"],["পেরাছড়া","Parachara"]],
+"দিঘীনালা":[["কবাখালী","Kabakhali"],["দিঘীনালা","Dighinala"],["বাবুছড়া","Babuchara"],["বোয়ালখালী","Boalkhali"],["মেরুং","Merung"]],
+"পানছড়ি":[["চেংগী","Changi"],["পানছড়ি","Panchari"],["লতিবান","Latiban"],["লোগাং","Logang"]],
+"মহালছড়ি":[["ক্যায়াংঘাট","Kayanghat"],["ভাইবোনছড়া","Bhaibonchara"],["মহালছড়ি","Mahalchari"],["মাইসছড়ি","Maischari"],["মুবাছড়ি","Mobachari"]],
+"মাটিরাঙ্গা":[["আমতলি","Amtali"],["গুইমারা","Guimara"],["গোমতি","Gomti"],["তবলছড়ি","Tabalchari"],["তাইন্দং","Taindong"],["বর্ণাল","Barnal"],["বেলছড়ি","Balchari"],["মাটিরাঙ্গা","Matiranga"]],
+"মানিকছড়ি":[["তিনটহরী","Tintahari"],["বাটনাতলী","Batnatali"],["মানিকছড়ি","Manikchari"],["যোগ্যছোলা","Jogyachola"]],
+"রামগড়":[["পাতাছড়া","Patachara"],["রামগড়","Ramgarh"],["হাফছড়ি","Hafchari"]],
+"লক্ষীছড়ি":[["দুল্যাতলী","Dullyatali"],["বর্মাছড়ি","Barmachari"],["লক্ষীছড়ি","Laxmichhari"]]
+},
+"খুলনা":{
+"কয়রা":[["আমাদি","Amadi"],["উত্তর বেদকাশী","North Bedkashi"],["কয়রা","Koyra"],["দক্ষিণ বেদকাশী","South Bedkashi"],["বাগালী","Bagali"],["মহারাজপুর","Moharajpur"],["মহেশ্বরীপুর","Moheswaripur"]],
+"ডুমুরিয়া":[["আটলিয়া","Atlia"],["খর্ণিয়া","Khornia"],["গুটুদিয়া","Ghutudia"],["ডুমুরিয়া","Dumuria"],["ধামালিয়া","Dhamalia"],["ভান্ডারপাড়া","Vandarpara"],["মাগুরখালি","Magurkhali"],["মাগুরাঘোনা","Magurghona"],["রংপুর","Rongpur"],["রঘুনাথপুর","Raghunathpur"],["রুদাঘরা","Rudaghora"],["শরাফপুর","Shorafpur"],["শোভনা","Shovna"],["সাহস","Sahos"]],
+"তেরখাদা":[["আজগড়া","Ajgora"],["ছাগলাদহ","Chagladoho"],["তেরখাদা","Terokhada"],["বারাসাত","Barasat"],["মধুপুর","Modhupur"],["সাচিয়াদাহ","Sochiadaho"]],
+"দাকোপ":[["কামারখোলা","Kamarkhola"],["কৈলাশগঞ্জ","Koilashgonj"],["তিলডাঙ্গা","Tildanga"],["দাকোপ","Dakop"],["পানখালী","Pankhali"],["বাজুয়া","Bajua"],["বানিশান্তা","Banishanta"],["লাউডোব","Laudoba"],["সুতারখালী","Sutarkhali"]],
+"দিঘলিয়া":[["আড়ংঘাটা","Aronghata"],["গাজীরহাট","Gajirhat"],["দিঘলিয়া","Digholia"],["বারাকপুর","Barakpur"],["যোগীপোল","Jogipol"],["সেনহাটি","Senhati"]],
+"পাইকগাছা":[["কপিলমুনি","Kopilmuni"],["গড়ইখালী","Goroikhali"],["গদাইপুর","Godaipur"],["চাঁদখালী","Chandkhali"],["দেলুটি","Deluti"],["রাড়ুলী","Raruli"],["লতা","Lota"],["লস্কর","Loskor"],["সোলাদানা","Soladana"],["হরিঢালী","Horidhali"]],
+"ফুলতলা":[["আটরা গিলাতলা","Atra Gilatola"],["জামিরা","Jamira"],["দামোদর","Damodar"],["ফুলতলা","Fultola"]],
+"বটিয়াঘাটা":[["আমিরপুর","Amirpur"],["গঙ্গারামপুর","Gongarampur"],["জলমা","Jolma"],["বটিয়াঘাটা","Botiaghata"],["বালিয়াডাঙ্গা","Baliadanga"],["ভান্ডারকোট","Vandarkot"],["সুরখালী","Surkhali"]],
+"রূপসা":[["আইচগাতী","Aichgati"],["ঘাটভোগ","Ghatvog"],["টিএসবি","Tsb"],["নৈহাটি","Noihati"],["শ্রীফলতলা","Srifoltola"]]
+},
+"গাইবান্ধা":{
+"গাইবান্ধা সদর":[["কামারজানি","Kamarjani"],["কুপতলা","Kuptola"],["খোলাহাটী","Kholahati"],["গিদারী","Gidari"],["ঘাগোয়া","Ghagoa"],["বল্লমঝাড়","Ballamjhar"],["বাদিয়াখালী","Badiakhali"],["বোয়ালী","Boali"],["মালীবাড়ী","Malibari"],["মোল্লারচর","Mollarchar"],["রামচন্দ্রপুর","Ramchandrapur"],["লক্ষ্মীপুর","Laxmipur"],["সাহাপাড়া","Shahapara"]],
+"গোবিন্দগঞ্জ":[["কাটাবাড়ী","Katabari"],["কামদিয়া","Kamdia"],["কামারদহ","Kamardoho"],["কোচাশহর","Kochasahar"],["গুমানীগঞ্জ","Gumaniganj"],["তালুককানুপুর","Talukkanupur"],["দরবস্ত ইয়নিয়ন","Dorbosto"],["নাকাই","Nakai"],["ফুলবাড়ী","Phulbari"],["মহিমাগঞ্জ","Mahimaganj"],["রাখালবুরুজ","Rakhalburuj"],["রাজাহার","Rajahar"],["শাখাহার","Shakhahar"],["শালমারা","Shalmara"],["শিবপুর","Shibpur"],["সাপমারা","Sapmara"],["হরিরামপুর","Harirampur"]],
+"পলাশবাড়ী":[["কিশোরগাড়ী","Kishoregari"],["পবনাপুর","Pobnapur"],["পলাশবাড়ী","Palashbari"],["বরিশাল","Barisal"],["বেতকাপা","Betkapa"],["মনোহরপুর","Monohorpur"],["মহদীপুর","Mohdipur"],["হরিণাথপুর","Harinathpur"],["হোসেনপুর","Hosenpur"]],
+"ফুলছড়ি":[["উড়িয়া","Uria"],["উদাখালী","Udakhali"],["এরেন্ডাবাড়ী","Erendabari"],["কঞ্চিপাড়া","Kanchipara"],["গজারিয়া","Gazaria"],["ফজলুপুর","Fazlupur"],["ফুলছড়ি","Phulchari"]],
+"সাঘাটা":[["কচুয়া","Kachua"],["কামালেরপাড়া","Kamalerpara"],["ঘুরিদহ","Ghuridah"],["জুমারবাড়ী","Jumarbari"],["পদুমশহর","Padumsahar"],["বোনারপাড়া","Bonarpara"],["ভরতখালী","Varotkhali"],["মুক্তিনগর","Muktinagar"],["সাঘাটা","Saghata"],["হলদিয়া","Holdia"]],
+"সাদুল্লাপুর":[["ইদিলপুর","Idilpur"],["কামারপাড়া","Kamarpara"],["খোদকোমরপুর","Khodkomor"],["জামালপুর","Jamalpur"],["দামোদরপুর","Damodorpur"],["ধাপেরহাট","Dhaperhat"],["নলডাঙ্গা","Noldanga"],["ফরিদপুর","Faridpur"],["বনগ্রাম","Bongram"],["ভাতগ্রাম","Vatgram"],["রসুলপুর","Rasulpur"]],
+"সুন্দরগঞ্জ":[["কঞ্চিবাড়ী","Konchibari"],["কাপাসিয়া","Kapasia"],["চন্ডিপুর","Chandipur"],["ছাপরহাটী","Chaporhati"],["তারাপুর","Tarapur"],["দহবন্দ","Dohbond"],["ধোপাডাঙ্গা","Dhopadanga"],["বামনডাঙ্গা","Bamondanga"],["বেলকা","Belka"],["রামজীবন","Ramjibon"],["শান্তিরাম","Shantiram"],["শ্রীপুর","Sreepur"],["সর্বানন্দ","Sorbanondo"],["সোনারায়","Sonaroy"],["হরিপুর","Haripur"]]
+},
+"গাজীপুর":{
+"কাপাসিয়া":[["কড়িহাতা","Karihata"],["কাপাসিয়া","Kapasia"],["ঘাগটিয়া","Ghagotia"],["চাঁদপুর","Chandpur"],["টোক","Tokh"],["তরগাঁও","Targoan"],["দূর্গাপুর","Durgapur"],["বারিষাব","Barishaba"],["রায়েদ","Rayed"],["সনমানিয়া","Sonmania"],["সিংহশ্রী","Sinhasree"]],
+"কালিয়াকৈর":[["আটাবহ","Atabaha"],["চাপাইর","Chapair"],["ঢালজোড়া","Dhaliora"],["ফুলবাড়ীয়া","Fulbaria"],["বোয়ালী","Boali"],["মধ্যপাড়া","Madhyapara"],["মৌচাক","Mouchak"],["শ্রীফলতলী","Srifaltali"],["সূত্রাপুর","Sutrapur"]],
+"কালীগঞ্জ":[["জাঙ্গালিয়া","Jangalia"],["জামালপুর","Jamalpurnew"],["তুমুলিয়া","Tumulia"],["নাগরী","Nagari"],["বক্তারপুর","Baktarpur"],["বাহাদুরশাদী","Bahadursadi"],["মোক্তারপুর","Moktarpur"]],
+"গাজীপুর সদর":[["কাউলতিয়া","Kayaltia"],["কাশিমপুর","Kashimpur"],["কোনাবাড়ী","Konabari"],["গাছা","Gachha"],["পূবাইল","Pubail"],["বাড়ীয়া","Baria"],["বাসন","Basan"],["মির্জাপুর","Mirzapur"]],
+"শ্রীপুর":[["কাওরাইদ","Kaoraid"],["গাজীপুর","Gazipur"],["গোসিংগা","Gosinga"],["তেলিহাটী","Telihati"],["প্রহলাদপুর","Prahladpur"],["বরমী","Barmi"],["মাওনা","Maona"],["রাজাবাড়ী","Rajabari"]]
+},
+"গোপালগঞ্জ":{
+"কাশিয়ানী":[["ওড়াকান্দি","Orakandia"],["কাশিয়ানী","Kashiani"],["নিজামকান্দি","Nijamkandi"],["পারুলিয়া","Parulia"],["পুইশুর","Puisur"],["ফুকরা","Fukura"],["বেথুড়ী","Bethuri"],["মহেশপুর","Maheshpur"],["মাহমুদপুর","Mamudpur"],["রাজপাট","Rajpat"],["রাতইল","Ratail"],["সাজাইল","Sajail"],["সিংগা","Singa"],["হাতিয়াড়া","Hatiara"]],
+"কোটালীপাড়া":[["আমতলী","Amtoli"],["কলাবাড়ী","Kolabari"],["কান্দি","Kandi"],["কুশলা","Kushla"],["ঘাঘর","Ghaghor"],["পিঞ্জুরী","Pinjuri"],["বান্ধাবাড়ী","Bandhabari"],["রাধাগঞ্জ","Radhaganj"],["রামশীল","Ramshil"],["সাদুল্লাপুর","Sadullapur"],["হিরণ","Hiron"]],
+"গোপালগঞ্জ সদর":[["উরফি","Urfi"],["উলপুর","Ulpur"],["করপাড়া","Karpara"],["কাজুলিয়া","Kajulia"],["কাঠি","Kati"],["গোপীনাথপুর","Gopinathpur"],["গোবরা","Gobra"],["চন্দ্রদিঘলিয়া","Chandradighalia"],["জালালাবাদ","Jalalabad"],["দুর্গাপুর","Durgapur"],["নিজড়া","Nizra"],["পাইককান্দি","Paikkandi"],["বোড়াশী","Borashi"],["বৌলতলী","Boultali"],["মাঝিগাতী","Majhigati"],["রঘুনাথপুর","Roghunathpur"],["লতিফপুর","Lotifpur"],["শুকতাইল","Shuktail"],["সাতপাড়","Satpar"],["সাহাপুর","Sahapur"],["হরিদাসপুর","Horidaspur"]],
+"টুংগীপাড়া":[["কুশলী","Kushli"],["গোপালপুর","Gopalpur"],["ডুমরিয়া","Dumaria"],["পাটগাতী","Patgati"],["বর্ণি","Borni"]],
+"মুকসুদপুর":[["উজানী","Ujani"],["কাশালিয়া","Kashalia"],["খান্দারপাড়া","Khandarpara"],["গোবিন্দপুর","Gobindopur"],["গোহালা","Gohala"],["জলিরপাড়","Jalirpar"],["দিগনগর","Dignagar"],["ননীক্ষীর","Nanikhir"],["পশারগাতি","Poshargati"],["বহুগ্রাম","Bohugram"],["বাটিকামারী","Batikamari"],["বাশঁবাড়িয়া","Banshbaria"],["ভাবড়াশুর","Vabrashur"],["মহারাজপুর","Moharajpur"],["মোচনা","Mochna"],["রাঘদী","Raghdi"]]
+},
+"চট্টগ্রাম":{
+"আনোয়ারা":[["আনোয়ারা","Anwara"],["চাতরী","Chatari"],["জুঁইদন্ডী","Juidandi"],["পরৈকোড়া","Paraikora"],["বটতলী","Battali"],["বরম্নমচড়া","Barumchara"],["বারখাইন","Baroakhan"],["বারশত","Barasat"],["বৈরাগ","Boirag"],["রায়পুর","Raipur"],["হাইলধর","Haildhar"]],
+"কর্ণফুলী":[["চর পাথরঘাটা","Char Patharghata"],["চর লক্ষ্যা","Char Lakshya"],["জুলধা","Juldha"],["বড় উঠান","Barauthan"],["শিকলবাহা","Sikalbaha"]],
+"চন্দনাইশ":[["কাঞ্চনাবাদ","Kanchanabad"],["জোয়ারা","Joara"],["দোহাজারী","Dohazari"],["ধোপাছড়ী","Dhopachhari"],["বরকল","Barkal"],["বরমা","Barama"],["বৈলতলী","Bailtali"],["সাতবাড়িয়া","Satbaria"],["হাশিমপুর","Hashimpur"]],
+"পটিয়া":[["আশিয়া","Asia"],["কাচুয়াই","Kachuai"],["কাশিয়াইশ","Kasiais"],["কুসুমপুরা","Kusumpura"],["কেলিশহর","Kelishahar"],["কোলাগাঁও","Kolagaon"],["খরনা","Kharana"],["চর পাথরঘাটা","Char Patharghata"],["চর লক্ষ্যা","Char Lakshya"],["ছনহরা","Chanhara"],["জঙ্গলখাইন","Janglukhain"],["জিরি","Jiri"],["জুলধা","Juldha"],["দক্ষিণ ভূর্ষি","Dakkhin Bhurshi"],["ধলঘাট","Dhalghat"],["বড় উঠান","Bara Uthan"],["বরলিয়া","Baralia"],["ভাটিখাইন","Bhatikhain"],["শিকলবাহা","Sikalbaha"],["শোভনদন্ডী","Sobhandandi"],["হাইদগাঁও","Haidgaon"],["হাবিলাসদ্বীপ","Habilasdwi"]],
+"ফটিকছড়ি":[["আবদুল্লাপুর","Abdullapur"],["কাঞ্চনগর","Kanchannagor"],["জাফতনগর","Jafathagar"],["দাঁতমারা","Dantmara"],["দৌলতপুর","Daulatpur"],["ধর্মপুর","Dharmapur"],["নানুপুর","Nanupur"],["নারায়নহাট","Narayanhat"],["পাইনদং","Paindong"],["বক্তপুর","Bokhtapur"],["বাগান বাজার","Baganbazar"],["ভূজপুর","Bhujpur"],["রোসাংগিরী","Roshangiri"],["লেলাং","Lelang"],["সমিতির হাট","Samitirhat"],["সুনদরপুর","Sunderpur"],["সুয়াবিল","Suabil"],["হারুয়ালছড়ি","Harualchari"]],
+"বাঁশখালী":[["কাথরিয়া","Katharia"],["কালীপুর","Kalipur"],["খানখানাবাদ","Khankhanabad"],["গন্ডামারা","Gandamara"],["চাম্বল","Chambal"],["ছনুয়া","Chhanua"],["পুঁইছড়ি","Puichhari"],["পুকুরিয়া","Pukuria"],["বাহারছড়া","Baharchhara"],["বৈলছড়ি","Bailchhari"],["শীলকুপ","Silk"],["শেখেরখীল","Sekherkhil"],["সরল","Saral"],["সাধনপুর","Sadhanpur"]],
+"বোয়ালখালী":[["আমুচিয়া","Amuchia"],["আহল্লা করলডেঙ্গা","Ahla Karaldenga"],["কধুরখীল","Kandhurkhil"],["চরনদ্বীপ","Charandwi"],["পশ্চিম গোমদন্ডী","Pashchim Gamdandi"],["পুর্ব গোমদন্ডী","Purba Gomdandi"],["পোপাদিয়া","Popadia"],["শাকপুরা","Sakpura"],["শ্রীপুর-খরন্দীপ","Sreepur-Kharandwi"],["সারোয়াতলী","Saroatali"]],
+"মীরসরাই":[["ইছাখালী","Ichakhali"],["ওয়াহেদপুর","Wahedpur"],["ওসমানপুর","Osmanpur"],["করেরহাট","Korerhat"],["কাটাছরা","Katachhara"],["খৈয়াছরা","Khaiyachhara"],["জোরারগঞ্জ","Jorarganj"],["দূর্গাপুর","Durgapur"],["ধুম","Dhoom"],["মঘাদিয়া","Maghadia"],["মায়ানী","Mayani"],["মিঠানালা","Mithanala"],["মীরসরাই","Mirsharai"],["সাহেরখালী","Saherkhali"],["হাইতকান্দি","Haitkandi"],["হিংগুলি","Hinguli"]],
+"রাউজান":[["উড়কিরচর","Urkirchar"],["কদলপূর","Kodolpur"],["গহিরা","Gohira"],["চিকদাইর","Chikdair"],["ডাবুয়া","Dabua"],["নওয়াজিশপুর","Nowajushpur"],["নোয়াপাড়া","Noapara"],["পশ্চিম গুজরা","Paschim Gujra"],["পাহাড়তলী","Pahartali"],["পূর্ব গুজরা","Purbagujra"],["বাগোয়ান","Bagoan"],["বিনাজুরী","Binajuri"],["রাউজান","Raozan"],["হলদিয়া","Holdia"]],
+"রাঙ্গুনিয়া":[["ইসলামপুর","Islampur"],["কোদালা","Kodala"],["চন্দ্রঘোনা","Chandraghona"],["দক্ষিণ রাজানগর","South Rajanagar"],["পারুয়া","Parua"],["পোমরা","Pomra"],["বেতাগী","Betagi"],["মরিয়মনগর","Mariumnagar"],["রাজানগর","Rajanagar"],["লালানগর","Lalanagar"],["শিলক","Shilok"],["সরফভাটা","Sharafbhata"],["স্বনির্ভর রাঙ্গুনিয়া","Swanirbor Rangunia"],["হোছনাবাদ","Hosnabad"]],
+"লোহাগাড়া":[["আধুনগর","Adhunagar"],["আমিরাবাদ","Amirabad"],["কলাউজান","Kalauzan"],["চরম্বা","Charamba"],["চুনতি","Chunati"],["পদুয়া","Padua"],["পুটিবিলা","Putibila"],["বড়হাতিয়া","Barahatia"],["লোহাগাড়া","Lohagara"]],
+"সন্দ্বীপ":[["আজিমপুর","Azimpur"],["আমানউল্যা","Amanullah"],["উড়িরচর","Urirchar"],["কালাপানিয়া","Kalapania"],["গাছুয়া","Gachhua"],["বাউরিয়া","Bauria"],["মগধরা","Magdhara"],["মাইটভাঙ্গা","Maitbhanga"],["মুছাপুর","Musapur"],["রহমতপুর","Rahmatpur"],["সন্তোষপুর","Santoshpur"],["সারিকাইত","Sarikait"],["হরিশপুর","Harispur"],["হারামিয়া","Haramia"]],
+"সাতকানিয়া":[["আমিলাইশ","Amilaisi"],["এওচিয়া","Eochiai"],["কাঞ্চনা","Kanchana"],["কালিয়াইশ","Kaliais"],["কেঁওচিয়া","Keochia"],["খাগরিয়া","Khagaria"],["চরতী","Charati"],["ছদাহা","Sadaha"],["ঢেমশা","Dhemsa"],["নলুয়া","Nalua"],["পশ্চিম ঢেমশা","Paschim Dhemsa"],["পুরানগড়","Puranagar"],["বাজালিয়া","Bazalia"],["মাদার্শা","Madarsa"],["সাতকানিয়া","Satkania"],["সোনাকানিয়া","Sonakania"]],
+"সীতাকুন্ড":[["কুমিরা","Kumira"],["বাঁশবারীয়া","Banshbaria"],["বাড়িয়াডিয়ালা","Bariadyala"],["বারবকুন্ড","Barabkunda"],["ভাটিয়ারী","Bhatiari"],["মুরাদপুর","Muradpur"],["সাঈদপুর","Saidpur"],["সালিমপুর","Salimpur"],["সোনাইছড়ি","Sonaichhari"]],
+"হাটহাজারী":[["উত্তর মাদার্শা","Uttar Madrasha"],["গড়দুয়ারা","Garduara"],["গুমানমর্দ্দন","Gomanmordan"],["চিকনদন্ডী","Chikondandi"],["ছিপাতলী","Chipatali"],["দক্ষিন মাদার্শা","Dakkin Madrasha"],["ধলই","Dhalai"],["নাঙ্গলমোরা","Nangolmora"],["ফতেপুর","Fathepur"],["ফরহাদাবাদ","Farhadabad"],["বুডিরশ্চর","Budirchar"],["মির্জাপুর","Mirjapur"],["মেখল","Mekhal"],["শিকারপুর","Sikarpur"],["হাটহাজারী","Hathazari"]]
+},
+"চাঁদপুর":{
+"কচুয়া":[["আসরাফপুর","Ashrafpur"],["কচুয়া (উত্তর)","Kachua (North)"],["কচুয়া (দক্ষিণ)","Kachua (South)"],["কড়ইয়া","Koroia"],["কাদলা","Kadla"],["গোহাট (উত্তর)","Gohat (North)"],["গোহাট (দক্ষিণ)","Gohat (South)"],["পাথৈর","Pathair"],["বিতারা","Bitara"],["সহদেবপুর (পশ্চিম)","Shohodebpur (West)"],["সহদেবপুর (পূর্ব)","Shohodebpur (East)"],["সাচার","Sachar"]],
+"চাঁদপুর সদর":[["আশিকাটি","Ashikati"],["ইব্রাহীমপুর","Ibrahimpur"],["কল্যাণপুর","Kalyanpur"],["চান্দ্রা","Chandra"],["তরপুচন্ডী","Tarpurchandi"],["বাগাদী","Baghadi"],["বালিয়া","Balia"],["বিষ্ণপুর","Bishnapur"],["মৈশাদী","Maishadi"],["রাজরাজেশ্বর","Rajrajeshwar"],["রামপুর","Rampur"],["লক্ষীপুর মডেল","Laxmipur Model"],["শাহ্‌ মাহমুদপুর","Shahmahmudpur"],["হানারচর","Hanarchar"]],
+"ফরিদগঞ্জ":[["গবিন্দপুর (উত্তর)","Gobindapur (North)"],["গবিন্দপুর (দক্ষিণ)","Gobindapur (South)"],["গুপ্তি (পশ্চিম)","Gupti (West)"],["গুপ্তি (পূর্ব)","Gupti (East)"],["চরদুঃখিয়া (পশ্চিম)","Chardukhia (West)"],["চরদুখিয়া (পূর্ব)","Chardukhia (East)"],["পাইকপাড়া (উত্তর)","Paikpara (North)"],["পাইকপাড়া (দক্ষিণ)","Paikpara (South)"],["ফরিদ্গঞ্জ (দক্ষিণ)","Faridgonj (South)"],["বালিথুবা (পশ্চিম)","Balithuba (West)"],["বালিথুবা (পূর্ব)","Balithuba (East)"],["রুপসা (উত্তর)","Rupsha (North)"],["রুপসা (দক্ষিণ)","Rupsha (South)"],["সুবিদপুর (পশ্চিম)","Subidpur (West)"],["সুবিদপুর (পূর্ব)","Subidpur (East)"]],
+"মতলব উত্তর":[["ইসলামাবাদ","Islamabad"],["এখলাছপুর","Eklaspur"],["কালাকান্দা","Kalakanda"],["গজরা","Gazra"],["জহিরাবাদ","Jahirabad"],["দূর্গাপুর","Durgapur"],["ফতেহপুর (পশ্চিম)","Fatehpur (West)"],["ফতেহপুর (পূর্ব)","Fatehpur (East)"],["ফরাজীকান্দি","Farajikandi"],["বাগানবাড়ী","Banganbari"],["মোহনপুর","Mohanpur"],["ষাটনল","Satnal"],["সাদুল্ল্যাপুর","Sadullapur"],["সুলতানাবাদ","Sultanabad"]],
+"মতলব দক্ষিণ":[["উপাদী (উত্তর)","Upadi (North)"],["উপাদী (দক্ষিণ)","Upadi (South)"],["খাদেরগাঁও","Khadergaon"],["নায়েরগাঁও (উত্তর)","Nayergaon (North)"],["নায়েরগাঁও (দক্ষিন)","Nayergaon (South)"],["নারায়নপুর","Narayanpur"]],
+"শাহরাস্তি":[["চিতষী (পশ্চিম)","Chitoshiwest"],["চিতষী (পূর্ব)","Chitoshi (East)"],["টামটা (উত্তর)","Tamta (North)"],["টামটা (দক্ষিণ)","Tamta (South)"],["মেহের (উত্তর)","Meher (North)"],["মেহের (দক্ষিণ)","Meher (South)"],["রায়শ্রী (উত্তর)","Raysree (North)"],["রায়শ্রী (দক্ষিন)","Raysree (South)"],["সুচিপাড়া (উত্তর)","Suchipara (North)"],["সুচিপাড়া (দক্ষিণ)","Suchipara (South)"]],
+"হাইমচর":[["আলগী দুর্গাপুর (উত্তর)","Algidurgapur (North)"],["আলগী দুর্গাপুর (দক্ষিণ)","Algidurgapur (South)"],["গাজীপুর","Gazipur"],["চরভৈরবী","Charbhairabi"],["নীলকমল","Nilkamal"],["হাইমচর","Haimchar"]],
+"হাজীগঞ্জ":[["কালচোঁ (উত্তর)","Kalocho (North)"],["কালচোঁ (দক্ষিণ)","Kalocho (South)"],["গন্ধর্ব্যপুর (উত্তর)","Gandharbapur (North)"],["গন্ধর্ব্যপুর (দক্ষিণ)","Gandharbapur (South)"],["বড়কুল (পশ্চিম)","Barkul (West)"],["বড়কুল (পূর্ব)","Barkul (East)"],["বাকিলা","Bakila"],["রাজারগাঁও (উত্তর)","Rajargaon (North)"],["হাজীগঞ্জ সদর","Hajiganj Sadar"],["হাটিলা (পশ্চিম)","Hatila (West)"],["হাটিলা (পূর্ব)","Hatila (East)"]]
+},
+"চাঁপাইনবাবগঞ্জ":{
+"গোমস্তাপুর":[["আলীনগর","Alinagar"],["গোমস্তাপুর","Gomostapur"],["চৌডালা","Chowdala"],["পার্বতীপুর","Parbotipur"],["বাঙ্গাবাড়ী","Bangabari"],["বোয়ালিয়া","Boalia"],["রহনপুর","Rahanpur"],["রাধানগর","Radhanagar"]],
+"চাঁপাইনবাবগঞ্জ সদর":[["আলাতুলী","Alatuli"],["ইসলামপুর","Islampur"],["গোবরাতলা","Gobratola"],["চর অনুপনগর","Char Anupnagar"],["চরবাগডাঙ্গা","Charbagdanga"],["ঝিলিম","Jhilim"],["দেবীনগর","Debinagar"],["নারায়নপুর","Narayanpur"],["বারঘরিয়া","Baroghoria"],["বালিয়াডাঙ্গা","Baliadanga"],["মহারাজপুর","Moharajpur"],["রানীহাটি","Ranihati"],["শাহজাহানপুর","Shahjahanpur"],["সুন্দরপুর","Sundarpur"]],
+"নাচোল":[["কসবা","Kosba"],["নাচোল","Nachol"],["নেজামপুর","Nezampur"],["ফতেপুর","Fhotepur"]],
+"ভোলাহাট":[["গোহালবাড়ী","Gohalbari"],["জামবাড়িয়া","Jambaria"],["দলদলী","Daldoli"],["ভোলাহাট","Bholahat"]],
+"শিবগঞ্জ":[["উজিরপুর","Ujirpur"],["কানসাট","Kansat"],["ঘোড়াপাখিয়া","Ghorapakhia"],["চককির্তী","Chakkirti"],["ছত্রাজিতপুর","Chatrajitpur"],["দাইপুকুরিয়া","Daipukuria"],["দুর্লভপুর","Durlovpur"],["ধাইনগর","Dhainagar"],["নয়ালাভাঙ্গা","Noyalavanga"],["পাঁকা","Panka"],["বিনোদপুর","Binodpur"],["মনাকষা","Monakasha"],["মোবারকপুর","Mobarakpur"],["শাহাবাজপুর","Shahabajpur"],["শ্যামপুর","Shyampur"]]
+},
+"চুয়াডাঙ্গা":{
+"আলমডাঙ্গা":[["আইলহাঁস","Ailhash"],["কালিদাসপুর","Kalidashpur"],["কুমারী","Kumari"],["খাদিমপুর","Khadimpur"],["খাসকররা","Kashkorara"],["গাংনী","Gangni"],["চিৎলা","Chitla"],["জামজামি","Jamjami"],["জেহালা","Jehala"],["ডাউকী","Dauki"],["নাগদাহ","Nagdah"],["বাড়াদী","Baradi"],["বেলগাছি","Belgachi"],["ভাংবাড়ীয়া","Bhangbaria"],["হারদী","Hardi"]],
+"চুয়াডাঙ্গা সদর":[["আলুকদিয়া","Alukdia"],["কুতুবপুর","Kutubpur"],["তিতুদাহ","Titudah"],["পদ্মবিলা","Padmabila"],["বেগমপুর","Begumpur"],["মোমিনপুর","Mominpur"],["শংকরচন্দ্র","Shankarchandra"]],
+"জীবননগর":[["আন্দুলবাড়ীয়া","Andulbaria"],["উথলী","Uthali"],["বাঁকা","Banka"],["রায়পুর","Raypur"],["সীমান্ত","Shimanto"],["হাসাদাহ","Hasadah"]],
+"দামুড়হুদা":[["কার্পাসডাঙ্গা","Karpashdanga"],["কুড়ালগাছী","Kurulgachhi"],["জুড়ানপুর","Juranpur"],["দামুড়হুদা","Damurhuda"],["নতিপোতা","Natipota"],["পারকৃষ্ণপুর মদনা","Perkrishnopur Madna"],["হাওলী","Hawli"]]
+},
+"জয়পুরহাট":{
+"আক্কেলপুর":[["গোপীনাথপুর","Gopinathpur"],["তিলকপুর","Tilakpur"],["রায়কালী","Raikali"],["রুকিন্দীপুর","Rukindipur"],["সোনামূখী","Sonamukhi"]],
+"কালাই":[["আহম্মেদাবাদ","Ahammedabad"],["উদয়পুর","Udaipur"],["জিন্দারপুর","Zindarpur"],["পুনট","Punot"],["মাত্রাই","Matrai"]],
+"ক্ষেতলাল":[["আলমপুর","Alampur"],["তুলশীগংগা","Tulshiganga"],["বড়তারা","Boratara"],["বড়াইল","Borail"],["মামুদপুর","Mamudpur"]],
+"জয়পুরহাট সদর":[["আমদই","Amdai"],["চকবরকত","Chakborkat"],["জামালপুর","Jamalpur"],["দোগাছি","Dogachi"],["ধলাহার","Dhalahar"],["পুরানাপৈল","Puranapail"],["বম্বু","Bamb"],["ভাদসা","Bhadsha"],["মোহাম্মদাবাদ","Mohammadabad"]],
+"পাঁচবিবি":[["আওলাই","Aolai"],["আটাপুর","Atapur"],["আয়মারসুলপুর","Aymarasulpur"],["কুসুম্বা","Kusumba"],["ধরঞ্জি","Dharanji"],["বাগজানা","Bagjana"],["বালিঘাটা","Balighata"],["মোহাম্মদপুর","Mohammadpur"]]
+},
+"জামালপুর":{
+"ইসলামপুর":[["ইসলামপুর","Islampur"],["কুলকান্দি","Kulkandi"],["গাইবান্ধা","Gaibandha"],["গোয়ালেরচর","Gualerchar"],["চরগোয়ালীনি","Chargualini"],["চরপুটিমারী","Charputimari"],["চিনাডুলী","Chinaduli"],["নোয়ারপাড়া","Noarpara"],["পলবান্ধা","Palabandha"],["পাথশী","Partharshi"],["বেলগাছা","Belghacha"],["সাপধরী","Shapdari"]],
+"জামালপুর সদর":[["ইটাইল","Itail"],["কেন্দুয়া","Kendua"],["ঘোড়াধাপ","Ghorada"],["তিতপল্লা","Titpalla"],["তুলশীরচর","Tolshirchar"],["দিগপাইত","Digpait"],["নরুন্দী","Narundi"],["বাশঁচড়া","Bashchara"],["মেষ্টা","Mesta"],["রশিদপুর","Rashidpur"],["রানাগাছা","Ranagacha"],["লক্ষীরচর","Laxirchar"],["শরিফপুর","Sharifpur"],["শাহবাজপুর","Shahbajpur"],["শ্রীপুর","Sheepur"]],
+"দেওয়ানগঞ্জ":[["চর আমখাওয়া","Char Amkhawa"],["চিকাজানী","Chikajani"],["চুকাইবাড়ী","Chukaibari"],["ডাংধরা","Dungdhara"],["দেওয়ানগঞ্জ","Dewangonj"],["পাররাম রামপুর","Parram Rampur"],["বাহাদুরাবাদ","Bahadurabad"],["হাতীভাঙ্গা","Hatibanga"]],
+"বকশীগঞ্জ":[["ধানুয়া","Danua"],["নিলক্ষিয়া","Nilakhia"],["বকসীগঞ্জ","Bakshigonj"],["বগারচর","Bagarchar"],["বাট্রাজোড়","Battajore"],["মেরুরচর","Merurchar"],["সাধুরপাড়া","Shadurpara"]],
+"মাদারগঞ্জ":[["আদারভিটা","Adarvita"],["কড়ইচড়া","Karaichara"],["গুনারীতলা","Gunaritala"],["চর পাকেরদহ","Char Pakerdah"],["জোড়খালী","Jorekhali"],["বালিজুড়ী","Balijuri"],["সিধুলী","Sidhuli"]],
+"মেলান্দহ":[["আদ্রা","Adra"],["কুলিয়া","Kulia"],["ঘোষেরপাড়া","Ghuserpara"],["চরবানী পাকুরিয়া","Charbani Pakuria"],["ঝাউগড়া","Jhaugara"],["দুরমুট","Durmot"],["নয়ানগর","Nayanagar"],["নাংলা","Nangla"],["ফুলকোচা","Fulkucha"],["মাহমুদপুর","Mahmudpur"],["শ্যামপুর","Shuampur"]],
+"সরিষাবাড়ী":[["আওনা","Aona"],["কামরাবাদ","Kamrabad"],["ডোয়াইল","Doail"],["পিংনা","Pingna"],["পোগলদিঘা","Pogaldigha"],["ভাটারা","Bhatara"],["মহাদান","Mahadan"],["সাতপোয়া","Satpoa"]]
+},
+"ঝালকাঠি":{
+"কাঠালিয়া":[["আওরাবুনিয়া","Awrabunia"],["আমুয়া","Amua"],["কাঠালিয়া","Kanthalia"],["চেঁচরীরামপুর","Chenchrirampur"],["পাটিখালঘাটা","Patikhalghata"],["শৌলজালিয়া","Shaulajalia"]],
+"ঝালকাঠি সদর":[["কীর্তিপাশা","Kirtipasha"],["কেওড়া","Keora"],["গাবখান ধানসিঁড়ি","Gabkhandhansiri"],["গাভারামচন্দ্রপুর","Gabharamchandrapur"],["নথুলল্লাবাদ","Nathullabad"],["নবগ্রাম","Nabagram"],["পোনাবালিয়া","Ponabalia"],["বাসন্ডা","Basanda"],["বিনয়কাঠী","Binoykati"],["শেখেরহাট","Sekherhat"]],
+"নলছিটি":[["কুলকাঠী","Kulkathi"],["কুশঙ্গল","Kusanghal"],["দপদপিয়া","Dapdapia"],["নাচনমহল","Nachanmohal"],["ভৈরবপাশা","Bharabpasha"],["মগর","Magar"],["মোল্লারহাট","Mollahat"],["রানাপাশা","Ranapasha"],["সিদ্ধকাঠী","Siddhakati"],["সুবিদপুর","Subidpur"]],
+"রাজাপুর":[["গালুয়া","Galua"],["বড়ইয়া","Baraia"],["মঠবাড়ী","Mathbari"],["রাজাপুর","Rajapur"],["শুক্তাগড়","Suktagarh"],["সাতুরিয়া","Saturia"]]
+},
+"ঝিনাইদহ":{
+"কালীগঞ্জ":[["কাষ্টভাঙ্গা","Kashtabhanga"],["কোলা","Kola"],["জামাল","Jamal"],["ত্রিলোচনপুর","Trilochanpur"],["নিয়ামতপুর","Niamatpur"],["বারবাজার","Barabazar"],["মালিয়াট","Maliat"],["রাখালগাছি","Rakhalgachhi"],["রায়গ্রাম","Raygram"],["শিমলা-রোকনপুর","Simla-Rokonpur"],["সুন্দরপুর-দূর্গাপুর","Sundarpurdurgapur"]],
+"কোটচাঁদপুর":[["এলাঙ্গী","Elangi"],["কুশনা","Kushna"],["দোড়া","Dora"],["বলুহর","Baluhar"],["সাবদালপুর","Sabdalpur"]],
+"ঝিনাইদহ সদর":[["কালীচরণপুর","Kalicharanpur"],["কুমড়াবাড়ীয়া","Kumrabaria"],["গান্না","Ganna"],["ঘোড়শাল","Ghorshal"],["দোগাছি","Dogachhi"],["নলডাঙ্গা","Naldanga"],["পদ্মাকর","Padmakar"],["পাগলাকানাই","Paglakanai"],["পোড়াহাটী","Porahati"],["ফুরসন্দি","Furshondi"],["মধুহাটী","Modhuhati"],["মহারাজপুর","Maharazpur"],["সাগান্না","Saganna"],["সাধুহাটী","Sadhuhati"],["সুরাট","Surat"],["হরিশংকরপুর","Harishongkorpur"],["হলিধানী","Halidhani"]],
+"মহেশপুর":[["আজমপুর","Azampur"],["এস, বি, কে","Sbk"],["কাজীরবেড়","Kazirber"],["নাটিমা","Natima"],["নেপা","Nepa"],["পান্থপাড়া","Panthapara"],["ফতেপুর","Fatepur"],["বাঁশবাড়ীয়া","Banshbaria"],["মান্দারবাড়ীয়া","Manderbaria"],["যাদবপুর","Jadabpur"],["শ্যামকুড়","Shyamkur"],["স্বরুপপুর","Swaruppur"]],
+"শৈলকুপা":[["আবাইপুর","Abaipur"],["উমেদপুর","Umedpur"],["কাঁচেরকোল","Kancherkol"],["ত্রিবেনী","Tribeni"],["দিগনগর","Dignagore"],["দুধসর","Dudshar"],["ধলহরাচন্দ্র","Dhaloharachandra"],["নিত্যানন্দপুর","Nityanandapur"],["ফুলহরি","Fulhari"],["বগুড়া","Bogura"],["মনোহরপুর","Manoharpur"],["মির্জাপুর","Mirzapur"],["সারুটিয়া","Sarutia"],["হাকিমপুর","Hakimpur"]],
+"হরিণাকুন্ডু":[["কাপাশহাটিয়া","Kapashatia"],["চাঁদপুর","Chandpur"],["জোড়াদহ","Joradah"],["তাহেরহুদা","Taherhuda"],["দৌলতপুর","Daulatpur"],["ফলসী","Falsi"],["ভায়না","Bhayna"],["রঘুনাথপুর","Raghunathpur"]]
+},
+"টাঙ্গাইল":{
+"কালিহাতী":[["কোকডহরা","Kokdahara"],["গোহালিয়াবাড়ী","Gohaliabari"],["দশকিয়া","Dashokia"],["দুর্গাপুর","Durgapur"],["নাগবাড়ী","Nagbari"],["নারান্দিয়া","Narandia"],["পাইকড়া","Paikora"],["পারখী","Parkhi"],["বল্লা","Balla"],["বাংড়া","Bangra"],["বীরবাসিন্দা","Birbashinda"],["সল্লা","Salla"],["সহদেবপুর","Shahadebpur"]],
+"গোপালপুর":[["আলমনগর","Alamnagor"],["ঝাওয়াইল","Jhawail"],["ধোপাকান্দি","Dhopakandi"],["নগদাশিমলা","Nagdashimla"],["মির্জাপুর","Mirzapur"],["হাদিরা","Hadera"],["হেমনগর","Hemnagor"]],
+"ঘাটাইল":[["আনেহলা","Anehola"],["ঘাটাইল","Ghatail"],["জামুরিয়া","Jamuria"],["দিগড়","Digar"],["দিঘলকান্দি","Dighalkandia"],["দেউলাবাড়ী","Deulabari"],["দেওপাড়া","Deopara"],["ধলাপাড়া","Dhalapara"],["রসুলপুর","Rasulpur"],["লোকেরপাড়া","Lokerpara"],["সন্ধানপুর","Sandhanpur"]],
+"টাঙ্গাইল সদর":[["করটিয়া","Karatia"],["কাকুয়া","Kakua"],["কাতুলী","Katuli"],["গালা","Gala"],["ঘারিন্দা","Gharinda"],["ছিলিমপুর","Silimpur"],["দাইন্যা","Dyenna"],["পোড়াবাড়ী","Porabari"],["বাঘিল","Baghil"],["মগড়া","Mogra"],["মাহমুদনগর","Mahamudnagar"],["হুগড়া","Hugra"]],
+"দেলদুয়ার":[["আটিয়া","Atia"],["এলাসিন","Elasin"],["ডুবাইল","Dubail"],["দেউলী","Deuli"],["দেলদুয়ার","Delduar"],["পাথরাইল","Patharail"],["ফাজিলহাটি","Fazilhati"],["লাউহাটি","Lauhati"]],
+"ধনবাড়ী":[["ধোপাখালী","Dhopakhali"],["পাইস্কা","Paiska"],["বলিভদ্র","Bolibodrow"],["বানিয়াজান","Baniajan"],["বীরতারা","Birtara"],["মুশুদ্দি","Mushuddi"],["যদুনাথপুর","Jadunathpur"]],
+"নাগরপুর":[["গয়হাটা","Goyhata"],["দপ্তিয়র","Doptior"],["ধুবড়িয়া","Dhuburia"],["নাগরপুর","Nagorpur"],["পাকুটিয়া","Pakutia"],["বেকরা আটগ্রাম","Bekrah Atgram"],["ভাদ্রা","Bhadra"],["ভারড়া","Bharra"],["মামুদনগর","Mamudnagor"],["মোকনা","Mokna"],["সলিমাবাদ","Solimabad"],["সহবতপুর","Sahabathpur"]],
+"বাসাইল":[["কাউলজানী","Kauljani"],["কাঞ্চনপুর","Kanchanpur"],["কাশিল","Kashil"],["ফুলকি","Fulki"],["বাসাইল","Basail"],["হাবলা","Habla"]],
+"ভুয়াপুর":[["অর্জুনা","Arjuna"],["আলোয়া","Aloa"],["গাবসারা","Gabshara"],["গোবিন্দাসী","Gobindashi"],["নিকরাইল","Nikrail"],["ফলদা","Falda"]],
+"মধুপুর":[["অরণখোলা","Aronkhola"],["আউশনারা","Aushnara"],["আলোকদিয়া","Alokdia"],["গোলাবাড়ী","Golabari"],["মির্জাবাড়ী","Mirjabari"],["শোলাকুড়ি","Sholakuri"]],
+"মির্জাপুর":[["আজগানা","Ajgana"],["আনাইতারা","Anaitara"],["ওয়ার্শী","Warshi"],["গোড়াই","Gorai"],["জামুর্কী","Jamurki"],["তরফপুর","Tarafpur"],["ফতেপুর","Fatepur"],["বহুরিয়া","Bahuria"],["বাঁশতৈল","Bastail"],["বানাইল","Banail"],["ভাওড়া","Baora"],["ভাতগ্রাম","Bhatram"],["মহেড়া","Mahera"],["লতিফপুর","Latifpur"]],
+"সখিপুর":[["কাকড়াজান","Kakrajan"],["কালমেঘা","Kalmegha"],["কালিয়া","Kalia"],["গজারিয়া","Gajaria"],["দরিয়াপুর","Dariapur"],["বহেড়াতৈল","Baharatoil"],["যাদবপুর","Jaduppur"],["হাতীবান্ধা","Hatibandha"]]
+},
+"ঠাকুরগাঁও":{
+"ঠাকুরগাঁও সদর":[["আউলিয়াপুর","Auliapur"],["আকচা","Ahcha"],["আখানগর","Akhanagar"],["গড়েয়া","Gareya"],["চিলারং","Chilarang"],["জগন্নাথপুর","Jagannathpur"],["জামালপুর","Jamalpur"],["ঢোলারহাট","Dholarhat"],["দেবীপুর","Debipur"],["নারগুন","Nargun"],["বড়গাঁও","Baragaon"],["বালিয়া","Balia"],["বেগুনবাড়ী","Begunbari"],["মোহাম্মদপুর","Mohammadpur"],["রহিমানপুর","Rahimanpur"],["রাজাগাঁও","Rajagaon"],["রায়পুর","Roypur"],["রুহিয়া","Ruhea"],["রুহিয়া পশ্চিম","Ruhia Pashchim"],["শুখানপুকুরী","Sukhanpukhari"],["সালন্দর","Salandar"]],
+"পীরগঞ্জ":[["কোষারাণীগঞ্জ","Kosharaniganj"],["খনগাঁও","Khangaon"],["জাবরহাট","Jabarhat"],["দৌলতপুর","Daulatpur"],["পীরগঞ্জ","Pirganj"],["বৈরচুনা","Bairchuna"],["ভোমরাদহ","Bhomradaha"],["সেনগাঁও","Sengaon"],["সৈয়দপুর","Saidpur"],["হাজীপুর","Hajipur"]],
+"বালিয়াডাঙ্গী":[["আমজানখোর","Amjankhore"],["চারোল","Charol"],["দুওসুও","Duosuo"],["ধনতলা","Dhontola"],["পাড়িয়া","Paria"],["বড়পলাশবাড়ী","Boropalashbari"],["বড়বাড়ী","Borobari"],["ভানোর","Vanor"]],
+"রাণীশংকৈল":[["কাশিপুর","Kashipur"],["ধর্মগড়","Dhormogarh"],["নন্দুয়ার","Nonduar"],["নেকমরদ","Nekmorod"],["বাচোর","Bachor"],["রাতোর","Ratore"],["লেহেম্বা","Lehemba"],["হোসেনগাঁও","Hosengaon"]],
+"হরিপুর":[["আমগাঁও","Amgaon"],["গেদুড়া","Gedura"],["ডাঙ্গীপাড়া","Dangipara"],["বকুয়া","Bakua"],["ভাতুরিয়া","Bhaturia"],["হরিপুর","Haripur"]]
+},
+"ঢাকা":{
+"কেরাণীগঞ্জ":[["আগানগর","Aganagar"],["কলাতিয়া","Kalatia"],["কালিন্দি","Kalindi"],["কোন্ডা","Konda"],["জিনজিরা","Zinzira"],["তারানগর","Taranagar"],["তেঘরিয়া","Taghoria"],["বাস্তা","Basta"],["রোহিতপুর","Ruhitpur"],["শাক্তা","Sakta"],["শুভাঢ্যা","Suvadda"],["হযরতপুর","Hazratpur"]],
+"দোহার":[["কুসুমহাটি","Kusumhathi"],["নয়াবাড়ী","Nayabari"],["নারিশা","Narisha"],["বিলাসপুর","Bilaspur"],["মাহমুদপুর","Mahmudpur"],["মুকসুদপুর","Muksudpur"],["রাইপাড়া","Raipara"],["সুতারপাড়া","Sutarpara"]],
+"ধামরাই":[["আমতা","Amta"],["কুল্লা","Kulla"],["কুশুরা","Kushura"],["গাংগুটিয়া","Gangutia"],["চৌহাট","Chauhat"],["ধামরাই","Dhamrai"],["নান্নার","Nannar"],["বাইশাকান্দা","Baisakanda"],["বালিয়া","Balia"],["ভাড়ারিয়া","Vararia"],["যাদবপুর","Jadabpur"],["রোয়াইল","Rowail"],["সানোড়া","Sanora"],["সুয়াপুর","Suapur"],["সূতিপাড়া","Sutipara"],["সোমভাগ","Sombhag"]],
+"নবাবগঞ্জ":[["আগলা","Agla"],["কলাকোপা","Kalakopa"],["কৈলাইল","Kailail"],["গালিমপুর","Galimpur"],["চুড়াইন","Churain"],["জয়কৃষ্ণপুর","Joykrishnapur"],["নয়নশ্রী","Nayansree"],["বক্সনগর","Bakshanagar"],["বান্দুরা","Bandura"],["বারুয়াখালী","Baruakhali"],["বাহ্রা","Barrah"],["যন্ত্রাইল","Jantrail"],["শিকারীপাড়া","Shikaripara"],["শোল্লা","Sholla"]],
+"সাভার":[["আমিনবাজার","Aminbazar"],["আশুলিয়া","Ashulia"],["ইয়ারপুর","Yearpur"],["কাউন্দিয়া","Kaundia"],["তেঁতুলঝোড়া","Tetuljhora"],["ধামসোনা","Dhamsona"],["পাথালিয়া","Pathalia"],["বনগাঁও","Bongaon"],["বিরুলিয়া","Birulia"],["ভাকুর্তা","Vakurta"],["শিমুলিয়া","Shimulia"],["সাভার","Savar"]]
+},
+"দিনাজপুর":{
+"কাহারোল":[["ডাবোর","Dabor"],["তারগাঁও","Targao"],["মুকুন্দপুর","Mukundapur"],["রসুলপুর","Rasulpur"],["রামচন্দ্রপুর","Ramchandrapur"],["সুন্দরপুর","Sundarpur"]],
+"খানসামা":[["আঙ্গারপাড়া","Angarpara"],["আলোকঝাড়ী","Alokjhari"],["খামারপাড়া","Khamarpara"],["গোয়ালডিহি","Goaldihi"],["ভাবকী","Bhabki"],["ভেড়ভেড়ী","Bherbheri"]],
+"ঘোড়াঘাট":[["ঘোড়াঘাট","Ghoraghat"],["পালশা","Palsha"],["বুলাকীপুর","Bulakipur"],["সিংড়া","Singra"]],
+"চিরিরবন্দর":[["অমরপুর","Amarpur"],["আউলিয়াপুকুর","Auliapukur"],["আব্দুলপুর","Abdulpur"],["আলোকডিহি","Alokdihi"],["ইসবপুর","Isobpur"],["তেতুলিয়া","Tetulia"],["নশরতপুর","Nashratpur"],["পুনট্টি","Punotti"],["ফতেজংপুর","Fatejangpur"],["ভিয়াইল","Viail"],["সাইতারা","Saitara"],["সাতনালা","Satnala"]],
+"দিনাজপুর সদর":[["আউলিয়াপুর","Auliapur"],["আস্করপুর","Askorpur"],["উথরাইল","Uthrail"],["কমলপুর","Kamalpur"],["চেহেলগাজী","Chealgazi"],["ফাজিলপুর","Fazilpur"],["শংকরপুর","Sankarpur"],["শশরা","Shashora"],["শেখপুরা","Shekpura"],["সুন্দরবন","Sundorbon"]],
+"নবাবগঞ্জ":[["কুশদহ","Kushdaha"],["গোলাপগঞ্জ","Golapgonj"],["জয়পুর","Joypur"],["দাউদপুর","Daudpur"],["পুটিমারা","Putimara"],["বিনোদনগর","Binodnagar"],["ভাদুরিয়া","Bhaduria"],["মাহামুদপুর","Mahmudpur"],["শালখুরিয়া","Shalkhuria"]],
+"পার্বতীপুর":[["চন্ডীপুর","Chandipur"],["পলাশবাড়ী","Polashbari"],["বেলাইচন্ডি","Belaichandi"],["মন্মথপুর","Monmothopur"],["মোমিনপুর","Mominpur"],["মোস্তফাপুর","Mostofapur"],["রামপুর","Rampur"],["হরিরামপুর","Harirampur"],["হাবড়া","Habra"],["হামিদপুর","Hamidpur"]],
+"ফুলবাড়ী":[["আলাদিপুর","Aladipur"],["এলুয়াড়ী","Aloary"],["কাজীহাল","Kagihal"],["খয়েরবাড়ী","Khairbari"],["দৌলতপুর","Daulatpur"],["বেতদিঘী","Bethdighi"],["শিবনগর","Shibnagor"]],
+"বিরল":[["আজিমপুর","Azimpur"],["ধর্মপুর","Dharmapur"],["ধামইর","Dhamoir"],["ফরাক্কাবাদ","Farakkabad"],["বিজোড়া","Bijora"],["বিরল","Birol"],["ভান্ডারা","Bhandra"],["মঙ্গলপুর","Mongalpur"],["রাজারামপুর","Rajarampur"],["রাণীপুকুর","Ranipukur"],["শহরগ্রাম","Shohorgram"]],
+"বিরামপুর":[["কাটলা","Katla"],["খানপুর","Khanpur"],["জোতবানী","Jatbani"],["দিওড়","Dior"],["পলিপ্রয়াগপুর","Poliproyagpur"],["বিনাইল","Binail"],["মুকুন্দপুর","Mukundopur"]],
+"বীরগঞ্জ":[["নিজপাড়া","Nijpara"],["পলাশবাড়ী","Polashbari"],["পাল্টাপুর","Paltapur"],["ভোগনগর","Bhognagar"],["মরিচা","Moricha"],["মোহনপুর","Mohonpur"],["মোহাম্মদপুর","Mohammadpur"],["শতগ্রাম","Shatagram"],["শিবরামপুর","Shibrampur"],["সাতোর","Sator"],["সুজালপুর","Sujalpur"]],
+"বোচাগঞ্জ":[["আটগাঁও","Atgaon"],["ঈশানিয়া","Eshania"],["ছাতইল","Shatail"],["নাফানগর","Nafanagar"],["মুর্শিদহাট","Murshidhat"],["রনগাঁও","Rongaon"]],
+"হাকিমপুর":[["আলীহাট","Alihat"],["খট্টামাধবপাড়া","Khattamadobpara"],["বোয়ালদার","Boalder"]]
+},
+"নওগাঁ":{
+"আত্রাই":[["আহসানগঞ্জ","Ahsanganj"],["কালিকাপুর","Kalikapur"],["পাঁচুপুর","Panchupur"],["বিশা","Bisha"],["ভোঁপড়া","Bhonpara"],["মনিয়ারী","Maniary"],["শাহাগোলা","Shahagola"],["হাটকালুপাড়া","Hatkalupara"]],
+"ধামইরহাট":[["আগ্রাদ্বিগুন","Agradigun"],["আড়ানগর","Aranagar"],["আলমপুর","Alampur"],["ইসবপুর","Isabpur"],["উমার","Umar"],["খেলনা","Khelna"],["জাহানপুর","Jahanpur"],["ধামইরহাট","Dhamoirhat"]],
+"নওগাঁ সদর":[["কির্ত্তিপুর","Kritipur"],["চন্ডিপুর","Chandipur"],["তিলোকপুর","Tilakpur"],["দুবলহাটী","Dubalhati"],["বক্তারপুর","Baktiarpur"],["বর্ষাইল","Barshail"],["বলিহার","Bolihar"],["বোয়ালিয়া","Boalia"],["শিকারপুর","Shekerpur"],["শৈলগাছী","Shailgachhi"],["হাঁসাইগাড়ী","Hashaigari"],["হাপানিয়া","Hapaniya"]],
+"নিয়ামতপুর":[["চন্দননগর","Chandannagar"],["নিয়ামতপুর","Niamatpur"],["পাড়ইল","Paroil"],["বাহাদুরপুর","Bahadurpur"],["ভাবিচা","Bhabicha"],["রসুলপুর","Rasulpur"],["শ্রীমন্তপুর","Sremantapur"],["হাজীনগর","Hajinagar"]],
+"পত্নিতলা":[["আকবরপুর","Akbarpur"],["আমাইড়","Amair"],["কৃষ্ণপুর","Krishnapur"],["ঘষনগর","Ghasnagar"],["দিবর","Dibar"],["নজিপুর","Nazipur"],["নিমইল","Nirmail"],["পত্নীতলা","Patnitala"],["পাটিচড়া","Patichrara"],["মাটিন্দর","Matindar"],["শিহারা","Shihara"]],
+"পোরশা":[["গাঙ্গুরিয়া","Ganguria"],["ঘাটনগর","Ghatnagar"],["ছাওড়","Chhaor"],["তেঁতুলিয়া","Tetulia"],["নিতপুর","Nitpur"],["মশিদপুর","Moshidpur"]],
+"বদলগাছী":[["আধাইপুর","Adhaipur"],["কোলা","Kola"],["পাহারপুর","Paharpur"],["বদলগাছী","Badalgachi"],["বালুভরা","Balubhara"],["বিলাশবাড়ী","Bilashbari"],["মথুরাপুর","Mothurapur"],["মিঠাপুর","Mithapur"]],
+"মহাদেবপুর":[["উত্তরগ্রাম","Uttargram"],["এনায়েতপুর","Enayetpur"],["খাজুর","Khajur"],["চাঁন্দাশ","Chandas"],["চেরাগপুর","Cheragpur"],["ভীমপুর","Vimpur"],["মহাদেবপুর","Mahadevpur"],["রাইগাঁ","Roygon"],["সফাপুর","Sofapur"],["হাতুড়","Hatur"]],
+"মান্দা":[["কশব","Koshob"],["কাঁশোকাপুর","Kashopara"],["কালিকাপুর","Kalikapur"],["কুসুম্বা","Kosomba"],["গনেশপুর","Goneshpur"],["তেঁতুলিয়া","Tetulia"],["নূরুল্যাবাদ","Nurullabad"],["পরানপুর","Paranpur"],["প্রসাদপুর","Proshadpur"],["বিষ্ণপুর","Bisnopur"],["ভারশো","Varsho"],["ভালাইন","Valain"],["মান্দা","Manda"],["মৈনম","Moinom"]],
+"রাণীনগর":[["একডালা","Ekdala"],["কালিগ্রাম","Kaligram"],["কাশিমপুর","Kashimpur"],["খট্টেশ্বর রাণীনগর","Khatteshawr"],["গোনা","Gona"],["পারইল","Paroil"],["বরগাছা","Borgoca"],["মিরাট","Mirat"]],
+"সাপাহার":[["আইহাই","Aihai"],["গোয়ালা","Goala"],["তিলনা","Tilna"],["পাতাড়ী","Patari"],["শিরন্টী","Shironti"],["সাপাহার","Sapahar"]]
+},
+"নড়াইল":{
+"কালিয়া":[["কলাবাড়ীয়া","Kalabaria"],["খাসিয়াল","Khashial"],["চাচুড়ী","Chacuri"],["জয়নগর","Jaynagor"],["পহরডাঙ্গা","Pahordanga"],["পাঁচগ্রাম","Panchgram"],["পুরুলিয়া","Purulia"],["পেড়লী","Peroli"],["বড়নাল-ইলিয়াছাবাদ","Boronaleliasabad"],["বাঐসোনা","Baioshona"],["বাবরা-হাচলা","Babrahasla"],["মাউলী","Mauli"],["সালামাবাদ","Salamabad"],["হামিদপুর","Hamidpur"]],
+"নড়াইল সদর":[["আউড়িয়া","Auria"],["কলোড়া","Kalora"],["চন্ডিবরপুর","Chandiborpur"],["তুলারামপুর","Tularampur"],["বাশগ্রাম","Bashgram"],["বিছালী","Bisali"],["ভদ্রবিলা","Bhadrabila"],["মাইজপাড়া","Maijpara"],["মুলিয়া","Mulia"],["শাহাবাদ","Shahabad"],["সিঙ্গাশোলপুর","Singasholpur"],["সেখহাটী","Sheikhati"],["হবখালী","Habokhali"]],
+"লোহাগড়া":[["ইতনা","Itna"],["কাশিপুর","Kashipur"],["কোটাকোল","Kotakol"],["জয়পুর","Joypur"],["দিঘলিয়া","Digholia"],["নলদী","Naldi"],["নোয়াগ্রাম","Noagram"],["মল্লিকপুর","Mallikpur"],["লক্ষীপাশা","Lakshmipasha"],["লাহুড়িয়া","Lahuria"],["লোহাগড়া","Lohagora"],["শালনগর","Salnagar"]]
+},
+"নরসিংদী":{
+"নরসিংদী সদর":[["আমদিয়া ২","Amdia"],["আলোকবালী","Alokbali"],["করিমপুর","Karimpur"],["কাঠালিয়া","Khathalia"],["চরদিঘলদী","Chardighaldi"],["চিনিশপুর","Chinishpur"],["নজরপুর","Nazarpur"],["নূরালাপুর","Nuralapur"],["পাইকারচর","Paikarchar"],["পাঁচদোনা","Panchdona"],["মহিষাশুড়া","Mahishasura"],["মেহেড়পাড়া","Meherpara"],["শিলমান্দী","Silmandi"],["হাজীপুর","Hajipur"]],
+"পলাশ":[["গজারিয়া","Gazaria"],["চরসিন্দুর","Charsindur"],["জিনারদী","Jinardi"],["ডাংঙ্গা","Danga"]],
+"বেলাবো":[["আমলাব","Amlaba"],["চরউজিলাব","Charuzilab"],["দেয়ারা মডেল","Diara"],["নারায়নপুর","Naraynpur"],["পাটুলী","Patuli"],["বাজনাব","Bajnaba"],["বিন্নাবাইদ","Binnabayd"],["বেলাব","Belabo"],["সল্লাবাদ","Sallabad"]],
+"মনোহরদী":[["একদুয়ারিয়া","Ekduaria"],["কাচিকাটা","Kanchikata"],["কৃষ্ণপুর","Krisnopur"],["খিদিরপুর","Khidirpur"],["গোতাশিয়া","Gotashia"],["চন্দনবাড়ী","Chandanbari"],["চরমান্দালিয়া","Charmandalia"],["চালাকচর","Chalakchar"],["দৌলতপুর","Dawlatpur"],["বড়চাপা","Barachapa"],["লেবুতলা","Labutala"],["শুকুন্দি","Shukundi"]],
+"রায়পুরা":[["অলিপুরা","Alipura"],["আদিয়াবাদ","Adiabad"],["আমিরগঞ্জ","Amirganj"],["উত্তর বাখরনগর","Uttar Bakharnagar"],["চরআড়ালিয়া","Chararalia"],["চরমধুয়া","Charmadhua"],["চরসুবুদ্দি","Charsubuddi"],["চানপুর","Chanpur"],["চান্দেরকান্দি","Chanderkandi"],["ডৌকারচর","Daukarchar"],["নিলক্ষ্যা","Nilakhya"],["পলাশতলী","Palashtali"],["পাড়াতলী","Paratali"],["বাঁশগাড়ী","Banshgari"],["মরজাল","Marjal"],["মহেষপুর","Maheshpur"],["মির্জানগর","Mirzanagar"],["মির্জারচর","Mirzarchar"],["মুছাপুর","Musapur"],["রায়পুরা","Roypura"],["শ্রীনগর","Sreenagar"],["হাইরমারা","Hairmara"]],
+"শিবপুর":[["আয়ুবপুর","Ayubpur"],["চক্রধা","Chakradha"],["জয়নগর","Joynagar"],["দুলালপুর","Dulalpur"],["পুটিয়া","Putia"],["বাঘাব","Baghabo"],["মাছিমপুর","Masimpur"],["যোশর","Joshar"],["সাধারচর","Sadharchar"]]
+},
+"নাটোর":{
+"গুরুদাসপুর":[["খুবজীপুর","Khubjipur"],["চাপিলা","Chapila"],["ধারাবারিষা","Dharabarisha"],["নাজিরপুর","Nazirpur"],["বিয়াঘাট","Biaghat"],["মসিন্দা","Moshindha"]],
+"নাটোর সদর":[["কাফুরিয়া","Kaphuria"],["খাজুরা","Khajura"],["ছাতনী","Chhatni"],["তেবাড়িয়া","Tebaria"],["দিঘাপতিয়া","Dighapatia"],["পিপরুল","Piprul"],["বড়হরিশপুর","Barahorispur"],["বিপ্রবেলঘড়িয়া","Biprobelghoria"],["ব্রহ্মপুর","Brahmapur"],["মাধনগর","Madhnagar"],["লক্ষীপুর খোলাবাড়িয়া","Luxmipurkholabaria"],["হালসা","Halsa"]],
+"বড়াইগ্রাম":[["গোপালপুর","Gopalpur"],["চান্দাই","Chandai"],["জোনাইল","Zonail"],["জোয়াড়ী","Joari"],["নগর","Nagor"],["বড়াইগ্রাম","Baraigram"],["মাঝগাও","Majgoan"]],
+"বাগাতিপাড়া":[["জামনগর","Jamnagor"],["দয়ারামপুর","Dayarampur"],["পাঁকা","Panka"],["ফাগুয়ারদিয়াড়","Faguardiar"],["বাগাতিপাড়া","Bagatipara"]],
+"লালপুর":[["অর্জুনপুর বরমহাটী","Arjunpur"],["আড়বাব","Arbab"],["ঈশ্বরদী","Iswardi"],["ওয়ালিয়া","Oalia"],["কদিমচিলান","Kadimchilan"],["চংধুপইল","Chongdhupoil"],["দুড়দুরিয়া","Durduria"],["দুয়ারিয়া","Duaria"],["বিলমাড়িয়া","Bilmaria"],["লালপুর","Lalpur"]],
+"সিংড়া":[["ইটালী","Italy"],["কলম","Kalam"],["চামারী","Chamari"],["চৌগ্রাম","Chaugram"],["ছাতারদিঘী","Chhatardighi"],["ডাহিয়া","Dahia"],["তাজপুর","Tajpur"],["রামান্দখাজুরা","Ramanandakhajura"],["লালোর","Lalore"],["শুকাশ","Sukash"],["শেরকোল","Sherkole"],["হাতিয়ানদহ","Hatiandaha"]]
+},
+"নারায়ণগঞ্জ":{
+"আড়াইহাজার":[["উচিৎপুরা","Uchitpura"],["কালাপাহাড়িয়া","Kalapaharia"],["খাগকান্দা","Kagkanda"],["দুপ্তারা","Duptara"],["ফতেপুর","Fatepur"],["বিশনন্দী","Bishnandi"],["ব্রাহ্মন্দী","Brahammandi"],["মাহমুদপুর","Mahmudpur"],["সাতগ্রাম","Satgram"],["হাইজাদী","Highjadi"]],
+"নারায়নগঞ্জ সদর":[["আলিরটেক","Alirtek"],["এনায়েত নগর","Enayetnagor"],["কাশীপুর","Kashipur"],["কুতুবপুর","Kutubpur"],["গোগনগর","Gognagar"],["বক্তাবলী","Baktaboli"]],
+"বন্দর":[["কলাগাছিয়া","Kolagathia"],["ধামগর","Dhamgar"],["বন্দর","Bandar"],["মদনপুর","Modonpur"],["মুছাপুর","Musapur"]],
+"রূপগঞ্জ":[["কায়েতপাড়া","Kayetpara"],["গোলাকান্দাইল","Golakandail"],["দাউদপুর","Daudpur"],["ভূলতা","Bhulta"],["ভোলাব","Bholobo"],["মুড়াপাড়া","Murapara"],["রূপগঞ্জ","Rupganj"]],
+"সোনারগাঁ":[["কাচপুর","Kanchpur"],["জামপুর","Jampur"],["নোয়াগাঁও","Noagaon"],["পিরোজপুর","Pirojpur"],["বারদী","Baradi"],["বৈদ্যেরবাজার","Baidyerbazar"],["মোগরাপাড়া","Mograpara"],["শম্ভুপুরা","Shambhupura"],["সনমান্দি","Sonmandi"],["সাদীপুর","Sadipur"]]
+},
+"নীলফামারী":{
+"কিশোরগঞ্জ":[["কিশোরগঞ্জ","Kishoreganj"],["গাড়াগ্রাম","Garagram"],["চাঁদখানা","Chandkhana"],["নিতাই","Nitai"],["পুটিমারী","Putimari"],["বড়ভিটা","Barabhita"],["বাহাগিলি","Bahagili"],["মাগুরা","Magura"],["রনচন্ডি","Ranachandi"]],
+"জলঢাকা":[["কাঠালী","Kathali"],["কৈমারী","Kaimari"],["খুটামারা","Khutamara"],["গোলনা","Golna"],["গোলমুন্ডা","Golmunda"],["ডাউয়াবাড়ী","Douabari"],["ধর্মপাল","Dharmapal"],["বালাগ্রাম","Balagram"],["মীরগঞ্জ","Mirganj"],["শিমুলবাড়ী","Simulbari"],["শৌলমারী","Shaulmari"]],
+"ডিমলা":[["খগা খড়িবাড়ী","Khogakharibari"],["খালিশা চাপানী","Khalisha Chapani"],["গয়াবাড়ী","Gayabari"],["ঝুনাগাছ চাপানী","Jhunagach Chapani"],["টেপা খরীবাড়ী","Tepa Khribari"],["ডিমলা সদর","Dimla Sadar"],["নাউতারা","Noutara"],["পশ্চিম ছাতনাই","Paschim Chhatnay"],["পুর্ব ছাতনাই","Purba Chhatnay"],["বালাপাড়া","Balapara"]],
+"ডোমার":[["কেতকীবাড়ী","Ketkibari"],["গোমনাতি","Gomnati"],["জোড়াবাড়ী","Jorabari"],["ডোমার","Domar"],["পাংগা মটকপুর","Panga Motukpur"],["বামুনীয়া","Bamunia"],["বোড়াগাড়ী","Boragari"],["ভোগডাবুড়ী","Bhogdaburi"],["সোনারায়","Sonaray"],["হরিণচরা","Harinchara"]],
+"নীলফামারী সদর":[["ইটাখোলা","Itakhola"],["কচুকাটা","Kachukata"],["কুন্দপুকুর","Kundapukur"],["খোকসাবাড়ী","Khoksabari"],["গোড়গ্রাম","Gorgram"],["চওড়া বড়গাছা","Chaora Bargacha"],["চড়াইখোলা","Charaikhola"],["চাপড়া সরঞ্জানী","Chapra Sarnjami"],["টুপামারী","Tupamari"],["পঞ্চপুকুর","Panchapukur"],["পলাশবাড়ী","Palasbari"],["রামনগর","Ramnagar"],["লক্ষ্মীচাপ","Lakshmicha"],["সংগলশী","Songalsi"],["সোনারায়","Sonaray"]],
+"সৈয়দপুর":[["কামারপুকুর","Kamarpukur"],["কাশিরাম বেলপুকুর","Kasiram Belpukur"],["খাতা মধুপুর","Khata Madhupur"],["বাঙ্গালীপুর","Bangalipur"],["বোতলাগাড়ী","Botlagari"]]
+},
+"নেত্রকোণা":{
+"আটপাড়া":[["তেলিগাতী","Teligati"],["দুওজ","Duoj"],["বানিয়াজান","Baniyajan"],["লুনেশ্বর","Lunesshor"],["শুনই","Shunoi"],["সুখারী","Sukhari"],["স্বরমুশিয়া","Shormushia"]],
+"কলমাকান্দা":[["কলমাকান্দা","Kolmakanda"],["কৈলাটী","Koilati"],["খারনৈ","Kharnoi"],["নাজিরপুর","Najirpur"],["পোগলা","Pogla"],["বড়খাপন","Borokhapon"],["রংছাতি","Rongchati"],["লেংগুরা","Lengura"]],
+"কেন্দুয়া":[["আশুজিয়া","Asujia"],["কান্দিউড়া","Kandiura"],["গড়াডোবা","Goraduba"],["গণ্ডা","Gonda"],["চিরাং","Chirang"],["দলপা","Dalpa"],["নওপাড়া","Noapara"],["পাইকুড়া","Paikura"],["বলাইশিমুল","Bolaishimul"],["মাসকা","Maska"],["মোজাফরপুর","Muzafarpur"],["রোয়াইলবাড়ী আমতলা","Roailbari Amtala"],["সান্দিকোনা","Sandikona"]],
+"খালিয়াজুরী":[["কৃষ্ণপুর","Krishnapur"],["খালিয়াজুরী","Khaliajuri"],["গাজীপুর","Gazipur"],["চাকুয়া","Chakua"],["নগর","Nogor"],["মেন্দিপুর","Mendipur"]],
+"দুর্গাপুর":[["কাকৈরগড়া","Kakoirgora"],["কুল্লাগড়া","Kullagora"],["গাঁওকান্দিয়া","Gawkandia"],["চণ্ডিগড়","Chandigarh"],["দূর্গাপুর","Durgapur"],["বাকলজোড়া","Bakaljora"],["বিরিশিরি","Birisiri"]],
+"নেত্রকোণা সদর":[["আমতলা","Amtola"],["কাইলাটি","Kailati"],["কালিয়ারা গাবরাগাতি","Kaliara Babragati"],["চল্লিশা","Chollisha"],["ঠাকুরাকোণা","Thakurakona"],["দক্ষিণ বিশিউড়া","Dokkhin Bishiura"],["মদনপুর","Modonpur"],["মেদনী","Medni"],["মৌগাতি","Mougati"],["রৌহা","Rouha"],["লক্ষীগঞ্জ","Lokkhiganj"],["সিংহের বাংলা","Singher Bangla"]],
+"পূর্বধলা":[["আগিয়া","Agia"],["খলিশাউড়","Khalishaur"],["গোহালাকান্দা","Gohalakanda"],["ঘাগড়া","Ghagra"],["জারিয়া","Jaria"],["ধলামুলগাঁও","Dhalamulgaon"],["নারান্দিয়া","Narandia"],["পূর্বধলা","Purbadhala"],["বিশকাকুনী","Bishkakuni"],["বৈরাটী","Bairaty"],["হোগলা","Hogla"]],
+"বারহাট্টা":[["আসমা","Asma"],["চিরাম","Chhiram"],["বাউশী","Baushi"],["বারহাট্টা","Barhatta"],["রায়পুর","Raypur"],["সাহতা","Sahata"],["সিংধা","Singdha"]],
+"মদন":[["কাইটাল","Kytail"],["গেবিন্দশ্রী","Gobindasree"],["চানগাঁও","Chandgaw"],["তিয়শ্রী","Teosree"],["নায়েকপুর","Nayekpur"],["ফতেপুর","Fathepur"],["মদন","Madan"],["মাঘান","Magan"]],
+"মোহনগঞ্জ":[["গাগলাজুর","Gaglajur"],["তেতুলিয়া","Tetulia"],["বড়কাশিয়া বিরামপুর","Borokashia Birampur"],["বড়তলী বানিহারী","Borotoli Banihari"],["মাঘান সিয়াদার","Maghan Siadar"],["সমাজ সহিলদেও","Somaj Sohildeo"],["সুয়াইর","Suair"]]
+},
+"নোয়াখালী":{
+"কবিরহাট":[["ঘোষবাগ","Ghoshbag"],["চাপরাশিরহাট","Chaprashirhat"],["ধানশালিক","Dhanshalik"],["ধানসিঁড়ি","Dhanshiri"],["নরোত্তমপুর","Narottampur"],["বাটইয়া","Batoiya"],["সুন্দলপুর","Sundalpur"]],
+"কোম্পানীগঞ্জ":[["চরএলাহী","Charelahi"],["চরকাঁকড়া","Charkakra"],["চরপার্বতী","Charparboti"],["চরফকিরা","Charfakira"],["চরহাজারী","Charhazari"],["মুসাপুর","Musapur"],["রামপুর","Rampur"],["সিরাজপুর","Sirajpur"]],
+"চাটখিল":[["খিলপাড়া","Khilpara"],["নোয়াখলা","Noakhala"],["পরকোট","Porokote"],["পাঁচগাঁও","Panchgaon"],["বাদলকোট","Badalkot"],["মোহাম্মদপুর","Mohammadpur"],["রামনারায়নপুর","Ramnarayanpur"],["সাহাপুর","Sahapur"],["হাট-পুকুরিয়া ঘাটলাবাগ","Hat-Pukuria Ghatlabag"]],
+"নোয়াখালী সদর":[["অশ্বদিয়া","Ashwadia"],["আন্ডারচর","Andarchar"],["এওজবালিয়া","Aujbalia"],["কাদির হানিফ","Kadirhanif"],["কালাদরপ","Kaladara"],["চরমটুয়া","Charmatua"],["দাদপুর","Dadpur"],["ধর্মপুর","Dharmapur"],["নিয়াজপুর","Newajpur"],["নোয়াখালী","Noakhali"],["নোয়ান্নই","Noannoi"],["পূর্ব চরমটুয়া","East Charmatua"],["বিনোদপুর","Binodpur"]],
+"বেগমগঞ্জ":[["আমানউল্ল্যাপুর","Amanullapur"],["আলাইয়ারপুর","Alyearpur"],["একলাশপুর","Eklashpur"],["কাদিরপুর","Kadirpur"],["কুতবপুর","Kutubpur"],["গোপালপুর","Gopalpur"],["ছয়ানী","Chayani"],["জিরতলী","Jirtali"],["দূর্গাপুর","Durgapur"],["নরোত্তমপুর","Narottampur"],["বেগমগঞ্জ","Begumganj"],["মিরওয়ারিশপুর","Mirwarishpur"],["রসুলপুর","Rasulpur"],["রাজগঞ্জ","Rajganj"],["শরীফপুর","Sharifpur"],["হাজীপুর","Hajipur"]],
+"সুবর্ণচর":[["চরআমান উল্যা","Charaman Ullah"],["চরওয়াপদা","Charwapda"],["চরক্লার্ক","Charclerk"],["চরজাব্বার","Charjabbar"],["চরজুবলী","Charjubilee"],["চরবাটা","Charbata"],["পূর্ব চরবাটা","East Charbata"],["মোহাম্মদপুর","Mohammadpur"]],
+"সেনবাগ":[["অর্জুনতলা","Arjuntala"],["কাদরা","Kadra"],["কাবিলপুর","Kabilpur"],["কেশরপাড়া","Kesharpar"],["ছাতারপাইয়া","Chhatarpaia"],["ডুমুরুয়া","Dumurua"],["নবীপুর","Nabipur"],["বিজবাগ","Bejbagh"],["মোহাম্মদপুর","Mohammadpur"]],
+"সোনাইমুড়ী":[["অম্বরনগর","Ambarnagor"],["আমিশাপাড়া","Amishapara"],["চাষীরহাট","Chashirhat"],["জয়াগ","Joyag"],["দেওটি","Deoti"],["নদনা","Nodona"],["নাটেশ্বর","Nateshwar"],["বজরা","Bajra"],["বারগাঁও","Barogaon"],["সোনাপুর","Sonapur"]],
+"হাতিয়া":[["চরঈশ্বর","Charishwar"],["চরকিং","Charking"],["জাহাজমারা","Jahajmara"],["তমরদ্দি","Tomoroddi"],["নলচিরা","Nolchira"],["নিঝুমদ্বীপ","Nijhumdwi"],["বুড়িরচর","Burirchar"],["সুখচর","Sukhchar"],["সোনাদিয়া","Sonadiya"]]
+},
+"পঞ্চগড়":{
+"আটোয়ারী":[["আলোয়াখোয়া","Alowakhowa"],["তোড়িয়া","Toria"],["ধামোর","Dhamor"],["বলরামপুর","Balarampur"],["মির্জাপুর","Mirgapur"],["রাধানগর","Radhanagar"]],
+"তেতুলিয়া":[["তিমাইহাট","Timaihat"],["তেতুলিয়া","Tentulia"],["দেবনগর","Debnagar"],["বাংলাবান্ধা","Banglabandha"],["বুড়াবুড়ী","Buraburi"],["ভজনপুর","Bhojoanpur"],["শালবাহান","Salbahan"]],
+"দেবীগঞ্জ":[["চিলাহাটি","Chilahati"],["চেংঠী হাজরা ডাঙ্গা","Chengthi Hazra Danga"],["টেপ্রীগঞ্জ","Tepriganj"],["দন্ডপাল","Dandopal"],["দেবীগঞ্জ সদর","Debiganj Sadar"],["দেবীডুবা","Debiduba"],["পামুলী","Pamuli"],["শালডাঙ্গা","Shaldanga"],["সুন্দরদিঘী","Sundardighi"],["সোনাহার মল্লিকাদহ","Sonahar Mollikadaha"]],
+"পঞ্চগড় সদর":[["অমরখানা","Amarkhana"],["কামাত কাজল দীঘি","Kamat Kajol Dighi"],["গরিনাবাড়ী","Garinabari"],["চাকলাহাট","Chaklahat"],["ধাক্কামারা","Dhakkamara"],["পঞ্চগড় সদর","Panchagarh Sadar"],["মাগুরা","Magura"],["সাতমেরা","Satmara"],["হাড়িভাসা","Haribhasa"],["হাফিজাবাদ","Hafizabad"]],
+"বোদা":[["কাজলদীঘি কালিগঞ্জ","Kajoldighi Kaligonj"],["চন্দনবাড়ী","Chandanbari"],["ঝলইশাল শিরি","Jholaishal Shiri"],["পাচপীর","Pachpir"],["বড়শশী","Boroshoshi"],["বেংহারী","Banghari"],["বোদা","Boda"],["ময়দান দীঘি","Moidandighi"],["মাড়েয়া বামনহাট","Marea Bamonhat"],["সাকোয়া","Sakoa"]]
+},
+"পটুয়াখালী":{
+"কলাপাড়া":[["চম্পাপুর","Champapur"],["চাকামইয়া","Chakamaia"],["টিয়াখালী","Tiakhali"],["ডালবুগঞ্জ","Dalbugonj"],["ধানখালী","Dhankhali"],["ধুলাসার","Dulaser"],["নীলগঞ্জ","Nilgonj"],["বালিয়াতলী","Baliatali"],["মহিপুর","Mahipur"],["মিঠাগঞ্জ","Mithagonj"],["লতাচাপলী","Latachapli"],["লালুয়া","Lalua"]],
+"গলাচিপা":[["আমখোলা","Amkhola"],["কলাগাছিয়া","Kalagachhia"],["গজালিয়া","Gazalia"],["গলাচিপা","Galachipa"],["গোলখালী","Golkhali"],["চরকাজল","Charkajol"],["চরবিশ্বাস","Charbiswas"],["চিকনিকান্দী","Chiknikandi"],["ডাকুয়া","Dakua"],["পানপট্টি","Panpatty"],["বকুলবাড়ীয়া","Bakulbaria"],["রতনদী তালতলী","Ratandi Taltali"]],
+"দশমিনা":[["আলীপুর","Alipur"],["দশমিনা","Dashmina"],["বহরমপুর","Baharampur"],["বাঁশবাড়ীয়া","Bashbaria"],["বেতাগী সানকিপুর","Betagi Shankipur"],["রণগোপালদী","Rangopaldi"]],
+"দুমকি":[["আংগারিয়া","Angaria"],["পাংগাশিয়া","Pangasia"],["মুরাদিয়া","Muradia"],["লেবুখালী","Labukhali"],["শ্রীরামপুর","Sreerampur"]],
+"পটুয়াখালী সদর":[["আউলিয়াপুর","Auliapur"],["ইটবাড়ীয়া","Itbaria"],["কমলাপুর","Kamalapur"],["কালিকাপুর","Kalikapur"],["ছোট বিঘাই","Chotobighai"],["জৈনকাঠী","Jainkathi"],["বড় বিঘাই","Borobighai"],["বদরপুর","Badarpur"],["মরিচবুনিয়া","Marichbunia"],["মাদারবুনিয়া","Madarbunia"],["লাউকাঠী","Laukathi"],["লোহালিয়া","Lohalia"]],
+"বাউফল":[["আদাবারিয়া","Adabaria"],["কনকদিয়া","Kanakdia"],["কাছিপাড়া","Kachipara"],["কালাইয়া","Kalaiya"],["কালিশুরী","Kalisuri"],["কেশবপুর","Keshabpur"],["দাস পাড়া","Daspara"],["ধুলিয়া","Dhulia"],["নওমালা","Nawmala"],["নাজিরপুর","Najirpur"],["বগা","Boga"],["বাউফল","Bauphal"],["মদনপুরা","Madanpura"],["সূর্য্যমনি","Shurjamoni"]],
+"মির্জাগঞ্জ":[["আমড়াগাছিয়া","Amragachia"],["কাকড়াবুনিয়া","Kakrabunia"],["দেউলী সুবিদখালী","Deuli Subidkhali"],["মজিদবাড়িয়া","Majidbaria"],["মাধবখালী","Madhabkhali"],["মির্জাগঞ্জ","Mirzaganj"]],
+"রাঙ্গাবালী":[["চরমোন্তাজ","Charmontaz"],["চালিতাবুনিয়া","Chalitabunia"],["ছোটবাইশদিয়া","Chattobaisdia"],["বড়বাইশদিয়া","Barobaisdia"],["রাঙ্গাবালী","Rangabali"]]
+},
+"পাবনা":{
+"আটঘরিয়া":[["একদন্ত","Ekdanta"],["চাঁদভা","Chandba"],["দেবোত্তর","Debottar"],["মাজপাড়া","Majhpara"],["লক্ষীপুর","Laxshmipur"]],
+"ঈশ্বরদী":[["ছলিমপুর","Silimpur"],["দাশুরিয়া","Dashuria"],["পাকশী","Pakshi"],["মুলাডুলি","Muladuli"],["লক্ষীকুন্ডা","Luxmikunda"],["সাঁড়া","Sara"],["সাহাপুর","Sahapur"]],
+"চাটমোহর":[["গুনাইগাছা","Gunaigachha"],["ছাইকোলা","Chhaikola"],["দাতিয়া বামনগ্রাম","Danthia Bamangram"],["নিমাইচড়া","Nimaichara"],["পার্শ্বডাঙ্গা","Parshadanga"],["ফৈলজানা","Failjana"],["বিলচলন","Bilchalan"],["মথুরাপুর","Mothurapur"],["মুলগ্রাম","Mulgram"],["হরিপুর","Haripur"],["হান্ডিয়াল","Handial"]],
+"পাবনা সদর":[["আতাইকুলা","Ataikula"],["গয়েশপুর","Gayeshpur"],["চরতারাপুর","Chartarapur"],["দাপুনিয়া","Dapunia"],["দোগাছী","Dogachi"],["ভাঁড়ারা","Bharara"],["মালঞ্চি","Malanchi"],["মালিগাছা","Maligachha"],["সাদুল্লাপুর","Sadullahpur"],["হেমায়েতপুর","Hemayetpur"]],
+"ফরিদপুর":[["ডেমড়া","Demra"],["পুঙ্গুলি","Pungali"],["ফরিদপুর","Faridpur"],["বনওয়ারীনগর","Banwarinagar"],["বৃলাহিড়ীবাড়ী","Brilahiribari"],["হাদল","Hadal"]],
+"বেড়া":[["কৈটোলা","Koitola"],["চাকলা","Chakla"],["জাতসাখিনি","Jatsakhini"],["ঢালার চর","Dhalar Char"],["নতুন ভারেঙ্গা","Notun Varenga"],["পুরান ভারেঙ্গা","Puran Varenga"],["মাসুমদিয়া","Masumdia"],["রূপপুর","Ruppur"],["হাটুরিয়া নাকালিয়া","Haturia Nakalia"]],
+"ভাঙ্গুড়া":[["অষ্টমণিষা","Ashtamanisha"],["খানমরিচ","Khanmarich"],["দিলপাশার","Dilpasar"],["পারভাঙ্গুড়া","Parbhangura"],["ভাঙ্গুড়া","Bhangura"]],
+"সাঁথিয়া":[["আর-আতাইকুলা","Ar-Ataikula"],["করমজা","Karamja"],["কাশিনাথপুর","Kashinathpur"],["ক্ষেতুপাড়া","Khetupara"],["গৌরীগ্রাম","Gaurigram"],["ধুলাউড়ি","Dhulauri"],["ধোপাদহ","Dhopadaha"],["নন্দনপুর","Nandanpur"],["নাগডেমড়া","Nagdemra"],["ভুলবাড়ীয়া","Bhulbaria"]],
+"সুজানগর":[["আহম্মদপুর","Ahammadpur"],["তাঁতিবন্দ","Tantibonda"],["দুলাই","Dulai"],["নাজিরগঞ্জ","Nazirganj"],["ভায়না","Vaina"],["মানিকহাট","Manikhat"],["রাণীনগর","Raninagar"],["সাগরকান্দি","Sagorkandi"],["সাতবাড়ীয়া","Satbaria"],["হাটখালী","Hatkhali"]]
+},
+"পিরোজপুর":{
+"কাউখালী":[["আমড়াজুড়ি","Amrazuri"],["কাউখালি সদর","Kawkhali Sadar"],["চিরাপাড়া","Chirapara"],["শিয়ালকাঠী","Shialkhathi"],["সয়না রঘুনাথপুর","Sayna Rogunathpur"]],
+"জিয়ানগর":[["পত্তাশি","Pattashi"],["পাড়েরহাট","Parerhat"],["বালিপাড়া","Balipara"]],
+"নাজিরপুর":[["কলারদোয়ানিয়া","Kolardoania"],["দীর্ঘা","Dirgha"],["দেউলবাড়ী দোবড়া","Daulbari Dobra"],["নাজিরপুর সদর","Nazirpur Sadar"],["মাটিভাংগা","Mativangga"],["মালিখালী","Malikhali"],["শাখারীকাঠী","Shakharikathi"],["শ্রীরামকাঠী","Sriramkathi"],["সেখমাটিয়া","Shakhmatia"]],
+"নেছারাবাদ":[["আটঘর কুড়িয়ানা","Atghorkuriana"],["গুয়ারেখা","Guarekha"],["জলাবাড়ী","Jolabari"],["দৈহারী","Doyhary"],["বলদিয়া","Boldia"],["সমুদয়কাঠী","Somudoykathi"],["সারেংকাঠী","Sarengkathi"],["সুটিয়াকাঠী","Sutiakathi"],["সোহাগদল","Sohagdal"],["স্বরুপকাঠী","Shorupkathi"]],
+"পিরোজপুর সদর":[["কদমতলা","Kodomtala"],["কলাখালী","Kolakhali"],["টোনা","Tona"],["দূর্গাপুর","Durgapur"],["শংকরপাশা","Shankorpasa"],["শরিকতলা","Shariktola"],["শিকদার মল্লিক","Shikder Mallik"]],
+"ভান্ডারিয়া":[["ইকড়ী","Ekree"],["গৌরীপুর","Gouripur"],["তেলিখালী","Telikhali"],["ধাওয়া","Dhaoa"],["নদমূলা শিয়ালকাঠী","Nodmulla"],["ভান্ডারিয়া সদর","Vandaria Sadar"],["ভিটাবাড়িয়া","Vitabaria"]],
+"মঠবাড়ীয়া":[["আমড়াগাছিয়া","Amragachia"],["টিকিকাটা","Tikikata"],["তুষখালী","Tuskhali"],["দাউদখালী","Daudkhali"],["ধানীসাফা","Dhanisafa"],["বড়মাছুয়া","Baramasua"],["বেতমোর রাজপাড়া","Betmor Rajpara"],["মঠবাড়িয়া","Mathbaria"],["মিরুখালী","Mirukhali"],["শাপলেজা","Shapleza"],["হলতাগুলিশাখালী","Haltagulishakhali"]]
+},
+"ফরিদপুর":{
+"আলফাডাঙ্গা":[["আলফাডাঙ্গা","Alfadanga"],["গোপালপুর","Gopalpur"],["টগরবন্দ","Tagarbanda"],["পাঁচুড়িয়া","Panchuria"],["বানা","Bana"],["বুড়াইচ","Buraich"]],
+"চরভদ্রাসন":[["গাজীরটেক","Gazirtek"],["চর ঝাউকান্দা","Char Jahukanda"],["চর ভদ্রাসন","Char Bhadrasan"],["চর হরিরামপুর","Char Harirampur"]],
+"নগরকান্দা":[["কাইচাইল","Kaichail"],["কোদালিয়া শহিদনগর","Kodalia Shohidnagar"],["চরযশোরদী","Charjashordi"],["ডাঙ্গী","Dangi"],["তালমা","Talma"],["পুরাপাড়া","Purapara"],["ফুলসুতি","Fulsuti"],["রামনগর","Ramnagar"],["লস্করদিয়া","Laskardia"]],
+"ফরিদপুর সদর":[["অম্বিকাপুর","Ambikapur"],["আলিয়াবাদ","Aliabad"],["ঈশানগোপালপুর","Ishangopalpur"],["কানাইপুর","Kanaipur"],["কৃষ্ণনগর","Krishnanagar"],["কৈজুরী","Kaijuri"],["গেরদা","Greda"],["চরমাধবদিয়া","Charmadbdia"],["ডিক্রিরচর","Decreerchar"],["নর্থচ্যানেল","Uttarchannel"],["মাচ্চর","Majchar"]],
+"বোয়ালমারী":[["গুনবহা","Gunbaha"],["ঘোষপুর","Ghoshpur"],["চতুল","Chatul"],["চাঁদপুর","Chandpur"],["দাদপুর","Dadpur"],["পরমেশ্বরদী","Parameshwardi"],["বোয়ালমারী","Boalmari"],["ময়না","Moyna"],["রূপাপাত","Rupapat"],["শেখর","Shekhar"],["সাতৈর","Satair"]],
+"ভাঙ্গা":[["আজিমনগর","Azimnagor"],["আলগী","Algi"],["কাউলিবেড়া","Kawlibera"],["কালামৃধা","Kalamridha"],["ঘারুয়া","Gharua"],["চান্দ্রা","Chandra"],["চুমুরদী","Chumurdi"],["তুজারপুর","Tujerpur"],["নাছিরাবাদ","Nasirabad"],["নুরুল্যাগঞ্জ","Nurullagonj"],["মানিকদহ","Manikdha"],["হামিরদী","Hamirdi"]],
+"মধুখালী":[["কামারখালী","Kamarkhali"],["গাজনা","Gazna"],["জাহাপুর","Jahapur"],["ডুমাইন","Dumain"],["নওপাড়া","Nowpara"],["বাগাট","Bagat"],["মধুখালী","Madhukhali"],["মেগচামী","Megchami"],["রায়পুর","Raipur"]],
+"সদরপুর":[["আকোটের চর","Akoter Char"],["কৃষ্ণপুর","Krishnapur"],["চর নাসিরপুর","Char Nasirpur"],["চর বিষ্ণুপুর","Char Bisnopur"],["চর মানাইর","Char Manair"],["ঢেউখালী","Dhaukhali"],["নারিকেল বাড়িয়া","Narikel Bariya"],["ভাষানচর","Bhashanchar"],["সদরপুর","Sadarpur"]],
+"সালথা":[["আটঘর","Atghar"],["গট্টি","Gatti"],["বল্লভদী","Ballabhdi"],["ভাওয়াল","Bhawal"],["মাঝারদিয়া","Mazadia"],["যদুনন্দী","Jadunandi"],["রামকান্তপুর","Ramkantapur"],["সোনাপুর","Sonapur"]]
+},
+"ফেনী":{
+"ছাগলনাইয়া":[["ঘোপাল","Gopal"],["পাঠাননগর","Pathannagar"],["মহামায়া","Mohamaya"],["রাধানগর","Radhanagar"],["শুভপুর","Subhapur"]],
+"দাগনভূঞা":[["ইয়াকুবপুর","Yeakubpur"],["জায়লস্কর","Jayloskor"],["দাগনভূঞা","Daganbhuiyan"],["পূর্বচন্দ্রপুর","Purbachandrapur"],["মাতুভূঞা","Matubhuiyan"],["রাজাপুর","Rajapur"],["রামনগর","Ramnagar"],["সিন্দুরপুর","Sindurpur"]],
+"পরশুরাম":[["চিথলিয়া","Ctholia"],["বক্সমাহমুদ","Boxmahmmud"],["মির্জানগর","Mizanagar"]],
+"ফুলগাজী":[["আনন্দপুর","Anandopur"],["আমজাদহাট","Amzadhat"],["জি,এম, হাট","Gmhat"],["দরবারপুর","Dorbarpur"],["ফুলগাজী","Fulgazi"],["মুন্সিরহাট","Munshirhat"]],
+"ফেনী সদর":[["কাজিরবাগ","Kazirbag"],["কালিদহ","Kalidah"],["ছনুয়া","Chonua"],["ধর্মপুর","Dhormapur"],["ধলিয়া","Dholia"],["পাঁচগাছিয়া","Panchgachia"],["ফরহাদনগর","Forhadnogor"],["ফাজিলপুর","Fazilpur"],["বালিগাঁও","Baligaon"],["মোটবী","Motobi"],["লেমুয়া","Lemua"],["শর্শদি","Sarishadi"]],
+"সোনাগাজী":[["আমিরাবাদ","Amirabad"],["চরচান্দিয়া","Chorchandia"],["চরদরবেশ","Chardorbesh"],["চরমজলিশপুর","Charmozlishpur"],["নবাবপুর","Nababpur"],["বগাদানা","Bogadana"],["মঙ্গলকান্দি","Mongolkandi"],["মতিগঞ্জ","Motigonj"],["সোনাগাজী","Sonagazi"]]
+},
+"বগুড়া":{
+"আদমদিঘি":[["আদমদিঘি","Adamdighi"],["কুন্দগ্রাম","Kundagram"],["চাঁপাপুর","Chapapur"],["ছাতিয়ানগ্রাম","Chhatiangram"],["নশরতপুর","Nasaratpur"],["সান্তাহার","Shantahar"]],
+"কাহালু":[["কালাই","Kalai"],["কাহালু","Kahaloo"],["জামগ্রাম","Jamgaon"],["দূর্গাপুর","Durgapur"],["নারহট্ট","Narhatta"],["পাইকড়","Paikar"],["বীরকেদার","Birkedar"],["মালঞ্চা","Malancha"],["মুরইল","Murail"]],
+"গাবতলী":[["কাগইল","Kagail"],["গাবতলি","Gabtali"],["দক্ষিণপাড়া","Dakshinpara"],["দুর্গাহাটা","Durgahata"],["নশিপুর","Nasipur"],["নাড়ুয়ামালা","Naruamala"],["নেপালতলী","Nepaltali"],["বালিয়া দিঘী","Baliadighi"],["মহিষাবান","Mahishaban"],["রামেশ্বরপুর","Rameshwarpur"],["সোনারায়","Sonarai"]],
+"দুপচাচিঁয়া":[["গুনাহার","Gunahar"],["গোবিন্দপুর","Gobindapur"],["চামরুল","Chamrul"],["জিয়ানগর","Zianagar"],["তালোড়া","Talora"],["দুপচাঁচিয়া","Dupchanchia"]],
+"ধুনট":[["১গোপালনগর","Gopalnagar"],["এলাঙ্গী","Elangi"],["কালেরপাড়া","Kalerpara"],["গোসাইবাড়ী","Gossainbari"],["চিকাশী","Chikashi"],["চৌকিবাড়ী","Chowkibari"],["ধুনট সদর","Dhunat Sadar"],["নিমগাছি","Nimgachi"],["ভান্ডারবাড়ী","Bhandarbari"],["মথুরাপুর","Mothurapur"]],
+"নন্দিগ্রাম":[["থালতা মাঝগ্রাম","Thalta Majhgram"],["নন্দিগ্রাম","Nandigram"],["বুড়ইল","Burail"],["ভাটগ্রাম","Bhatgram"],["ভাটরা","Bhatra"]],
+"বগুড়া সদর":[["এরুলিয়া","Erulia"],["গোকুল","Gokul"],["নামুজা","Namuja"],["নিশিন্দারা","Nishindara"],["নুনগোলা","Noongola"],["ফাঁপোর","Fapore"],["রাজাপুর","Rajapur"],["লাহিড়ীপাড়া","Lahiripara"],["শাখারিয়া","Shakharia"],["শেখেরকোলা","Sekherkola"],["সাবগ্রাম","Shabgram"]],
+"শাজাহানপুর":[["আড়িয়া","Aria"],["আমরুল","Amrul"],["আশেকপুর","Asekpur"],["খরনা","Kharna"],["খোট্টাপাড়া","Khottapara"],["গোহাইল","Gohail"],["চোপিনগর","Chopinagar"],["মাঝিড়া","Majhira"],["মাদলা","Madla"]],
+"শিবগঞ্জ":[["আটমূল","Atmul"],["কিচক","Kichok"],["দেউলি","Deuly"],["পিরব","Pirob"],["বিহার","Bihar"],["বুড়িগঞ্জ","Buriganj"],["ময়দানহাট্টা","Moidanhatta"],["মাঝিহট্ট","Majhihatta"],["মোকামতলা","Mokamtala"],["রায়নগর","Raynagar"],["শিবগঞ্জ","Shibganj"],["সৈয়দপুর","Sayedpur"]],
+"শেরপুর":[["কুসুম্বী","Kusumbi"],["খানপুর","Khanpur"],["খামারকান্দি","Khamarkandi"],["গাড়িদহ","Garidaha"],["বিশালপুর","Bishalpur"],["ভবানীপুর","Bhabanipur"],["মির্জাপুর","Mirzapur"],["শাহবন্দেগী","Shahbondegi"],["সীমাবাড়ি","Shimabari"],["সুঘাট","Sughat"]],
+"সারিয়াকান্দি":[["কর্ণিবাড়ী","Karnibari"],["কাজলা","Kazla"],["কামালপুর","Kamalpur"],["কুতুবপুর","Kutubpur"],["চন্দনবাইশা","Chandanbaisha"],["চালুয়াবাড়ী","Chaluabari"],["নারচী","Narchi"],["বোহাইল","Bohail"],["ভেলাবাড়ী","Bhelabari"],["সারিয়াকান্দি সদর","Sariakandi Sadar"],["হাটফুলবাড়ী","Hatfulbari"],["হাটশেরপুর","Hatsherpur"]],
+"সোনাতলা":[["জোড়গাছা","Zorgacha"],["তেকানী চুকাইনগর","Tekani Chukinagar"],["দিগদাইড়","Digdair"],["পাকুল্ল্যা","Pakulla"],["বালুয়া","Balua"],["মধুপুর","Madhupur"],["সোনাতলা","Sonatala"]]
+},
+"বরগুনা":{
+"আমতলী":[["আঠারগাছিয়া","Athrogasia"],["আড়পাঙ্গাশিয়া","Arpangasia"],["আমতলী","Amtali"],["কুকুয়া","Kukua"],["গুলিশাখালী","Gulishakhali"],["চাওড়া","Chowra"],["ছোটবগী","Chotobogi"],["হলদিয়া","Haldia"]],
+"তালতলি":[["কড়ইবাড়ীয়া","Karibaria"],["ছোটবগি","Chhotabagi"],["নিশানবাড়ীয়া","Nishanbaria"],["পচাকোড়ালিয়া","Panchakoralia"],["বড়বগি","Barabagi"],["শারিকখালি","Sarikkhali"],["সোনাকাটা","Sonakata"]],
+"পাথরঘাটা":[["কাকচিঢ়া","Kakchira"],["কাঠালতলী","Kathaltali"],["কালমেঘা","Kalmegha"],["চরদুয়ানী","Charduany"],["নাচনাপাড়া","Nachnapara"],["পাথরঘাটা","Patharghata"],["রায়হানপুর","Raihanpur"]],
+"বরগুনা সদর":[["আয়লা পাতাকাটা","Ayla Patakata"],["এম. বালিয়াতলী","M. Baliatali"],["কেওড়াবুনিয়া","Keorabunia"],["গৌরিচন্না","Gowrichanna"],["ঢলুয়া","Dhalua"],["নলটোনা","Noltona"],["ফুলঝুড়ি","Fuljhuri"],["বদরখালী","Bodorkhali"],["বরগুনা","Barguna"],["বুড়িরচর","Burirchor"]],
+"বামনা":[["ডৌয়াতলা","Doutola"],["বামনা","Bamna"],["বুকাবুনিয়া","Bukabunia"],["রামনা","Ramna"]],
+"বেতাগী":[["কাজীরাবাদ","Kazirabad"],["বিবিচিন","Bibichini"],["বুড়ামজুমদার","Buramajumder"],["বেতাগী","Betagi"],["মোকামিয়া","Mokamia"],["সরিষামুড়ী","Sarisamuri"],["হোসনাবাদ","Hosnabad"]]
+},
+"বরিশাল":{
+"আগৈলঝাড়া":[["গৈলা","Goila"],["বাকাল","Bakal"],["বাগধা","Bagdha"],["রত্নপুর","Ratnapur"],["রাজিহার","Rajihar"]],
+"উজিরপুর":[["ওটরা","Otra"],["গুঠিয়া","Gouthia"],["জল্লা","Jalla"],["বরাকোঠা","Barakhota"],["বামরাইল","Bamrail"],["শিকারপুর উজিরপুর","Shikerpur Wazirpur"],["শোলক","Sholok"],["সাতলা","Shatla"],["হারতা","Harta"]],
+"গৌরনদী":[["খাঞ্জাপুর","Khanjapur"],["চাঁদশী","Chandshi"],["নলচিড়া","Nalchira"],["বাটাজোর","Batajore"],["বার্থী","Barthi"],["মাহিলারা","Mahilara"],["সরিকল","Sarikal"]],
+"বরিশাল সদর":[["কাশীপুর","Kashipur"],["চন্দ্রমোহন","Chandramohan"],["চরকাউয়া","Charcowa"],["চরবাড়িয়া","Charbaria"],["চরমোনাই","Charmonai"],["চাঁদপুরা","Chandpura"],["জাগুয়া","Zagua"],["টুঙ্গীবাড়িয়া","Tungibaria"],["রায়পাশা কড়াপুর","Raipasha Karapur"],["সায়েস্তাবাদ","Shyastabad"]],
+"বাকেরগঞ্জ":[["কবাই","Kabai"],["কলসকাঠী","Kalashkathi"],["গারুরিয়া","Garuria"],["চরাদি","Charade"],["চরামদ্দি","Charamaddi"],["দাড়িয়াল","Darial"],["দুধল","Dudhal"],["দুর্গাপাশা","Durgapasha"],["নলুয়া","Nalua"],["নিয়ামতি","Niamoti"],["পাদ্রিশিবপুর","Padreeshibpur"],["ফরিদপুর","Faridpur"],["ভরপাশা","Bharpasha"],["রঙ্গশ্রী","Rangasree"]],
+"বানারীপাড়া":[["ইলুহার","Illuhar"],["উদয়কাঠী","Udykhati"],["চাখার","Chakhar"],["বাইশারী","Baishari"],["বানারিপাড়া","Banaripara"],["বিশারকান্দি","Bisharkandi"],["সলিয়াবাকপুর","Saliabakpur"],["সৈয়দকাঠী","Sayedkathi"]],
+"বাবুগঞ্জ":[["কেদারপুর","Kaderpur"],["চাঁদপাশা","Chandpasha"],["জাহাঙ্গীর নগর","Jahangir Nagar"],["দেহেরগতি","Deherhoti"],["মাধবপাশা","Madhbpasha"],["রহমতপুর","Rahamtpur"]],
+"মুলাদী":[["কাজিরচর","Kazirchar"],["গাছুয়া","Gaschua"],["চরকালেখা","Charkalekha"],["নাজিরপুর","Nazirpur"],["বাটামারা","Batamara"],["মুলাদী","Muladi"],["সফিপুর","Safipur"]],
+"মেহেন্দিগঞ্জ":[["আন্দারমানিক","Andarmanik"],["আলিমাবাদ","Alimabad"],["উলানিয়া","Ulania"],["গোবিন্দপুর","Gobindapur"],["চরএককরিয়া","Charakkorea"],["চরগোপালপুর","Chargopalpur"],["চানপুর","Chandpur"],["জাঙ্গালিয়া","Jangalia"],["দড়িরচর খাজুরিয়া","Darirchar Khajuria"],["বিদ্যানন্দনপুর","Biddanandapur"],["ভাষানচর","Bhashanchar"],["মেহেন্দিগঞ্জ","Mehendigong"],["লতা","Lata"]],
+"হিজলা":[["গুয়াবাড়িয়া","Guabaria"],["ধুলখোলা","Dhulkhola"],["বড়জালিয়া","Barjalia"],["মেমানিয়া","Memania"],["হরিনাথপুর","Harinathpur"],["হিজলা গৌরাব্দি","Hizla Gourabdi"]]
+},
+"বাগেরহাট":{
+"কচুয়া":[["কচুয়া","Kachua"],["গজালিয়া","Gojalia"],["গোপালপুর","Gopalpur"],["ধোপাখালী","Dhopakhali"],["বাধাল","Badhal"],["মঘিয়া","Moghia"],["রাড়ীপাড়া","Raripara"]],
+"চিতলমারী":[["কলাতলা","Kalatala"],["চরবানিয়ারী","Charbaniri"],["চিতলমারী","Chitalmari"],["বড়বাড়িয়া","Barobaria"],["শিবপুর","Shibpur"],["সন্তোষপুর","Shantoshpur"],["হিজলা","Hizla"]],
+"ফকিরহাট":[["নলধা-মৌভোগ","Naldha-Mouvhog"],["পিলজংগ","Piljanga"],["ফকিরহাট","Fakirhat"],["বাহিরদিয়া-মানসা","Bahirdia-Mansa"],["বেতাগা","Betaga"],["মূলঘর","Mulghar"],["লখপুর","Lakhpur"],["শুভদিয়া","Suvhadia"]],
+"বাগেরহাট সদর":[["কাড়াপাড়া","Karapara"],["খানপুর","Khanpur"],["গোটাপাড়া","Gotapara"],["ডেমা","Dema"],["বারুইপাড়া","Baruipara"],["বিষ্ণুপুর","Bishnapur"],["বেমরতা","Bamorta"],["যাত্রাপুর","Jatharapur"],["রাখালগাছি","Rakhalgachi"],["ষাটগুম্বজ","Shaitgomboj"]],
+"মোংলা":[["চাঁদপাই","Chadpai"],["চিলা","Chila"],["বুড়িরডাঙ্গা","Burrirdangga"],["মিঠাখালী","Mithakhali"],["সুন্দরবন","Sundarban"],["সোনাইলতলা","Sonailtala"]],
+"মোড়েলগঞ্জ":[["খাউলিয়া","Khaulia"],["চিংড়াখালী","Chingrakhali"],["জিউধরা","Jiudhara"],["তেলিগাতী","Teligati"],["দৈবজ্ঞহাটি","Daibagnyahati"],["নিশানবাড়িয়া","Nishanbaria"],["পঞ্চকরণ","Panchakaran"],["পুটিখালী","Putikhali"],["বনগ্রাম","Banagram"],["বলইবুনিয়া","Balaibunia"],["বহরবুনিয়া","Baharbunia"],["বারইখালী","Baraikhali"],["মোড়েলগঞ্জ","Morrelganj"],["রামচন্দ্রপুর","Ramchandrapur"],["হোগলাপাশা","Hoglapasha"],["হোগলাবুনিয়া","Hoglabunia"]],
+"মোল্লাহাট":[["আটজুড়ী","Atjuri"],["উদয়পুর","Udoypur"],["কুলিয়া","Kulia"],["কোদালিয়া","Kodalia"],["গাওলা","Gaola"],["গাংনী","Gangni"],["চুনখোলা","Chunkhola"]],
+"রামপাল":[["উজলকুড়","Uzzalkur"],["গৌরম্ভা","Gouramva"],["পেড়িখালী","Perikhali"],["বাইনতলা","Baintala"],["বাঁশতলী","Bastoli"],["ভোজপাতিয়া","Vospatia"],["মল্লিকেরবেড়","Mollikerbar"],["রাজনগর","Rajnagar"],["রামপাল","Rampal"],["হুড়কা","Hurka"]],
+"শরণখোলা":[["খোন্তাকাটা","Khontakata"],["ধানসাগর","Dhanshagor"],["রায়েন্দা","Rayenda"],["সাউথখালী","Southkhali"]]
+},
+"বান্দরবান":{
+"আলীকদম":[["আলীকদম সদর","Alikadam Sadar"],["চৈক্ষ্যং","Chwekhyong"]],
+"থানচি":[["তিন্দু","Tind"],["থানচি সদর","Thanchi Sadar"],["বলিপাড়া","Balipara"],["রেমাক্রী","Remakre"]],
+"নাইক্ষ্যংছড়ি":[["ঘুমধুম","Gumdhum"],["দোছড়ি","Duwchari"],["নাইক্ষ্যংছড়ি সদর","Naikhyongchari Sadar"],["বাইশারী","Baishari"],["সোনাইছড়ি","Sonaychari"]],
+"বান্দরবান সদর":[["কুহালং","Kuhalong"],["টংকাবতী","Tongkaboty"],["বান্দরবান সদর","Bandarban Sadar"],["রাজবিলা","Rajbila"],["সুয়ালক","Suwalok"]],
+"রুমা":[["গ্যালেংগ্যা","Galanggya"],["পাইন্দু","Paind"],["রুমা সদর","Ruma Sadar"],["রেমাক্রীপ্রাংসা","Ramakreprangsa"]],
+"রোয়াংছড়ি":[["আলেক্ষ্যং","Alekyong"],["তারাছা","Taracha"],["নোয়াপতং","Nawapotong"],["রোয়াংছড়ি সদর","Rowangchari Sadar"]],
+"লামা":[["আজিজনগর","Aziznagar"],["গজালিয়া","Gajalia"],["ফাইতং","Fythong"],["ফাসিয়াখালী","Fasiakhali"],["রূপসীপাড়া","Rupushipara"],["লামা সদর","Lama Sadar"],["সরই","Sarai"]]
+},
+"ব্রাহ্মণবাড়িয়া":{
+"আখাউড়া":[["আখাউড়া (উঃ)","Akhauran"],["আখাউড়া (দঃ)","Akhauras"],["ধরখার","Dharkhar"],["মনিয়ন্দ","Monionda"],["মোগড়া","Mogra"]],
+"আশুগঞ্জ":[["আড়াইসিধা","Araishidha"],["আশুগঞ্জ সদর","Ashuganj"],["চরচারতলা","Charchartala"],["তারুয়া","Tarua"],["তালশহর(পঃ)","Talshaharw"],["দুর্গাপুর","Durgapur"],["লালপুর","Lalpur"],["শরীফপুর","Sarifpur"]],
+"কসবা":[["কসবা","Kasbaw"],["কাইমপুর","Kayempur"],["কুটি","Kuti"],["খাড়েরা","Kharera"],["গোপীনাথপুর","Gopinathpur"],["বাদৈর","Badair"],["বায়েক","Bayek"],["বিনাউটি","Benauty"],["মূলগ্রাম","Mulagram"],["মেহারী","Mehari"]],
+"নবীনগর":[["ইব্রাহিমপুর","Ibrahimpur"],["কাইতলা (উত্তর)","Kaitala (North)"],["কাইতলা (দক্ষিন)","Kaitala (South)"],["কৃষ্ণনগর","Krishnanagar"],["ছলিমগঞ্জ","Salimganj"],["জিনোদপুর","Jinudpur"],["নবীনগর (পূর্ব)","Nabinagare"],["নবীনগর(পশ্চিম)","Nabinagarw"],["নাটঘর","Nathghar"],["বড়াইল","Barail"],["বড়িকান্দি","Barikandi"],["বিটঘর","Bitghar"],["বিদ্যাকুট","Biddayakut"],["বীরগাঁও","Birgaon"],["রতনপুর","Ratanpur"],["রসুল্লাবাদ","Rasullabad"],["লাউরফতেপুর","Laurfatehpur"],["শিবপুর","Shibpur"],["শ্যামগ্রাম","Shamogram"],["শ্রীরামপুর","Sreerampur"],["সাতমোড়া","Satmura"]],
+"নাসিরনগর":[["কুন্ডা","Kunda"],["গুনিয়াউক","Goniauk"],["গোকর্ণ","Gokarna"],["গোয়ালনগর","Goalnagar"],["চাতলপাড়","Chatalpar"],["চাপৈরতলা","Chapartala"],["ধরমন্ডল","Dharnondol"],["নাসিরনগর","Nasirnagar"],["পূর্বভাগ","Purbabhag"],["ফান্দাউক","Fandauk"],["বুড়িশ্বর","Burishwar"],["ভলাকুট","Bhalakut"],["হরিপুর","Haripur"]],
+"বাঞ্ছারামপুর":[["আইয়ুবপুর","Ayabpur"],["উজানচর পূর্ব","Ujanchar"],["ছয়ফুল্লাকান্দি","Saifullyakandi"],["ছলিমাবাদ","Salimabad"],["তেজখালী","Tazkhali"],["দড়িকান্দি","Darikandi"],["দরিয়াদৌলত","Dariadulat"],["পাহাড়িয়া কান্দি","Pahariya Kandi"],["ফরদাবাদ","Fardabad"],["বাঞ্ছারামপুর","Bancharampur"],["মানিকপুর","Manikpur"],["রুপসদী পশ্চিম","Rupushdi"],["সোনারামপুর","Sonarampur"]],
+"বিজয়নগর":[["ইছাপুরা","Ichapura"],["চম্পকনগর","Champaknagar"],["চর-ইসলামপুর","Charislampur"],["চান্দুরা","Chandura"],["পত্তন","Pattan"],["পাহাড়পুর","Paharpur"],["বিষ্ণুপুর","Bishupor"],["বুধন্তি","Bhudanty"],["সিংগারবিল","Singerbil"],["হরষপুর","Harashpur"]],
+"ব্রাহ্মণবাড়িয়া সদর":[["তালশহর","Talsahar"],["নাটাই (উত্তর)","Natai"],["নাটাই (দক্ষিন)","Natai"],["বাসুদেব","Basudeb"],["বুধল","Bodhal"],["মজলিশপুর","Majlishpur"],["মাছিহাতা","Machihata"],["রামরাইল","Ramrail"],["সাদেকপুর","Sadekpur"],["সুলতানপুর","Sultanpur"],["সুহিলপুর","Shuhilpur"]],
+"সরাইল":[["অরুয়াইল","Auraol"],["কালীকচ্ছ","Kalikaccha"],["চুন্টা","Chunta"],["নোয়াগাঁও","Noagoun"],["পাকশিমুল","Pakshimuul"],["পানিশ্বর","Panishor"],["শাহজাদাপুর","Shahajadapur"],["শাহবাজপুর","Shahbazpur"],["সরাইল সদর","Sarail"]]
+},
+"ভোলা":{
+"চরফ্যাশন":[["আওয়াজপুর","Awajpur"],["আছলামপুর","Aslampur"],["আবদুল্লাহ","Abdullahpur"],["আবুবকরপুর","Abubakarpur"],["আমিনাবাদ","Aminabad"],["ওসমানগঞ্জ","Osmangonj"],["কুকরীমূকরী","Kukrimukri"],["চরকলমী","Charkolmi"],["চরমাদ্রাজ","Charmadraj"],["চরমানিকা","Charmanika"],["জাহানপুর","Jahanpur"],["জিন্নাগড়","Zinnagor"],["ঢালচর","Dalchar"],["নজরুল নগর","Nazrulnagar"],["নীলকমল","Nilkomol"],["নুরাবাদ","Nurabad"],["মুজিব নগর","Mujibnagar"],["রসুলপুর","Rasulpur"],["হাজারীগঞ্জ","Hazarigonj"]],
+"তজুমদ্দিন":[["চাঁদপুর","Chadpur"],["চাচঁড়া","Chanchra"],["বড় মলংচড়া","Baro Molongchora"],["শম্ভুপুর","Shambupur"],["সোনাপুর","Sonapur"]],
+"দৌলতখান":[["উত্তর জয়নগর","North Joy Nagar"],["চর খলিফা","Char Khalipa"],["চরপাতা","Charpata"],["দক্ষিন জয়নগর","South Joy Nagar"],["ভবানীপুর","Vhovanipur"],["মদনপুর","Madanpur"],["মেদুয়া","Madua"],["সৈয়দপুর","Sayedpur"],["হাজীপুর","Hazipur"]],
+"বোরহান উদ্দিন":[["কাচিয়া","Kachia"],["কুতুবা","Kutuba"],["দেউলা","Deula"],["পক্ষিয়া","Pakshia"],["বড় মানিকা","Boromanika"]],
+"ভোলা সদর":[["আলীনগর","Alinagor"],["ইলিশা","Ilisha"],["উত্তর দিঘলদী","North Digholdi"],["কাচিয়া","Kachia"],["চরসামাইয়া","Charshamya"],["দক্ষিণ দিঘলদী","South Digholdi"],["ধনিয়া","Dhania"],["পশ্চিম ইলিশা","Westilisa"],["বাপ্তা","Bapta"],["ভেদুরিয়া","Vheduria"],["ভেলুমিয়া","Vhelumia"],["রাজাপুর","Razapur"],["শিবপুর","Shibpur"]],
+"মনপুরা":[["উত্তর সাকুচিয়া","North Sakuchia"],["দক্ষিন সাকুচিয়া","South Sakuchia"],["মনপুরা","Monpura"],["হাজীর হাট","Hazirhat"]],
+"লালমোহন":[["কালমা","Kalma"],["চরভূতা","Charbhuta"],["ধলীগৌর নগর","Dholigour Nagar"],["পশ্চিম চর উমেদ","Paschim Char Umed"],["ফরাজগঞ্জ","Farajgonj"],["বদরপুর","Badarpur"],["রমাগঞ্জ","Ramagonj"],["লর্ড হার্ডিঞ্জ","Lord Hardinge"],["লালমোহন","Lalmohan"]]
+},
+"ময়মনসিংহ":{
+"ঈশ্বরগঞ্জ":[["আঠারবাড়ী","Atharabari"],["ঈশ্বরগঞ্জ","Iswarganj"],["উচাখিলা","Uchakhila"],["জাটিয়া","Jatia"],["তারুন্দিয়া","Tarundia"],["বড়হিত","Barahit"],["মগটুলা","Magtula"],["মাইজবাগ","Maijbagh"],["রাজিবপুর","Rajibpur"],["সরিষা","Sarisha"],["সোহাগী","Sohagi"]],
+"গফরগাঁও":[["উস্থি","Usthi"],["গফরগাঁও","Gafargaon"],["চরআলগী","Charalgi"],["টাংগাব","Tangabo"],["দত্তেরবাজার","Dotterbazar"],["নিগুয়ারী","Niguari"],["পাইথল","Paithol"],["পাঁচবাগ","Panchbagh"],["বারবারিয়া","Barobaria"],["মশাখালী","Moshakhali"],["যশরা","Josora"],["রসুলপুর","Rasulpur"],["রাওনা","Raona"],["লংগাইর","Longair"],["সালটিয়া","Saltia"]],
+"গৌরীপুর":[["অচিন্তপুর","Achintapur"],["গৌরীপুর","Gouripur"],["ডৌহাখলা","Douhakhola"],["বোকাইনগর","Bokainagar"],["ভাংনামারী","Bhangnamari"],["মইলাকান্দা","Mailakanda"],["মাওহা","Maoha"],["রামগোপালপুর","Ramgopalpur"],["সহনাটি","Sahanati"],["সিধলা","Sidhla"]],
+"তারাকান্দা":[["কাকনী","Kakni"],["কামারগাঁও","Kamargaon"],["কামারিয়া","Kamaria"],["গালাগাঁও","Galagaon"],["ঢাকুয়া","Dhakua"],["তারাকান্দা","Tarakanda"],["বানিহালা","Banihala"],["বালিখা","Balikha"],["বিস্কা","Biska"],["রামপুর","Rampur"]],
+"ত্রিশাল":[["আমিরাবাড়ী","Amirabari"],["কাঁঠাল","Kanthal"],["কানিহারী","Kanihari"],["ত্রিশাল","Trishal"],["ধানীখোলা","Dhanikhola"],["বালিপাড়া","Balipara"],["বৈলর","Bailor"],["মঠবাড়ী","Mathbari"],["মোক্ষপুর","Mokshapur"],["রামপুর","Rampur"],["সাখুয়া","Sakhua"],["হরিরামপুর","Harirampur"]],
+"ধোবাউড়া":[["গামারীতলা","Gamaritola"],["গোয়াতলা","Goatala"],["ঘোষগাঁও","Ghoshgaon"],["দক্ষিণ মাইজপাড়া","Dakshin Maijpara"],["ধোবাউড়া","Dhobaura"],["পোড়াকান্দুলিয়া","Porakandulia"],["বাঘবেড়","Baghber"]],
+"নান্দাইল":[["আচারগাঁও","Achargaon"],["খারুয়া","Kharua"],["গাংগাইল","Gangail"],["চন্ডীপাশা","Chandipasha"],["জাহাঙ্গীরপুর","Jahangirpur"],["নান্দাইল","Nandail"],["বেতাগৈর","Batagoir"],["মুশুল্লী","Mushulli"],["মোয়াজ্জেমপুর","Muajjempur"],["রাজগাতী","Rajgati"],["শেরপুর","Sherpur"],["সিংরইল","Singroil"]],
+"ফুলপুর":[["ছনধরা","Sondhara"],["পয়ারী","Payari"],["ফুলপুর","Phulpur"],["বওলা","Baola"],["বালিয়া","Balia"],["ভাইটকান্দি","Vaitkandi"],["রহিমগঞ্জ","Rahimganj"],["রামভদ্রপুর","Rambhadrapur"],["রূপসী","Rupasi"],["সিংহেশ্বর","Singheshwar"]],
+"ফুলবাড়ীয়া":[["আছিমপাটুলী","Asimpatuli"],["এনায়েতপুর","Enayetpur"],["কালাদহ","Kaladaha"],["কুশমাইল","Kushmail"],["দেওখোলা","Deukhola"],["নাওগাঁও","Naogaon"],["পুটিজানা","Putijana"],["ফুলবাড়ীয়া","Fulbaria"],["বাক্তা","Bakta"],["বালিয়ান","Balian"],["ভবানীপুর","Vobanipur"],["রাঙ্গামাটিয়া","Rangamatia"],["রাধাকানাই","Radhakanai"]],
+"ভালুকা":[["উথুরা","Uthura"],["কাচিনা","Kachina"],["ডাকাতিয়া","Dakatia"],["ধীতপুর","Dhitpur"],["বিরুনিয়া","Birunia"],["ভরাডোবা","Varadoba"],["ভালুকা","Bhaluka"],["মল্লিকবাড়ী","Mallikbari"],["মেদুয়ারী","Meduari"],["রাজৈ","Rajoi"],["হবিরবাড়ী","Habirbari"]],
+"ময়মনসিংহ সদর":[["অষ্টধার","Austadhar"],["আকুয়া","Aqua"],["কুষ্টিয়া","Kushtia"],["খাগডহর","Khagdohor"],["ঘাগড়া","Ghagra"],["চর ঈশ্বরদিয়া","Char Ishwardia"],["চরনিলক্ষিয়া","Charnilaxmia"],["দাপুনিয়া","Dapunia"],["পরানগঞ্জ","Paranganj"],["বয়ড়া","Boyra"],["বোররচর","Bororchar"],["ভাবখালী","Vabokhali"],["সিরতা","Sirta"]],
+"মুক্তাগাছা":[["কাশিমপুর","Kashimpur"],["কুমারগাতা","Kumargata"],["খেরুয়াজানী","Kheruajani"],["ঘোগা","Ghoga"],["তারাটি","Tarati"],["দাওগাঁও","Daogaon"],["দুল্লা","Dulla"],["বড়গ্রাম","Borogram"],["বাশাটি","Basati"],["মানকোন","Mankon"]],
+"হালুয়াঘাট":[["আমতৈল","Amtoil"],["কৈচাপুর","Kaichapur"],["গাজিরভিটা","Gazirbhita"],["জুগলী","Jugli"],["ধারা","Dhara"],["ধুরাইল","Dhurail"],["নড়াইল","Narail"],["বিলডোরা","Bildora"],["ভূবনকুড়া","Bhubankura"],["শাকুয়াই","Sakuai"],["স্বদেশী","Swadeshi"],["হালুয়াঘাট","Haluaghat"]]
+},
+"মাগুরা":{
+"মহম্মদপুর":[["দীঘা","Digha"],["নহাটা","Nohata"],["পলাশবাড়ীয়া","Palashbaria"],["বাবুখালী","Babukhali"],["বালিদিয়া","Balidia"],["বিনোদপুর","Binodpur"],["মহম্মদপুর","Mohammadpur"],["রাজাপুর","Rajapur"]],
+"মাগুরা সদর":[["আঠারখাদা","Atharokhada"],["কছুন্দী","Kosundi"],["কুচিয়ামো","Kuchiamora"],["গোপালগ্রাম","Gopalgram"],["চাউলিয়া","Chawlia"],["জগদল","Jagdal"],["বগিয়া","Bogia"],["বেরইল পলিতা","Baroilpolita"],["মঘী","Moghi"],["রাঘবদাইড়","Raghobdair"],["শত্রুজিৎপুর","Satrijitpur"],["হাজরাপুর","Hazrapur"],["হাজীপুর","Hazipur"]],
+"শালিখা":[["আড়পাড়া","Arpara"],["গঙ্গারামপুর","Gongarampur"],["তালখড়ি","Talkhari"],["ধনেশ্বরগাতী","Dhaneshwargati"],["বুনাগাতী","Bunagati"],["শতখালী","Shatakhali"],["শালিখা","Shalikha"]],
+"শ্রীপুর":[["আমলসার","Amalshar"],["কাদিরপাড়া","Kadirpara"],["গয়েশপুর","Goyespur"],["দ্বারিয়াপুর","Dariapur"],["নাকোল","Nakol"],["শ্রীকোল","Sreekol"],["শ্রীপুর","Sreepur"],["সব্দালপুর","Shobdalpur"]]
+},
+"মাদারীপুর":{
+"কালকিনি":[["আলীনগর","Alinagar"],["এনায়েতনগর","Enayetnagor"],["কয়ারিয়া","Koyaria"],["কাজীবাকাই","Kazibakai"],["গোপালপুর","Gopalpur"],["চরদৌলতখান","Chardoulatkhan"],["ডাসার","Dashar"],["নবগ্রাম","Nabogram"],["বাঁশগাড়ী","Basgari"],["বালীগ্রাম","Baligram"],["রমজানপুর","Ramjanpur"],["লক্ষীপুর","Laxmipur"],["শিকারমঙ্গল","Shikarmongol"],["সাহেবরামপুর","Shahebrampur"]],
+"মাদারীপুর সদর":[["কালিকাপুর","Kalikapur"],["কুনিয়া","Kunia"],["কেন্দুয়া","Kandua"],["খোয়াজপুর","Khoajpur"],["ঘটমাঝি","Ghatmajhi"],["ছিলারচর","Chilarchar"],["ঝাউদী","Jhaoudi"],["দুধখালী","Dudkhali"],["ধুরাইল","Dhurail"],["পাঁচখোলা","Panchkhola"],["পেয়ারপুর","Peyarpur"],["বাহাদুরপুর","Bahadurpur"],["মস্তফাপুর","Mastofapur"],["রাস্তি","Rasti"],["শিড়খাড়া","Sirkhara"]],
+"রাজৈর":[["আমগ্রাম","Amgram"],["ইশিবপুর","Ishibpur"],["কদমবাড়ী","Kadambari"],["কবিরাজপুর","Kabirajpur"],["খালিয়া","Khaliya"],["পাইকপাড়া","Paikpara"],["বদরপাশা","Badarpasa"],["বাজিতপুর","Bajitpur"],["রাজৈর","Rajoir"],["হরিদাসদী-মহেন্দ্রদী","Haridasdi-Mahendrodi"],["হোসেনপুর","Hosenpur"]],
+"শিবচর":[["উমেদপুর","Umedpur"],["কাঁঠালবাড়ী","Kathalbari"],["কাদিরপুর","Kadirpur"],["কুতুবপুর","Kutubpur"],["চরজানাজাত","Charjanazat"],["দত্তপাড়া","Dattapara"],["দ্বিতীয়খন্ড","Ditiyakhando"],["নিলখি","Nilokhe"],["পাঁচচর","Panchar"],["বন্দরখোলা","Bandarkhola"],["বহেরাতলা উত্তর","Baheratala North"],["বহেরাতলা দক্ষিণ","Bahertala South"],["বাঁশকান্দি","Baskandi"],["ভদ্রাসন","Vhadrasion"],["ভান্ডারীকান্দি","Vhandarikandi"],["মাদবরেরচর","Madbarerchar"],["শিবচর","Shibchar"],["শিরুয়াইল","Shiruail"],["সন্যাসিরচর","Sannasirchar"]]
+},
+"মানিকগঞ্জ":{
+"ঘিওর":[["ঘিওর","Gior"],["নালী","Nalee"],["পয়লা","Paila"],["বড়টিয়া","Bartia"],["বানিয়াজুড়ী","Baniazuri"],["বালিয়াখোড়া","Baliyakhora"],["সিংজুড়ী","Shingzuri"]],
+"দৌলতপুর":[["কলিয়া","Klia"],["খলশী","Khalshi"],["চকমিরপুর","Chakmirpur"],["চরকাটারী","Charkataree"],["জিয়নপুর","Zionpur"],["ধামশ্বর","Dhamswar"],["বাঘুটিয়া","Baghutia"],["বাচামারা","Bachamara"]],
+"মানিকগঞ্জ সদর":[["আটিগ্রাম","Atigram"],["কৃঞ্চপুর","Krishnapur"],["গড়পাড়া","Garpara"],["জাগীর","Jagir"],["দিঘী","Dighi"],["নবগ্রাম","Nbogram"],["পুটাইল","Putile"],["বেতিলা-মিতরা","Betila-Mitara"],["ভাড়ারিয়া","Vararia"],["হাটিপাড়া","Hatipara"]],
+"শিবালয়":[["আরুয়া","Aruoa"],["উথলী","Utholi"],["উলাইল","Ulayel"],["তেওতা","Teota"],["মহাদেবপুর","Mohadebpur"],["শিবালয়","Shibaloy"],["শিমুলিয়া","Shimulia"]],
+"সাটুরিয়া":[["তিল্লী","Tilli"],["দড়গ্রাম","Dargram"],["দিঘুলিয়া","Dighulia"],["ধানকোড়া","Dhankora"],["ফুকুরহাটি","Fukurhati"],["বরাইদ","Baried"],["বালিয়াটি","Baliyati"],["সাটুরিয়া","Saturia"],["হরগজ","Hargaj"]],
+"সিংগাইর":[["চান্দহর","Chandhar"],["চারিগ্রাম","Charigram"],["জয়মন্টপ","Joymonto"],["জামশা","Zamsha"],["জার্মিতা","Jamirta"],["তালেবপুর","Talebpur"],["ধল্লা","Dhalla"],["বলধারা","Baldhara"],["বায়রা","Buyra"],["শায়েস্তা","Shayesta"],["সিংগাইর","Singiar"]],
+"হরিরামপুর":[["আজিমনগর","Azimnagar"],["কাঞ্চনপুর","Kanchanpur"],["গালা","Gala"],["গোপীনাথপুর","Gopinathpur"],["চালা","Chala"],["ধূলশুড়া","Dhulsura"],["বয়রা","Baira"],["বলড়া","Blara"],["বাল্লা","Balla"],["রামকৃঞ্চপুর","Ramkrishnapur"],["লেছড়াগঞ্জ","Lacharagonj"],["সুতালড়ী","Sutalorie"],["হারুকান্দি","Harukandi"]]
+},
+"মুন্সিগঞ্জ":{
+"গজারিয়া":[["ইমামপুর","Imampur"],["গজারিয়া","Gajaria"],["গুয়াগাছিয়া","Guagachia"],["টেংগারচর","Tengarchar"],["বাউশিয়া","Baushia"],["বালুয়াকান্দী","Baluakandi"],["ভবেরচর","Vaberchar"],["হোসেন্দী","Hosendee"]],
+"টংগীবাড়ি":[["আউটশাহী","Autshahi"],["আড়িয়ল বালিগাঁও","Arial Baligaon"],["আব্দুল্লাপুর","Abdullapur"],["কাঠাদিয়া শিমুলিয়া","Kathadia Shimolia"],["কামারখাড়া","Kamarkhara"],["দিঘীরপাড়","Dighirpar"],["ধীপুর","Dhipur"],["পাঁচগাও","Panchgaon"],["বেতকা","Betka"],["যশলং","Joslong"],["সোনারং টংগীবাড়ী","Sonarong Tongibari"],["হাসাইল বানারী","Hasailbanari"]],
+"মুন্সিগঞ্জ সদর":[["আধারা","Adhara"],["চরকেওয়ার","Charkewar"],["পঞ্চসার","Panchashar"],["বজ্রযোগিনী","Bajrajogini"],["বাংলাবাজার","Banglabazar"],["মহাকালী","Mohakali"],["মোল্লাকান্দি","Mollakandi"],["রামপাল","Rampal"],["শিলই","Shiloy"]],
+"লৌহজং":[["কনকসার","Kanaksar"],["কলমা","Kalma"],["কুমারভোগ","Kumarbhog"],["খিদিরপাড়া","Khidirpara"],["গাওদিয়া","Gaodia"],["বেজগাঁও","Bejgaon"],["বৌলতলী","Baultoli"],["মেদিনীমন্ডল","Medinimandal"],["লৌহজং-তেওটিয়া","Lohajang-Teotia"],["হলদিয়া","Haldia"]],
+"শ্রীনগর":[["আটপাড়া","Atpara"],["কুকুটিয়া","Kukutia"],["কুলাপাড়া","Kolapara"],["তন্তর","Tantor"],["পাঢাভোগ","Patabhog"],["বাঘড়া","Bagra"],["বাড়তারা","Birtara"],["বাড়েখাল","Baraikhali"],["ভাগ্যকুল","Vaggakol"],["রাঢ়ীখাল","Rarikhal"],["শ্যামসিদ্দি","Shamshiddi"],["শ্রীনগর","Sreenagar"],["ষোলঘর","Shologhor"],["হাসাড়া","Hashara"]],
+"সিরাজদিখান":[["ইছাপুরা","Ichhapura"],["কেয়াইন","Keyain"],["কোলা","Kola"],["চিত্রকোট","Chitracoat"],["জৈনসার","Joyinshar"],["বয়রাগাদি","Bairagadi"],["বালুচর","Baluchar"],["বাসাইল","Basail"],["মধ্যপাড়া","Madhypara"],["মালখানগর","Malkhanagar"],["রশুনিয়া","Rasunia"],["রাজানগর","Rajanagar"],["লতাব্দী","Latabdi"],["শেখরনগার","Sekhornagar"]]
+},
+"মেহেরপুর":{
+"গাংনী":[["কাজিপুর","Kazipur"],["কাথুলী","Kathuli"],["তেঁতুলবাড়ীয়া","Tentulbaria"],["ধানখোলা","Dhankolla"],["বামন্দী","Bamondi"],["মটমুড়া","Motmura"],["রায়পুর","Raipur"],["ষোলটাকা","Sholotaka"],["সাহারবাটী","Shaharbati"]],
+"মুজিবনগর":[["দারিয়াপুর","Dariapur"],["বাগোয়ান","Bagowan"],["মহাজনপুর","Mohajanpur"],["মোনাখালী","Monakhali"]],
+"মেহেরপুর সদর":[["আমঝুপি","Amjhupi"],["আমদহ","Amdah"],["কতুবপুর","Kutubpur"],["পিরোজপুর","Pirojpur"],["বুড়িপোতা","Buripota"]]
+},
+"মৌলভীবাজার":{
+"কমলগঞ্জ":[["আদমপুর","Adampur"],["আলী নগর","Alinagar"],["ইসলামপুর","Islampur"],["কমলগঞ্জ","Kamalgonj"],["পতনঊষার","Patanushar"],["মাধবপুর","Madhabpur"],["মুন্সিবাজার","Munshibazar"],["রহিমপুর","Rahimpur"],["শমশেরনগর","Shamshernagar"]],
+"কুলাউড়া":[["কর্মধা","Kormodha"],["কাদিপুর","Kadipur"],["কুলাউড়া","Kulaura"],["জয়চন্ডি","Joychandi"],["টিলাগাঁও","Tilagaon"],["পৃথিমপাশা","Prithimpassa"],["বরমচাল","Baramchal"],["ব্রাহ্মণবাজার","Brammanbazar"],["ভাটেরা","Bhatera"],["ভূকশিমইল","Bhukshimail"],["রাউৎগাঁও","Rauthgaon"],["শরীফপুর","Sharifpur"],["হাজীপুর","Hazipur"]],
+"জুড়ী":[["গোয়ালবাড়ী","Gualbari"],["জায়ফরনগর","Jafornagar"],["পশ্চিম জুড়ী","West Juri"],["পুর্ব জুড়ী","Eastjuri"],["ফুলতলা","Fultola"],["সাগরনাল","Sagornal"]],
+"বড়লেখা":[["উত্তর শাহবাজপুর","Uttar Shahbajpur"],["তালিমপুর","Talimpur"],["দক্ষিণ শাহবাজপুর","Dakkhin Shahbajpur"],["দক্ষিণভাগ (উত্তর)","Dakshinbhag Uttar"],["দক্ষিণভাগ (দক্ষিণ)","Dakshinbhag Dakkhin"],["দাসেরবাজার","Dasherbazar"],["নিজবাহাদুরপুর","Nizbahadurpur"],["বড়লেখা","Baralekha"],["বর্ণি","Borni"],["সুজানগর","Sujanagar"]],
+"মৌলভীবাজার সদর":[["আখাইলকুড়া","Akhailkura"],["আপার কাগাবলা","Apar Kagabala"],["আমতৈল","Amtail"],["একাটুনা","Ekatuna"],["কনকপুর","Konokpur"],["কামালপুর","Kamalpur"],["খলিলপুর","Khalilpur"],["গিয়াসনগর","Giasnagar"],["চাঁদনীঘাট","Chadnighat"],["নাজিরাবাদ","Nazirabad"],["মনুমুখ","Monumukh"],["মোস্তফাপুর","Mostafapur"]],
+"রাজনগর":[["উত্তরভাগ","Uttorbhag"],["কামারচাক","Kamarchak"],["টেংরা","Tengra"],["পাঁচগাঁও","Panchgaon"],["ফতেপুর","Fotepur"],["মনসুরনগর","Munsurnagar"],["মুন্সিবাজার","Munsibazar"],["রাজনগর","Rajnagar"]],
+"শ্রীমঙ্গল":[["আশিদ্রোন","Ashidron"],["কালাপুর","Kalapur"],["কালীঘাট","Kalighat"],["ভূনবীর","Bhunabir"],["মির্জাপুর","Mirzapur"],["রাজঘাট","Rajghat"],["শ্রীমঙ্গল","Sreemangal"],["সাতগাঁও","Satgaon"],["সিন্দুরখান","Sindurkhan"]]
+},
+"যশোর":{
+"অভয়নগর":[["চলিশিয়া","Chalishia"],["পায়রা","Payra"],["প্রেমবাগ","Prambag"],["বাঘুটিয়া","Baghutia"],["শুভরাড়া","Subharara"],["শ্রীধরপুর","Sreedharpur"],["সিদ্দিপাশা","Siddhipasha"],["সুন্দলী","Sundoli"]],
+"কেশবপুর":[["কেশবপুর","Keshabpur"],["গৌরিঘোনা","Gaurighona"],["ত্রিমোহিনী","Trimohini"],["পাজিয়া","Panjia"],["বিদ্যানন্দকাটি","Bidyanandakati"],["মঙ্গলকোর্ট","Mongolkot"],["মজিদপুর","Majidpur"],["সাগরদাড়ী","Sagardari"],["সুফলাকাটি","Sufalakati"]],
+"চৌগাছা":[["চৌগাছা","Chougachha"],["জগদীশপুর","Jagadishpur"],["ধুলিয়ানী","Dhuliani"],["নারায়নপুর","Narayanpur"],["পাতিবিলা","Patibila"],["পাশাপোল","Pashapole"],["ফুলসারা","Fulsara"],["সরুপদাহ","Swarupdaha"],["সিংহঝুলি","Singhajhuli"],["সুখপুকুরিয়া","Sukpukhuria"],["হাকিমপুর","Hakimpur"]],
+"ঝিকরগাছা":[["গংগানন্দপুর","Gangananda"],["গদখালী","Gadkhali"],["ঝিকরগাছা","Jhikargachha"],["নাভারন","Nabharan"],["নির্বাসখোলা","Nibaskhola"],["পানিসারা","Panisara"],["বাঁকড়া","Bankra"],["মাগুরা","Magura"],["শংকরপুর","Shankarpur"],["শিমুলিয়া","Shimulia"],["হাজিরবাগ","Hajirbagh"]],
+"বাঘারপাড়া":[["জহুরপুর","Jaharpur"],["জামদিয়া","Jamdia"],["দরাজহাট","Darajhat"],["দোহাকুলা","Dohakula"],["ধলগ্রাম","Dhalgram"],["নারিকেলবাড়ীয়া","Narikelbaria"],["বন্দবিলা","Bandabilla"],["বাসুয়াড়ী","Basuari"],["রায়পুর","Roypur"]],
+"মণিরামপুর":[["কাশিমনগর","Kashimnagar"],["কুলটিয়া","Kultia"],["খানপুর","Khanpur"],["খেদাপাড়া","Khedapara"],["চালুয়াহাটি","Chaluahati"],["ঝাঁপা","Jhanpa"],["ঢাকুরিয়া","Dhakuria"],["দুর্বাডাংগা","Durbadanga"],["নেহালপুর","Nehalpur"],["ভোজগাতি","Bhojgati"],["মনিরামপুর","Manirampur"],["মনোহরপুর","Manoharpur"],["মশ্মিমনগর","Maswimnagar"],["রোহিতা","Rohita"],["শ্যামকুড়","Shyamkur"],["হরিদাসকাটি","Haridaskati"],["হরিহরনগর","Hariharnagar"]],
+"যশোর সদর":[["আরবপুর","Arabpur"],["ইছালী","Ichhali"],["উপশহর","Upasahar"],["কচুয়া","Kachua"],["কাশিমপুর","Kashimpur"],["চাঁচড়া","Chanchra"],["চূড়ামনকাটি","Churamankati"],["দেয়ারা মডেল","Dearamodel"],["নওয়াপাড়া","Noapara"],["নরেন্দ্রপুর","Narendrapur"],["ফতেপুর","Fathehpur"],["বসুন্দিয়া","Basundia"],["রামনগর","Ramnagar"],["লেবুতলা","Lebutala"],["হৈবতপুর","Haibatpur"]],
+"শার্শা":[["উলশী","Ulshi"],["কায়বা","Kayba"],["গোগা","Goga"],["ডিহি","Dihi"],["নিজামপুর","Nizampur"],["পুটখালী","Putkhali"],["বাগআচড়া","Bagachra"],["বাহাদুরপুর","Bahadurpur"],["বেনাপোল","Benapole"],["লক্ষণপুর","Lakshmanpur"],["শার্শা","Sharsha"]]
+},
+"রংপুর":{
+"কাউনিয়া":[["কুর্শা","Kurshaupk"],["টেপামধুপুর","Tepamodhupur"],["বালাপাড়া","Balapara"],["শহীদবাগ","Shahidbag"],["সারাই","Sarai"],["হারাগাছ","Haragach"]],
+"গংগাচড়া":[["আলমবিদিতর","Alambiditor"],["কোলকোন্দ","Kolcondo"],["খলেয়া","Kholeya"],["গংগাচড়া","Gongachora"],["গজঘন্টা","Gojoghonta"],["নোহালী","Nohali"],["বড়বিল","Borobil"],["বেতগাড়ী","Betgari"],["মর্ণেয়া","Morneya"],["লক্ষীটারী","Lakkhitari"]],
+"তারাগঞ্জ":[["আলমপুর","Alampur"],["ইকরচালী","Ikorchali"],["কুর্শা","Kurshatara"],["সয়ার","Soyar"],["হাড়িয়ারকুঠি","Hariarkuthi"]],
+"পীরগঞ্জ":[["কাবিলপুর","Kabilpur"],["কুমেদপুর","Kumedpur"],["চতরা","Chattra"],["চৈত্রকোল","Chattracol"],["টুকুরিয়া","Tukuria"],["পাঁচগাছী","Pachgachi"],["পীরগঞ্জ","Pirgonj"],["বড় আলমপুর","Boro Alampur"],["বড়দরগাহ","Borodargah"],["ভেন্ডাবাড়ী","Vendabari"],["মদনখালী","Modankhali"],["মিঠিপুর","Mithipur"],["রামনাথপুর","Ramnathpur"],["রায়পুর","Raypur"],["শানেরহাট","Shanerhat"]],
+"পীরগাছা":[["অন্নদানগর","Annodanagar"],["ইটাকুমারী","Itakumari"],["কল্যাণী","Kollyani"],["কান্দি","Kandi"],["কৈকুড়ী","Koikuri"],["ছাওলা","Saula"],["তাম্বুলপুর","Tambulpur"],["পারুল","Parul"],["পীরগাছা","Pirgacha"]],
+"বদরগঞ্জ":[["কালুপাড়া","Kalupara"],["কুতুবপুর","Kutubpur"],["গোপালপুর","Gopalpur"],["গোপীনাথপুর","Gopinathpur"],["দামোদরপুর","Damodorpur"],["বিষ্ণপুর","Bishnapur"],["মধুপুর","Modhupur"],["রাধানগর","Radhanagar"],["রামনাথপুর","Ramnathpurupb"],["লোহানীপাড়া","Lohanipara"]],
+"মিঠাপুকুর":[["ইমাদপুর","Imadpur"],["কাফ্রিখাল","Kafrikhal"],["খোরাগাছ","Khoragach"],["গোপালপুর","Mgopalpur"],["চেংমারী","Chengmari"],["দূর্গাপুর","Durgapur"],["পায়রাবন্দ","Payrabond"],["বড় হযরতপুর","Boro Hazratpur"],["বড়বালা","Borobala"],["বালারহাট","Balarhat"],["বালুয়া মাসিমপুর","Baluya Masimpur"],["ভাংনী","Vangni"],["ময়েনপুর","Moyenpur"],["মির্জাপুর","Mirzapur"],["মিলনপুর","Milonpur"],["রাণীপুকুর","Ranipukur"],["লতিবপুর","Latibpur"]],
+"রংপুর সদর":[["উত্তম","Uttam"],["চন্দনপাট","Chandanpat"],["তপোধন","Topodhan"],["তামপাট","Tampat"],["দর্শানা","Dorshona"],["পরশুরাম","Porshuram"],["মমিনপুর","Mominpur"],["রাজেন্দ্রপুর","Rajendrapur"],["সদ্যপুস্করনী","Sadwapuskoroni"],["সাতগারা","Satgara"],["হরিদেবপুর","Horidebpur"]]
+},
+"রাঙ্গামাটি":{
+"কাউখালী":[["কলমপতি","Kalampati"],["ঘাগড়া","Ghagra"],["ফটিকছড়ি","Fatikchari"],["বেতবুনিয়া","Betbunia"]],
+"কাপ্তাই":[["ওয়াজ্ঞা","Wagga"],["কাপ্তাই","Kaptai"],["চন্দ্রঘোনা","Chandraghona"],["চিৎমরম","Chitmorom"],["রাইখালী","Raikhali"]],
+"জুরাছড়ি":[["জুরাছড়ি","Juraichari"],["দুমদুম্যা","Dumdumya"],["বনযোগীছড়া","Banajogichara"],["মৈদং","Moidong"]],
+"নানিয়ারচর":[["ঘিলাছড়ি","Ghilachhari"],["নানিয়ারচর","Naniarchar"],["বুড়িঘাট","Burighat"],["সাবেক্ষ্যং","Sabekkhong"]],
+"বরকল":[["আইমাছড়া","Aimachara"],["বড় হরিণা","Borohorina"],["বরকল","Barkal"],["ভূষনছড়া","Bushanchara"],["সুবলং","Subalong"]],
+"বাঘাইছড়ি":[["আমতলী","Amtali"],["খেদারমারা","Khedarmara"],["বঙ্গলতলী","Bongoltali"],["বাঘাইছড়ি","Baghaichari"],["মারিশ্যা","Marisha"],["রুপকারী","Rupokari"],["সাজেক","Sajek"],["সারোয়াতলী","Sharoyatali"]],
+"বিলাইছড়ি":[["কেংড়াছড়ি","Kengrachari"],["ফারুয়া","Farua"],["বিলাইছড়ি","Belaichari"]],
+"রাঙ্গামাটি সদর":[["কুতুকছড়ি","Kutukchari"],["জীবতলি","Jibtali"],["বন্দুকভাঙ্গা","Bandukbhanga"],["বালুখালী","Balukhali"],["মগবান","Mogban"],["সাপছড়ি","Sapchari"]],
+"রাজস্থলী":[["গাইন্দ্যা","Gaindya"],["ঘিলাছড়ি","Ghilachari"],["বাঙ্গালহালিয়া","Bangalhalia"]],
+"লংগদু":[["আটারকছড়া","Atarakchara"],["কালাপাকুজ্যা","Kalapakujja"],["গুলশাখালী","Gulshakhali"],["বগাচতর","Bogachattar"],["ভাসান্যাদম","Vasannadam"],["মাইনীমুখ","Maeinimukh"],["লংগদু","Langad"]]
+},
+"রাজবাড়ী":{
+"কালুখালী":[["কালিকাপুর","Kalikapur"],["কালুখালী","Kalukhali"],["বোয়ালিয়া","Boalia"],["মদাপুর","Madapur"],["মাজবাড়ী","Majbari"],["মৃগী","Mrigi"],["রতনদিয়া","Ratandia"],["সাওরাইল","Shawrail"]],
+"গোয়ালন্দ":[["উজানচর","Uzancar"],["ছোটভাকলা","Chotovakla"],["দেবগ্রাম","Debugram"],["দৌলতদিয়া","Doulatdia"]],
+"পাংশা":[["কলিমহর","Kalimahar"],["কসবামাজাইল","Kasbamajhail"],["পাট্টা","Patta"],["বাবুপাড়া","Babupara"],["বাহাদুরপুর","Bahadurpur"],["মাছপাড়া","Machhpara"],["মৌরাট","Mourat"],["যশাই","Jashai"],["সরিষা","Sarisha"],["হাবাসপুর","Habashpur"]],
+"বালিয়াকান্দি":[["ইসলামপুর","Islampur"],["জঙ্গল","Janjal"],["জামালপুর","Jamalpur"],["নবাবপুর","Nawabpur"],["নারুয়া","Narua"],["বহরপুর","Baharpur"],["বালিয়াকান্দি","Baliakandi"]],
+"রাজবাড়ী সদর":[["আলীপুর","Alipur"],["খানখানাপুর","Khankhanapur"],["খানগঞ্জ","Khangonj"],["চন্দনী","Chandoni"],["দাদশী","Dadshee"],["পাঁচুরিয়া","Panchuria"],["বরাট","Borat"],["বসন্তপুর","Basantapur"],["বানীবহ","Banibaha"],["মিজানপুর","Mijanpur"],["মুলঘর","Mulghar"],["রামকান্তপুর","Ramkantapur"],["শহীদওহাবপুর","Shahidwahabpur"],["সুলতানপুর","Sultanpur"]]
+},
+"রাজশাহী":{
+"গোদাগাড়ী":[["আষাড়িয়াদহ","Asariadaha"],["গোগ্রাম","Gogram"],["গোদাগাড়ী","Godagari"],["দেওপাড়া","Dewpara"],["পাকড়ী","Pakri"],["বাসুদেবপুর","Basudebpur"],["মাটিকাটা","Matikata"],["মোহনপুর","Mohonpur"],["রিশিকুল","Risikul"]],
+"চারঘাট":[["ইউসুফপুর","Yousufpur"],["চারঘাট","Charghat"],["নিমপাড়া","Nimpara"],["ভায়ালক্ষ্মীপুর","Vialuxmipur"],["শলুয়া","Solua"],["সরদহ","Sardah"]],
+"তানোর":[["কলমা","Kalma"],["কামারগাঁ","Kamargaon"],["চান্দুড়িয়া","Chanduria"],["তালন্দ","Talondo"],["পাঁচন্দর","Panchandar"],["বাধাইড়","Badhair"],["সরঞ্জাই","Saranjai"]],
+"দুর্গাপুর":[["কিসমতগণকৈড়","Kismatgankoir"],["জয়নগর","Joynogor"],["ঝালুকা","Jhaluka"],["দেলুয়াবাড়ী","Deluabari"],["নওপাড়া","Naopara"],["পানানগর","Pananagar"],["মাড়িয়া","Maria"]],
+"পবা":[["দর্শনপাড়া","Darsanpara"],["দামকুড়া","Damkura"],["পারিলা","Parila"],["বড়্গাছি","Borgachi"],["হড়গ্রাম","Horogram"],["হরিপুর","Horipur"],["হরিয়ান","Harian"],["হুজুরী পাড়া","Hujuripara"]],
+"পুঠিয়া":[["জিউপাড়া","Jewpara"],["পুঠিয়া","Puthia"],["বানেশ্বর","Baneswar"],["বেলপুকুরিয়া","Belpukuria"],["ভালুক গাছি","Valukgachi"],["শিলমাড়িয়া","Shilmaria"]],
+"বাগমারা":[["আউচপাড়া","Auchpara"],["কাচাড়ী কোয়লিপাড়া","Kacharikoalipara"],["গণিপুর","Ganipur"],["গোবিন্দপাড়া","Gobindopara"],["গোয়ালকান্দি","Gualkandi"],["ঝিকড়া","Zhikara"],["দ্বীপপুর","Dippur"],["নরদাস","Nordas"],["বড়বিহানলী","Borobihanoli"],["বাসুপাড়া","Basupara"],["মাড়িয়া","Mariaup"],["যোগিপাড়া","Jogipara"],["শুভডাঙ্গা","Suvodanga"],["শ্রীপুর","Sreepur"],["সোনাডাঙ্গা","Sonadanga"],["হামিরকুৎসা","Hamirkutsa"]],
+"বাঘা":[["আড়ানী","Arani"],["গড়গড়ি","Gorgori"],["পাকুড়িয়া","Pakuria"],["বাউসা","Bausa"],["বাজুবাঘা","Bajubagha"],["মনিগ্রাম","Monigram"]],
+"মোহনপুর":[["ঘষিগ্রাম","Ghasigram"],["জাহানাবাদ","Jahanabad"],["ধুরইল","Dhuroil"],["বাকশিমইল","Baksimoil"],["মৌগাছি","Mougachi"],["রায়ঘাটি","Raighati"]]
+},
+"লক্ষ্মীপুর":{
+"কমলনগর":[["চর কাদিরা","Char Kadira"],["চর কালকিনি","Charkalkini"],["চর ফলকন","Char Folcon"],["চর মার্টিন","Char Martin"],["চর লরেঞ্চ","Charlorench"],["তোরাবগঞ্জ","Torabgonj"],["পাটারীরহাট","Patarirhat"],["সাহেবেরহাট","Shaheberhat"],["হাজিরহাট","Hajirhat"]],
+"রামগঞ্জ":[["ইছাপুর","Ichhapur"],["করপাড়া","Karpara"],["কাঞ্চনপুর","Kanchanpur"],["চন্ডিপুর","Chandipur"],["দরবেশপুর","Darbeshpur"],["নোয়াগাঁও","Noagaon"],["ভাটরা","Bhatra"],["ভাদুর","Bhadur"],["ভোলাকোট","Bholakot"],["লামচর","Lamchar"]],
+"রামগতি":[["আলেকজান্ডার","Alxendar"],["চর আবদুল্যাহ","Char Abdullah"],["চর আলগী","Char Algi"],["চর পোড়াগাছা","Char Poragacha"],["চর বাদাম","Charbadam"],["চর রমিজ","Char Ramiz"],["চরগাজী","Chargazi"],["বড়খেড়ী","Borokheri"]],
+"রায়পুর":[["উত্তর চর আবাবিল","North Char Ababil"],["উত্তর চর বংশী","North Char Bangshi"],["কেরোয়া","Keora"],["চর পাতা","Charpata"],["চর মোহনা","Char Mohana"],["দক্ষিন চর আবাবিল","South Char Ababil"],["দক্ষিন চর বংশী","South Char Bangshi"],["বামনী","Bamni"],["রায়পুর","Raipur"],["সোনাপুর","Sonapur"]],
+"লক্ষ্মীপুর সদর":[["উত্তর জয়পুর","Nourthjoypur"],["কুশাখালী","Kusakhali"],["চন্দ্রগঞ্জ","Chandrogonj"],["চররমনী মোহন","Charramoni Mohon"],["চররুহিতা","Charruhita"],["চরশাহী","Charshahi"],["টুমচর","Tumchor"],["তেয়ারীগঞ্জ","Tearigonj"],["দত্তপাড়া","Dattapara"],["দালাল বাজার","Dalalbazar"],["দিঘলী","Digli"],["পার্বতীনগর","Parbotinagar"],["বশিকপুর","Basikpur"],["বাঙ্গাখাঁ","Bangakha"],["ভবানীগঞ্জ","Vobanigonj"],["লাহারকান্দি","Laharkandi"],["শাকচর","Sakchor"],["হাজিরপাড়া","Hazirpara"],["হামছাদী (উত্তর)","Hamsadi (North)"],["হামছাদী (দক্ষিন)","Hamsadi (South)"]]
+},
+"লালমনিরহাট":{
+"আদিতমারী":[["কমলাবাড়ী","Kamlabari"],["দূর্গাপুর","Durgapur"],["পলাশী","Palashi"],["ভাদাই","Bhadai"],["ভেলাবাড়ী","Bhelabari"],["মহিষখোচা","Mohishkhocha"],["সাপ্টিবাড়ী","Saptibari"],["সারপুকুর","Sarpukur"]],
+"কালীগঞ্জ":[["কাকিনা","Kakina"],["গোড়ল","Goral"],["চন্দ্রপুর","Chondropur"],["চলবলা","Cholbola"],["তুষভান্ডার","Tushbhandar"],["দলগ্রাম","Dologram"],["ভোটমারী","Bhotmari"],["মদাতী","Modati"]],
+"পাটগ্রাম":[["কুচলিবাড়ী","Kuchlibari"],["জগতবেড়","Jagatber"],["জোংড়া","Jongra"],["দহগ্রাম","Dahagram"],["পাটগ্রাম","Patgram"],["বাউড়া","Baura"],["বুড়িমারী","Burimari"],["শ্রীরামপুর","Sreerampur"]],
+"লালমনিরহাট সদর":[["কুলাঘাট","Kulaghat"],["খুনিয়াগাছ","Khuniagachh"],["গোকুন্ডা","Gokunda"],["পঞ্চগ্রাম","Panchagram"],["বড়বাড়ী","Barobari"],["মহেন্দ্রনগর","Mohendranagar"],["মোগলহাট","Mogolhat"],["রাজপুর","Rajpur"],["হারাটি","Harati"]],
+"হাতীবান্ধা":[["গড্ডিমারী","Goddimari"],["গোতামারী","Gotamari"],["টংভাঙ্গা","Tongvhanga"],["ডাউয়াবাড়ী","Dawabari"],["নওদাবাস","Nowdabas"],["পাটিকাপাড়া","Paticapara"],["ফকিরপাড়া","Fakirpara"],["বড়খাতা","Barokhata"],["ভেলাগুড়ি","Vhelaguri"],["সানিয়াজান","Shaniajan"],["সিংগীমারী","Singimari"],["সিন্দুর্ণা","Sindurna"]]
+},
+"শরীয়তপুর":{
+"গোসাইরহাট":[["আলাওলপুর","Alaolpur"],["ইদিলপুর","Edilpur"],["কুচাইপট্টি","Kuchipatti"],["কোদালপুর","Kodalpur"],["গোসাইরহাট","Goshairhat"],["নলমুড়ি","Nalmuri"],["নাগের পাড়া","Nager Para"],["সামন্তসার","Samontasar"]],
+"জাজিরা":[["কুন্ডেরচর","Kundarchar"],["জয়নগর","Jaynagor"],["জাজিরা সদর","Zajira Sadar"],["নাওডোবা","Nawdoba"],["পালেরচর","Palerchar"],["পুর্ব নাওডোবা","Purba Nawdoba"],["বড়কান্দি","Barokandi"],["বড়গোপালপুর","Barogopalpur"],["বি. কে. নগর","Bknagar"],["বিলাসপুর","Bilaspur"],["মূলনা","Mulna"],["সেনেরচর","Shenerchar"]],
+"ডামুড্যা":[["ইসলামপুর","Islampur"],["কনেস্বর","Kaneshar"],["দারুল আমান","Darulaman"],["ধানকাটি","Dankati"],["পুর্ব ডামুড্যা","Purba Damudya"],["শিধলকুড়া","Shidulkura"],["সিড্যা","Sidya"]],
+"নড়িয়া":[["কেদারপুর","Kedarpur"],["ঘড়িষার","Garishar"],["চরআত্রা","Charatra"],["জপসা","Japsa"],["ডিংগামানিক","Dingamanik"],["নওপাড়া","Nowpara"],["নশাসন","Nashason"],["ফতেজংপুর","Fategongpur"],["বিঝারি","Bijari"],["ভূমখাড়া","Vumkhara"],["ভোজেশ্বর","Vojeshwar"],["মোত্তারেরচর","Moktererchar"],["রাজনগর","Rajnagar"]],
+"ভেদরগঞ্জ":[["আরশিনগর","Arsinagar"],["উত্তর তারাবুনিয়া","North Tarabunia"],["কাচিকাঁটা","Kachikata"],["চরকুমারিয়া","Charkumaria"],["চরভাগা","Charvaga"],["চরসেনসাস","Charsensas"],["ছয়গাঁও","Saygaon"],["ডি.এম খালি","D.M Khali"],["দক্ষিন তারাবুনিয়া","South Tarabunia"],["নারায়নপুর","Narayanpur"],["মহিষার","Mahisar"],["রামভদ্রপুর","Ramvadrapur"],["সখিপুর","Sakhipur"]],
+"শরিয়তপুর সদর":[["আংগারিয়া","Angaria"],["চন্দ্রপুর","Chandrapur"],["চিকন্দি","Chikondi"],["চিতলয়া","Chitolia"],["ডোমসার","Domshar"],["তুলাসার","Tulasar"],["পালং","Palong"],["বিনোদপুর","Binodpur"],["মাহমুদপুর","Mahmudpur"],["রুদ্রকর","Rudrakar"],["শৌলপাড়া","Shulpara"]]
+},
+"শেরপুর":{
+"ঝিনাইগাতী":[["কাংশা","Kansa"],["গৌরিপুর","Gouripur"],["ঝিনাইগাতী","Jhenaigati"],["ধানশাইল","Dansail"],["নলকুড়া","Nolkura"],["মালিঝিকান্দা","Malijhikanda"],["হাতিবান্দা","Hatibandha"]],
+"নকলা":[["উরফা","Urpha"],["গণপদ্দী","Gonopoddi"],["গৌড়দ্বার","Gourdwar"],["চন্দ্রকোনা","Chandrakona"],["চরঅষ্টধর","Choraustadhar"],["টালকী","Talki"],["নকলা","Nokla"],["পাঠাকাটা","Pathakata"],["বানেশ্বর্দী","Baneshwardi"]],
+"নালিতাবাড়ী":[["কলসপাড়","Koloshpar"],["কাকরকান্দি","Kakorkandhi"],["নন্নী","Nonni"],["নয়াবীল","Nayabil"],["নালিতাবাড়ী","Nalitabari"],["পোড়াগাও","Puraga"],["বাঘবেড়","Bagber"],["মরিচপুরাণ","Morichpuran"],["যোগনীয়া","Juganiya"],["রাজনগর","Rajnogor"],["রামচন্দ্রকুড়া","Ramchondrokura"],["রূপনারায়নকুড়া","Rupnarayankura"]],
+"শেরপুর সদর":[["কামারিয়া","Kamariya"],["কামারের চর","Kamararchor"],["গাজির খামার","Gajir Khamar"],["চর পক্ষীমারি","Chorpokhimari"],["চর মোচারিয়া","Chor Mochoriya"],["চরশেরপুর","Chorsherpur"],["ধলা","Dhola"],["পাকুরিয়া","Pakuriya"],["বলাইরচর","Balairchar"],["বাজিতখিলা","Bajitkhila"],["বেতমারি ঘুঘুরাকান্দি","Betmari Ghughurakandi"],["ভাতশালা","Vatshala"],["রৌহা","Rouha"],["লছমনপুর","Losmonpur"]],
+"শ্রীবরদী":[["কাকিলাকুড়া","Kakilakura"],["কুড়িকাহনিয়া","Kurikahonia"],["খড়িয়া কাজিরচর","Kharia Kazirchar"],["গড়জরিপা","Garjaripa"],["গোশাইপুর","Gosaipur"],["তাতীহাটি","Tatihati"],["ভেলুয়া","Bhelua"],["রানীশিমুল","Ranishimul"],["শ্রীবরদী","Sreebordi"],["সিংগাবরুনা","Singabaruna"]]
+},
+"সাতক্ষীরা":{
+"আশাশুনি":[["আনুলিয়া","Anulia"],["আশাশুনি","Assasuni"],["কাদাকাটি","Kadakati"],["কুল্যা","Kulla"],["খাজরা","Khajra"],["দরগাহপুর","Durgapur"],["প্রতাপনগর","Pratapnagar"],["বড়দল","Baradal"],["বুধহাটা","Budhhata"],["শোভনালী","Sobhnali"],["শ্রীউলা","Sreeula"]],
+"কলারোয়া":[["কয়লা","Kaila"],["কুশোডাংগা","Kushadanga"],["কেঁড়াগাছি","Keragachhi"],["কেরালকাতা","Keralkata"],["চন্দনপুর","Chandanpur"],["জয়নগর","Joynagar"],["জালালাবাদ","Jallabad"],["দেয়ারা","Deara"],["যুগিখালী","Jogikhali"],["লাঙ্গলঝাড়া","Langaljhara"],["সোনাবাড়িয়া","Sonabaria"],["হেলাতলা","Helatala"]],
+"কালিগঞ্জ":[["কুশুলিয়া","Kushlia"],["কৃষ্ণনগর","Krishnanagar"],["চাম্পাফুল","Champaphul"],["তারালী","Tarali"],["দক্ষিণ শ্রীপুর","Dakshin Sreepur"],["ধলবাড়িয়া","Dhalbaria"],["নলতা","Nalta"],["বিষ্ণুপুর","Bishnupur"],["ভাড়াশিমলা","Bharasimla"],["মথুরেশপুর","Mathureshpur"],["মৌতলা","Mautala"],["রতনপুর","Ratanpur"]],
+"তালা":[["ইসলামকাটি","Islamkati"],["কুমিরা","Kumira"],["খলিলনগর","Khalilnagar"],["খলিশখালী","Khalishkhali"],["খেশরা","Khesra"],["জালালপুর","Jalalpur"],["তালা","Tala"],["তেতুলিয়া","Tentulia"],["ধানদিয়া","Dhandia"],["নগরঘাটা","Nagarghata"],["মাগুরা","Magura"],["সরুলিয়া","Sarulia"]],
+"দেবহাটা":[["কুলিয়া","Kulia"],["দেবহাটা","Debhata"],["নওয়াপাড়া","Noapara"],["পারুলিয়া","Parulia"],["সখিপুর","Sakhipur"]],
+"শ্যামনগর":[["আটুলিয়া","Atulia"],["ঈশ্বরীপুর","Ishwaripur"],["কাশিমাড়ী","Kashimari"],["কৈখালী","Kaikhali"],["গাবুরা","Gabura"],["নুরনগর","Nurnagar"],["পদ্মপুকুর","Padmapukur"],["বুড়িগোয়ালিনী","Burigoalini"],["ভুরুলিয়া","Bhurulia"],["মুন্সীগজ্ঞ","Munshiganj"],["রমজাননগর","Ramjannagar"],["শ্যামনগর","Shyamnagar"]],
+"সাতক্ষীরা সদর":[["আগরদাড়ী","Agardari"],["আলিপুর","Alipur"],["কুশখালী","Kuskhali"],["ঘোনা","Ghona"],["ঝাউডাঙ্গা","Jhaudanga"],["ধুলিহর","Dhulihar"],["ফিংড়ি","Fingri"],["বল্লী","Balli"],["বাঁশদহ","Banshdaha"],["বৈকারী","Baikari"],["ব্রক্ষ্মরাজপুর","Brahmarajpur"],["ভোমরা","Bhomra"],["লাবসা","Labsa"],["শিবপুর","Shibpur"]]
+},
+"সিরাজগঞ্জ":{
+"উল্লাপাড়া":[["উধুনিয়া","Udhunia"],["উল্লাপাড়া সদর","Ullapara Sadar"],["দুর্গা নগর","Durga Nagar"],["পঞ্চক্রোশী","Ponchocroshi"],["পূর্ণিমাগাতী","Purnimagati"],["বড়পাঙ্গাসী","Boropangashi"],["বড়হর","Borohor"],["বাঙ্গালা","Bangala"],["মোহনপুর","Mohonpur"],["রামকৃষ্ণপুর","Ramkrisnopur"],["সলঙ্গা","Salanga"],["সলপ","Salo"],["হটিকুমরুল","Hatikumrul"]],
+"কাজীপুর":[["কাজিপুর সদর","Kazipur Sadar"],["খাসরাজবাড়ী","Khasrajbari"],["গান্ধাইল","Gandail"],["চরগিরিশ","Chargirish"],["চালিতাডাঙ্গা","Chalitadangha"],["তেকানী","Tekani"],["নাটুয়ারপাড়া","Natuarpara"],["নিশ্চিন্তপুর","Nishchintapur"],["মনসুর নগর","Monsur Nagar"],["মাইজবাড়ী","Maijbari"],["শুভগাছা","Subhagacha"],["সোনামুখী","Sonamukhi"]],
+"কামারখন্দ":[["জামতৈল","Jamtail"],["ঝাঐল","Jhawail"],["ভদ্রঘাট","Bhadraghat"],["রায়দৌলতপুর","Roydaulatpur"]],
+"চৌহালি":[["উমারপুর","Omarpur"],["খাসকাউলিয়া","Khaskaulia"],["খাসপুকুরিয়া","Khaspukuria"],["ঘোরজান","Gharjan"],["বাঘুটিয়া","Baghutia"],["সদিয়া চাঁদপুর","Sadia Chandpur"],["স্থল","Sthal"]],
+"তাড়াশ":[["তাড়াশ সদর","Tarash Sadar"],["তালম","Talam"],["দেশীগ্রাম","Deshigram"],["নওগাঁ","Naogaon"],["বারুহাস","Baruhas"],["মাগুড়া বিনোদ","Magura Binod"],["মাধাইনগর","Madhainagar"],["সগুনা","Soguna"]],
+"বেলকুচি":[["দৌলতপুর","Doulatpur"],["ধুকুরিয়া বেড়া","Dhukuriabera"],["বড়ধুল","Baradhul"],["বেলকুচি সদর","Belkuchi Sadar"],["ভাঙ্গাবাড়ী","Bhangabari"],["রাজাপুর","Rajapur"]],
+"রায়গঞ্জ":[["ঘুড়কা","Ghurka"],["চান্দাইকোনা","Chandaikona"],["ধানগড়া","Dhangora"],["ধামাইনগর","Dhamainagar"],["ধুবিল","Dhubil"],["নলকা","Nalka"],["পাঙ্গাসী","Pangashi"],["ব্রহ্মগাছা","Brommogacha"],["সোনাখাড়া","Sonakhara"]],
+"শাহজাদপুর":[["কায়েমপুর","Kayempure"],["কৈজুরী","Koizuri"],["খুকনী","Khukni"],["গাড়াদহ","Garadah"],["গালা","Gala"],["জালালপুর","Jalalpur"],["নরিনা","Narina"],["পোতাজিয়া","Potazia"],["পোরজনা","Porzona"],["বেলতৈল","Beltail"],["রূপবাটি","Rupbati"],["সোনাতনী","Sonatoni"],["হাবিবুল্লাহ নগর","Habibullah Nagar"]],
+"সিরাজগঞ্জ সদর":[["কাওয়াখোলা","Kowakhola"],["কালিয়াহরিপুর","Kaliahoripur"],["খোকশাবাড়ী","Khokshabari"],["ছোনগাছা","Songacha"],["বহুলী","Bohuli"],["বাগবাটি","Bagbati"],["মেছড়া","Mesra"],["রতনকান্দি","Ratankandi"],["শিয়ালকোল","Sheyalkol"],["সয়দাবাদ","Soydabad"]]
+},
+"সিলেট":{
+"ওসমানী নগর":[["উমরপুর","Umorpur"],["উসমানপুর","Usmanpur"],["গোয়ালাবাজার","Goalabazar"],["তাজপুর","Tazpur"],["দয়ামীর","Doyamir"],["পশ্চিম পৈলনপুর","West Poilanpur"],["বুরুঙ্গাবাজার","Burungabazar"],["সাদিরপুর","Sadipur"]],
+"কানাইঘাট":[["কানাইঘাট","Kanaighat"],["ঝিঙ্গাবাড়ী","Jinghabari"],["দক্ষিন বানিগ্রাম","Dakhin Banigram"],["দিঘিরপার পূর্ব","Digirpar Purbo"],["বড়চতুল","Barachotul"],["রাজাগঞ্জ","Rajagonj"],["লক্ষীপ্রাসাদ পশ্চিম","Lakshiprashad Pashim"],["লক্ষীপ্রাসাদ পূর্ব","Lakshiprashad Purbo"],["সাতবাক","Satbakh"]],
+"কোম্পানীগঞ্জ":[["ইসলামপুর পশ্চিম","Islampur Paschim"],["ইসলামপুর পূর্ব","Islampur Purba"],["ইসাকলস","Isakalas"],["উত্তর রনিখাই","Uttor Ronikhai"],["তেলিখাল","Telikhal"],["দক্ষিন রনিখাই","Dakkin Ronikhai"]],
+"গোয়াইনঘাট":[["আলীরগাঁও","Alirgaon"],["ডৌবাড়ী","Daubari"],["তোয়াকুল","Towakul"],["নন্দিরগাঁও","Nandirgaon"],["পশ্চিম জাফলং","Paschim Jaflong"],["পূর্ব জাফলং","Purba Jaflong"],["ফতেপুর","Fothepur"],["রুস্তমপুর","Rustampur"],["লেঙ্গুড়া","Lengura"]],
+"গোলাপগঞ্জ":[["উত্তর বাদেপাশা","Uttar Badepasha"],["গোলাপগঞ্জ","Golapganj"],["ঢাকাদক্ষিন","Dhakadakshin"],["পশ্চিম আমুরা","West Amura"],["ফুলবাড়ী","Fulbari"],["বুধবারীবাজার","Budhbaribazar"],["ভাদেশ্বর","Bhadeshwar"],["লক্ষনাবন্দ","Lakshanaband"],["লক্ষ্মীপাশা","Lakshmipasha"],["শরিফগঞ্জ","Sharifganj"]],
+"জকিগঞ্জ":[["কলাছড়া","Kolachora"],["কসকনকপুর","Kaskanakpur"],["কাজলশার","Kajalshah"],["জকিগঞ্জ","Zakiganj"],["বারঠাকুরী","Barothakuri"],["বারহাল","Barohal"],["বিরশ্রী","Birorsri"],["মানিকপুর","Manikpur"],["সুলতানপুর","Sultanpur"]],
+"জৈন্তাপুর":[["চারিকাটা","Charikatha"],["চিকনাগুল","Chiknagul"],["জৈন্তাপুর","Jaintapur"],["দরবস্ত","Darbast"],["নিজপাট","Nijpat"],["ফতেপুর","Fatehpur"]],
+"দক্ষিণ সুরমা":[["কামালবাজার","Kamalbazar"],["কুচাই","Kuchai"],["জালালপুর","Jalalpur"],["তেতলী","Tetli"],["দাউদপুর","Daudpur"],["বড়ইকান্দি","Boroikandi"],["মোগলাবাজার","Moglabazar"],["মোল্লারগাঁও","Mollargaon"],["লালাবাজার","Lalabazar"],["সিলাম","Silam"]],
+"ফেঞ্চুগঞ্জ":[["উত্তর কুশিয়ারা","Uttar Kushiara"],["উত্তর ফেঞ্চুগঞ্জ","Uttar Fenchuganj"],["ঘিলাছড়া","Ghilachora"],["ফেঞ্চুগঞ্জ","Fenchuganj"],["মাইজগাঁও","Maijgaon"]],
+"বালাগঞ্জ":[["দেওয়ান বাজার","Dewanbazar"],["পশ্চিম গৌরীপুর","West Gouripur"],["পূর্ব গৌরীপুর","East Gouripur"],["পূর্ব পৈলনপুর","East Poilanpur"],["বালাগঞ্জ","Balaganj"],["বোয়ালজুর","Boaljur"]],
+"বিয়ানীবাজার":[["আলীনগর","Alinagar"],["কুড়ারবাজার","Kurarbazar"],["চরখাই","Charkhai"],["তিলপাড়া","Tilpara"],["দুবাগ","Dubag"],["মাথিউরা","Mathiura"],["মুড়িয়া","Muria"],["মোল্লাপুর","Mullapur"],["লাউতা","Lauta"],["শেওলা","Sheola"]],
+"বিশ্বনাথ":[["অলংকারী","Alankari"],["খাজাঞ্চী","Khajanchi"],["দশঘর","Doshghar"],["দেওকলস","Dewkalash"],["দৌলতপুর","Daulatpur"],["বিশ্বনাথ","Bishwanath"],["রামপাশা","Rampasha"],["লামাকাজী","Lamakazi"]],
+"সিলেট সদর":[["কান্দিগাও","Kandigaon"],["খাদিমনগর","Khadimnagar"],["খাদিমপাড়া","Khadimpara"],["জালালাবাদ","Jalalabad"],["টুকেরবাজার","Tukerbazar"],["টুলটিকর","Tultikor"],["মোগলগাও","Mugolgaon"],["হাটখোলা","Hatkhula"]]
+},
+"সুনামগঞ্জ":{
+"ছাতক":[["ইসলামপুর","Islampur"],["কালারুকা","Kalaruka"],["খুরমা উত্তর","Khurma North"],["খুরমা দক্ষিণ","Khurma South"],["গোবিন্দগঞ্জ-সৈদেরগাঁও","Gobindganj-Syedergaon"],["চরমহল্লা","Chormohalla"],["ছাতক সদর","Chhatak Sadar"],["ছৈলা আফজলাবাদ","Chhaila Afjalabad"],["জাউয়া বাজার","Jauwabazar"],["দোলারবাজার","Dolarbazar"],["নোয়ারাই","Noarai"],["ভাতগাঁও","Bhatgaon"],["সিংচাপইড়","Singchapair"]],
+"জগন্নাথপুর":[["আশারকান্দি","Asharkandi"],["কলকলিয়া","Kolkolia"],["চিলাউড়া হলদিপুর","Chilaura Holdipur"],["পাইলগাঁও","Pailgaon"],["পাটলী","Patli"],["মীরপুর","Mirpur"],["রানীগঞ্জ","Raniganj"],["সৈয়দপুর শাহাড়পাড়া","Syedpur Shaharpara"]],
+"জামালগঞ্জ":[["জামালগঞ্জ সদর","Jamalganj Sadar"],["ফেনারবাক","Fenerbak"],["বেহেলী","Beheli"],["ভীমখালী","Bhimkhali"],["সাচনাবাজার","Sachnabazar"]],
+"তাহিরপুর":[["তাহিরপুর সদর","Tahirpur Sadar"],["বড়দল উত্তর","Bordal North"],["বড়দল দক্ষিণ","Bordal South"],["বাদাঘাট","Badaghat"],["বালিজুরী","Balijuri"],["শ্রীপুর উত্তর","Sreepur North"],["শ্রীপুর দক্ষিণ","Sreepur South"]],
+"দক্ষিণ সুনামগঞ্জ":[["জয়কলস","Joykalash"],["দরগাপাশা","Dargapasha"],["পশ্চিম পাগলা","Paschim Pagla"],["পশ্চিম বীরগাঁও","Paschim Birgaon"],["পাথারিয়া","Patharia"],["পূর্ব পাগলা","Purba Pagla"],["পূর্ব বীরগাঁও","Purba Birgaon"],["শিমুলবাক","Shimulbak"]],
+"দিরাই":[["করিমপুর","Karimpur"],["কুলঞ্জ","Kulanj"],["চরনারচর","Charnarchar"],["জগদল","Jagddol"],["তাড়ল","Taral"],["দিরাই সরমঙ্গল","Derai Sarmangal"],["ভাটিপাড়া","Bhatipara"],["রফিনগর","Rafinagar"],["রাজানগর","Rajanagar"]],
+"দোয়ারাবাজার":[["দোয়ারাবাজার","Dowarabazar"],["দোহালিয়া","Dohalia"],["নরসিংহপুর","Norsingpur"],["পান্ডারগাঁও","Pandargaon"],["বাংলাবাজার","Banglabazar"],["বোগলাবাজার","Boglabazar"],["মান্নারগাঁও","Mannargaon"],["লক্ষীপুর","Laxmipur"],["সুরমা","Surma"]],
+"ধর্মপাশা":[["চামরদানী","Chamordani"],["জয়শ্রী","Joyasree"],["ধর্মপাশা সদর","Dharmapasha Sadar"],["পাইকুরাটী","Paikurati"],["বংশীকুন্ডা উত্তর","Bongshikunda North"],["বংশীকুন্ডা দক্ষিণ","Bongshikunda South"],["মধ্যনগর","Madhyanagar"],["সুখাইড় রাজাপুর উত্তর","Sukhair Rajapur North"],["সুখাইড় রাজাপুর দক্ষিণ","Sukhair Rajapur South"],["সেলবরষ","Selbarash"]],
+"বিশ্বম্ভরপুর":[["ধনপুর","Dhanpur"],["পলাশ","Palash"],["ফতেপুর","Fatepur"],["বাদাঘাট দক্ষিণ","Badaghat South"],["সলুকাবাদ","Solukabad"]],
+"শাল্লা":[["আটগাঁও","Atgaon"],["বাহারা","Bahara"],["শাল্লা সদর","Shalla Sadar"],["হবিবপুর","Habibpur"]],
+"সুনামগঞ্জ সদর":[["আপ্তাবনগর","Aptabnagar"],["কাঠইর","Kathair"],["গৌরারং","Gourarang"],["জাহাঙ্গীরনগর","Jahangirnagar"],["মোল্লাপাড়া","Mollapara"],["মোহনপুর","Mohonpur"],["রংগারচর","Rangarchar"],["লক্ষণশ্রী","Laxmansree"],["সুরমা","Surma"]]
+},
+"হবিগঞ্জ":{
+"আজমিরীগঞ্জ":[["আজমিরীগঞ্জ সদর","Ajmiriganj Sadar"],["কাকাইলছেও","Kakailsao"],["জলসুখা","Jolsuka"],["বদলপুর","Badolpur"],["শিবপাশা","Shibpasha"]],
+"চুনারুঘাট":[["আহম্মদাবাদ","Ahammadabad"],["উবাহাটা","Ubahata"],["গাজীপুর","Gazipur"],["চুনারুঘাট","Chunarughat"],["দেওরগাছ","Deorgach"],["পাইকপাড়া","Paikpara"],["মিরাশী","Mirashi"],["রাণীগাঁও","Ranigaon"],["শানখলা","Shankhala"],["সাটিয়াজুরী","Shatiajuri"]],
+"নবীগঞ্জ":[["আউশকান্দি","Aushkandi"],["ইনাতগঞ্জ","Inatganj"],["করগাঁও","Kargoan"],["কালিয়ারভাংগা","Kaliarbhanga"],["কুর্শি","Kurshi"],["গজনাইপুর","Gaznaipur"],["দীঘলবাক","Digholbak"],["দেবপাড়া","Debparra"],["নবীগঞ্জ সদর","Nabiganj Sadar"],["পানিউমদা","Paniumda"],["বড় ভাকৈর (পশ্চিম)","Barabhakoir Paschim"],["বড় ভাকৈর (পূর্ব)","Barabhakoir Purba"],["বাউসা","Bausha"]],
+"বানিয়াচং":[["কাগাপাশা","Kagapasha"],["খাগাউড়া","Khagaura"],["দৌলতপুর","Daulatpur"],["পুকড়া","Pukra"],["পৈলারকান্দি","Pailarkandi"],["বড়ইউড়ি","Baraiuri"],["বানিয়াচং উত্তর পশ্চিম","Baniachong North West"],["বানিয়াচং উত্তর পূর্ব","Baniachong North East"],["বানিয়াচং দক্ষিণ পশ্চিম","Baniachong South West"],["বানিয়াচং দক্ষিণ পূর্ব","Baniachong South East"],["মক্রমপুর","Makrampur"],["মন্দরী","Mandari"],["মুরাদপুর","Muradpur"],["সুজাতপুর","Sujatpur"],["সুবিদপুর","Subidpur"]],
+"বাহুবল":[["পুটিজুরী","Putijuri"],["বাহুবল সদর","Bahubal Sadar"],["ভাদেশ্বর","Bhadeshwar"],["মিরপুর","Mirpur"],["লামাতাশী","Lamatashi"],["সাতকাপন","Satkapon"],["স্নানঘাট","Snanghat"]],
+"মাধবপুর":[["আদাঐর","Adaoir"],["আন্দিউড়া","Andiura"],["চৌমুহনী","Choumohani"],["ছাতিয়াইন","Chhatiain"],["জগদীশপুর","Jagadishpur"],["ধর্মঘর","Dharmaghar"],["নোয়াপাড়া","Noapara"],["বহরা","Bahara"],["বাঘাসুরা","Bagashura"],["বুল্লা","Bulla"],["শাহজাহানপুর","Shahjahanpur"]],
+"লাখাই":[["করাব","Karab"],["বামৈ","Bamoi"],["বুল্লা","Bulla"],["মুড়িয়াউক","Muriauk"],["মোড়াকরি","Murakari"],["লাখাই","Lakhai"]],
+"হবিগঞ্জ সদর":[["গোপায়া","Gopaya"],["তেঘরিয়া","Teghoria"],["নিজামপুর","Nijampur"],["নুরপুর","Nurpur"],["পইল","Poil"],["রাজিউড়া","Rajiura"],["রিচি","Richi"],["লস্করপুর","Laskerpur"],["লুকড়া","Lukra"],["শায়েস্তাগঞ্জ","Shayestaganj"]]
+}
+}}

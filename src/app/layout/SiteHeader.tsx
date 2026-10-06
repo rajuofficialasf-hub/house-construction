@@ -2,11 +2,10 @@ import { LanguageToggle, t } from '@/i18n'
 import { useState } from 'react'
 import { Link, NavLink } from 'react-router'
 import { SITE_NAME, SITE_NAME_SHORT } from '@/config/site'
+import { MobileProjectLinks, ProjectsMenu } from './ProjectsMenu'
 
-const NAV_ITEMS: { to: string; label: string; end?: boolean }[] = [
-  { to: '/', label: 'হোম', end: true },
-  { to: '/housing', label: 'ঘর নির্মাণ প্রকল্প' },
-]
+/** স্থির মেনু; প্রকল্পগুলো "প্রকল্পসমূহ ▾" এ (রেজিস্ট্রি থেকে, ProjectsMenu.tsx) */
+const NAV_ITEMS: { to: string; label: string; end?: boolean }[] = [{ to: '/', label: 'হোম', end: true }]
 
 function navClass({ isActive }: { isActive: boolean }) {
   return [
@@ -39,6 +38,7 @@ export function SiteHeader() {
               {t(item.label)}
             </NavLink>
           ))}
+          <ProjectsMenu />
           <LanguageToggle className="ml-2" />
         </nav>
 
@@ -84,7 +84,8 @@ export function SiteHeader() {
                 {t(item.label)}
               </NavLink>
             ))}
-            <LanguageToggle className="mt-1 self-start" />
+            <MobileProjectLinks onNavigate={() => setOpen(false)} />
+            <LanguageToggle className="mt-2 self-start" />
           </div>
         </nav>
       )}

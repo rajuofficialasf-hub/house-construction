@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { BD_GEO } from '../data/bdGeo'
+import { BD_GEO } from '@/features/geo/data/bdGeo'
 import {
   applyFiltersToSearchParams,
   EMPTY_FILTERS,

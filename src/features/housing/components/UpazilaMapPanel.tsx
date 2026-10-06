@@ -1,14 +1,16 @@
-import { t, gn } from '@/i18n'
+import { gn, pick, t } from '@/i18n'
 import { useState } from 'react'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { formatBanglaNumber } from '@/lib/banglaNumber'
-import type { ProjectType } from '../backend/interfaces/types'
-import { useHousingStats } from '../hooks/useHousingStats'
+import type { Project } from '../../../backend/interfaces/types'
+import type { StatsState } from '../hooks/useHousingStats'
 import type { HousingFilters } from '../utils/filters'
 import { UpazilaMap, type MapSelection } from './UpazilaMap'
 
 interface Props {
-  projectType: ProjectType
+  project: Project
+  /** পেইজের একটিই stats কল (M-ধাপ ১৩) — মানচিত্র আলাদা করে আনে না */
+  stats: StatsState
   filters: HousingFilters
   onChange: (next: HousingFilters) => void
 }
@@ -18,8 +20,10 @@ interface Props {
  * খুললে stats.by_location থেকে পতাকা-মানচিত্র। উপজেলায় ক্লিক → বিভাগ/জেলা/উপজেলা ফিল্টার (সাল/নাম অটুট); আবার ক্লিক → বাতিল।
  * ফিল্টার থেকে উপজেলা বাছলে মানচিত্র নিজে খুলে হাইলাইট করে না (ব্যবহারকারী চাইলে খুলবেন)।
  */
-export function UpazilaMapPanel({ projectType, filters, onChange }: Props) {
-  const stats = useHousingStats(projectType)
+export function UpazilaMapPanel({ project, stats, filters, onChange }: Props) {
+  // এককের শব্দ (unit_bn/unit_en); "ঘর" এর প্রকল্পে আগের বাক্যই ("কোথায় কোথায় ঘর হয়েছে")
+  const unit = pick(project.unit_bn, project.unit_en) || t('ঘর')
+  const housingWording = !project.unit_bn || project.unit_bn === 'ঘর'
   const [open, setOpen] = useState(false)
   const counts = stats.status === 'ready' ? stats.data.by_location : {}
   const upazilaCount = Object.keys(counts).length
@@ -45,10 +49,10 @@ export function UpazilaMapPanel({ projectType, filters, onChange }: Props) {
           <MapIcon className="h-7 w-7" />
         </span>
         <span className="relative min-w-0 flex-1">
-          <span className="block text-base font-bold sm:text-lg">{t('মানচিত্রে দেখুন — কোথায় কোথায় ঘর হয়েছে')}</span>
+          <span className="block text-base font-bold sm:text-lg">{housingWording ? t('মানচিত্রে দেখুন — কোথায় কোথায় ঘর হয়েছে') : t('মানচিত্রে দেখুন — {unit} কোথায় কোথায়', { unit })}</span>
           <span className="block text-sm text-brand-50/90">
             {stats.status === 'ready'
-              ? t('{u} উপজেলায় {n} টি ঘর · উপজেলায় ক্লিক করলে তালিকা সেখানে ফিল্টার হবে', { u: formatBanglaNumber(upazilaCount), n: formatBanglaNumber(total) })
+              ? t('{u} উপজেলায় {n} টি {unit} · উপজেলায় ক্লিক করলে তালিকা সেখানে ফিল্টার হবে', { u: formatBanglaNumber(upazilaCount), n: formatBanglaNumber(total), unit })
               : stats.status === 'error'
                 ? t('মানচিত্র খুলতে ক্লিক করুন')
                 : t('লোড হচ্ছে…')}
@@ -75,7 +79,7 @@ export function UpazilaMapPanel({ projectType, filters, onChange }: Props) {
             <MapIcon className="h-5 w-5" />
           </span>
           <div>
-            <h3 className="text-sm font-semibold text-slate-800">{t('কোথায় কোথায় ঘর হয়েছে')}</h3>
+            <h3 className="text-sm font-semibold text-slate-800">{housingWording ? t('কোথায় কোথায় ঘর হয়েছে') : t('{unit} কোথায় কোথায়', { unit })}</h3>
             <p className="text-xs text-slate-500">
               {stats.status === 'ready'
                 ? t('{u} উপজেলায় পতাকা (রঙ = জেলা) · পতাকা/উপজেলায় ক্লিক করলে তালিকা সেখানে ফিল্টার হবে', { u: formatBanglaNumber(upazilaCount) })
@@ -106,7 +110,7 @@ export function UpazilaMapPanel({ projectType, filters, onChange }: Props) {
           <div className="aspect-[600/760] max-h-[70vh] w-full animate-pulse rounded-xl bg-slate-100" aria-busy="true" />
         ) : (
           <ErrorBoundary compact title={t('মানচিত্র দেখানো যায়নি')}>
-            <UpazilaMap counts={counts} selected={selected} onSelect={select} />
+            <UpazilaMap counts={counts} selected={selected} onSelect={select} unit={unit} housingWording={housingWording} />
           </ErrorBoundary>
         )}
       </div>

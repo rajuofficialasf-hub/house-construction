@@ -1,4 +1,4 @@
-import type { PhotoKind, PhotoVariant, ProjectType } from '../backend/interfaces/types'
+import type { PhotoKind, PhotoVariant, ProjectType } from '../../../backend/interfaces/types'
 import { PHOTO_SPEC } from './photoSpec'
 
 /** bucket এর ভেতরে মূল ফোল্ডার */

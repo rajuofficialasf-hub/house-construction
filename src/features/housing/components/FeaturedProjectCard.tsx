@@ -1,17 +1,19 @@
-import { t, gn } from '@/i18n'
+import { t, gn, lt } from '@/i18n'
 import { Link } from 'react-router'
 import { formatBanglaNumber, toBanglaNumber } from '@/lib/banglaNumber'
-import type { HousingRecord } from '../backend/interfaces/types'
+import type { HousingRecord, Project } from '../../../backend/interfaces/types'
 import { useCountUp } from '../hooks/useCountUp'
+import { formatTaka } from '@/lib/money'
+import { cardValue, homeCards, homeLabel } from '@/features/projects/stats/statCards'
 import { useFeaturedRecord } from '../hooks/useFeaturedRecord'
 import { useHousingStats } from '../hooks/useHousingStats'
 import { photoSrc } from '../utils/imagePath'
-import { projectPath, type ProjectMeta } from '../utils/projectType'
-import { ProjectIcon } from './ProjectIcons'
+import { ProjectIcon, accentOf } from '@/features/projects/registry'
+import { projectPath } from '../utils/housingProjects'
 import { SafeImage } from './SafeImage'
 
 interface Props {
-  project: ProjectMeta
+  project: Project
 }
 
 /**
@@ -21,11 +23,14 @@ interface Props {
  * ডাটা: প্রকল্পের প্রথম উপকারভোগী (সিরিয়াল ১)। ডাটা না থাকলে/এরর হলে শুধু প্রকল্পের বর্ণনা।
  */
 export function FeaturedProjectCard({ project }: Props) {
-  const state = useFeaturedRecord(project.type)
-  const stats = useHousingStats(project.type)
+  const state = useFeaturedRecord(project.key)
+  const stats = useHousingStats(project.key)
+  const title = lt(project, 'name')
   const record = state.status === 'ready' ? state.record : null
-  const listPath = projectPath(project.type)
+  const listPath = projectPath(project)
   const photo = record ? photoSrc(record.current_photo_url ?? record.prev_photo_url, record.photo_updated_at) : null
+  // টাইল প্রকল্পের কনফিগ থেকে (M-ধাপ ১৫): `home: true` কার্ড, লেবেল home_label → label; ঘর নির্মাণে আগের তিনটি হুবহু
+  const cards = homeCards(project)
 
   return (
     <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl bg-white shadow-md ring-1 ring-slate-200/70">
@@ -37,30 +42,32 @@ export function FeaturedProjectCard({ project }: Props) {
           ) : photo ? (
             <SafeImage
               src={photo}
-              alt={`${record!.name} — ${t(project.title)}`}
+              alt={`${record!.name} — ${title}`}
               className="aspect-square w-full rounded-xl object-cover sm:w-44"
               placeholderClassName="aspect-square w-full rounded-xl sm:w-44"
             />
           ) : (
-            <div className="flex aspect-square w-full items-center justify-center rounded-xl bg-brand-50 text-brand-700 sm:w-44" aria-hidden="true">
-              <ProjectIcon type={project.type} className="h-20 w-20" />
+            <div className={`flex aspect-square w-full items-center justify-center rounded-xl sm:w-44 ${accentOf(project.accent).soft}`} aria-hidden="true">
+              <ProjectIcon icon={project.icon} className="h-20 w-20" />
             </div>
           )}
         </div>
 
         {/* লেখা */}
         <div className="flex min-w-0 flex-1 flex-col">
-          <h3 className="text-lg font-bold text-slate-900">{t(project.title)}</h3>
-          <dl className="mt-3 grid flex-1 grid-cols-3 gap-2">
-            <StatTile label={t('মোট ঘর নির্মাণ')} value={stats.status === 'ready' ? stats.data.total : null} loading={stats.status === 'loading'} accent />
-            <StatTile label={t('মোট জেলা কভার')} value={stats.status === 'ready' ? stats.data.distinct.districts : null} loading={stats.status === 'loading'} />
-            <StatTile label={t('মোট উপজেলা কভার')} value={stats.status === 'ready' ? stats.data.distinct.upazilas : null} loading={stats.status === 'loading'} />
-          </dl>
+          <h3 className="text-lg font-bold text-slate-900">{title}</h3>
+          {cards.length > 0 && (
+            <dl className={`mt-3 grid flex-1 ${TILE_COLS[cards.length] ?? 'grid-cols-3'} gap-2`}>
+              {cards.map((c, i) => (
+                <StatTile key={c.id} label={homeLabel(c)} value={stats.status === 'ready' ? cardValue(c, stats.data) : null} loading={stats.status === 'loading'} money={c.format === 'money'} accent={i === 0} />
+              ))}
+            </dl>
+          )}
           <div className="mt-4">
             <Link
               to={listPath}
               className="inline-flex items-center gap-2 rounded-md border-2 border-brand-600 px-4 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-600 hover:text-white"
-              aria-label={`${t(project.title)} — ${t('আরো দেখুন')}`}
+              aria-label={`${title} — ${t('আরো দেখুন')}`}
             >
               {t('আরো দেখুন')}
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
@@ -77,16 +84,20 @@ export function FeaturedProjectCard({ project }: Props) {
   )
 }
 
-/** কার্ডের ছোট পরিসংখ্যান টাইল: বড় বাংলা সংখ্যা (count-up) + লেবেল; লোডিংয়ে skeleton; ডাটা না এলে "—" */
-function StatTile({ label, value, loading, accent = false }: { label: string; value: number | null; loading: boolean; accent?: boolean }) {
+/** টাইলের কলাম (Tailwind পুরো ক্লাসের নাম দেখতে চায়) */
+const TILE_COLS: Record<number, string> = { 1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-3' }
+
+/** কার্ডের ছোট পরিসংখ্যান টাইল: বড় বাংলা সংখ্যা (count-up; টাকা ৳) + লেবেল; লোডিংয়ে skeleton; ডাটা না এলে "—" */
+function StatTile({ label, value, loading, accent = false, money = false }: { label: string; value: number | null; loading: boolean; accent?: boolean; money?: boolean }) {
   const shown = useCountUp(value ?? 0)
+  const fmt = money ? formatTaka : formatBanglaNumber
   return (
     <div className={`flex min-w-0 flex-col items-center justify-center rounded-xl px-2 py-3 text-center ${accent ? 'bg-brand-700 text-white' : 'bg-brand-50 text-brand-900'}`}>
       {loading ? (
         <dd className={`h-7 w-10 animate-pulse rounded ${accent ? 'bg-white/30' : 'bg-brand-200'}`} aria-busy="true" />
       ) : (
-        <dd className="text-2xl leading-none font-bold tabular-nums sm:text-3xl" aria-label={`${label}: ${value === null ? t('অজানা') : formatBanglaNumber(value)}`}>
-          {value === null ? '—' : formatBanglaNumber(shown)}
+        <dd className={money ? 'text-lg leading-none font-bold tabular-nums sm:text-xl' : 'text-2xl leading-none font-bold tabular-nums sm:text-3xl'} aria-label={`${label}: ${value === null ? t('অজানা') : fmt(value)}`}>
+          {value === null ? '—' : fmt(Math.round(shown))}
         </dd>
       )}
       <dt className={`mt-1.5 text-[11px] leading-tight font-medium sm:text-xs ${accent ? 'text-white/85' : 'text-brand-800/80'}`}>{label}</dt>
@@ -94,7 +105,7 @@ function StatTile({ label, value, loading, accent = false }: { label: string; va
   )
 }
 
-function FeaturedBar({ record, project, loading }: { record: HousingRecord | null; project: ProjectMeta; loading: boolean }) {
+function FeaturedBar({ record, project, loading }: { record: HousingRecord | null; project: Project; loading: boolean }) {
   if (loading) {
     return (
       <div className="grid animate-pulse gap-3 bg-accent-500/90 px-5 py-4 sm:grid-cols-3 sm:px-6" aria-hidden="true">
@@ -107,7 +118,7 @@ function FeaturedBar({ record, project, loading }: { record: HousingRecord | nul
   if (!record) {
     return (
       <div className="bg-accent-500 px-5 py-4 text-sm font-medium text-brand-950 sm:px-6">
-        {t('{title} — উপকারভোগীদের তালিকা দেখতে "আরো দেখুন" চাপুন।', { title: t(project.title) })}
+        {t('{title} — উপকারভোগীদের তালিকা দেখতে "আরো দেখুন" চাপুন।', { title: lt(project, 'name') })}
       </div>
     )
   }
@@ -129,7 +140,7 @@ function FeaturedBar({ record, project, loading }: { record: HousingRecord | nul
       <div className="min-w-0 text-sm leading-snug">
         <dt className="sr-only">{t('প্রকল্প ও সিরিয়াল')}</dt>
         <dd className="truncate font-medium">
-          {t(project.title)} {toBanglaNumber(record.year)}
+          {lt(project, 'name')} {toBanglaNumber(record.year)}
         </dd>
         <dd>
           {t('সিরিয়াল নম্বর:')} <span className="font-semibold">{toBanglaNumber(record.serial_no)}</span>

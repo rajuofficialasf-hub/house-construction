@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { BD_GEO } from '../../src/features/housing/data/bdGeo'
+import { BD_GEO } from '../../src/features/geo/data/bdGeo'
 
 export const GEO = {
   division: BD_GEO[0].name,

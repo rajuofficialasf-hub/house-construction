@@ -3,7 +3,7 @@ import { Readable } from 'node:stream'
 import { hashPassword } from '../../server/src/auth/password'
 import { createNasDriver } from '../../server/src/storage/drivers/nas'
 import { insertAdmin, ownerDb, resetTestData } from '../../server/test/support/db'
-import { MOCK_ADMIN, seedRecords } from '../../src/features/housing/backend/mock/fixtures'
+import { MOCK_ADMIN, seedRecords } from '../../src/backend/mock/fixtures'
 import { ADMIN_REST_API_URL, E2E_STORAGE_ROOT } from './rest-env'
 
 /**
@@ -49,7 +49,8 @@ export async function resetRestData(): Promise<void> {
   await resetTestData(owner)
   // Same ids, serials and names as the mock seed, so the specs find the same rows. Records that have
   // photos in the mock seed get real files in the API's storage instead of the mock placeholders.
-  const seeds = seedRecords()
+  // The server's table has no union_name or extra column yet (single-project schema).
+  const seeds = seedRecords().map(({ union_name: _u, extra: _e, ...record }) => record)
   const files: Awaited<ReturnType<typeof seedPhotoFile>>['row'][] = []
   const rows = await Promise.all(
     seeds.map(async (record) => {

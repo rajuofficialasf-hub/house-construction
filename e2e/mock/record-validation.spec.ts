@@ -45,7 +45,7 @@ test('the name is saved trimmed and NFC-normalized', async ({ page }) => {
   await page.getByRole('textbox', { name: 'উপকারভোগীর নাম *' }).fill(`   ${raw}   `)
   await fillPlace(page)
   await page.getByRole('button', { name: /যোগ করুন$/ }).click()
-  await expect(page).toHaveURL(/\/housing\/admin\/tin$/)
+  await expect(page).toHaveURL(/\/admin\/records\/tin$/)
   const cell = page.getByRole('cell', { name: stored, exact: true })
   await expect(cell).toBeVisible()
   expect(await cell.innerText()).toBe(stored)

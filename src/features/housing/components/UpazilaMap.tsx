@@ -2,7 +2,7 @@ import { t as tr, gn } from '@/i18n'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { geoMercator, geoPath } from 'd3-geo'
 import { formatBanglaNumber, toBanglaNumber } from '@/lib/banglaNumber'
-import { HousingApiError } from '../backend/interfaces/types'
+import { HousingApiError } from '../../../backend/interfaces/types'
 import { districtColors, withAlpha } from '../utils/districtColors'
 import { loadMapData, locationKey, type MapData, type UpazilaFeature } from '../utils/mapData'
 import { ErrorNotice } from './ErrorNotice'
@@ -20,6 +20,10 @@ interface Props {
   selected?: { district: string; upazila: string } | null
   onSelect: (sel: MapSelection | null) => void
   className?: string
+  /** এককের শব্দ (প্রকল্পের unit_bn/unit_en, বর্তমান ভাষায়) — যেমন "ঘর" (M-ধাপ ১৩) */
+  unit?: string
+  /** ঘর নির্মাণের আগের বাক্য ("যেখানে ঘর হয়েছে") রাখতে */
+  housingWording?: boolean
 }
 
 const W = 600
@@ -54,7 +58,8 @@ function zoomAt(t: Transform, p: { x: number; y: number }, factor: number): Tran
  * হালকা fill **জেলাভেদে আলাদা রঙ**। hover এ টুলটিপ; ক্লিকে onSelect (আবার ক্লিকে বাতিল)। হুইল/পিঞ্চ জুম, ড্র্যাগ প্যান,
  * +/−/রিসেট। টাইল-ম্যাপ নেই — পরিষ্কার।
  */
-export function UpazilaMap({ counts, selected, onSelect, className = '' }: Props) {
+export function UpazilaMap({ counts, selected, onSelect, className = '', unit, housingWording = true }: Props) {
+  const unitWord = unit || tr('ঘর')
   const [data, setData] = useState<MapData | null>(null)
   const [error, setError] = useState<HousingApiError | null>(null)
   const [t, setT] = useState<Transform>(IDENTITY)
@@ -266,7 +271,7 @@ export function UpazilaMap({ counts, selected, onSelect, className = '' }: Props
         {geo && (
           <div className="absolute bottom-2 left-2 z-10 rounded-md bg-white/90 px-2.5 py-1.5 text-[11px] text-slate-700 shadow-sm ring-1 ring-slate-200">
             <span className="font-medium">
-              {tr('{d} জেলার {u} উপজেলায় {n} টি ঘর', { d: formatBanglaNumber(palette.list.length), u: formatBanglaNumber(geo.withData), n: formatBanglaNumber(geo.total) })}
+              {tr('{d} জেলার {u} উপজেলায় {n} টি {unit}', { d: formatBanglaNumber(palette.list.length), u: formatBanglaNumber(geo.withData), n: formatBanglaNumber(geo.total), unit: unitWord })}
             </span>
           </div>
         )}
@@ -275,7 +280,7 @@ export function UpazilaMap({ counts, selected, onSelect, className = '' }: Props
           ref={svgRef}
           viewBox={`0 0 ${W} ${H}`}
           role="img"
-          aria-label={tr('উপজেলা মানচিত্র — যেখানে ঘর হয়েছে সেখানে জেলার রঙের পতাকা ও সংখ্যা; ক্লিক করলে ফিল্টার')}
+          aria-label={housingWording ? tr('উপজেলা মানচিত্র — যেখানে ঘর হয়েছে সেখানে জেলার রঙের পতাকা ও সংখ্যা; ক্লিক করলে ফিল্টার') : tr('উপজেলা মানচিত্র — যেসব উপজেলায় {unit} আছে সেখানে জেলার রঙের পতাকা ও সংখ্যা; ক্লিক করলে ফিল্টার', { unit: unitWord })}
           className={`block h-auto w-full max-h-[70vh] rounded-xl bg-slate-50 select-none ${t.k > 1 ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}`}
           style={{ touchAction: 'none' }}
           onPointerLeave={() => setHover(null)}
@@ -331,7 +336,7 @@ export function UpazilaMap({ counts, selected, onSelect, className = '' }: Props
           )}
         </svg>
 
-        {hover && <Tooltip hover={hover} count={hover.f.properties.ds && hover.f.properties.up ? (counts[locationKey(hover.f.properties.ds, hover.f.properties.up)] ?? 0) : 0} color={hover.f.properties.ds ? palette.byDistrict.get(hover.f.properties.ds)?.color : undefined} />}
+        {hover && <Tooltip hover={hover} count={hover.f.properties.ds && hover.f.properties.up ? (counts[locationKey(hover.f.properties.ds, hover.f.properties.up)] ?? 0) : 0} color={hover.f.properties.ds ? palette.byDistrict.get(hover.f.properties.ds)?.color : undefined} unit={unitWord} />}
       </div>
     </div>
   )
@@ -381,7 +386,7 @@ function Flag({
 }
 
 
-function Tooltip({ hover, count, color }: { hover: { f: UpazilaFeature; x: number; y: number }; count: number; color?: string }) {
+function Tooltip({ hover, count, color, unit }: { hover: { f: UpazilaFeature; x: number; y: number }; count: number; color?: string; unit: string }) {
   const p = hover.f.properties
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null)
   const ref = useRef<HTMLDivElement>(null)
@@ -404,7 +409,7 @@ function Tooltip({ hover, count, color }: { hover: { f: UpazilaFeature; x: numbe
       <p className="mt-1">
         {count > 0 ? (
           <>
-            <span className="font-bold text-green-300">{formatBanglaNumber(count)}</span> {tr('টি ঘর · ক্লিক করে তালিকা দেখুন')}
+            <span className="font-bold text-green-300">{formatBanglaNumber(count)}</span> {tr('টি {unit} · ক্লিক করে তালিকা দেখুন', { unit })}
           </>
         ) : p.up ? (
           tr('এখনো কাজ হয়নি')

@@ -1,5 +1,10 @@
 import { describe, expect, test } from 'vitest'
-import { parsePhotoFilename } from './photoFilename'
+import { FALLBACK_PROJECTS } from '@/backend/fallbackProjects'
+import { buildProjectAliases, parsePhotoFilename as parseWith } from './photoFilename'
+
+// ঘর নির্মাণের ফলব্যাক প্রকল্প থেকে প্রিফিক্স (semi, tin, semi_pucca …)
+const aliases = buildProjectAliases(FALLBACK_PROJECTS)
+const parsePhotoFilename = (name: string) => parseWith(name, aliases)
 
 describe('parsePhotoFilename', () => {
   test('parses project, serial and kind from the documented names', () => {
@@ -17,9 +22,12 @@ describe('parsePhotoFilename', () => {
     expect(parsePhotoFilename('folder/semi_5_old.jpg')?.kind).toBe('prev')
   })
 
-  test('rejects an unknown project prefix, unknown kind, zero serial and bad extension', () => {
+  test('an unknown kind word leaves the kind to the project photo mode', () => {
+    expect(parsePhotoFilename('tin_0001_side.jpg')).toEqual({ project_type: 'tin', serial_no: 1, kind: null })
+  })
+
+  test('rejects an unknown project prefix, zero serial and bad extension', () => {
     expect(parsePhotoFilename('villa_0001_prev.jpg')).toBeNull()
-    expect(parsePhotoFilename('tin_0001_side.jpg')).toBeNull()
     expect(parsePhotoFilename('tin_0000_prev.jpg')).toBeNull()
     expect(parsePhotoFilename('tin_0001_prev.gif')).toBeNull()
     expect(parsePhotoFilename('random.jpg')).toBeNull()

@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, test as vitestTest } from 'vitest'
-import { BD_GEO } from '../../src/features/housing/data/bdGeo'
-import { HousingApiError, type HousingRecord, type HousingRecordInput, type ProjectType } from '../../src/features/housing/backend/interfaces/types'
+import { BD_GEO } from '../../src/features/geo/data/bdGeo'
+import { HousingApiError, type HousingRecord, type HousingRecordInput, type ProjectType } from '../../src/backend/interfaces/types'
 import type { ContractHarness, ContractOptions } from './harness'
 
 const dv = BD_GEO[0]
@@ -261,7 +261,7 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
         const seen: (string | null)[] = []
         const off = h.auth.onAuthChange((u) => seen.push(u?.email ?? null))
         const user = await loginAdmin()
-        expect(user.role).toBe('admin')
+        expect(['admin', 'main_admin']).toContain(user.role)
         expect((await h.auth.currentUser())?.email).toBe(h.admin!.email)
         expect(await h.auth.isAdmin()).toBe(true)
         await h.auth.logout()

@@ -3,7 +3,7 @@ import postgres from 'postgres';
 import { ZodError } from 'zod';
 
 // Error codes and statuses from docs/api/API_CONTRACT.md §1.2. The REST adapter in
-// src/features/housing/backend/rest/http.ts relies on exactly these codes.
+// src/backend/rest/http.ts relies on exactly these codes.
 export const ERROR_STATUS = {
   VALIDATION_ERROR: 400,
   UNAUTHENTICATED: 401,

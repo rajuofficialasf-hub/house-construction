@@ -1,13 +1,19 @@
 import { t } from '@/i18n'
 import { useRef } from 'react'
-import { PROJECT_LIST } from '../utils/projectType'
+import type { ProjectKey } from '../../../backend/interfaces/types'
+import { useGroupChildren } from '../utils/housingProjects'
 import { FeaturedProjectCard } from './FeaturedProjectCard'
 
 /**
  * হোম পেইজের "প্রকল্পসমূহ" সেকশন: প্রতিটি প্রকল্পের একটি কার্ড।
  * ডেস্কটপে পাশাপাশি; ছোট পর্দায় অনুভূমিক স্ক্রল-স্ন্যাপ ও দুই পাশে তীর বাটন (ক্যারোসেল-ধাঁচ)।
  */
-export function FeaturedProjects() {
+/**
+ * groupKey: কোন গ্রুপের উপ-প্রকল্পের কার্ড (না দিলে ঘর নির্মাণ)।
+ * intro: শিরোনামের নিচের লেখা (M-ধাপ ১৫) — না দিলে ঘর নির্মাণের আগের লেখা; খালি স্ট্রিং দিলে লেখা নেই।
+ */
+export function FeaturedProjects({ groupKey, intro }: { groupKey?: ProjectKey; intro?: string }) {
+  const projects = useGroupChildren(groupKey)
   const scroller = useRef<HTMLDivElement>(null)
   const scrollBy = (dir: -1 | 1) => {
     const el = scroller.current
@@ -20,9 +26,11 @@ export function FeaturedProjects() {
       <div className="container-page">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-bold text-slate-900 sm:text-4xl">{t('প্রকল্পসমূহ')}</h2>
-          <p className="mt-3 text-sm text-slate-600 sm:text-base">
-            {t('ঘরহীন ও অসহায় পরিবারের জন্য নিরাপদ বাসস্থান। সেমিপাকা ও টিনের ঘর নির্মাণ প্রকল্পের উপকারভোগীদের তথ্য ও আগে-পরের ছবি সবার জন্য উন্মুক্ত।')}
-          </p>
+          {intro !== '' && (
+            <p className="mt-3 text-sm text-slate-600 sm:text-base">
+              {intro ?? t('ঘরহীন ও অসহায় পরিবারের জন্য নিরাপদ বাসস্থান। সেমিপাকা ও টিনের ঘর নির্মাণ প্রকল্পের উপকারভোগীদের তথ্য ও আগে-পরের ছবি সবার জন্য উন্মুক্ত।')}
+            </p>
+          )}
         </div>
 
         <div className="relative mt-10">
@@ -31,8 +39,8 @@ export function FeaturedProjects() {
             ref={scroller}
             className="flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth pb-2 [scrollbar-width:none] lg:grid lg:grid-cols-2 lg:gap-8 lg:overflow-visible [&::-webkit-scrollbar]:hidden"
           >
-            {PROJECT_LIST.map((p) => (
-              <div key={p.type} className="w-[88%] shrink-0 snap-center sm:w-[80%] lg:w-auto">
+            {projects.map((p) => (
+              <div key={p.key} className="w-[88%] shrink-0 snap-center sm:w-[80%] lg:w-auto">
                 <FeaturedProjectCard project={p} />
               </div>
             ))}

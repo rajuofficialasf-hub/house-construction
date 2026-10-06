@@ -26,7 +26,16 @@
     "test:contract:supabase-local": "node scripts/contract-supabase-local.mjs",
     "test:contract:rest": "node scripts/contract-rest.mjs",
     "test:import:supabase-local": "node scripts/import-supabase-local.mjs",
-    "test:contract:rest-readonly": "REST_READONLY_URL=${REST_READONLY_URL:-http://localhost:3001} vitest run tests/contract/rest.readonly.contract.test.ts"
+    "test:contract:rest-readonly": "REST_READONLY_URL=${REST_READONLY_URL:-http://localhost:3001} vitest run tests/contract/rest.readonly.contract.test.ts",
+    "photo-check": "node scripts/photo-check.mjs",
+    "smoke": "node scripts/smoke.mjs",
+    "build-rehearsal": "node scripts/build-rehearsal.mjs",
+    "content-check": "node scripts/content-check.mjs",
+    "adapter-check": "tsx scripts/adapter-check.mts",
+    "field-types-check": "tsx --tsconfig tsconfig.app.json scripts/field-types-check.mjs",
+    "admin-ui-check": "node scripts/admin-ui-check.mjs",
+    "build-unions": "node scripts/build-unions.mjs",
+    "geo-check": "tsx --tsconfig tsconfig.app.json scripts/geo-check.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
@@ -48,6 +57,7 @@
     "@vitejs/plugin-react": "^6.1.1",
     "mapshaper": "^0.7.70",
     "oxlint": "^1.81.0",
+    "puppeteer-core": "^25.12.0",
     "sharp": "^0.35.5",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.15",

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, test, vi } from 'vitest'
-import { createRestAuthProvider, createRestHousingApi } from '../../src/features/housing/backend/rest'
+import { createRestAuthProvider, createRestHousingApi } from '../../src/backend/rest'
 import { runHousingApiContract } from './housingApiContract'
 import { createReadonlyFetch, readonlyOrigin } from './readonlyFetch'
 import type { ContractHarness } from './harness'

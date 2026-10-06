@@ -7,7 +7,7 @@ test('editing the address of a record shows the change in the admin list and kee
   const address = `নতুন ঠিকানা ${Date.now()}`
   await page.getByRole('textbox', { name: 'বিস্তারিত ঠিকানা' }).fill(address)
   await page.getByRole('button', { name: 'সংরক্ষণ করুন' }).click()
-  await expect(page).toHaveURL(/\/housing\/admin\/semi-pucca$/)
+  await expect(page).toHaveURL(/\/admin\/records\/semi_pucca$/)
   const row = page.getByRole('row', { name: /সালমা বেগম 2/ })
   await expect(row).toContainText(address)
   await expect(row.getByRole('cell', { name: '২', exact: true }).first()).toBeVisible()

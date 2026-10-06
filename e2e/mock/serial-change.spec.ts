@@ -29,7 +29,7 @@ test.describe('change serial', () => {
     const dialog = page.getByRole('dialog', { name: 'সিরিয়াল নম্বর বদলাবেন?' })
     await dialog.getByRole('textbox', { name: 'নতুন সিরিয়াল' }).fill('40')
     await dialog.getByRole('button', { name: 'হ্যাঁ, সিরিয়াল বদলান' }).click()
-    await expect(page).toHaveURL(/\/housing\/admin\/semi-pucca\/40\/edit$/)
+    await expect(page).toHaveURL(/\/admin\/records\/semi_pucca\/40\/edit$/)
     await page.goto('/housing/admin/semi-pucca')
     const row = page.getByRole('row', { name: /রহিমা খাতুন 1/ })
     await expect(row.getByRole('cell', { name: '৪০', exact: true }).first()).toBeVisible()

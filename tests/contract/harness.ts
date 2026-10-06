@@ -1,5 +1,5 @@
-import type { AuthProvider } from '../../src/features/housing/backend/interfaces/authProvider'
-import type { HousingApi } from '../../src/features/housing/backend/interfaces/housingApi'
+import type { AuthProvider } from '../../src/backend/interfaces/authProvider'
+import type { HousingApi } from '../../src/backend/interfaces/housingApi'
 
 export interface Credentials {
   email: string

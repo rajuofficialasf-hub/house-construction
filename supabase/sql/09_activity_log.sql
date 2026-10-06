@@ -102,7 +102,7 @@ begin
     end if;
   end loop;
   if old.prev_photo_url is distinct from new.prev_photo_url then
-    photo_kinds := array_append(photo_kinds, 'prev');
+    photo_kinds := array_append(photo_kinds, 'prev'); -- || 'prev' দিলে Postgres 'prev' কে অ্যারে ভেবে ত্রুটি দেয় (09a ফিক্স)
     changes := changes || jsonb_build_object('prev_photo', jsonb_build_object('old', old.prev_photo_url is not null, 'new', new.prev_photo_url is not null));
   end if;
   if old.current_photo_url is distinct from new.current_photo_url then

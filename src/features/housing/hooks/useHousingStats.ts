@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { getHousingApi } from '../backend/factory'
-import { HousingApiError, type HousingStats, type ProjectType } from '../backend/interfaces/types'
+import { getHousingApi } from '../../../backend/factory'
+import { HousingApiError, type ProjectStats, type ProjectType } from '../../../backend/interfaces/types'
 
 export type StatsState =
   | { status: 'loading' }
-  | { status: 'ready'; data: HousingStats }
+  | { status: 'ready'; data: ProjectStats }
   | { status: 'error'; error: HousingApiError }
 
 type Settled = Exclude<StatsState, { status: 'loading' }>

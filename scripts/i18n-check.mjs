@@ -9,8 +9,10 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const SRC = path.join(ROOT, 'src')
 // এই ফাইল/ফোল্ডারে বাংলা লিটারেল UI লেখা নয় (ম্যাচিং ডেটা, ভূগোল, ব্যাকএন্ড)
-const IGNORE = [/[\\/]backend[\\/]/, /geoMatch\.ts$/, /bdGeo\.ts$/, /[\\/]i18n[\\/]en\.ts$/, /\.d\.ts$/, /\.test\.tsx?$/]
-// importColumns.ts এ শিরোনাম-ম্যাচিং alias গুলো (aliases: [...]) অনুবাদের দরকার নেই — নিচে বাদ দেওয়া হয়
+// src/backend: ব্যাকএন্ড স্তর (M-ধাপ ৪-এ features/housing/backend থেকে সরানো); fallbackProjects.ts এর নাম ডাটাবেসের লেখা (pick() দিয়ে দেখানো হয়)
+// features/geo/data: bdGeo.ts, bd-unions.json, unionOverrides.json (ভূগোলের নাম — gn()/gnUnion() দিয়ে দেখানো);
+// geo/unions.ts: "পৌরসভা" ডাটার শব্দ; src/dev: শুধু dev সার্ভারের পরীক্ষার পাতা (বিল্ডে নেই) — M-ধাপ ৯
+const IGNORE = [/[\\/]src[\\/]backend[\\/]/, /[\\/]features[\\/]geo[\\/]data[\\/]/, /[\\/]geo[\\/]unions\.ts$/, /[\\/]src[\\/]dev[\\/]/, /geoMatch\.ts$/, /fuzzyMatch\.ts$/, /transliterate\.ts$/, /[\\/]i18n[\\/]en\.ts$/, /\.d\.ts$/, /\.test\.tsx?$/]
 const BN = /[ঀ-৿]/
 
 function walk(dir, out = []) {
@@ -83,24 +85,49 @@ function rawJsxText(code) {
   return out
 }
 
-function stripAliasArrays(code) {
-  // importColumns.ts: aliases: ['…', '…'] → বাদ
-  return code.replace(/aliases:\s*\[[^\]]*\]/g, 'aliases: []')
+/**
+ * দুই-ভাষার ডাটা-জোড়া (`label_bn: '…'`, `name_bn: '…'` …) অভিধানের লেখা নয় — pick()/lt() দিয়ে দেখানো হয়
+ * (যেমন features/projects/registry/icons.tsx এর বাছাইয়ের নাম)। তাই লিটারেল তোলার আগে বাদ।
+ */
+function stripBilingualPairs(code) {
+  return code
+    .replace(/\b(\w+_bn)\s*:\s*(['"`])(?:\\.|(?!\2)[^\\])*\2/g, "$1: ''")
+    // শীটের কলাম-শিরোনাম মেলানোর বিকল্প নাম (import_aliases: ['…']) — দেখানোর লেখা নয়
+    .replace(/\bimport_aliases\s*:\s*\[[^\]]*\]/g, 'import_aliases: []')
+}
+
+/**
+ * সন্দেহজনক t(): ডাটাবেসের লেখা t() দিয়ে নয়, pick()/lt() দিয়ে দেখাতে হয় (পরিকল্পনা §৫.১৩)।
+ * যেমন t(project.name_bn), t(meta.title), t(field.label_bn), t(x.description) — শুধু সতর্কবার্তা।
+ * (t(item.label) এর মতো কোডের স্থির লেবেল বৈধ, তাই শুধু _bn/_en, title, description, summary ধরা হয়।)
+ */
+function suspiciousT(code) {
+  const out = []
+  const re = /\bt\(\s*([A-Za-z_$][\w$]*(?:\??\.[\w$]+)+)\s*[,)]/g
+  let m
+  while ((m = re.exec(code))) {
+    const last = m[1].split('.').pop()
+    if (/(_bn|_en)$|^(title|description|summary)$/.test(last)) out.push(m[0].replace(/[,)]$/, ')'))
+  }
+  return out
 }
 
 const { EN } = await import(pathToFileURL(path.join(SRC, 'i18n', 'en.ts')).href)
 
 const used = new Map() // key → files
 const rawJsx = []
+const dbTextInT = []
 for (const file of walk(SRC)) {
-  let code = fs.readFileSync(file, 'utf8')
+  const original = fs.readFileSync(file, 'utf8')
+  const code = stripBilingualPairs(original)
   const rel = path.relative(ROOT, file)
-  if (/importColumns\.ts$/.test(file)) code = stripAliasArrays(code)
+  for (const s of suspiciousT(original)) dbTextInT.push(`${rel}: ${s}`)
   for (const s of literals(code)) {
     if (!used.has(s)) used.set(s, new Set())
     used.get(s).add(rel)
   }
-  if (file.endsWith('.tsx')) for (const s of rawJsxText(code)) rawJsx.push(`${rel}: ${s}`)
+  // `//` কমেন্টের "<path> গুলোয় … <g>" কে JSX টেক্সট না ভাবতে কমেন্ট-লাইন বাদ
+  if (file.endsWith('.tsx')) for (const s of rawJsxText(code.replace(/^\s*\/\/.*$/gm, ''))) rawJsx.push(`${rel}: ${s}`)
 }
 
 const missing = [...used.keys()].filter((k) => !(k in EN)).sort()
@@ -123,6 +150,10 @@ console.log(`বাংলা লিটারেল (UI): ${used.size} · EN অ�
 if (rawJsx.length) {
   console.log(`\n⚠ t() ছাড়া JSX টেক্সট (${rawJsx.length}):`)
   for (const s of rawJsx) console.log('  ' + s)
+}
+if (dbTextInT.length) {
+  console.log(`\n⚠ ডাটাবেসের লেখা t() দিয়ে? pick()/lt() ব্যবহার করুন (${dbTextInT.length}):`)
+  for (const s of dbTextInT) console.log('  ' + s)
 }
 if (badPlaceholders.length) {
   console.log(`\n⚠ প্লেসহোল্ডার মেলেনি (${badPlaceholders.length}):`)

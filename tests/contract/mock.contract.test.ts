@@ -1,5 +1,5 @@
-import { createMockBackend } from '../../src/features/housing/backend/mock'
-import { MOCK_ADMIN, MOCK_NON_ADMIN } from '../../src/features/housing/backend/mock/fixtures'
+import { createMockBackend } from '../../src/backend/mock'
+import { MOCK_ADMIN, MOCK_NON_ADMIN } from '../../src/backend/mock/fixtures'
 import { runHousingApiContract } from './housingApiContract'
 import type { ContractHarness } from './harness'
 

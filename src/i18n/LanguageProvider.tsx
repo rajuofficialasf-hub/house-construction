@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { SITE_NAME } from '@/config/site'
 import { LANG_STORAGE_KEY, setCurrentLang, t, type Lang } from './core'
 import { LangContext, useLang } from './langContext'
 
@@ -22,7 +21,6 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     document.documentElement.lang = lang
-    document.title = t(SITE_NAME) // ট্যাবের শিরোনামও ভাষা অনুযায়ী
     try {
       localStorage.setItem(LANG_STORAGE_KEY, lang)
     } catch {

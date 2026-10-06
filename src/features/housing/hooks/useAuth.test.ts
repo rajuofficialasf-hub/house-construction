@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { HousingApiError } from '../backend/interfaces/types'
+import { HousingApiError } from '@/backend/interfaces/types'
 import { statusAfterError } from './useAuth'
 
 describe('statusAfterError', () => {

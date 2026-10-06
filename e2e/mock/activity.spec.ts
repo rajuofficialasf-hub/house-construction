@@ -5,7 +5,7 @@ test('the activity view lists login and later writes newest first, and filters b
   await loginAsAdmin(page, '/housing/admin/semi-pucca/2/edit')
   await page.getByRole('textbox', { name: 'বিস্তারিত ঠিকানা' }).fill('ঠিকানা বদল')
   await page.getByRole('button', { name: 'সংরক্ষণ করুন' }).click()
-  await expect(page).toHaveURL(/\/housing\/admin\/semi-pucca$/)
+  await expect(page).toHaveURL(/\/admin\/records\/semi_pucca$/)
   await page.getByRole('row', { name: /জমিলা আক্তার 3/ }).getByRole('button', { name: 'ডিলেট' }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'হ্যাঁ, মুছুন' }).click()
   await expect(page.getByRole('row', { name: /জমিলা আক্তার 3/ })).toHaveCount(0)
