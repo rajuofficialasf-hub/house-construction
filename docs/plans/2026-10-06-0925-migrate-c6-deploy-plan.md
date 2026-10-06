@@ -224,7 +224,7 @@ Migrations are not rolled back automatically. After the first staging run they a
   - `docker compose down -v && docker compose up -d db` still creates both databases with the changed init script.
 - **Done when:** A green run of `ci.yml` on `migrate/c6-deploy`, and the compose database still initializes.
 - **Depends on:** U1, U2, U7 (so CI covers the new tests and the audit is clean)
-- **Status:** todo
+- **Status:** in progress (workflow written and linted; a green run needs the branch pushed)
 
 ### U4. PM2 ecosystem, deploy, backup and restore-drill scripts
 - **Goal:** The box runs the API, sweep and backup from one ecosystem file, and one command deploys or rolls back a release.
@@ -367,6 +367,9 @@ All server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$P
 ## Progress
 - **Branch:** `migrate/c6-deploy`
 - **Updated:** 2026-10-06 09:55
-- **Next:** U3, make `01-init.sh` runnable in CI, then write `.github/workflows/ci.yml`
+- **Next:** U4, `deploy/ecosystem.config.cjs`, then the deploy, backup and restore-drill scripts
 - **Uncommitted:** none
-- **Notes:** Unit order: U1, U2, U7, U3, U4, U5, U6 (U3 depends on U7 for a clean audit).
+- **Notes:**
+  - Unit order: U1, U2, U7, U3, U4, U5, U6 (U3 depends on U7 for a clean audit).
+  - U3: `ci.yml` passes actionlint (with shellcheck), and both `01-init.sh` paths were checked on throwaway containers (compose mount, and CI-style `PG*` variables). The plan's "green run" check waits on a push, which needs the user's yes. Actions pinned: checkout v7.0.1, setup-node v7.0.0, cache v6.1.0, upload-artifact v7.0.1.
+  - `npm ci` runs with `--ignore-scripts` per command, not through `NPM_CONFIG_IGNORE_SCRIPTS`, which would also skip pre/post scripts on `npm run`.

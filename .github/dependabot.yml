@@ -1,0 +1,16 @@
+# Weekly dependency updates for both packages and the pinned GitHub Actions
+# (own-stack plan Security Baseline; docs/plans/2026-10-06-0925-migrate-c6-deploy-plan.md).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    directory: /server
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

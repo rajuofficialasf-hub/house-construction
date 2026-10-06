@@ -1,0 +1,164 @@
+# Every push and pull request runs the whole suite (docs/plans/2026-10-06-0925-migrate-c6-deploy-plan.md).
+# No secrets: the S3 storage tests skip without TEST_S3_* and are run once by hand (docs/operations/runbook.md).
+# Third-party actions are pinned to commit SHAs; Dependabot updates them.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+      # Install scripts stay off, as on the box (ST-32).
+      - run: npm ci --ignore-scripts
+      - run: npm ci --ignore-scripts --prefix server
+      - run: npm run lint
+      # tsc -b (the web typecheck) and the vite build
+      - run: npm run build
+      - run: npm --prefix server run typecheck
+      - run: npm run i18n-check
+      - run: npm test
+      - run: npm run check:prod-bundle
+      - run: npm audit --omit=dev --audit-level=high
+      - run: npm audit --omit=dev --audit-level=high --prefix server
+
+  # The three housing_test suites reset the same database, so they run one after another here,
+  # never in parallel (docs/testing/README.md). Then the public flows on the seeded dev database.
+  db-suites:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 127.0.0.1:5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # The local defaults that server/test/support/env.ts and scripts/lib/migrate-test-db.mjs use.
+      HOUSING_OWNER_PASSWORD: housing_owner_local
+      HOUSING_APP_PASSWORD: housing_app_local
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+      # Install scripts stay off, as on the box (ST-32).
+      - run: npm ci --ignore-scripts
+      - run: npm ci --ignore-scripts --prefix server
+      - name: Create roles and databases
+        run: sh server/db/docker-init/01-init.sh
+        env:
+          PGHOST: 127.0.0.1
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          ROLES_SQL: server/db/roles.sql
+      - name: Server tests
+        run: npm --prefix server test
+      - name: Contract suite through the REST adapter
+        run: npm run test:contract:rest
+      - id: playwright
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: browsers
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - if: steps.browsers.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      - if: steps.browsers.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      - name: Admin flows against the API (admin-rest)
+        run: npm run test:e2e:rest-admin
+      - name: Migrate and seed the dev database
+        env:
+          DATABASE_MIGRATION_URL: postgres://housing_owner:housing_owner_local@127.0.0.1:5432/housing?sslmode=disable
+        run: |
+          npm --prefix server run db:migrate
+          npm --prefix server run db:seed
+      - name: Start the built API in the background
+        env:
+          DATABASE_URL: postgres://housing_app:housing_app_local@127.0.0.1:5432/housing?sslmode=disable
+          ALLOWED_ORIGINS: http://localhost:5185,http://localhost:8080
+          COOKIE_SECURE: 'false'
+          PUBLIC_API_URL: http://localhost:3001
+          STORAGE_DRIVER: nas
+          STORAGE_ROOT: ${{ runner.temp }}/storage
+          LOG_LEVEL: warn
+        run: |
+          npm --prefix server run build
+          nohup node server/dist/server.js > "$RUNNER_TEMP/api.log" 2>&1 &
+          for _ in $(seq 1 30); do
+            curl -sf http://127.0.0.1:3001/api/v1/readyz && exit 0
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/api.log"
+          exit 1
+      - name: Public flows against the API (public-rest)
+        run: npm run test:e2e:rest
+      - if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: db-suites-results
+          path: |
+            test-results/
+            ${{ runner.temp }}/api.log
+          retention-days: 7
+
+  e2e-mock:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+      # The shared fixture (e2e/support/backend.ts) imports server code, so both packages install.
+      - run: npm ci --ignore-scripts
+      - run: npm ci --ignore-scripts --prefix server
+      - id: playwright
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: browsers
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - if: steps.browsers.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      - if: steps.browsers.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      - run: npm run test:e2e:mock
+      - if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: e2e-mock-results
+          path: test-results/
+          retention-days: 7
