@@ -64,6 +64,8 @@ const ROUTES: AdminRoute[] = [
   { method: 'patch', path: '/api/v1/fields/ID', body: { label_bn: 'ক' } },
   { method: 'delete', path: '/api/v1/fields/ID' },
   { method: 'get', path: `/api/v1/projects/${P}/fields/tribe/usage` },
+  { method: 'put', path: `/api/v1/projects/${P}/cover` },
+  { method: 'delete', path: `/api/v1/projects/${P}/cover` },
   { method: 'post', path: `/api/v1/projects/${P}/fields/tribe/rename-value`, body: { from: 'ক', to: 'খ' } },
 ];
 

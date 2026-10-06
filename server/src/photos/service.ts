@@ -6,7 +6,8 @@ import type { StorageDriver } from '../storage/index.js';
 import { removeTombstoned, type TombstonedFile } from './files.js';
 import type { PhotoKind, PhotoUpload } from './process.js';
 
-// Attaching and clearing a record's photos (docs/api/API_CONTRACT.md §4.10, §4.11). Files are
+// Attaching and clearing a record's photos (docs/api/API_CONTRACT.md §4.10, §4.11) and a project's
+// cover (docs/api/PROJECTS_API_CONTRACT.md §4.1.8). Files are
 // written before the transaction and removed after it commits, never inside it (DB-TX-02, NS-06).
 // The record's *_url columns get the public photo URL; changing them is what makes the activity
 // trigger (0005_activity_log.sql) log a photo_update for the admin in withActor().
@@ -57,16 +58,18 @@ export async function savePhoto<R extends object>(
   returning: readonly string[],
 ): Promise<R> {
   const { sql, storage, publicApiUrl } = deps;
-  const columns = COLUMNS[upload.kind];
+  const { kind } = upload;
+  if (kind === 'cover') throw new Error('a cover is saved with saveCover');
+  const columns = COLUMNS[kind];
   let replaced: TombstonedFile[] = [];
   let record: R;
   try {
     record = await withActor(sql, actor, async (tx) => {
       if (!(await lockRecord(tx, recordId))) throw notFound();
-      replaced = await tombstoneKind(tx, recordId, upload.kind);
+      replaced = await tombstoneKind(tx, recordId, kind);
       const rows = upload.files.map((file) => ({
         record_id: recordId,
-        kind: upload.kind,
+        kind,
         variant: file.variant,
         storage_key: file.key,
         storage_driver: storage.name,
@@ -123,4 +126,74 @@ export async function deletePhoto<R extends object>(
   });
   await removeTombstoned(sql, storage, removed, log);
   return record;
+}
+
+const projectNotFound = () => new AppError('NOT_FOUND', 'প্রকল্প পাওয়া যায়নি');
+
+/** Locks the project for this transaction, so two cover writes to it run one after the other. */
+async function lockProject(tx: Tx, key: string): Promise<boolean> {
+  const rows = await tx`select key from public.housing_projects where key = ${key} for update`;
+  return rows.length > 0;
+}
+
+/** Marks the project's live cover files for removal; they leave storage after commit. */
+export function tombstoneCover(tx: Tx, projectKey: string) {
+  return tx<TombstonedFile[]>`
+    update public.housing_files set deleted_at = now()
+    where project_key = ${projectKey} and kind = 'cover' and deleted_at is null
+    returning id, storage_key`;
+}
+
+/**
+ * Makes an upload the project's cover, replacing the old one: cover_path gets the photo's URL, and
+ * the change is logged as a project_update by the config log trigger. An unknown project is a 404,
+ * and the new files are removed whenever the transaction fails.
+ */
+export async function saveCover(deps: PhotoDeps, actor: Actor, projectKey: string, upload: PhotoUpload, log: Logger): Promise<void> {
+  const { sql, storage, publicApiUrl } = deps;
+  if (upload.kind !== 'cover') throw new Error('not a cover upload');
+  let replaced: TombstonedFile[] = [];
+  try {
+    await withActor(sql, actor, async (tx) => {
+      if (!(await lockProject(tx, projectKey))) throw projectNotFound();
+      replaced = await tombstoneCover(tx, projectKey);
+      const rows = upload.files.map((file) => ({
+        project_key: projectKey,
+        kind: 'cover',
+        variant: file.variant,
+        storage_key: file.key,
+        storage_driver: storage.name,
+        content_type: file.contentType,
+        size_bytes: file.sizeBytes,
+        original_name: file.originalName,
+        created_by: actor.id,
+      }));
+      const inserted = await tx<{ id: string; variant: 'photo' | 'thumb' }[]>`
+        insert into public.housing_files ${tx(rows)} returning id, variant`;
+      const photo = inserted.find((file) => file.variant === 'photo');
+      if (!photo) throw new Error('cover upload had no photo');
+      await tx`update public.housing_projects set cover_path = ${photoUrl(publicApiUrl, photo.id)} where key = ${projectKey}`;
+    });
+  } catch (err) {
+    await Promise.allSettled(upload.files.map((file) => storage.remove(file.key)));
+    throw err;
+  }
+  await removeTombstoned(sql, storage, replaced, log);
+}
+
+/**
+ * Removes the project's cover. With no cover nothing changes and nothing is logged, so a repeated
+ * delete succeeds. False for an unknown project.
+ */
+export async function deleteCover(deps: Omit<PhotoDeps, 'publicApiUrl'>, actor: Actor, projectKey: string, log: Logger): Promise<boolean> {
+  const { sql, storage } = deps;
+  let removed: TombstonedFile[] = [];
+  const found = await withActor(sql, actor, async (tx) => {
+    if (!(await lockProject(tx, projectKey))) return false;
+    removed = await tombstoneCover(tx, projectKey);
+    await tx`update public.housing_projects set cover_path = null where key = ${projectKey} and cover_path is not null`;
+    return true;
+  });
+  await removeTombstoned(sql, storage, removed, log);
+  return found;
 }

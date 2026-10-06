@@ -20,6 +20,9 @@ import { imageGate, UnsupportedImageError } from './sniff.js';
  */
 
 export type { PhotoKind };
+
+/** A record's photo slot, or a project's cover. */
+export type FileKind = PhotoKind | 'cover';
 export type PhotoVariant = 'photo' | 'thumb';
 
 export interface StoredPhotoFile {
@@ -31,7 +34,7 @@ export interface StoredPhotoFile {
 }
 
 export interface PhotoUpload {
-  kind: PhotoKind;
+  kind: FileKind;
   files: StoredPhotoFile[];
 }
 
@@ -138,8 +141,8 @@ function drain(req: IncomingMessage, limitBytes: number, timeoutMs: number): Pro
 }
 
 export interface ReceiveOptions {
-  /** The slot, when the route takes it from the path instead of a multipart kind field. */
-  kind?: PhotoKind;
+  /** The slot, or 'cover', when the route sets it instead of a multipart kind field. */
+  kind?: FileKind;
 }
 
 /** Reads one photo upload into storage. */
@@ -234,8 +237,8 @@ export function createPhotoReceiver(options: PhotoReceiverOptions): PhotoReceive
     }
   };
 
-  /** With a preset slot (from the URL path) a multipart kind field is refused like any unknown field. */
-  function parse(req: IncomingMessage, keys: string[], preset: PhotoKind | undefined): Promise<PhotoUpload> {
+  /** With a preset kind (set by the route) a multipart kind field is refused like any unknown field. */
+  function parse(req: IncomingMessage, keys: string[], preset: FileKind | undefined): Promise<PhotoUpload> {
     if (!/^multipart\/form-data\b/i.test(req.headers['content-type'] ?? '')) {
       return Promise.reject(invalid('not_multipart'));
     }
@@ -252,7 +255,7 @@ export function createPhotoReceiver(options: PhotoReceiverOptions): PhotoReceive
         return;
       }
 
-      let kind: string | undefined = preset;
+      let kind: string | undefined;
       let photo: Promise<StoredPhotoFile[]> | undefined;
       let thumbSeen = false;
       let failure: AppError | undefined;
@@ -273,12 +276,17 @@ export function createPhotoReceiver(options: PhotoReceiverOptions): PhotoReceive
         // Errors in the order a client would fix them: the request's shape, then the image.
         void Promise.allSettled([stored]).then(([result]) => {
           if (failure) return reject(failure);
-          if (kind === undefined) return reject(invalid('required', 'kind'));
-          const parsedKind = photoKind.safeParse(kind);
-          if (!parsedKind.success) return reject(invalid('invalid_enum_value', 'kind'));
+          // A preset kind came from the route; only a client's multipart kind needs checking.
+          let fileKind: FileKind | undefined = preset;
+          if (fileKind === undefined) {
+            if (kind === undefined) return reject(invalid('required', 'kind'));
+            const parsedKind = photoKind.safeParse(kind);
+            if (!parsedKind.success) return reject(invalid('invalid_enum_value', 'kind'));
+            fileKind = parsedKind.data;
+          }
           if (!photo) return reject(invalid('required', 'photo'));
           if (result!.status === 'rejected') return reject(result!.reason);
-          resolve({ kind: parsedKind.data, files: result!.value });
+          resolve({ kind: fileKind, files: result!.value });
         });
       };
 

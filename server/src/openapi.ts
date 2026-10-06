@@ -573,6 +573,31 @@ export function buildOpenApiDocument(): OpenApiDocument {
           responses: { 200: ok('The record', ref('ProjectRecord')), ...errors(400, 404, 429, 500) },
         },
       },
+      '/projects/{key}/cover': {
+        put: admin("Upload or replace the project's cover as multipart photo (a group or a draft too); the server re-encodes it as WebP without metadata, and cover_path becomes its URL", {
+          parameters: parameters(projectKeyParams, 'path'),
+          requestBody: {
+            required: true,
+            content: {
+              'multipart/form-data': {
+                schema: {
+                  type: 'object',
+                  required: ['photo'],
+                  properties: {
+                    photo: { type: 'string', format: 'binary', description: 'JPEG, PNG or WebP, at most 5 MB' },
+                    thumb: { type: 'string', format: 'binary', description: 'Optional, at most 500 KB; ignored, the server makes its own' },
+                  },
+                },
+              },
+            },
+          },
+          responses: { 200: ok('The project with its new cover_path', ref('Project')), ...errors(400, 401, 403, 404, 413, 429, 500) },
+        }, 'projects-admin'),
+        delete: admin('Remove the project\'s cover; main admin only, and a 200 when there is none', {
+          parameters: parameters(projectKeyParams, 'path'),
+          responses: { 200: ok('The project', ref('Project')), ...errors(400, 401, 403, 404, 429, 500) },
+        }, 'projects-admin'),
+      },
       '/records/{id}/photos/{slot}': {
         put: admin("Upload or replace the record's before (prev) or after (current) photo as multipart photo (and an optional thumb); the project's photo mode is checked before anything is stored, and the server re-encodes it as WebP and makes the thumbnail", {
           parameters: parameters(photoParams, 'path'),

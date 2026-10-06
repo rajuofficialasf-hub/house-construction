@@ -1,7 +1,9 @@
 import { Router, type Request } from 'express';
-import { requireAdmin, requireMainAdmin } from '../../auth/middleware.js';
+import { requireAdmin, requireMainAdmin, requireMainAdminForCovers } from '../../auth/middleware.js';
 import type { Sql } from '../../db.js';
 import { AppError } from '../../errors.js';
+import type { PhotoReceiver } from '../../photos/process.js';
+import { deleteCover, saveCover } from '../../photos/service.js';
 import { fieldUsage, getProject } from '../../projects/reads.js';
 import {
   fieldCreateBody,
@@ -27,6 +29,7 @@ import {
   updateField,
   updateProject,
 } from '../../projects/writes.js';
+import type { StorageDriver } from '../../storage/index.js';
 import { privateNoStore } from './projects.js';
 import {
   actorOf,
@@ -45,6 +48,11 @@ import {
 
 export interface ProjectsAdminDeps {
   sql: Sql;
+  storage: StorageDriver;
+  /** The API's public base URL; the cover's URL is built from it. */
+  publicApiUrl: string;
+  /** Reads a photo upload into storage; the app shares one, so its concurrency limit is shared too. */
+  receivePhoto: PhotoReceiver;
   readRateLimit?: ReadRateLimit;
   writeRateLimit?: WriteRateLimit;
 }
@@ -70,6 +78,9 @@ async function adminProject(sql: Sql, key: string) {
 
 export function projectsAdminRouter({
   sql,
+  storage,
+  publicApiUrl,
+  receivePhoto,
   readRateLimit = DEFAULT_READ_RATE_LIMIT,
   writeRateLimit = DEFAULT_WRITE_RATE_LIMIT,
 }: ProjectsAdminDeps): Router {
@@ -99,7 +110,7 @@ export function projectsAdminRouter({
 
   router.delete('/projects/:key', requireMainAdmin, limitWrites, async (req, res) => {
     const { key } = projectKeyParams.parse(req.params);
-    if (!(await deleteProject(sql, actorOf(req), key))) throw projectNotFound();
+    if (!(await deleteProject(sql, storage, actorOf(req), key, req.log))) throw projectNotFound();
     res.status(204).end();
   });
 
@@ -127,6 +138,23 @@ export function projectsAdminRouter({
     const { id } = fieldIdParams.parse(req.params);
     if (!(await deleteField(sql, actorOf(req), id))) throw fieldNotFound();
     res.status(204).end();
+  });
+
+  // Covers (§4.1.8). Multipart, through the record photos' receiver: any image it accepts, re-encoded
+  // to WebP without metadata. The project is checked before the body is read, so a refused upload
+  // stores nothing. Any admin may upload or replace; only the main admin removes.
+  router.put('/projects/:key/cover', requireAdmin, limitWrites, async (req, res) => {
+    const { key } = projectKeyParams.parse(req.params);
+    await adminProject(sql, key);
+    const upload = await receivePhoto(req, { kind: 'cover' });
+    await saveCover({ sql, storage, publicApiUrl }, actorOf(req), key, upload, req.log);
+    res.json({ data: await adminProject(sql, key) });
+  });
+
+  router.delete('/projects/:key/cover', requireMainAdminForCovers, limitWrites, async (req, res) => {
+    const { key } = projectKeyParams.parse(req.params);
+    if (!(await deleteCover({ sql, storage }, actorOf(req), key, req.log))) throw projectNotFound();
+    res.json({ data: await adminProject(sql, key) });
   });
 
   // Admin-only, so never cached and never on the public-read CORS list.

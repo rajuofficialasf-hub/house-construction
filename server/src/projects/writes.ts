@@ -1,4 +1,8 @@
+import type { Logger } from 'pino';
 import { withActor, type Actor, type Sql, type Tx } from '../db.js';
+import { removeTombstoned, type TombstonedFile } from '../photos/files.js';
+import { tombstoneCover } from '../photos/service.js';
+import type { StorageDriver } from '../storage/index.js';
 import { fieldColumns, type ProjectFieldRow } from './reads.js';
 import type { FieldCreateBody, FieldPatchBody, ProjectCreateBody, ProjectPatchBody } from './schemas.js';
 
@@ -47,14 +51,22 @@ export async function updateProject(sql: Sql, actor: Actor, key: string, patch: 
   });
 }
 
-/** Deletes a project and its unused fields; false when it doesn't exist. The guard refuses one that ever held records. */
-export async function deleteProject(sql: Sql, actor: Actor, key: string): Promise<boolean> {
-  return withActor(sql, actor, async (tx) => {
+/**
+ * Deletes a project and its unused fields; false when it doesn't exist. The guard refuses one that
+ * ever held records. Its cover is tombstoned in the same transaction, so a refused delete keeps it,
+ * and leaves storage after commit.
+ */
+export async function deleteProject(sql: Sql, storage: StorageDriver, actor: Actor, key: string, log: Logger): Promise<boolean> {
+  let removed: TombstonedFile[] = [];
+  const found = await withActor(sql, actor, async (tx) => {
     const [locked] = await tx`select 1 from public.housing_projects where key = ${key} for update`;
     if (!locked) return false;
+    removed = await tombstoneCover(tx, key);
     await tx`delete from public.housing_projects where key = ${key}`;
     return true;
   });
+  await removeTombstoned(sql, storage, removed, log);
+  return found;
 }
 
 /** Sets sort_order 10, 20, ... in the given order; unknown keys are ignored and nothing is logged. */

@@ -67,7 +67,7 @@ describe('GET /api/v1/openapi.json', () => {
       ...routesOf('', recordsAdminRouter({ sql, ...testPhotoDeps(), receivePhoto: () => Promise.reject(new Error('unused')) })),
       ...routesOf('/photos', photosRouter(sql, testPhotoDeps().storage)),
       ...routesOf('', activityRouter({ sql })),
-      ...routesOf('', projectsAdminRouter({ sql })),
+      ...routesOf('', projectsAdminRouter({ sql, ...testPhotoDeps(), receivePhoto: () => Promise.reject(new Error('unused')) })),
     ];
     expect(documentedRoutes().sort()).toEqual(mounted.sort());
   });

@@ -1712,7 +1712,7 @@ These settle what P4's research turned up. They add to Technical decisions, the 
   - **Old routes:** the `housing-photos` and `records-photos` suites pass unchanged.
 - **Done when:** the tests pass, and on the dev stack an uploaded cover shows at its `cover_path` URL for an admin and 404s for a visitor while the project is a draft.
 - **Depends on:** U20, U22
-- **Status:** todo
+- **Status:** done
 
 ### P4 order and parallel lanes
 
@@ -1892,3 +1892,10 @@ Run these at the end of P1:
         - trim the HTTP tests that repeat U20's DB rule matrix
         - U21 maps only the four unique constraints and the reserved field key
         - rename-value refuses an archived field and an over-long `to` up front
+  - **U19–U25 notes:**
+    - `writeText` and `FIELD_KEY` moved into `projects/schemas.ts`, because the new write schemas there would otherwise form an import cycle with `housing/schemas.ts` and `records/schemas.ts`. Both still re-export them.
+    - `resetTestData` empties the activity log after seeding, because the seed now writes `project_create` rows through the config log trigger.
+    - The usage and rename routes name their path parameter `:field_key`, not `:fieldKey`, so the OpenAPI drift test's path conversion matches. The URL is the contract's.
+    - `requireMainAdminForCovers` landed with U22, because that unit's guard-coverage test names it.
+    - The cover visibility tests live in `projects-cover.test.ts`, not `photos.test.ts`, so the cover setup stays in one file.
+    - A field created without `sort_order` goes after the project's last field (max + 10).

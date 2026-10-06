@@ -223,7 +223,12 @@ describe('PUT /projects/order', () => {
 describe('the router', () => {
   // Mounted at /api/v1 with no router-wide guard, so each route must carry its own.
   it('puts an admin guard before any work on every route', () => {
-    const router = projectsAdminRouter({ sql });
+    const router = projectsAdminRouter({
+      sql,
+      storage: local.storage,
+      publicApiUrl: TEST_PUBLIC_API_URL,
+      receivePhoto: () => Promise.reject(new Error('unused')),
+    });
     const routes = router.stack.flatMap((layer) => (layer.route ? [layer.route] : []));
     expect(routes.length).toBeGreaterThan(0);
     for (const route of routes) {

@@ -172,7 +172,7 @@ export function createApp({
   app.use('/api/v1', recordsAdminRouter({ sql, storage, publicApiUrl, receivePhoto, writeRateLimit }));
   app.use('/api/v1', activityRouter({ sql, readRateLimit, writeRateLimit }));
   app.use('/api/v1', recordsReadRouter(sql, readRateLimit));
-  app.use('/api/v1', projectsAdminRouter({ sql, readRateLimit, writeRateLimit }));
+  app.use('/api/v1', projectsAdminRouter({ sql, storage, publicApiUrl, receivePhoto, readRateLimit, writeRateLimit }));
   app.use('/api/v1/projects', projectsReadRouter(sql, readRateLimit));
   app.use('/api/v1/photos', photosRouter(sql, storage, photoRateLimit));
 
