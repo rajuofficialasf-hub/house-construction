@@ -322,7 +322,7 @@ Everything the new stack needs exists on staging and is prepared for production 
   - `npm run test:e2e:rest` and `npm run test:e2e:edge` stay green with the new guard.
 - **Done when:** the commands above pass, and the testing guide lists the new command and the production usage.
 - **Depends on:** none
-- **Status:** todo
+- **Status:** done
 
 ### U7. Local end-to-end import check against the local Supabase stack
 - **Goal:** One command proves the import against Supabase's real schema, auth hashes and storage, and times it.
@@ -380,7 +380,7 @@ Server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$PATH`
 ## Progress
 - **Branch:** `migrate/c7-cutover`
 - **Updated:** 2026-10-06 11:10
-- **Next:** U6, write `tests/contract/readonlyFetch.ts` and its unit test
+- **Next:** U7, write `scripts/import-supabase-local.mjs` on top of `scripts/contract-supabase-local.mjs`
 - **Uncommitted:** none
 - **Notes:**
   - `origin/main` was not ahead; `dev-forhad` already equals `migrate/c6-deploy` (`7397bbb`), so there was nothing to merge or port.
@@ -391,3 +391,4 @@ Server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$PATH`
   - U3: rows travel as `to_jsonb` text and load with `jsonb_populate_recordset` in one statement per table (no 500-row batches), so timestamps keep their microseconds and `details` keeps exact numbers; the serial-change and log JSON is never parsed in JS. Bind that text as `${json}::text::jsonb`: a JS string bound straight to `::jsonb` is JSON-encoded a second time. The report goes to `--report <file>` (mode 600, never overwritten), not stdout. Existing local volumes need `housing_source_test` (`docker compose exec db createdb -U postgres -O housing_owner housing_source_test`). A staging re-run needs `--discard-new-writes` too, because staging's own log rows are newer than the source's.
   - U4: `encodeVariant(image, variant)` plus `VARIANT_WIDTHS`, `WEBP_QUALITY` and `MAX_INPUT_PIXELS` are exported from `server/src/photos/process.ts`. Supabase answers a missing public object with HTTP 400 and a "not found" body, so 400 + "not found" counts as a gap like 404 (to confirm against the local stack in U7). `copyPhotos` stops all workers at the first failure before removing what they wrote.
   - U5: verify compares per-row md5s keyed by id instead of one aggregate checksum, so a failure names the differing ids. An admin hash that is now argon2id counts as matching: a login with the imported hash replaced it. The end-of-import verify runs without `--photos`; a failed check sets exit code 1.
+  - U6: the read contract has one test that sends writes without a session; the new `writeProbes: false` option skips it for real-data runs. `readonlyFetch` also waits out a 429 (the site's read limit is per IP). The browser guard aborts every non-read request in `public-rest` and `edge-rest`, on any origin. `test:e2e:edge` wasn't run locally (it needs a freshly seeded database, which would wipe the dev data); CI runs it.

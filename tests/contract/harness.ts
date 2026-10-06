@@ -43,4 +43,9 @@ export interface ContractOptions {
    * (API_CONTRACT §৩.২)।
    */
   photoPaths?: 'serial' | 'opaque'
+  /**
+   * false for a run against a deployed site's real data: the test that sends writes without a session
+   * (expecting them to be refused) is skipped, so not even a refused write request goes out. Default true.
+   */
+  writeProbes?: boolean
 }

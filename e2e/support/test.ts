@@ -17,7 +17,28 @@ const READ_RPCS = /\/rest\/v1\/rpc\/(housing_stats|housing_years|housing_next_se
  */
 const SEED_PHOTO_ORIGIN = 'https://example.com/'
 
-export const test = base.extend<{ liveWriteGuard: void; cspGuard: void }>({
+/**
+ * public-rest ও edge-rest প্রজেক্ট আসল ডাটার সাইটেও চালানো যায় (E2E_EDGE_URL=https://<host>, docs/operations/runbook.md ১৯)।
+ * তাই সেখানে GET/HEAD/OPTIONS ছাড়া যেকোনো অনুরোধ — যেকোনো origin ও পাথে — ব্রাউজার কনটেক্সটেই আটকানো হয়।
+ * page.request কনটেক্সটের route দিয়ে যায় না; পাবলিক স্পেকগুলো তা লেখার জন্য ব্যবহার করে না।
+ */
+const SITE_GUARDED_PROJECTS = new Set(['public-rest', 'edge-rest'])
+const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
+
+export const test = base.extend<{ liveWriteGuard: void; cspGuard: void; siteWriteGuard: void }>({
+  siteWriteGuard: [
+    async ({ context }, use, testInfo) => {
+      if (!SITE_GUARDED_PROJECTS.has(testInfo.project.name)) return use()
+      await context.route('**/*', (route) => {
+        const req = route.request()
+        if (READ_METHODS.has(req.method().toUpperCase())) return route.fallback()
+        return route.abort('blockedbyclient')
+      })
+      await use()
+    },
+    { auto: true },
+  ],
+
   cspGuard: [
     async ({ page }, use, testInfo) => {
       if (testInfo.project.name !== 'edge-rest') return use()

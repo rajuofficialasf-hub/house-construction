@@ -19,6 +19,7 @@ The suite exists so that nothing is lost when the backend moves from Supabase to
 | `npm run test:e2e:rest` | Playwright: the public flows (`e2e/live/`) against the compose API (`VITE_HOUSING_BACKEND=rest`, project `public-rest`) | `docker compose up -d db api` with the dev seed |
 | `npm run test:e2e:rest-admin` | Playwright: the admin flows (`e2e/mock/`), photos included, against an API it starts on `housing_test` (project `admin-rest`), storing photos in `.storage/e2e` | `docker compose up -d db` and Node 22 |
 | `npm run test:e2e:edge` | Playwright: the public flows (`e2e/live/`) through nginx 1.20 with the box's locations, security headers and CSP (project `edge-rest`). Any CSP violation fails the test; the dev seed's `https://example.com/` photo placeholders are the only exception | `npm run build:edge`, then `docker compose --profile edge up -d db api edge` on a database whose photo URLs use the edge origin: a fresh seed, not one with photos uploaded through `:3001` |
+| `npm run test:contract:rest-readonly` | The read contract through the REST adapter against any running site: the compose API by default, or staging or production with `REST_READONLY_URL=https://<host>`. The fetch underneath refuses anything but GET, HEAD and OPTIONS, and the suite skips the one test that sends refused writes (`writeProbes: false`). Never in CI | a running API with data (`docker compose up -d db api` with the dev seed, or a deployed host) |
 | `npm run dev:mock` | The app on the mock backend, for manual checks. Admin login: see `MOCK_ADMIN` in `src/features/housing/backend/mock/fixtures.ts` | nothing |
 
 ## CI
@@ -35,9 +36,11 @@ The S3 storage tests don't run in CI, which holds no AWS keys. They run once by 
 
 ## Rules
 
+- **The import tests read a stand-in, never Supabase.** `server/test/import/` reads `housing_source_test` (created by `server/db/docker-init/01-init.sh`; on an older local volume run `docker compose exec db createdb -U postgres -O housing_owner housing_source_test` once), rebuilt from `server/test/fixtures/supabase-source.sql`, and fetches photos from a local server.
 - **Live Supabase is read-only.** Serial counters never go down, so any create on live permanently skips a real serial number, and every admin login or logout adds activity-log rows. Live runs therefore cover only public read flows. The live contract runner (`tests/contract/supabase.readonly.contract.test.ts`) also blocks any request that could write, so a mistake fails the test instead of changing data.
 - **Assert relationships, not data.** Tests check that filters narrow results, a detail view matches its row and totals add up. They never hard-code names or counts from real records.
 - **Playwright servers use their own ports (5183 live, 5184 mock) and are never reused**, so a stray dev server cannot answer for the wrong backend. Live specs also block any non-read request to Supabase in the browser (`e2e/support/test.ts`).
+- **The rest projects can't write either.** `public-rest` and `edge-rest` may point at a real site (`E2E_EDGE_URL=https://<host> npx playwright test --project=edge-rest`, the production smoke test), so the browser context aborts every request that isn't GET, HEAD or OPTIONS, on any origin and path (`e2e/live/write-guard.spec.ts` proves it).
 - **Each Playwright test starts from the seed data.** Every test gets a fresh browser context, and the mock seeds itself per context, so tests do not depend on each other.
 
 ## The mock backend

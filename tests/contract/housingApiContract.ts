@@ -55,6 +55,9 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
   // যে ব্যাকএন্ডে অ-এডমিন অ্যাকাউন্টই নেই, সেখানে এই আচরণ প্রযোজ্য নয় (ContractOptions.nonAdminAccounts)
   const nonAdminTest = (name: string, fn: () => Promise<void>) =>
     opts.nonAdminAccounts === false ? vitestTest.skip(`${name} (no non-admin accounts on this backend)`, fn) : test(name, fn)
+  // A run against real data sends no write request at all, not even one that should be refused (ContractOptions.writeProbes)
+  const writeProbeTest = (name: string, fn: () => Promise<void>) =>
+    opts.writeProbes === false ? vitestTest.skip(`${name} (no write requests against real data)`, fn) : test(name, fn)
   if (gaps.size) {
     afterAll(() => {
       expect([...gaps].filter((g) => !matched.has(g)), 'knownGaps entries that match no test').toEqual([])
@@ -211,7 +214,7 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
       }
     })
 
-    test('without a session every write is refused as unauthenticated, before anything is written', async () => {
+    writeProbeTest('without a session every write is refused as unauthenticated, before anything is written', async () => {
       const before = (await h.api.list({ page_size: 1 })).meta.total
       const some = (await h.api.list({ page_size: 1 })).data[0]
       const id = some?.id ?? MISSING_ID
