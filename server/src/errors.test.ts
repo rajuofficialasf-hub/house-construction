@@ -110,6 +110,41 @@ describe('errorHandler with Postgres errors', () => {
     expect(res.body).toEqual({ error: { code: 'VALIDATION_ERROR', message: 'ইনপুট সঠিক নয়', details: { reason: 'constraint' } } });
   });
 
+  it.each([
+    ['housing_projects_pkey', 'key'],
+    ['housing_projects_slug_key', 'slug'],
+    ['housing_projects_file_prefix_key', 'file_prefix'],
+    ['housing_project_fields_project_key_key', 'key'],
+  ])('maps a duplicate on %s to 409 naming %s, with no constraint name', async (constraint_name, field) => {
+    const res = await request(appThrowing(pgError({ code: '23505', constraint_name }))).get('/boom');
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('CONFLICT');
+    expect(res.body.error.details).toEqual({ field });
+    expect(JSON.stringify(res.body)).not.toContain(constraint_name);
+    expect(JSON.stringify(res.body)).not.toContain('duplicate');
+  });
+
+  it('maps the reserved field-key CHECK to 400 naming key', async () => {
+    const res = await request(appThrowing(pgError({ code: '23514', constraint_name: 'housing_project_fields_key_reserved' }))).get('/boom');
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(res.body.error.details).toEqual({ field: 'key' });
+    expect(JSON.stringify(res.body)).not.toContain('housing_project_fields');
+  });
+
+  it('keeps any other CHECK the fixed 400 with no field', async () => {
+    const res = await request(appThrowing(pgError({ code: '23514', constraint_name: 'housing_project_fields_phone_private' }))).get('/boom');
+    expect(res.body).toEqual({ error: { code: 'VALIDATION_ERROR', message: 'ইনপুট সঠিক নয়', details: { reason: 'constraint' } } });
+  });
+
+  it('maps a foreign-key refusal (23503) to a fixed 409 with no Postgres text', async () => {
+    const res = await request(appThrowing(pgError({ code: '23503', constraint_name: 'housing_project_fields_project_key_fkey' }))).get('/boom');
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('CONFLICT');
+    expect(res.body.error.details).toBeUndefined();
+    expect(JSON.stringify(res.body)).not.toContain('fkey');
+  });
+
   it('keeps a missing grant (42501) a generic 500', async () => {
     const res = await request(appThrowing(pgError({ code: '42501' }))).get('/boom');
     expect(res.status).toBe(500);

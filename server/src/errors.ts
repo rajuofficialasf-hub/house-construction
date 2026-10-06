@@ -71,6 +71,24 @@ function zodDetails(err: ZodError): ErrorDetails {
 
 const SERIAL_KEY = 'housing_beneficiaries_project_serial_key';
 
+/**
+ * Registry constraints whose refusal the admin screens need to tell apart, keyed by constraint
+ * name. The client gets fixed text and the field, never the name. Other CHECKs are left out: the
+ * zod schemas mirror them, and the reserved field-key list lives only in the database.
+ */
+const NAMED_CONSTRAINTS: Record<string, { code: 'CONFLICT' | 'VALIDATION_ERROR'; field: string; message: string }> = {
+  housing_projects_pkey: { code: 'CONFLICT', field: 'key', message: 'এই key আগে থেকেই আছে' },
+  housing_projects_slug_key: { code: 'CONFLICT', field: 'slug', message: 'এই URL আগে থেকেই আছে' },
+  housing_projects_file_prefix_key: { code: 'CONFLICT', field: 'file_prefix', message: 'এই প্রিফিক্স অন্য প্রকল্পে আছে' },
+  housing_project_fields_project_key_key: { code: 'CONFLICT', field: 'key', message: 'এই প্রকল্পে একই key এর ফিল্ড আগে থেকেই আছে' },
+  housing_project_fields_key_reserved: { code: 'VALIDATION_ERROR', field: 'key', message: 'এই নামটি সংরক্ষিত — অন্য key দিন' },
+};
+
+function namedConstraintError(err: postgres.PostgresError): AppError | undefined {
+  const known = err.constraint_name ? NAMED_CONSTRAINTS[err.constraint_name] : undefined;
+  return known && new AppError(known.code, known.message, { field: known.field });
+}
+
 // A field key as the guards write it in DETAIL: a column (`union_name`) or `extra.<key>`.
 const GUARD_FIELD = /^[a-z_]+(\.[a-z][a-z0-9_]*)?$/;
 // The failing row of a bulk call, as the bulk functions write it in HINT (0014_record_functions_v2.sql).
@@ -98,7 +116,14 @@ function guardError(err: postgres.PostgresError): AppError | undefined {
  */
 function postgresError(err: postgres.PostgresError): AppError | undefined {
   if (err.code.startsWith('HC')) return guardError(err);
+  if (err.code === '23505' || err.code === '23514') {
+    const named = namedConstraintError(err);
+    if (named) return named;
+  }
   switch (err.code) {
+    case '23503':
+      // A row other rows still point at; the guards refuse first, so this is only a backstop.
+      return new AppError('CONFLICT', 'অন্য তথ্য এর উপর নির্ভর করে — মোছা যাবে না');
     case '23505':
       // housing_change_serial raises its own 23505 with no constraint (0002_serial.sql).
       if (!err.constraint_name || err.constraint_name === SERIAL_KEY) return new AppError('CONFLICT', 'এই সিরিয়াল আগে থেকেই আছে');

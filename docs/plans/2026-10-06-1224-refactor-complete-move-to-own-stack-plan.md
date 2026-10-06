@@ -1479,7 +1479,7 @@ These settle what P4's research turned up. They add to Technical decisions, the 
   - the HTTP proof is in U22 and U23
 - **Done when:** the tests pass.
 - **Depends on:** none (lane B)
-- **Status:** todo
+- **Status:** done
 
 ### U22. Project create, update, publish, delete and reorder
 - **Goal:** Admins create a project with its fields as a draft in one step, edit and publish it without overwriting another admin's change, and reorder projects. Only a `main_admin` deletes one, and never one that has ever had records.
