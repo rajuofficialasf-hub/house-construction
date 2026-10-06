@@ -243,7 +243,7 @@ Migrations are not rolled back automatically. After the first staging run they a
   - `restore-drill.sh` against that file restores into `housing_restore_drill` on the compose database, matches the source counts, and drops the scratch database.
 - **Done when:** The ecosystem checks, shellcheck, and the local backup → restore-drill round trip pass.
 - **Depends on:** U1
-- **Status:** todo
+- **Status:** done
 
 ### U5. nginx templates and the local edge
 - **Goal:** One set of nginx 1.20 templates serves the UI with its security headers and proxies `/api/`, checked locally and in CI.
@@ -367,9 +367,14 @@ All server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$P
 ## Progress
 - **Branch:** `migrate/c6-deploy`
 - **Updated:** 2026-10-06 09:55
-- **Next:** U4, `deploy/ecosystem.config.cjs`, then the deploy, backup and restore-drill scripts
+- **Next:** U5, the nginx templates in `deploy/nginx/` and `deploy/render-nginx.sh`
 - **Uncommitted:** none
 - **Notes:**
   - Unit order: U1, U2, U7, U3, U4, U5, U6 (U3 depends on U7 for a clean audit).
   - U3: `ci.yml` passes actionlint (with shellcheck), and both `01-init.sh` paths were checked on throwaway containers (compose mount, and CI-style `PG*` variables). The plan's "green run" check waits on a push, which needs the user's yes. Actions pinned: checkout v7.0.1, setup-node v7.0.0, cache v6.1.0, upload-artifact v7.0.1.
+  - U4 checks run in containers (the box is Linux; `mv -T` and `find -printf` are GNU-only):
+    - backup → restore-drill round trip on postgres:17 with a fake `aws` and a throwaway age key;
+    - `deploy.sh` with real PM2 on node:22: a good release went live, a broken one rolled back (exit 1, API still ready), and a redeploy skipped the build;
+    - `verify-restore.sql` exits 3 when a serial is above its counter. psql's `\quit` takes no exit code, so the check raises an exception instead.
+  - The deploy script runs from the repo clone's working tree, so the runbook updates that tree before each deploy.
   - `npm ci` runs with `--ignore-scripts` per command, not through `NPM_CONFIG_IGNORE_SCRIPTS`, which would also skip pre/post scripts on `npm run`.
