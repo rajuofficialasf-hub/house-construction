@@ -8,13 +8,18 @@ test.describe('record detail', () => {
     await waitForList(page)
     test.skip((await dataRows(page).count()) === 0, 'no records')
     const row = dataRows(page).first()
-    const [serialText, name] = [(await columnTexts(page, 0))[0], (await columnTexts(page, 2))[0]]
-    await row.getByRole('link', { name: 'বিস্তারিত' }).click()
-    await expect(page).toHaveURL(new RegExp(`/housing/semi-pucca/${bnInt(serialText)}$`))
+    // The first column is the row's place in the list ("ক্রম"), not its serial: the default order is newest year
+    // first, so the serial comes from the row's own detail link.
+    const name = (await columnTexts(page, 2))[0]
+    const link = row.getByRole('link', { name: 'বিস্তারিত' })
+    const serial = Number((await link.getAttribute('href'))!.split('/').pop())
+    await link.click()
+    await expect(page).toHaveURL(new RegExp(`/housing/semi-pucca/${serial}$`))
     const dialog = page.getByRole('dialog')
     await expect(dialog).toBeVisible()
     await expect(dialog.getByRole('heading', { level: 2 })).toContainText(name)
-    await expect(dialog.getByText('সিরিয়াল নম্বর', { exact: true }).locator('xpath=following-sibling::*[1]')).toHaveText(serialText)
+    const shownSerial = await dialog.getByText('সিরিয়াল নম্বর', { exact: true }).locator('xpath=following-sibling::*[1]').textContent()
+    expect(bnInt(shownSerial ?? '')).toBe(serial)
     await page.getByRole('button', { name: 'বন্ধ করুন (Esc)' }).click()
     await expect(page).toHaveURL(/\/housing\/semi-pucca(\?.*)?$/)
     await expect(dialog).toHaveCount(0)
