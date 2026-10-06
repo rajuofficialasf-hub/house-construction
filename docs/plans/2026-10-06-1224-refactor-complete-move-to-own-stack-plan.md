@@ -239,7 +239,7 @@ Each chunk is one session that ends with green tests and commits. Chunks run in 
 | **P9** | Removal: Supabase package, adapter, `supabase/` folder, scripts, tests, Playwright projects, env vars; `deploy/`, the edge service and jobs, the runbook; `import:supabase` and its tests and fixtures; `/housing` routes and `API_CONTRACT.md`; `PROJECTS_API_CONTRACT.md` corrected to the server as built; docs rewritten, including the mermaid pages in `docs/diagrams/` (`backend-architecture.md` loses the Supabase, deploy and cutover pictures and gains the registry tables; `test-strategy.md` loses the live-Supabase lanes); bundle check; AE4 search | R15, R16, R17, R18 | P8 checklist fully checked |
 | **P10** | Handoff guide: run, extend, test; `CLAUDE.md` profile final | R19 | P9 |
 
-P1 to P3 are planned in full below. Each later chunk gets its own units from `ae-plan` at its start, against the code as it is then.
+P1 to P4 are planned in full below. Each chunk from P5 on gets its own units from `ae-plan` at its start, against the code as it is then.
 
 ## Implementation units — P1 (Foundation)
 
@@ -1238,6 +1238,516 @@ These settle what P3's research turned up. They add to Technical decisions, the 
 - `ae-review` has run with no open P0 or P1.
 - P4's start runs `ae-plan` on this file to add P4's units.
 
+## Implementation units — P4 (Project and field writes, covers, config log)
+
+### P4 decisions
+
+These settle what P4's research turned up. They add to Technical decisions, the settled Deferred-to-Planning answers and the P2 and P3 decisions, and change none of them.
+
+- **Every guard raise in `0015` is `HC400`. No P4 guard raises `HC409`.**
+  - The contract gives 400 for both delete refusals (§4.1.6, §4.2), and the Supabase guards' `23514` reached the UI as `VALIDATION_ERROR`.
+  - The UI reads `CONFLICT` as "someone else changed this project": `FieldsTab.tsx:62` shows that text and reloads, and so does the settings page. A field-key refusal sent as 409 would show the wrong message.
+  - The 409s in P4 are the `If-Match` mismatch (an `AppError` in the route) and the named unique constraints (U21). `errors.ts` keeps its `HC409` mapping for later use.
+  - This replaces the P2 decision's example ("`HC409` … first raised by P4's guards, for example a key change once data exists"). That example was written before the UI's use of `CONFLICT` was checked.
+- **Guard messages carry fixed text and, at most, the stored project or field label** (Technical decisions). The reference's echoes are removed:
+  - the reserved-slug message printed `new.slug`
+  - the stat-card message printed `card::text`
+  - the record and value counts are dropped too ("রেকর্ডে মান আছে — মোছা যাবে না; আর্কাইভ করুন"), so a message never carries a number the caller didn't ask for. P9 writes the count-free text into the contract.
+- **A project with any serial ever issued can't be deleted, with no override.** The reference let `asf.allow_project_delete = 'on'` bypass the `last_serial > 0` refusal. A session setting is spoofable (`docs/learnings/security/postgres-session-setting-guards-are-spoofable.md`), and the contract has no override. The counter row is never deleted.
+- **Deleting a project deletes its fields** (user-decided at P4 doc review). `housing_project_fields.project_key` is `on delete restrict`, and `POST /projects` creates fields with the project, so a plain create-then-delete would otherwise be a raw `23503`.
+  - The project guard's delete branch, after its own checks pass, runs `delete from public.housing_project_fields where project_key = old.key`.
+  - The checks run first, so the fields can't hold values: any record makes the guard refuse. Each field's delete still runs the field guard and writes a `field_delete` log row before the `project_delete` row.
+  - `errors.ts` maps any other `23503` to a fixed 409 as a backstop (U21).
+- **The serial counter comes from the `housing_projects_after_write` trigger**, as in the reference, not from the route. It fires after an insert, and after an `is_group` change to `false`, with `on conflict do nothing`.
+  - It is `security definer set search_path = public`, because `housing_app` has only `select` on `housing_serial_counters` (`0006`). That is the same reason `0002`'s serial functions are definer.
+  - The other guard functions are plain invoker: `housing_app` already reads every table they read (P2 decisions).
+  - `insertProject` in `server/test/support/db.ts` stops inserting the counter itself.
+- **Publish and unpublish are `PATCH /projects/:key` with `{ is_published }`** (contract §4.1.5). There are no separate routes. The config log trigger names the action `project_publish` or `project_unpublish` from the change. The session-chunk row's "publish and unpublish" means this.
+- **`If-Match` is the project's `updated_at` as the client last read it, compared to the millisecond.**
+  - JSON dates carry milliseconds and Postgres stores microseconds. The check sits in the update's `where`: `date_trunc('milliseconds', updated_at) = ${ifMatch}::timestamptz`. There is no read-then-write race.
+  - The header may come bare or in double quotes (ETag style). A value that isn't an ISO timestamp is 400 with `details.reason = 'if_match'`.
+  - No header means no check (contract §4.1.5). Zero rows updated, with the project present, is 409 "অন্য কেউ এর মধ্যে প্রকল্পটি বদলেছেন — পাতা রিফ্রেশ করে আবার চেষ্টা করুন". With the project missing, it is 404.
+  - Reorders and cover changes also move `updated_at` (the `0011` trigger), as on Supabase.
+- **Covers are `housing_files` rows with `kind = 'cover'` and a `project_key`** (Technical decisions):
+  - **Kept from records:** the receiver, the WebP re-encode and the storage adapter. Any image type the receiver accepts is taken; the contract's "WebP only" came from the browser doing the encode. Both variants are stored, photo and thumb, so the receiver and the service stay unchanged.
+  - **`cover_path` holds the photo variant's URL**, `${publicApiUrl}/api/v1/photos/<fileId>`, built by `photoUrl` the same way a record's photo URL is. A new CHECK allows only null or a value ending in `/api/v1/photos/<uuid>`.
+  - **Not client-writable:** the PATCH body refuses `cover_path`. P9 corrects contract §3.1 and §4.1.8 (the field name stays `cover_path` so the UI type doesn't change).
+  - **Groups may have a cover.** The home page shows cards for top-level groups too (§4.1.8).
+  - **Delete:** `housing_files.project_key` references `housing_projects` `on delete set null`. A project delete tombstones its live cover rows in the same transaction, before the delete. The existing sweep removes the stored objects after commit, so no object is orphaned and a refused delete leaves the cover alone.
+  - **Visibility:** `findLiveFile` shows a cover to a visitor only when `f.project_key = any(public.housing_public_project_keys())`.
+  - **Caching:** a visitor's cover keeps the 1-day `public` cache that record photos have (the user's P3 doc-review decision). After an unpublish or a cover delete, a browser that already holds it may show it for up to a day. P9 records this in the contract.
+- **Duplicate keys are 409 with the field.** `errors.ts` today sends a `23505` with an unknown constraint name to 500.
+  - U21 maps a fixed table of the registry's named constraints to `details.field`: the four unique constraints, plus the reserved field-key CHECK, the only CHECK zod doesn't mirror (user-decided at P4 doc review). The message is fixed text per constraint, and the constraint name never reaches the client.
+  - P6's `friendlyProjectError` (`src/features/admin/projects/projectRules.ts:89`) then reads `details.field` instead of matching constraint names in the message. P6 also makes `FieldsTab`'s `run()` show its "someone else changed it" text only for a `CONFLICT` with no `details.field`, so a duplicate field key gets its own message.
+- **The shared route helpers move now, into `server/src/routes/v1/shared.ts`** (U19). P4 adds a third router that would import them from `housing-admin.ts`, a file P9 deletes.
+  - The helpers are `actorOf`, `writeRateLimiter`, `DEFAULT_WRITE_RATE_LIMIT`, `bulkJson` and `checkRowCount` from `housing-admin.ts`, and the read limiter from `housing.ts`.
+  - Moving them now is a mechanical change with the suite as its check. P9 then only deletes files.
+  - This replaces the P3 note "Move them when the `/housing` routes go".
+- **One new router, `server/src/routes/v1/projects-admin.ts`, holds every P4 route:** project, field, usage, rename-value and cover.
+  - It is mounted at `/api/v1` with full paths, after the records routers and before `projectsReadRouter`, whose router-wide limiter would otherwise also count these requests.
+  - Each route names its own guard and limiter, with no `router.use()`.
+  - P4 adds no public GET, so `PUBLIC_READ_ROUTES` doesn't change. Cover downloads go through `/photos/:id`, already listed. A test pins that the new routes get no public-read CORS grant.
+- **Deletes and their messages:**
+  - project and field deletes use `requireMainAdmin` ("শুধু মূল এডমিন মুছতে পারেন")
+  - the cover delete uses a new `requireMainAdminForCovers` ("শুধু মূল এডমিন কভার ছবি মুছতে পারেন", the Supabase adapter's text), built by `mainAdminOnly` like `requireMainAdminForPhotos`
+  - the guard-coverage test accepts all three
+- **Project and field write bodies are strict zod schemas that mirror the `0011` CHECKs**, so a bad value is a 400 with `details.field` before the database sees it. The SQL guards stay as the backstop.
+  - Text lengths follow `housing_projects_text_lengths` and `housing_project_fields_labels`.
+  - `slug` is trimmed and lower-cased before its regex, as the guard does.
+  - `stat_cards`, `core_fields` and `display` mirror `StatCardDef`, `CoreFieldsConfig` and `ProjectDisplay` (`src/backend/interfaces/types.ts`), with no unknown keys (`NE-SEC-09`).
+  - A field's `key` uses `FIELD_KEY`, and the reserved-name list stays in the database CHECK.
+  - `options` is at most 100 strings of at most 100 characters each, and `import_aliases` at most 20 of at most 100.
+  - Numbers are bounded in zod, so `project_create`'s casts can't raise the unmapped `22003`.
+- **The stat-card guard also requires `id`** (contract §5.5 lists `id`, `kind` and the label). The reference skipped it. It must be a non-empty string of at most 40 characters.
+- **Field and project not-found answers come from the route.** `errors.ts` maps `P0002` to the record text, so usage and rename-value look up the field first and answer 404 "ফিল্ড পাওয়া যায়নি" themselves. The function's `P0002` stays as the backstop.
+- **`rename-value` keeps the reference's exact match on `from`**, and normalises only `to`. Each changed record is logged as an `update` by `0014`'s record log v2 (contract §4.2). The UI's `category_merge` client event stays the summary.
+
+### U19. Move the shared route helpers
+- **Goal:** The helpers every v1 router uses live in a file that P9 keeps, so new routers don't import from `/housing` code.
+- **Requirements:** supports R1 and R17 (P9 deletes the `/housing` routers cleanly).
+- **Files:**
+  - `server/src/routes/v1/shared.ts` (new): `actorOf`, `writeRateLimiter`, `DEFAULT_WRITE_RATE_LIMIT`, `type WriteRateLimit`, `bulkJson` and `checkRowCount` from `housing-admin.ts`, and `readRateLimiter`, `DEFAULT_READ_RATE_LIMIT` and `type ReadRateLimit` from `housing.ts`. `BULK_PATH` and `isBulkWrite` stay where they are, because only the old bulk route uses them and P9 deletes them with it.
+  - `server/src/app.ts`: import the two limit types from `shared.ts`
+  - `server/src/routes/v1/housing-admin.ts` and `housing.ts`: import them from `shared.ts`
+  - `server/src/routes/v1/records-admin.ts`, `records.ts` and `activity.ts`: change the import paths
+  - any test that imports them (`grep -rn "housing-admin'" server/test`)
+- **Approach:** Move the code without changing behaviour. Each router keeps its own limiter instance, so the counters don't merge.
+- **Tests:** none new. The whole server suite is the check, including the 429 cases in `p3-admin-auth.test.ts` and the old `housing-*` suites.
+- **Done when:** `npm --prefix server run typecheck` and `npm --prefix server test` are green, and `grep -rn "housing-admin\|routes/v1/housing\." server/src` shows only `app.ts` mounting the old routers (and `BULK_PATH`).
+- **Depends on:** none
+- **Status:** todo
+
+### U20. Migration `0015_project_guards`
+- **Goal:** The database keeps every project and field rule the contract lists (§5.5), creates a project's serial counter, logs every config change, and can store a project's cover file.
+- **Requirements:** R2, R3, R9 (counters never reused; an activity row for every write).
+- **Files:**
+  - `server/db/migrations/0015_project_guards.sql`
+  - `server/src/housing/schemas.ts`: `SERVER_LOGGED_ACTIONS` gains `project_create`, `project_update`, `project_publish`, `project_unpublish`, `project_delete`, `field_create`, `field_update`, `field_archive`, `field_restore` and `field_delete`
+  - `server/test/support/db.ts`: `insertProject` stops inserting the counter
+  - `server/test/db/project-guards.test.ts` (new)
+  - `server/test/db/project-functions.test.ts` (new)
+  - `server/test/db/activity-log.test.ts` (extend)
+  - `server/test/db/files.test.ts` (extend)
+  - `server/test/db/privileges.test.ts` (extend)
+  - `server/test/db/projects-registry.test.ts`: fix the cases the new guards now refuse
+  - `server/test/http/records-reads.test.ts:114`: its `beforeEach` makes `quiet` private while a record holds a value, which the field guard now refuses. The test still needs a private key stored in `extra`, a state only a direct database write can reach. So the owner wraps the update in `alter table … disable trigger housing_project_fields_guard` / `enable trigger` (the owner owns the table). Run `grep -rn "set visibility\|set type\|set key" server/test` for any other case.
+  - `server/test/http/activity.test.ts`: the new names
+- **Approach:** Follow `server/db/migrations/0013_record_rules.sql` and `0014_record_functions_v2.sql` for layout, comments and the grant block. Every name has the `housing_` prefix, so the global setup's leftover check covers it.
+  - **`housing_projects_guard()`**: `before insert or update or delete` on `housing_projects`, plain invoker. Port `supabase/sql/10b_project_guards.sql:354-472`:
+    - **Delete, group:** refuse when it has children (`DETAIL = 'parent_key'`).
+    - **Delete, leaf:** refuse when it has records, when its counter row is missing, or when `last_serial > 0`, always (`DETAIL = 'key'`). Once every check passes, delete the project's fields (P4 decisions).
+    - **Insert and update, normalising:**
+      - `slug` is lower-cased and trimmed
+      - Bangla texts are NFC and trimmed, English texts are trimmed
+    - **Insert and update, rules:**
+      - a reserved slug is refused (`slug`)
+      - a parent that isn't a group is refused (`parent_key`)
+      - stat cards: at most 8, each needs `id`, `kind`, `label_bn` and the `field` or `level` its kind needs, at most 3 with `home` (all `stat_cards`)
+    - **Update only:**
+      - `key` never changes (`key`)
+      - a published project keeps its `slug` and `parent_key` (`slug` or `parent_key`)
+      - `is_group` can't change while records, children or fields exist (`is_group`)
+      - the photo-mode rules (`photo_mode`)
+    - Every raise is `HC400`, with fixed text (P4 decisions).
+  - **`housing_projects_after_write()`**: `after insert or update of is_group`, `security definer set search_path = public`. For a non-group, it inserts `(key, 0)` into the counters `on conflict do nothing`.
+  - **`housing_project_fields_guard()`**: `before insert or update or delete` on `housing_project_fields`, plain invoker. Port `10b:502-553`:
+    - no field on a group (`project_key`)
+    - labels and help text are normalised
+    - at most 40 fields on insert (`key`)
+    - `project_key` never changes
+    - while a record holds a value (in `extra` for a public field, in the private `data` for an admin field):
+      - the field can't be deleted (`key`)
+      - its `key`, `type` and `visibility` can't change (`key`, `type` or `visibility`, whichever changed)
+    - all `HC400`
+  - **`housing_project_create(p_project jsonb, p_fields jsonb) returns text`**: plain invoker. Port `11_project_rpcs.sql:275-349`:
+    - drop the `is_housing_admin()` check
+    - keep the defaults, `is_published = false` always, and the 40-field and object checks (`22023`)
+    - return the key
+  - **`housing_projects_reorder(p_keys text[]) returns integer` and `housing_project_fields_reorder(p_project text, p_ids uuid[]) returns integer`**: port `11:355-398` without the admin check.
+  - **`housing_project_field_usage(p_project text, p_key text) returns jsonb`**: `stable`, plain invoker. Port `11:404-438`: a private field returns its count and `values: []`, and a public field returns its top 100 values.
+  - **`housing_project_field_rename_value(p_project text, p_key text, p_from text, p_to text) returns integer`**: port `11:444-475`.
+    - a field that isn't a public category is refused (`HC400`, `DETAIL = 'type'`)
+    - an empty `to` after normalising is refused (`HC400`, `DETAIL = 'to'`)
+    - an archived field is refused before any record is touched (`HC400`, `DETAIL = 'is_active'`, user-decided at P4 doc review)
+    - a `to` longer than the field's limit (`coalesce(max_length, 100)`, the category limit in `0013`'s `housing_field_value`) is refused up front (`HC400`, `DETAIL = 'to'`)
+  - **`housing_log_config_change()`**: `security definer set search_path = public`, every table schema-qualified. Port `12_activity_log_v2.sql:159-221`:
+    - `tg_table_name` compares against `housing_projects`
+    - `updated_at`, `created_at` and `sort_order` are ignored, so a reorder logs nothing
+    - triggers `housing_projects_activity_log` and `housing_project_fields_activity_log`, `after insert or update or delete … for each row`
+    - the actor comes from `housing_current_actor()`
+  - **`housing_files` and covers:**
+    - add `project_key text references public.housing_projects (key) on update restrict on delete set null`, and the index `housing_files_project_key_idx` (`DB-MIG-07`)
+    - replace `housing_files_kind_check` with `kind in ('prev', 'current', 'cover')`
+    - add `housing_files_cover_shape`: `(kind = 'cover' and record_id is null) or (kind <> 'cover' and project_key is null)`
+    - add the unique index `housing_files_live_cover (project_key, variant) where deleted_at is null and project_key is not null`
+    - add `housing_projects_cover_path`: `cover_path is null or cover_path ~ '/api/v1/photos/[0-9a-f-]{36}$'`
+  - **Grants:** `execute` to `housing_app` on the five callable functions. The trigger functions need none.
+  - **Strip from the reference:** `auth.uid()`, `is_housing_admin()`, `security definer` on everything except the after-write and log functions, `asf.allow_project_delete`, RLS, `asf_meta`, `notify pgrst`, the self-test selects, and the `anon`/`authenticated` grants.
+  - Check every `raise` by hand: fixed text, a field key in `DETAIL`, at most a stored label, never an input value or a count.
+  - **`-- migrate:down`:**
+    - drop the triggers and functions
+    - delete `kind = 'cover'` rows from `housing_files` before restoring the two-value kind CHECK, then drop the index, the shape CHECK and the column, and the `cover_path` CHECK
+    - **undo note (`DB-MIG-05`):** rolling back loses cover file rows, and their stored objects stay on disk until removed by hand. Nothing is deployed, so this is accepted. Config log rows and counters stay.
+- **Tests** (`test/db/`, real Postgres, calls through `appDb()` inside a `set_config` actor, so the app role and the actor are proven):
+  - **Project guard:**
+    - a reserved slug (`admin`) is `HC400` with `DETAIL = 'slug'`, and the message doesn't contain the slug
+    - `' Self-Reliance '` is stored as `self-reliance`
+    - a parent that isn't a group is `HC400` with `parent_key`
+    - 9 stat cards, a card with no `id`, a `sum` card with no `field`, and 4 home cards are each `HC400` with `stat_cards`, and a malformed card's text isn't echoed
+    - a key change is refused
+    - a published project's slug change is refused, and an unpublished one's is allowed
+    - `is_group` can't change on a project with a field
+    - `photo_mode` to `after_only` with a prev photo present is refused, and to `none` with any photo present is refused
+  - **Delete:**
+    - a group with children is refused
+    - a leaf with records is refused
+    - a leaf whose counter is above 0 with no records left is refused
+    - a fresh leaf with two fields is deleted with its fields, there are two `field_delete` rows and a `project_delete` row
+  - **Counter lifecycle (one test):** creating a leaf makes a `(key, 0)` counter and `housing_next_serial(key)` is 1; deleting it leaves the counter; re-creating the same key keeps it
+  - **Counter, other cases:**
+    - creating a group makes none
+    - changing a childless, fieldless group to a leaf with a `file_prefix` makes one
+  - **Field guard:**
+    - a field on a group is refused
+    - the 41st field is refused
+    - with one record holding `extra.amount`: delete, a key change and a type change are refused, and a label change is allowed
+    - with only a private value present, a `visibility` change is refused
+    - with no values, a key change is allowed
+    - `project_key` never changes
+  - **`housing_project_create`:**
+    - one call makes the project (always a draft, even when `is_published: true` is sent), its fields in order with `sort_order` 10, 20 and so on, and the counter
+    - a bad third field rolls back everything
+    - the defaults match contract §4.1.4
+    - 41 fields is `22023`
+  - **Reorders:**
+    - the new order gives `sort_order` 10, 20, …
+    - unknown keys and another project's field ids are ignored
+    - unchanged rows aren't updated
+    - no log row is written
+  - **Usage:** a public category returns counts by value, most first. A private field returns its count with `values = []`.
+  - **Rename-value:**
+    - renames only exact matches, and returns the count
+    - project A and project B each have a public category field with the same key and value: renaming in A changes only A's records and logs only them, and B's usage is unchanged
+    - each renamed record gets an `update` log row with `changes['extra.<key>']`
+    - a number field and a private field are `HC400` with `type`
+    - a `to` of only spaces is `HC400` with `to`
+    - an archived category field is `HC400` with `is_active`, and no record changes
+    - a `to` one character over the field's `max_length` is `HC400` with `to`
+    - a `to` with extra spaces or in a non-NFC form is stored trimmed, collapsed and NFC
+  - **Config log:**
+    - insert, update, publish, unpublish and delete of a project write `project_create`, `project_update`, `project_publish`, `project_unpublish` and `project_delete` with the actor, `project_type = key` and `record_id` null
+    - archive, restore, update, create and delete of a field write the `field_*` names with `field_key`
+    - a reorder and an `updated_at`-only touch write nothing
+  - **Files:**
+    - a cover row with a `project_key` and no record is accepted
+    - a cover with a `record_id`, or a `prev` row with a `project_key`, is `23514`
+    - a second live cover photo for one project is `23505`
+    - deleting the project sets a tombstoned cover's `project_key` to null
+    - the `cover_path` CHECK refuses `/etc/passwd` and accepts a photo URL
+  - **Privileges:**
+    - the after-write and log functions are `prosecdef` with `search_path=public`
+    - "no function granted to PUBLIC" still passes
+  - **Activity route:** `POST /activity` with `project_publish` or `field_delete` is 400, and so is `POST /housing/activity`.
+- **Done when:**
+  - `npm --prefix server test` is green, including the global setup's up, down, up cycle and the old `/housing` suites
+  - `npm --prefix server run db:migrate`, `db:rollback`, `db:migrate` and `db:seed` work on the dev database
+- **Depends on:** U19 only for file order. It can start first.
+- **Status:** todo
+
+### U21. Registry constraint errors carry their field
+- **Goal:** A duplicate project key, slug, file prefix or field key is a 409 that names the field. A reserved field key is a 400 that names `key`. Every other CHECK keeps today's fixed 400.
+- **Requirements:** R2, R3; `NE-SEC-11`.
+- **Files:** `server/src/errors.ts` and `server/src/errors.test.ts`.
+- **Approach:**
+  - A `const` table maps each constraint name to `{ code, field, message }`:
+    - **409:**
+      - `housing_projects_pkey` → `key`, "এই key আগে থেকেই আছে"
+      - `housing_projects_slug_key` → `slug`, "এই URL আগে থেকেই আছে"
+      - `housing_projects_file_prefix_key` → `file_prefix`
+      - `housing_project_fields_project_key_key` → `key`, "এই প্রকল্পে একই key এর ফিল্ড আগে থেকেই আছে"
+    - **400:** `housing_project_fields_key_reserved` → `key`, "এই নামটি সংরক্ষিত — অন্য key দিন". Other CHECKs are left out on purpose: zod mirrors them, and a new CHECK doesn't need a table entry.
+  - Any `23503` (a foreign key) is a fixed 409 "অন্য তথ্য এর উপর নির্ভর করে — মোছা যাবে না", with no constraint name. It is a backstop: the guards refuse first.
+  - The table is looked up by `err.constraint_name` for `23505` and `23514` only. A name not in the table keeps today's behaviour: the serial key is 409, an unknown `23505` is 500, and an unknown `23514` is the fixed 400.
+  - The constraint name and the Postgres message never reach the response.
+- **Tests (`errors.test.ts`):**
+  - each 409 entry gives 409 with its field
+  - a `23503` gives the fixed 409
+  - `housing_project_fields_key_reserved` gives 400 with `key`
+  - `housing_project_fields_phone_private` keeps the fixed 400 with no field
+  - an unlisted constraint name keeps today's result
+  - the response body contains no constraint name
+  - the HTTP proof is in U22 and U23
+- **Done when:** the tests pass.
+- **Depends on:** none (lane B)
+- **Status:** todo
+
+### U22. Project create, update, publish, delete and reorder
+- **Goal:** Admins create a project with its fields as a draft in one step, edit and publish it without overwriting another admin's change, and reorder projects. Only a `main_admin` deletes one, and never one that has ever had records.
+- **Requirements:** R2, R6, R9.
+- **Files:**
+  - `server/src/projects/schemas.ts`: `projectCreateBody` (`{ project, fields }`), `projectPatchBody`, `projectOrderBody` (`{ keys }`, 1 to 200 keys), and the shared `statCard`, `coreFields`, `display` and `fieldInput` schemas (P4 decisions)
+  - `server/src/projects/writes.ts` (new): `createProject`, `updateProject`, `deleteProject`, `reorderProjects`
+  - `server/src/routes/v1/projects-admin.ts` (new)
+  - `server/src/app.ts`: mount it (P4 decisions) with `{ sql, writeRateLimit, readRateLimit }`, following `recordsAdminRouter`; routes log through `req.log`
+  - `server/src/openapi.ts` and `server/test/http/openapi.test.ts` (router list)
+  - `server/test/http/projects-writes.test.ts` (new)
+  - `server/test/http/p3-admin-auth.test.ts`: four rows
+- **Approach:**
+  - **`POST /projects`:** `requireAdmin`, `limitWrites`, then one `withActor`:
+    - `select public.housing_project_create(${tx.json(project)}, ${tx.json(fields)})`
+    - re-read with `getProject(sql, key, adminViewer)`
+    - answer 201 `{ data: Project }`
+    - `is_published` in the body is accepted and dropped, so a project is always created as a draft (contract §4.1.4). `cover_path` is refused by the strict body (400).
+  - **`PATCH /projects/:key`:** `requireAdmin`, `limitWrites`, then the steps below.
+    - The body is any non-empty subset of the §3.1 columns. It excludes `key`, `fields`, `cover_path`, `created_at` and `updated_at`.
+    - It parses `If-Match` (P4 decisions).
+    - It runs one `withActor`: `update public.housing_projects set ${tx(patch)} where key = ${key} [and date_trunc(…) = ${ifMatch}] returning key`. There is no alias before the helper (`docs/learnings/database/postgres-js-helper-breaks-after-table-alias.md`), and jsonb columns are bound with `tx.json`.
+    - Zero rows: a second `select 1` decides 409 or 404.
+    - It answers 200 `{ data: Project }` with the fields.
+  - **`DELETE /projects/:key`:** `requireMainAdmin`, `limitWrites`, then one `withActor`.
+    - It locks the row `for update`. No row is 404.
+    - It runs `delete from public.housing_projects where key = ${key}`. The guard's refusals are 400. U25 adds the cover tombstone before this.
+    - It answers 204.
+  - **`PUT /projects/order`:** `requireAdmin`, `limitWrites`, `select public.housing_projects_reorder(${keys})`, then 204.
+  - Routes are declared so `PUT /projects/order` is matched before any `/projects/:key` route of the same method.
+  - Follow `server/src/routes/v1/records-admin.ts` and `server/src/records/writes.ts`.
+- **Tests (follow `server/test/http/records-writes.test.ts`):**
+  - **Create:**
+    - 201 with `is_published: false`, the fields in order and `updated_at`
+    - `next-serial` for the new key is 1 for an admin
+    - a `project_create` and a `field_create` log row with the actor
+    - `is_published: true` in the body still gives a draft
+    - `cover_path` in the body is 400
+    - a duplicate key, slug or `file_prefix` is 409 with `details.field` (U21)
+    - one guard refusal, a reserved slug, is 400 with `field = 'slug'` and no slug in the message; the rule matrix lives in U20's DB tests
+    - one zod refusal, an unknown stat-card key, is 400 with no key text echoed
+    - a bad field in the `fields` array creates nothing
+  - **Update:**
+    - a name change is 200 and logs `project_update` with old and new
+    - `If-Match` equal to the last read `updated_at` succeeds, also in quotes
+    - a stale one is 409 with the contract message, and nothing changes
+    - a malformed one is 400
+    - no header skips the check
+    - an unknown key is 404
+    - an empty body is 400
+    - `key`, `cover_path` and `updated_at` in the body are 400
+    - `{ is_published: true }` publishes, logs `project_publish` and makes the project visible to a visitor's `GET /projects/:key`; `false` hides it again and logs `project_unpublish`
+  - **Delete:**
+    - a `main_admin` deletes a fresh draft that was created with fields (204), and a `project_delete` row is written
+    - a plain admin gets 403, and the project remains
+    - a project with records is 400 (the other refusals are U20's)
+    - an unknown key is 404
+  - **Order:**
+    - the given order is returned by `GET /projects?drafts=1` for an admin
+    - an unknown key is ignored
+    - a bad key is 400
+    - 201 keys is 400
+    - no log row is written
+  - **Auth:** the four routes are rows in `p3-admin-auth.test.ts` (401, disabled cookie, foreign origin 403, no public-read CORS grant, 429 past the limit).
+  - **Guard coverage:** a test in `projects-writes.test.ts` checks that every route in the new router names `requireAdmin`, `requireMainAdmin` or `requireMainAdminForCovers` first, after `privateNoStore`. Follow `records-writes.test.ts:281`.
+  - **OpenAPI:** the drift test passes.
+- **Done when:** the tests pass, and on the dev stack a `curl` POST with an admin cookie creates a draft that `GET /api/v1/projects?drafts=1` lists.
+- **Depends on:** U20; U21 for the 409 cases
+- **Status:** todo
+
+### U23. Field create, update, archive, delete and reorder
+- **Goal:** Admins add, edit, archive, restore and reorder a project's fields. Once data exists, a field's identity can't change. Only a `main_admin` deletes an unused field.
+- **Requirements:** R3, R6, R9.
+- **Files:**
+  - `server/src/projects/schemas.ts`: `fieldCreateBody` (`key`, `label_bn` and `type` required), `fieldPatchBody` (any non-empty subset, excluding `id`, `project_key`, `created_at` and `updated_at`), `fieldOrderBody` (`{ ids }`, 1 to 40 uuids), and `fieldIdParams`
+  - `server/src/projects/writes.ts`: `createField`, `updateField`, `deleteField`, `reorderFields`
+  - `server/src/routes/v1/projects-admin.ts`
+  - `server/src/openapi.ts`
+  - `server/test/http/fields-writes.test.ts` (new)
+  - `server/test/http/p3-admin-auth.test.ts`: four rows
+- **Approach:**
+  - **`POST /projects/:key/fields`:** `requireAdmin`, `limitWrites`.
+    - The project must exist (404). A group is refused by the guard (400 with `project_key`).
+    - It runs `insert into public.housing_project_fields ${tx({ ...body, project_key })} returning <field columns>` in `withActor`.
+    - It answers 201 `{ data: ProjectField }` in the strict `projectField` shape.
+  - **`PATCH /fields/:id`:** `requireAdmin`, `limitWrites`.
+    - It runs `update … set ${tx(patch)} where id = ${id} returning …`. No row is 404.
+    - Archive is `{ is_active: false }` and restore is `{ is_active: true }`.
+  - **`DELETE /fields/:id`:** `requireMainAdmin`, `limitWrites`, then the delete. No row is 404. The guard's "has values" refusal is 400. It answers 204.
+  - **`PUT /projects/:key/fields/order`:** `requireAdmin`, `limitWrites`.
+    - The project must exist (404).
+    - It runs `select public.housing_project_fields_reorder(${key}, ${ids}::uuid[])` and answers 204.
+  - The returned columns reuse the field column list in `server/src/projects/reads.ts`, with `min_value` and `max_value` as `float8` as the reads do.
+- **Tests:**
+  - **Create:**
+    - 201 with defaults (`visibility` public, `show_in_detail` true, `is_active` true), and a `field_create` row with `field_key`
+    - a duplicate key is 409 with `field = 'key'`
+    - one zod refusal, an unknown body key, is 400 with no key text echoed
+    - a reserved key (`serial_no`) is 400 with `details.field = 'key'`
+    - an unknown project is 404
+  - **Update:**
+    - a label change is 200 and logs `field_update`
+    - `is_active: false` logs `field_archive` and `true` logs `field_restore`
+    - after a record stores `extra.<key>`, a type change is 400 with `details.field` (the rule matrix is U20's)
+    - a `key` change onto another field's key is 409 with `details.field = 'key'`
+    - `project_key` in the body is 400
+    - an unknown id is 404
+    - a bad uuid is 400
+  - **Delete:**
+    - a `main_admin` deletes an unused field (204, `field_delete` logged)
+    - a used field is 400 with the archive message
+    - a plain admin gets 403, and the field remains
+    - an unknown id is 404
+  - **Order:**
+    - the new order shows in `GET /projects/:key` for an admin
+    - another project's field id is ignored
+    - 41 ids is 400
+    - no log row is written
+  - **Visibility after the write:** a new private field never appears in a visitor's `GET /projects/:key` (the P1 read rule still holds).
+  - **Auth:** four rows in `p3-admin-auth.test.ts`.
+  - **Guard coverage and OpenAPI:** the U22 tests pass with the new routes.
+- **Done when:** the tests pass.
+- **Depends on:** U22 (same router and schemas)
+- **Status:** todo
+
+### U24. Field usage and category value rename
+- **Goal:** Before archiving or merging, an admin sees how many records use a field and, for a public field, its most common values (a private field gives only the count, as in the reference). An admin merges one spelling into another across a project, and each changed record is logged.
+- **Requirements:** R3, R9.
+- **Files:**
+  - `server/src/projects/schemas.ts`: `fieldKeyParams` (`key` and `fieldKey`) and `renameValueBody` (`{ from, to }`, strict, each 1 to 100 characters)
+  - `server/src/projects/reads.ts`: `fieldUsage`
+  - `server/src/projects/writes.ts`: `renameFieldValue`
+  - `server/src/routes/v1/projects-admin.ts`
+  - `server/src/openapi.ts`
+  - `server/test/http/fields-usage-rename.test.ts` (new)
+  - `server/test/http/p3-admin-auth.test.ts`: two rows
+- **Approach:**
+  - **`GET /projects/:key/fields/:fieldKey/usage`:** `privateNoStore`, `requireAdmin`, the read limiter.
+    - It looks up the field by project and key. None is 404 "ফিল্ড পাওয়া যায়নি".
+    - It runs `select public.housing_project_field_usage(${key}, ${fieldKey}) as usage`.
+    - It answers `{ data: { count, values } }`. It isn't on `PUBLIC_READ_ROUTES`.
+  - **`POST /projects/:key/fields/:fieldKey/rename-value`:** `requireAdmin`, `limitWrites`.
+    - The same field lookup.
+    - One `withActor` runs `select public.housing_project_field_rename_value(…) as updated`.
+    - It answers `{ data: { updated } }`.
+    - The per-record `update` rows come from the record log trigger.
+- **Tests:**
+  - **Usage:**
+    - a category with values `গরু` ×2 and `গাভি` ×1 returns `count: 3` and those values, most first
+    - a private phone field returns its count and `values: []`, and the response holds no stored phone (the `01799999999` sentinel)
+    - an unknown field or project is 404
+    - a visitor gets 401 with `private, no-store`
+  - **Rename:**
+    - `গাভি` → `গরু` returns `updated: 1`, the record now holds `গরু`, and there is one `update` row with `changes['extra.<key>']` and the actor
+    - a number field is 400 with `type` (the other refusals are U20's)
+    - `from` with no match returns `updated: 0` and writes no log row
+    - a rename in one project leaves a same-keyed field's records in another project unchanged
+    - an unknown field is 404
+  - **Auth:** two rows in `p3-admin-auth.test.ts`. A plain admin may rename (contract: every admin edits).
+- **Done when:** the tests pass.
+- **Depends on:** U20, U22
+- **Status:** todo
+
+### U25. Project covers
+- **Goal:** Admins upload or replace a project's cover through the same safe photo path as records. Only a `main_admin` removes it. A visitor can't fetch a draft's cover. A project delete leaves no cover file behind.
+- **Requirements:** R2, R6, R7, R9.
+- **Files:**
+  - `server/src/photos/process.ts`: the receiver's `kind` option and `PhotoUpload.kind` accept `'cover'` (a `FileKind = PhotoKind | 'cover'` type). In `finish()` (about line 277) a preset kind skips `photoKind.safeParse`, which still guards the multipart `kind` field. With a preset, a multipart `kind` field already fails as an unexpected field, so that test needs no new code.
+  - `server/src/photos/service.ts`: `saveCover` and `deleteCover`
+  - `server/src/photos/serve.ts`: `findLiveFile` adds the cover join, replacing the P3 comment
+  - `server/src/auth/middleware.ts`: `requireMainAdminForCovers`
+  - `server/src/projects/writes.ts`: `deleteProject` tombstones the live cover before the delete
+  - `server/src/routes/v1/projects-admin.ts`: the two routes; the router gains `receivePhoto`, `storage` and `publicApiUrl` deps
+  - `server/src/app.ts`: pass those deps
+  - `server/test/http/openapi.test.ts` and `server/test/http/projects-writes.test.ts` (the guard-coverage router build, which also accepts `requireMainAdminForCovers`): the new deps, as `records-writes.test.ts:281` builds `recordsAdminRouter`
+  - `server/src/openapi.ts`
+  - `server/test/http/projects-cover.test.ts` (new)
+  - `server/test/http/photos.test.ts` (extend)
+  - `server/test/http/p3-admin-auth.test.ts`: two rows
+- **Approach:**
+  - **`PUT /projects/:key/cover`:** `requireAdmin`, `limitWrites`.
+    1. Check the project exists before the body is read: no project is 404 and nothing is stored. A draft or group is allowed.
+    2. Call `receivePhoto(req, { kind: 'cover' })`.
+    3. Call `saveCover(deps, { projectKey, upload, actor })`. Like `savePhoto`, it writes the files first, then runs one `withActor`:
+       - lock the project `for update`
+       - tombstone its live cover rows
+       - insert the two rows with `project_key` and `kind = 'cover'`
+       - set `cover_path` to the photo variant's URL
+       
+       Storage cleanup runs after commit, and new files are removed on failure.
+    4. Re-read with `getProject` and answer 200 `{ data: Project }`.
+    - The `project_update` log row (with `cover_path` old and new) comes from the config trigger.
+  - **`DELETE /projects/:key/cover`:** `requireMainAdminForCovers`, `limitWrites`, then `deleteCover`.
+    - It runs one `withActor`: lock, tombstone, set `cover_path = null`.
+    - It cleans up after commit and answers 200 `{ data: Project }`.
+    - A project with no cover is 200 and writes no log row (the trigger sees no change). An unknown project is 404.
+  - **Project delete:** inside the U22 transaction, `update housing_files set deleted_at = now() where project_key = ${key} and deleted_at is null` runs before the delete. Cleanup runs after commit, as `deleteRecord` does. A refused delete rolls the tombstone back.
+  - **`findLiveFile`:** `left join housing_beneficiaries b on b.id = f.record_id`. A visitor also needs `(b.project_type = any(public.housing_public_project_keys()) or (f.kind = 'cover' and f.project_key = any(public.housing_public_project_keys())))`. The headers follow U16's rule.
+  - Follow `server/src/routes/v1/records-admin.ts`'s photo routes and `server/test/http/records-photos.test.ts` (a sharp-built PNG, `testStorage()`, clearing the NAS test folder before each test).
+- **Tests:**
+  - **Upload:**
+    - a PNG upload is 200
+    - `cover_path` is `…/api/v1/photos/<id>`, and that URL serves WebP bytes
+    - `updated_at` moved
+    - there are two `housing_files` rows with `kind = 'cover'`, `project_key` set and `record_id` null
+    - one `project_update` log row has `cover_path` in `changes` and the actor
+  - **Replace:** the old rows are tombstoned and the old URL then answers 404.
+  - **Group and draft:** a cover on a group and on a draft both work for an admin.
+  - **Errors:**
+    - an unknown project is 404, with no stored file and no row
+    - a non-image is 400
+    - 5 MB + 1 byte is 413
+    - a multipart `kind` field is 400
+  - **Delete:**
+    - a plain admin gets 403 with the cover message, and the cover remains
+    - a `main_admin` gets 200 with `cover_path: null`, the rows are tombstoned and the stored file is gone after the sweep
+    - a second delete is 200 with no new log row
+  - **Visibility (`photos.test.ts`):**
+    - a visitor's GET and HEAD of a draft project's cover are 404 with `no-store`
+    - the same for a published child of a draft group
+    - an admin gets 200 with `private, no-store`
+    - a published project's cover is 200 to a visitor with `public, max-age=86400`
+    - unpublishing makes the next visitor request 404
+    - the record-photo cases still pass
+  - **Project delete:**
+    - deleting a fresh project with a cover tombstones the cover rows (their `project_key` becomes null), and the stored files are removed
+    - a refused delete (records exist) leaves the cover live
+  - **Auth:** two rows in `p3-admin-auth.test.ts`.
+  - **Guard coverage and OpenAPI:** both pass.
+  - **Old routes:** the `housing-photos` and `records-photos` suites pass unchanged.
+- **Done when:** the tests pass, and on the dev stack an uploaded cover shows at its `cover_path` URL for an admin and 404s for a visitor while the project is a draft.
+- **Depends on:** U20, U22
+- **Status:** todo
+
+### P4 order and parallel lanes
+
+- **Lane A (sequential):** U19 → U20 → U22 → U23 → U24 → U25. They share `projects-admin.ts`, `projects/schemas.ts`, `projects/writes.ts`, `app.ts`, `openapi.ts` and `p3-admin-auth.test.ts`.
+- **Lane B (parallel with A):** U21. It touches only `errors.ts` and its test. It must land before U22's 409 cases run.
+
+### Verification (P4)
+
+- `npm --prefix server run typecheck` and `npm --prefix server test` (needs `docker compose up -d db`)
+- `npx tsc -b`, `npm run lint` and `npm test` at the root
+- `npm run test:contract:rest` and `npm run test:e2e:rest-admin`: the old routes must still pass with the new guards on the shared tables
+- `npm run test:all`
+- `npm --prefix server run db:migrate`, `db:rollback`, `db:migrate` and `db:seed` on the dev database
+
+### Risks and rollback (P4)
+
+- **The new guards fire on every write to `housing_projects` and `housing_project_fields`**, including the seed function and test helpers. `projects-registry.test.ts` and `insertProject` change in U20. `db:seed` runs in U20's done check, and the e2e reset runs in the P4 verification (`test:e2e:rest-admin`).
+- **Rolling `0015` back deletes cover file rows** and leaves their stored objects on disk (U20 undo note). Nothing is deployed, so this is accepted.
+- **A rename over many records is one statement** under the 5 s `statement_timeout`, and each row runs the validate and log triggers. Seed-size projects are far below that. If a real project ever gets close, the fix is a batched rename, not a longer timeout.
+- **The shared-helper move (U19) touches every v1 router.** It is behaviour-free, and the full server suite, including the 429 tests, is its check.
+- **`If-Match` precision:** a client that sends a microsecond timestamp would never match. The UI sends what it read from JSON, which has milliseconds. The test sends both forms that the UI produces.
+
+### Definition of done (P4)
+
+- U19–U25 are done and their tests pass.
+- The P4 verification commands pass.
+- `ae-review` has run with no open P0 or P1.
+- P5's start runs `ae-plan` on this file to add P5's units.
+- Points for P9 to write into `PROJECTS_API_CONTRACT.md`:
+  - guard messages carry no counts
+  - covers accept any image the receiver takes, and `cover_path` is the file URL
+  - publish is `PATCH { is_published }`
+  - `If-Match` is compared to the millisecond
+  - the create and PATCH bodies refuse `cover_path`
+
 ## Verification
 
 Run these at the end of P1:
@@ -1360,3 +1870,25 @@ Run these at the end of P1:
     - **Left for later chunks:**
       - `housing_next_serial` returns null for a leaf with no counter row. P4's `project_create` must insert the counter.
       - Shared route helpers (`actorOf`, the limiters, `bulkJson`) still live in `housing-admin.ts` and `housing.ts`, which P9 deletes. Move them when the `/housing` routes go.
+  - **P4 planned (2026-10-06):** `ae-plan` added U19–U25 and the P4 decisions. The next step is `ae-work` on U19, with U21 able to run beside lane A. This replaces the "Next" line above. Choices made in planning:
+    - Every `0015` guard raise is `HC400`, because the contract gives 400 for delete refusals and the UI reads `CONFLICT` as a stale `If-Match`. The 409s are `If-Match` and the named unique constraints.
+    - The shared route helpers move to `routes/v1/shared.ts` now (U19). This replaces the P3 note above.
+    - Publish and unpublish are `PATCH { is_published }`, with no separate routes.
+    - The counter comes from the `housing_projects_after_write` trigger.
+    - Covers are `housing_files` rows with a `project_key`, and `cover_path` holds the file URL.
+    - **`ae-doc-review` ran on P4 (2026-10-06).**
+      - It fixed:
+        - U19's missing `app.ts` and limit types
+        - `records-reads.test.ts`, whose setup the new field guard refuses
+        - the U22 router deps
+        - the receiver's preset `cover` kind
+        - a cross-project rename test
+        - the guard-coverage file in U25
+        - a P6 note for `FieldsTab`'s `CONFLICT` text
+        - the cover cache window (same as photos)
+        - option and alias lengths
+      - The user chose:
+        - a project delete also deletes its unused fields, with any other `23503` a fixed 409
+        - trim the HTTP tests that repeat U20's DB rule matrix
+        - U21 maps only the four unique constraints and the reserved field key
+        - rename-value refuses an archived field and an over-long `to` up front
