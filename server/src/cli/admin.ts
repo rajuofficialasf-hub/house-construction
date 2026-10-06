@@ -3,7 +3,8 @@
 // of piped stdin), never from arguments or the environment, so they don't land in shell history.
 // Connects as the schema owner through DATABASE_MIGRATION_URL.
 //
-//   admin create --email <email> [--name <name>]
+//   admin create --email <email> [--name <name>] [--role admin|main_admin]
+//   admin set-role --email <email> --role admin|main_admin
 //   admin set-password --email <email>
 //   admin disable --email <email>
 //   admin enable --email <email>
@@ -11,15 +12,16 @@
 import { parseArgs } from 'node:util';
 import postgres from 'postgres';
 import { z } from 'zod';
-import { AdminCliError, createAdmin, listAdmins, setDisabled, setPassword } from '../auth/admins.js';
+import { AdminCliError, createAdmin, listAdmins, parseRole, setDisabled, setPassword, setRole } from '../auth/admins.js';
 import { readSecret } from './prompt.js';
 
-const COMMANDS = ['create', 'set-password', 'disable', 'enable', 'list'] as const;
+const COMMANDS = ['create', 'set-role', 'set-password', 'disable', 'enable', 'list'] as const;
 type Command = (typeof COMMANDS)[number];
 const isCommand = (value: string | undefined): value is Command => COMMANDS.some((c) => c === value);
 
 const USAGE = `usage:
-  admin create --email <email> [--name <name>]
+  admin create --email <email> [--name <name>] [--role admin|main_admin]
+  admin set-role --email <email> --role admin|main_admin
   admin set-password --email <email>
   admin disable --email <email>
   admin enable --email <email>
@@ -35,12 +37,14 @@ function requireEmail(email: string | undefined): string {
 async function run(args: string[]): Promise<void> {
   const { positionals, values } = parseArgs({
     args,
-    options: { email: { type: 'string' }, name: { type: 'string' } },
+    options: { email: { type: 'string' }, name: { type: 'string' }, role: { type: 'string' } },
     allowPositionals: true,
     strict: true,
   });
   const [command, ...extra] = positionals;
   if (!isCommand(command) || extra.length > 0) throw new AdminCliError(USAGE);
+  // Checked before connecting, so a typo changes nothing.
+  const role = values.role === undefined ? undefined : parseRole(values.role);
 
   // The CLI's only setting, parsed like the API's config (NE-CFG-01); the value is never echoed.
   const env = z.object({ DATABASE_MIGRATION_URL: z.url({ protocol: /^postgres(ql)?$/ }) }).safeParse(process.env);
@@ -51,8 +55,15 @@ async function run(args: string[]): Promise<void> {
     switch (command) {
       case 'create': {
         const email = requireEmail(values.email);
-        const admin = await createAdmin(sql, { email, name: values.name, password: await readPassword() });
-        console.log(`created admin ${admin.email} (${admin.id})`);
+        const admin = await createAdmin(sql, { email, name: values.name, role, password: await readPassword() });
+        console.log(`created ${admin.role} ${admin.email} (${admin.id})`);
+        break;
+      }
+      case 'set-role': {
+        const email = requireEmail(values.email);
+        if (!role) throw new AdminCliError(`--role is required\n${USAGE}`);
+        await setRole(sql, email, role);
+        console.log(`${email} is now ${role}`);
         break;
       }
       case 'set-password': {
@@ -71,7 +82,7 @@ async function run(args: string[]): Promise<void> {
       case 'list':
         for (const admin of await listAdmins(sql)) {
           const status = admin.disabled ? 'disabled' : 'active';
-          console.log(`${admin.id}  ${admin.email}  ${status}  ${admin.hash}  ${admin.name ?? '-'}  ${admin.created_at.toISOString()}`);
+          console.log(`${admin.id}  ${admin.email}  ${admin.role}  ${status}  ${admin.hash}  ${admin.name ?? '-'}  ${admin.created_at.toISOString()}`);
         }
         break;
     }

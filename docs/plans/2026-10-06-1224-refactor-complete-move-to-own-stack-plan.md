@@ -356,7 +356,7 @@ Only P1 is planned in full below. Each later chunk gets its own units from `ae-p
   - list prints the roles
 - **Done when:** the CLI tests pass and `npm --prefix server run admin -- create --role main_admin …` works on the dev database.
 - **Depends on:** U3
-- **Status:** todo
+- **Status:** done
 
 ### U6. Project registry reads with draft and private visibility
 - **Goal:** `GET /api/v1/projects`, `GET /api/v1/projects/:key` and `GET /api/v1/projects/:key/fields` serve the registry as the contract describes. Visitors see only published projects and public fields. Admins also see drafts and private fields.
@@ -431,7 +431,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** P1 U5, add `--role` to `create` and a `set-role` command in `server/src/cli/admin.ts`.
+- **Next:** P1 U6, project registry reads: `server/src/projects/{schemas,reads}.ts` and `server/src/routes/v1/projects.ts`.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.

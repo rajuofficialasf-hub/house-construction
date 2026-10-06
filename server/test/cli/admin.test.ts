@@ -75,6 +75,35 @@ describe('admin CLI', () => {
     expect((await login(deps, 'cli@example.org', PASSWORD)).ok).toBe(true);
   });
 
+  it('creates a main_admin, refuses a second, and lists the roles', async () => {
+    expect((await cli(['create', '--email', 'main@example.org', '--role', 'main_admin'], `${PASSWORD}\n`)).code).toBe(0);
+    const second = await cli(['create', '--email', 'second@example.org', '--role', 'main_admin'], `${PASSWORD}\n`);
+    expect(second.code).toBe(1);
+    expect(second.stderr).toMatch(/main@example\.org/);
+    expect((await cli(['create', '--email', 'plain@example.org'], `${PASSWORD}\n`)).code).toBe(0);
+    const res = await cli(['list']);
+    expect(res.stdout).toMatch(/main@example\.org.*main_admin/);
+    expect(res.stdout).toMatch(/plain@example\.org.*\badmin\b/);
+  });
+
+  it('refuses an invalid role before touching the database', async () => {
+    const res = await cli(['create', '--email', 'cli@example.org', '--role', 'root'], `${PASSWORD}\n`);
+    expect(res.code).toBe(1);
+    expect(res.stderr).toMatch(/role/);
+    expect(await owner`select count(*)::int as n from public.housing_admins`).toEqual([{ n: 0 }]);
+  });
+
+  it('moves the main_admin role with set-role', async () => {
+    await cli(['create', '--email', 'a@example.org', '--role', 'main_admin'], `${PASSWORD}\n`);
+    await cli(['create', '--email', 'b@example.org'], `${PASSWORD}\n`);
+    expect((await cli(['set-role', '--email', 'a@example.org', '--role', 'admin'])).code).toBe(0);
+    const res = await cli(['set-role', '--email', 'b@example.org', '--role', 'main_admin']);
+    expect(res).toMatchObject({ code: 0 });
+    expect(await owner`select email from public.housing_admins where role = 'main_admin'`).toEqual([{ email: 'b@example.org' }]);
+    const unknown = await cli(['set-role', '--email', 'nobody@example.org', '--role', 'admin']);
+    expect(unknown.code).toBe(1);
+  });
+
   it('disables and lists admins', async () => {
     await cli(['create', '--email', 'cli@example.org'], `${PASSWORD}\n`);
     expect((await cli(['disable', '--email', 'cli@example.org'])).code).toBe(0);

@@ -20,7 +20,7 @@ A public site listing each project's beneficiaries, with an admin panel for reco
 
 - `docker compose up -d db`: local Postgres, which the server tests need.
 - `npm --prefix server run db:migrate`, `db:seed`, `dev`: the API on port 3001.
-- `npm --prefix server run admin -- create --email <e> --name <n>`: create an admin.
+- `npm --prefix server run admin -- create --email <e> --name <n> [--role main_admin]`: create an admin; `set-role` changes the role, and only one admin may be `main_admin`.
 - `npm --prefix server run typecheck` and `npm --prefix server test`: server checks.
 - `npm run dev`, `npm run build`, `npm run lint`, `npm test`: the UI.
 - `npm run test:contract:rest`, `npm run test:e2e:rest-admin`, `npm run test:all`: contract, admin end-to-end against the server, and the full UI suite.

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { AdminCliError, createAdmin, listAdmins, setDisabled, setPassword } from '../../src/auth/admins.js';
+import { AdminCliError, createAdmin, listAdmins, setDisabled, setPassword, setRole } from '../../src/auth/admins.js';
 import { verifyPassword } from '../../src/auth/password.js';
 import { login } from '../../src/auth/service.js';
 import { authenticate } from '../../src/auth/session.js';
@@ -93,15 +93,58 @@ describe('setDisabled', () => {
   });
 });
 
+describe('roles', () => {
+  it('creates a plain admin by default and a main_admin when asked', async () => {
+    expect(await createAdmin(owner, { email: 'plain@example.org', password: PASSWORD })).toMatchObject({ role: 'admin' });
+    expect(await createAdmin(owner, { email: 'main@example.org', password: PASSWORD, role: 'main_admin' })).toMatchObject({
+      role: 'main_admin',
+    });
+  });
+
+  it('refuses a second main_admin by name, and creates nothing', async () => {
+    await createAdmin(owner, { email: 'main@example.org', password: PASSWORD, role: 'main_admin' });
+    const second = createAdmin(owner, { email: 'second@example.org', password: PASSWORD, role: 'main_admin' });
+    await expect(second).rejects.toThrow(AdminCliError);
+    await expect(second).rejects.toThrow(/main@example\.org/);
+    expect(await owner`select email from public.housing_admins where email = 'second@example.org'`).toHaveLength(0);
+  });
+
+  it('promotes and demotes, logging the new role, and refuses a second main_admin', async () => {
+    await createAdmin(owner, { email: 'a@example.org', password: PASSWORD });
+    await createAdmin(owner, { email: 'b@example.org', password: PASSWORD });
+    await setRole(owner, 'a@example.org', 'main_admin');
+    await expect(setRole(owner, 'b@example.org', 'main_admin')).rejects.toThrow(/a@example\.org/);
+    await setRole(owner, 'a@example.org', 'admin');
+    await setRole(owner, 'b@example.org', 'main_admin');
+    const roles = await owner`select email, role from public.housing_admins order by email`;
+    expect(roles).toEqual([
+      { email: 'a@example.org', role: 'admin' },
+      { email: 'b@example.org', role: 'main_admin' },
+    ]);
+    const logged = await owner`select details from public.housing_activity_log where action = 'admin_role_set' order by id`;
+    expect(logged.map((r) => r.details)).toEqual([
+      { email: 'a@example.org', role: 'main_admin' },
+      { email: 'a@example.org', role: 'admin' },
+      { email: 'b@example.org', role: 'main_admin' },
+    ]);
+  });
+
+  it('refuses an unknown email or role', async () => {
+    await expect(setRole(owner, 'nobody@example.org', 'admin')).rejects.toThrow(AdminCliError);
+    await createAdmin(owner, { email: 'a@example.org', password: PASSWORD });
+    await expect(setRole(owner, 'a@example.org', 'root')).rejects.toThrow(AdminCliError);
+  });
+});
+
 describe('listAdmins', () => {
   it('lists admins by email without their hashes', async () => {
     await createAdmin(owner, { email: 'b@example.org', password: PASSWORD });
     await createAdmin(owner, { email: 'a@example.org', name: 'এ', password: PASSWORD });
     await setDisabled(owner, 'b@example.org', true);
     const admins = await listAdmins(owner);
-    expect(admins.map(({ email, name, disabled }) => ({ email, name, disabled }))).toEqual([
-      { email: 'a@example.org', name: 'এ', disabled: false },
-      { email: 'b@example.org', name: null, disabled: true },
+    expect(admins.map(({ email, name, disabled, role }) => ({ email, name, disabled, role }))).toEqual([
+      { email: 'a@example.org', name: 'এ', disabled: false, role: 'admin' },
+      { email: 'b@example.org', name: null, disabled: true, role: 'admin' },
     ]);
     // The hash kind is listed; the hash itself never is.
     expect(admins.map((a) => a.hash)).toEqual(['argon2id', 'argon2id']);
