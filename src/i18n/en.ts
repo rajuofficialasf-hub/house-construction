@@ -523,7 +523,7 @@ Object.assign(EN, {
   'এই key আগে থেকেই আছে — URL অংশ একটু বদলান': 'This key already exists — change the URL part a little',
   'এই কাজের অনুমতি নেই': 'You do not have permission for this',
   'এই প্রকল্পে একই key এর ফিল্ড আগে থেকেই আছে': 'This project already has a field with the same key',
-  'এই প্রকল্পে কোনো ক্যাটাগরি ফিল্ড নেই (ফিল্ড যোগ হবে M-ধাপ ৮-এ)।': 'This project has no category field (fields can be added from step M-8).',
+  'এই প্রকল্পে কোনো ক্যাটাগরি ফিল্ড নেই — "ফিল্ড" ট্যাবে যোগ করুন।': 'This project has no category field — add one in the "Fields" tab.',
   'এই প্রিফিক্স অন্য প্রকল্পে আছে — অন্যটি দিন': 'Another project uses this prefix — choose another',
   'একক প্রকল্প': 'Standalone project',
   'একক প্রকল্প (কোনো গ্রুপে নয়)': 'Standalone project (not in a group)',

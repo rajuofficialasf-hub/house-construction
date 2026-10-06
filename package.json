@@ -20,7 +20,8 @@
     "field-types-check": "tsx --tsconfig tsconfig.app.json scripts/field-types-check.mjs",
     "admin-ui-check": "node scripts/admin-ui-check.mjs",
     "build-unions": "node scripts/build-unions.mjs",
-    "geo-check": "tsx --tsconfig tsconfig.app.json scripts/geo-check.mjs"
+    "geo-check": "tsx --tsconfig tsconfig.app.json scripts/geo-check.mjs",
+    "baseline-check": "node scripts/baseline-check.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
