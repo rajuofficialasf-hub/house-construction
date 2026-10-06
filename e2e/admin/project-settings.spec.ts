@@ -68,3 +68,23 @@ test('a stale page cannot overwrite a newer save: it shows the conflict and relo
   await expect(conflict).toHaveCount(0)
   await expect(other.getByLabel('ছোট বর্ণনা (বাংলা)')).toHaveValue('প্রথম পাতার বর্ণনা')
 })
+
+test('a URL another admin took in the meantime gets the duplicate-URL message, not the stale-edit banner', async ({ page, context }) => {
+  await loginAs(page, MOCK_ADMIN, DEMO.settings)
+  await expect(page.getByLabel('URL অংশ (slug)')).toBeEnabled()
+
+  // Another tab creates a project with the URL this page is about to use, so its project list is stale and
+  // only the server can refuse the save (409 with details.field = 'slug').
+  const other = await context.newPage()
+  await other.goto('/admin/projects/new')
+  await other.getByLabel('বাংলা নাম').fill('দখল করা URL')
+  await other.getByLabel('ইংরেজি নাম').fill('Taken Url')
+  await other.getByRole('button', { name: 'খসড়া হিসেবে তৈরি করুন' }).click()
+  await expect(other).toHaveURL(/\/admin\/projects\/taken_url$/)
+
+  await page.getByLabel('URL অংশ (slug)').fill('taken-url')
+  await page.getByRole('button', { name: 'সংরক্ষণ করুন', exact: true }).click()
+  await expect(page.getByRole('alert').filter({ hasText: 'এই URL আগে থেকেই আছে — অন্যটি দিন' })).toBeVisible()
+  await expect(page.getByText('অন্য কেউ এর মধ্যে প্রকল্পটি বদলেছেন')).toHaveCount(0)
+  await expect(page.getByLabel('URL অংশ (slug)')).toHaveValue('taken-url')
+})

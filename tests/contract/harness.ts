@@ -22,7 +22,7 @@ export interface ContractHarness {
   projects?: ProjectsApi
   /** এডমিন অ্যাকাউন্ট (লেখার স্যুটের জন্য); মোছার টেস্টের জন্য মূল এডমিন (main_admin) */
   admin?: Credentials
-  /** সাধারণ এডমিন (role admin): সব লেখা পারেন, মোছা নয় (AE1) */
+  /** সাধারণ এডমিন (role admin): সব লেখা পারেন, মোছা নয় (AE1, docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md) */
   plainAdmin?: Credentials
   /** আছে কিন্তু এডমিন তালিকায় নেই (AE2) */
   nonAdmin?: Credentials

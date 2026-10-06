@@ -12,7 +12,7 @@ import { ADMIN_REST_API_URL, E2E_STORAGE_ROOT } from './rest-env'
  * starts) into the state the mock backend starts in: the mock fixture records and the mock admin,
  * with an empty activity log. On top of that come the dev seed's draft "demo" project, with custom
  * and private fields, for the e2e/admin specs, and a plain admin, who may write but not delete
- * (AE1). The server/test/support helpers refuse any database that isn't local and named *_test.
+ * (AE1, docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md). The server/test/support helpers refuse any database that isn't local and named *_test.
  */
 
 /** A plain admin (role admin), only on admin-rest; the mock backend has none. */

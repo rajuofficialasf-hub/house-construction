@@ -7,7 +7,7 @@ import { ACCENTS, PROJECT_ICONS, ProjectIcon, projectPath, refreshProjects, type
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { formatBanglaNumber } from '@/lib/banglaNumber'
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
-import { friendlyProjectError, photoNameExample, prefixError, slugError } from '../projects/projectRules'
+import { friendlyProjectError, isStaleEdit, photoNameExample, prefixError, slugError } from '../projects/projectRules'
 import { publishChecklist } from '../projects/publishChecklist'
 import { UnpublishDialog } from '../projects/UnpublishDialog'
 import { CoverUpload } from '../projects/CoverUpload'
@@ -142,9 +142,8 @@ export function ProjectSettingsPage() {
       await reload()
       toast.success(t('সংরক্ষিত'))
     } catch (err) {
-      const ex = HousingApiError.from(err)
-      if (ex.code === 'CONFLICT') setConflict(true)
-      else setServerError(friendlyProjectError(ex))
+      if (isStaleEdit(err)) setConflict(true)
+      else setServerError(friendlyProjectError(err))
     } finally {
       setBusy(false)
     }
@@ -160,9 +159,8 @@ export function ProjectSettingsPage() {
       setConfirmUnpublish(false)
       toast.success(value ? t('প্রকাশ করা হয়েছে') : t('অপ্রকাশ করা হয়েছে'))
     } catch (err) {
-      const ex = HousingApiError.from(err)
-      if (ex.code === 'CONFLICT') setConflict(true)
-      else setServerError(friendlyProjectError(ex))
+      if (isStaleEdit(err)) setConflict(true)
+      else setServerError(friendlyProjectError(err))
       setConfirmUnpublish(false)
     } finally {
       setBusy(false)

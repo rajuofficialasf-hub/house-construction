@@ -143,11 +143,12 @@ describe('public reads from another site', () => {
     expect(res.headers.vary).toMatch(/cookie/i);
   });
 
-  it('gives a partner origin no credentials and no draft, even with drafts=1 and an admin cookie', async () => {
+  it('never lets a partner page read a credentialed answer: an admin cookie sent from a partner origin gets no Access-Control-Allow-Credentials', async () => {
     const res = await request(app).get('/api/v1/projects/overview?drafts=1').set('origin', PARTNER).set('cookie', await adminCookie());
-    expect(res.headers['access-control-allow-credentials']).toBeUndefined();
-    // The browser would never send the cookie cross-origin without credentials; if it did, the body is
-    // still unreadable to the partner page, because the response doesn't allow credentials.
+    // The session is read whatever the origin, so this body is the admin's. What keeps it from the partner page
+    // is the browser: a credentialed request needs Access-Control-Allow-Credentials, which a public-read origin
+    // never gets (and the session cookie is SameSite=Lax, so a cross-site fetch doesn't carry it).
     expect(res.headers['access-control-allow-origin']).toBe(PARTNER);
+    expect(res.headers['access-control-allow-credentials']).toBeUndefined();
   });
 });

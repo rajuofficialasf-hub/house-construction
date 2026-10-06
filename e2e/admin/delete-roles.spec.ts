@@ -5,7 +5,7 @@ import { PLAIN_ADMIN } from '../support/rest-data'
 import { ADMIN_REST_API_URL } from '../support/rest-env'
 import { inFreshContext } from '../support/projects'
 
-// AE1: only the main admin may delete. A plain admin gets no delete controls, and a direct request is
+// AE1 (docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md): only the main admin may delete. A plain admin gets no delete controls, and a direct request is
 // refused by the server's role check. The request is sent from inside the page, with the browser's
 // session and Origin, so the origin check passes and the refusal can only come from requireMainAdmin.
 
