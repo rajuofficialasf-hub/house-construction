@@ -3,7 +3,7 @@
  * (M-ধাপ ১৩/১৫) পাবলিক পেইজ ও হোম কার্ড একই হিসাব ব্যবহার করবে।
  */
 import type { GeoLevel, Project, ProjectField, ProjectStats, StatCardDef, StatCardKind } from '@/backend'
-import { lt } from '@/i18n'
+import { lt, pick } from '@/i18n'
 import { formatBanglaNumber } from '@/lib/banglaNumber'
 import { formatTaka } from '@/lib/money'
 
@@ -76,4 +76,16 @@ export function cardSummary(card: StatCardDef, project: Project): string {
   const field = project.fields.find((f) => f.key === card.field)
   const fl = field ? lt(field, 'label') : (card.field ?? '')
   return { count: '#', geo: card.level ?? '', sum: `Σ ${fl}`, distinct: `≠ ${fl}` }[card.kind]
+}
+
+/** হোমে দেখানোর কার্ড (`home: true`, সর্বোচ্চ ৩টি — চুক্তি §৩.৩), ক্রমানুসারে (M-ধাপ ১৫) */
+export function homeCards(project: Pick<Project, 'stat_cards'>): StatCardDef[] {
+  return (project.stat_cards ?? []).filter((c) => c.home).slice(0, 3)
+}
+
+/** হোমের লেবেল: `home_label_bn/en` থাকলে সেটা, নইলে কার্ডের লেবেল (বর্তমান ভাষায়) */
+export function homeLabel(card: StatCardDef): string {
+  const bn = card.home_label_bn?.trim() || card.label_bn
+  const en = card.home_label_bn?.trim() ? card.home_label_en || card.label_en : card.label_en
+  return pick(bn, en)
 }

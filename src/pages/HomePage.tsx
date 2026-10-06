@@ -1,33 +1,56 @@
 import { t } from '@/i18n'
-import { Link } from 'react-router'
 import { SITE_NAME } from '@/config/site'
+import { formatBanglaNumber } from '@/lib/banglaNumber'
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
-import { FeaturedProjects } from '@/features/housing/components/FeaturedProjects'
+import { useCountUp } from '@/features/housing/hooks/useCountUp'
+import { ProjectCardGrid } from '@/features/projects/home/ProjectCardGrid'
+import { useProjectsOverview } from '@/features/projects/home/useProjectsOverview'
 
+/**
+ * হোম পেইজ (M-ধাপ ১৫) — সাধারণ হিরো (প্রশ্ন ১৫: "আস-সুন্নাহ ফাউন্ডেশন — আমাদের সেবা প্রকল্পসমূহ"; চূড়ান্ত লেখা
+ * ব্যবহারকারীর অনুমোদনসাপেক্ষ) সাথে মোট প্রকল্প, মোট উপকারভোগী, মোট জেলা (count-up); নিচে প্রকাশিত প্রকল্পের কার্ড।
+ * সব ডাটা একটিই projects_overview() কল থেকে — নতুন প্রকল্প প্রকাশ করলে কোড ছাড়াই কার্ড চলে আসে।
+ */
 export function HomePage() {
   useDocumentTitle() // শুধু সাইটের নাম
+  const overview = useProjectsOverview()
+  const g = overview.status === 'ready' ? overview.data.global : null
+
   return (
     <>
       <section className="bg-gradient-to-br from-brand-800 via-brand-700 to-brand-600 text-white">
-        <div className="container-page py-16 sm:py-24">
-          <p className="mb-3 text-sm font-medium tracking-wider text-accent-400 uppercase">{t('মানবসেবামূলক প্রকল্প')}</p>
-          <h1 className="max-w-2xl text-3xl leading-tight font-bold sm:text-5xl">{t(SITE_NAME)}</h1>
-          <p className="mt-4 max-w-xl text-base text-brand-50/90 sm:text-lg">
-            {t('অসহায় ও দুস্থ পরিবারের জন্য নিরাপদ বাসস্থান নিশ্চিত করতে আমাদের ঘর নির্মাণ প্রকল্পের অগ্রগতি ও উপকারভোগীদের তথ্য এখানে পাওয়া যাবে।')}
+        <div className="container-page py-14 sm:py-20">
+          <p className="mb-3 text-sm font-medium tracking-wider text-accent-400 uppercase">{t(SITE_NAME)}</p>
+          <h1 className="max-w-3xl text-3xl leading-tight font-bold sm:text-5xl">{t('আমাদের সেবা প্রকল্পসমূহ')}</h1>
+          <p className="mt-4 max-w-2xl text-base text-brand-50/90 sm:text-lg">
+            {t('অসহায় ও দুস্থ মানুষের পাশে আমাদের প্রকল্পগুলোর অগ্রগতি, উপকারভোগীদের তথ্য ও ছবি এখানে সবার জন্য উন্মুক্ত।')}
           </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link
-              to="/housing"
-              className="inline-flex items-center rounded-md bg-accent-500 px-5 py-2.5 text-sm font-semibold text-brand-950 shadow hover:bg-accent-400"
-            >
-              {t('ঘর নির্মাণ প্রকল্প দেখুন')}
-            </Link>
-          </div>
+          <dl className="mt-8 grid max-w-2xl grid-cols-3 gap-2 sm:gap-4" aria-busy={overview.status === 'loading'}>
+            <HeroStat label={t('মোট প্রকল্প')} value={g?.projects ?? null} loading={overview.status === 'loading'} />
+            <HeroStat label={t('মোট উপকারভোগী')} value={g?.total ?? null} loading={overview.status === 'loading'} />
+            <HeroStat label={t('মোট জেলা')} value={g?.districts ?? null} loading={overview.status === 'loading'} />
+          </dl>
         </div>
       </section>
 
-      {/* প্রকল্পসমূহ — প্রতিটি প্রকল্পের প্রথম উপকারভোগীর তথ্য দিয়ে কার্ড */}
-      <FeaturedProjects />
+      <ProjectCardGrid state={overview} />
     </>
+  )
+}
+
+/** হিরোর একটি সংখ্যা (count-up); লোডে স্কেলেটন, এরর হলে "—" */
+function HeroStat({ label, value, loading }: { label: string; value: number | null; loading: boolean }) {
+  const shown = useCountUp(value ?? 0)
+  return (
+    <div className="min-w-0 rounded-xl bg-white/10 px-3 py-3 ring-1 ring-white/15 backdrop-blur-sm sm:px-5 sm:py-4">
+      {loading ? (
+        <dd className="h-8 w-14 animate-pulse rounded bg-white/25 sm:h-10" />
+      ) : (
+        <dd className="text-2xl leading-none font-bold tabular-nums sm:text-4xl" aria-label={label + ': ' + (value === null ? '—' : formatBanglaNumber(value))}>
+          {value === null ? '—' : formatBanglaNumber(shown)}
+        </dd>
+      )}
+      <dt className="mt-1.5 text-xs font-medium text-brand-50/85 sm:text-sm">{label}</dt>
+    </div>
   )
 }

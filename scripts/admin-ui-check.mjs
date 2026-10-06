@@ -59,6 +59,8 @@ let patchMode = 'ok' // 'ok' | 'guard' | 'conflict'
 const addedFields = [] // নকল POST project_fields এর ফল
 const usage = { category: 32 } // নকল project_field_usage: key → কতটি রেকর্ডে মান আছে
 const allFields = () => [...(created?.fields ?? []), ...addedFields]
+/** projects_overview এর উত্তরে যোগ করা নকল সারি (M-ধাপ ১৫ হোম পরীক্ষা) */
+const overviewExtra = []
 
 // ---- নকল রেকর্ড-ভাণ্ডার (M-ধাপ ১০): খসড়া demo প্রকল্পের রেকর্ড, গোপন মান, ক্যাটাগরির মান — সব এখানেই, লাইভে কিছু নয়
 let adminRole = 'main_admin'
@@ -237,10 +239,27 @@ async function handle(req) {
   if (!url.startsWith(SB)) return req.continue()
   const u = new URL(url)
   const method = req.method()
+  // কভার (M-ধাপ ১৫): demo এর কভার আপলোড/মোছা নকল; অন্য প্রকল্পের কভারে লেখা আটকায় (নিচে blocked)
+  if (u.pathname === '/storage/v1/object/housing-photos/housing/_projects/demo/cover.webp' && (method === 'POST' || method === 'PUT')) {
+    writes.push({ method, path: u.pathname, search: u.search, body: null, contentType: (req.headers()['content-type'] ?? '') + ' ' + (req.postData() ?? '').slice(0, 300) })
+    return req.respond({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ Key: 'housing-photos/housing/_projects/demo/cover.webp', Id: 'fake' }) })
+  }
+  if (u.pathname === '/storage/v1/object/housing-photos' && method === 'DELETE') {
+    const body = req.postData() ? JSON.parse(req.postData()) : null
+    if (JSON.stringify(body?.prefixes) === JSON.stringify(['housing/_projects/demo/cover.webp'])) {
+      writes.push({ method, path: u.pathname, search: u.search, body })
+      return req.respond({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify([{ name: 'housing/_projects/demo/cover.webp' }]) })
+    }
+  }
+  if (method === 'GET' && u.pathname === '/storage/v1/object/public/housing-photos/housing/_projects/demo/cover.webp') {
+    return req.respond({ status: 200, contentType: 'image/png', headers: { 'access-control-allow-origin': '*' }, body: DEMO_PNG_PREV })
+  }
   // demo এর ছবি পড়া — নকল PNG (M-ধাপ ১৪; লাইভ স্টোরেজে demo এর ছবি নেই)
   if (method === 'GET' && u.pathname.startsWith('/storage/v1/object/public/housing-photos/housing/demo/')) {
     return req.respond({ status: 200, contentType: 'image/png', headers: { 'access-control-allow-origin': '*' }, body: u.pathname.includes('/prev') ? DEMO_PNG_PREV : DEMO_PNG })
   }
+  // বাকি পাবলিক ছবি (ঘর নির্মাণের থাম্ব) — সরাসরি লাইভ থেকে (বাইনারি; নিচের text-পড়ায় নষ্ট হতো)
+  if (method === 'GET' && u.pathname.startsWith('/storage/v1/object/public/')) return req.continue()
   const respond = (status, body, headers = {}) =>
     req.respond({ status, contentType: 'application/json', headers: { 'access-control-allow-origin': '*', 'access-control-expose-headers': 'content-range', ...headers }, body: typeof body === 'string' ? body : JSON.stringify(body) })
   if (method === 'OPTIONS') return req.respond({ status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' } })
@@ -268,10 +287,19 @@ async function handle(req) {
     if (accept) headers.accept = accept
     const r = await fetch(url, { method, headers, body: method === 'POST' ? req.postData() : undefined })
     let text = await r.text()
-    if (created && method === 'GET' && u.pathname === '/rest/v1/projects') {
-      const arr = JSON.parse(text)
-      arr.push(created.project)
+    if (method === 'GET' && u.pathname === '/rest/v1/projects') {
+      let arr = JSON.parse(text)
+      if (created) arr.push({ ...created.project })
+      // M-ধাপ ১৫: রেজিস্ট্রি এক কলে (select=*,project_fields(*)) — নকল ফিল্ড embed এ (কপিতে; created.project বদলায় না)
+      if ((u.searchParams.get('select') ?? '').includes('project_fields')) {
+        arr = arr.map((p) => ({ ...p, project_fields: [...(p.project_fields ?? []), ...allFields().filter((f) => f.project_key === p.key)] }))
+      }
       text = JSON.stringify(arr)
+    }
+    if (u.pathname === '/rest/v1/rpc/projects_overview' && Array.isArray(r.ok ? JSON.parse(text).projects : null)) {
+      const o = JSON.parse(text)
+      o.projects.push(...overviewExtra)
+      text = JSON.stringify(o)
     }
     if (method === 'GET' && u.pathname === '/rest/v1/project_fields') {
       const arr = JSON.parse(text)
@@ -341,17 +369,20 @@ async function handle(req) {
 }
 
 const b = await puppeteer.launch({ executablePath: BROWSER, headless: true })
-async function newPage(width = 1280, mobile = false, lang = 'bn') {
+/** session = false: লগইন ছাড়া সাধারণ দর্শক (M-ধাপ ১৫ হোম) — একই ব্রাউজারের localStorage থেকে নকল টোকেন মোছে */
+async function newPage(width = 1280, mobile = false, lang = 'bn', session = true) {
   const p = await b.newPage()
   await p.setViewport({ width, height: mobile ? 844 : 900, isMobile: mobile, hasTouch: mobile })
   await p.evaluateOnNewDocument(
-    (k, s, l) => {
-      localStorage.setItem(k, s)
+    (k, s, l, on) => {
+      if (on) localStorage.setItem(k, s)
+      else localStorage.removeItem(k)
       localStorage.setItem('asf_lang', l)
     },
     `sb-${REF}-auth-token`,
     JSON.stringify(SESSION),
     lang,
+    session,
   )
   await p.setRequestInterception(true)
   p.on('request', (r) => void handle(r).catch((e) => console.log('handler error', e.message)))
@@ -1341,6 +1372,102 @@ for (const [w, mobile] of [[1280, false], [390, true]]) {
   ok('ঘর নির্মাণ: স্লাইডার, ব্যাজ "পূর্বের"/"বর্তমান", আগের ৮টি ঘর একই ক্রমে, হাইলাইট/একক ছবি নেই', hb.slider && hb.badges.join(',') === 'পূর্বের,বর্তমান' && hb.dts.join(',') === 'সিরিয়াল নম্বর,সাল,উপকারভোগীর নাম,পিতা/স্বামীর নাম,বিভাগ,জেলা,উপজেলা,বিস্তারিত ঠিকানা' && !hb.hl && !hb.viewer, JSON.stringify(hb))
   await h.close()
   demoRecs.length = 0
+}
+
+// ---------------------------------------------------------------- P. হোম পেইজ ও কভার ছবি (M-ধাপ ১৫)
+{
+  // লাইভ ওভারভিউ (anon) — হিরোর সংখ্যা মেলাতে
+  const live = await fetch(`${SB}/rest/v1/rpc/projects_overview`, { method: 'POST', headers: { apikey: ANON, authorization: `Bearer ${ANON}`, 'content-type': 'application/json' }, body: '{}' }).then((r) => r.json())
+  const statsOf = (total) => ({ total, by_year: {}, by_division: {}, by_district: {}, by_upazila: {}, by_location: {}, by_project: {}, by_union: {}, distinct: { divisions: 1, districts: 3, upazilas: 5, unions: 0 }, fields: { amount: { type: 'money', sum: 1250000, count: total }, category: { type: 'category', distinct: 4 } } })
+  const base = { parent_key: null, is_group: false, summary_bn: 'আত্মনির্ভর হতে গাভী, ছাগল, সেলাই মেশিন ইত্যাদি উপকরণ সহায়তা।', summary_en: 'Cows, goats, sewing machines and more to become self-reliant.', unit_bn: 'উপকারভোগী', unit_en: 'beneficiaries', photo_mode: 'after_only', cover_path: null, sort_order: 50, show_on_home: true, featured: null, without_photo: null, is_published: true, icon: 'cow', accent: 'teal' }
+  const grantCards = [
+    { id: 'total', kind: 'count', label_bn: 'মোট উপকারভোগী', label_en: 'Total beneficiaries', icon: 'users', home: true },
+    { id: 'money', kind: 'sum', field: 'amount', label_bn: 'মোট টাকা', label_en: 'Total amount', icon: 'coins', home: true, format: 'money' },
+    { id: 'cats', kind: 'distinct', field: 'category', label_bn: 'মোট ক্যাটাগরি', label_en: 'Total categories', icon: 'tags', home: true },
+    { id: 'districts', kind: 'geo', level: 'district', label_bn: 'জেলা কভার', label_en: 'Districts covered', icon: 'pin' },
+  ]
+  overviewExtra.push(
+    { ...base, key: 'sr_test', slug: 'sr-test', name_bn: 'স্বাবলম্বী (পরীক্ষা)', name_en: 'Self-reliance (test)', stat_cards: grantCards, stats: statsOf(25) },
+    { ...base, key: 'draft_test', slug: 'draft-test', name_bn: 'খসড়া প্রকল্প (দেখা যাবে না)', name_en: 'Draft (hidden)', is_published: false, stat_cards: grantCards, stats: statsOf(1) },
+    { ...base, key: 'nohome_test', slug: 'nohome-test', name_bn: 'হোমে বন্ধ (দেখা যাবে না)', name_en: 'Not on home', show_on_home: false, stat_cards: grantCards, stats: statsOf(1) },
+  )
+
+  const p = await newPage(1280, false, 'bn', false)
+  const calls = new Set()
+  p.on('request', (r) => {
+    const u = new URL(r.url())
+    if (r.url().startsWith(SB) && r.method() !== 'OPTIONS' && u.pathname.startsWith('/rest/v1/')) calls.add(`${r.method()} ${u.pathname}${u.search} ${r.postData() ?? ''}`)
+  })
+  await p.goto(BASE + '/', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  await sleep(1500) // count-up
+  const cards = await p.evaluate(() => [...document.querySelectorAll('[data-project-card]')].map((c) => ({ key: c.getAttribute('data-project-card'), text: c.innerText.replace(/\s+/g, ' '), img: c.querySelector('img')?.getAttribute('src') ?? null, fallback: !!c.querySelector('[data-cover-fallback]'), chips: [...c.querySelectorAll(':scope ul a')].map((a) => a.textContent), href: [...c.querySelectorAll('a')].at(-1)?.getAttribute('href') })))
+  ok('হোম: কার্ড শুধু শীর্ষ-স্তরের প্রকাশিত ও "হোমে" চালু প্রকল্প — ঘর নির্মাণ (গ্রুপ) ও স্বাবলম্বী; খসড়া/হোমে-বন্ধ নেই, উপ-প্রকল্প আলাদা কার্ড নয়', cards.map((c) => c.key).join(',') === 'housing,sr_test', cards.map((c) => c.key).join(','))
+  const h = cards.find((c) => c.key === 'housing')
+  ok('গ্রুপ-কার্ড: উপ-প্রকল্পের চিপ (সেমিপাকা · টিন), "মোট ঘর নির্মাণ"/"মোট জেলা কভার"/"মোট উপজেলা কভার", সর্বশেষ রেকর্ডের থাম্ব (কভার নেই)', h && h.chips.join('|') === 'সেমিপাকা ঘর নির্মাণ|টিনের ঘর নির্মাণ' && h.text.includes('মোট ঘর নির্মাণ') && h.text.includes('মোট জেলা কভার') && h.text.includes('মোট উপজেলা কভার') && /current_thumb\.webp/.test(h.img ?? '') && h.href === '/housing', JSON.stringify(h)?.slice(0, 300))
+  const s = cards.find((c) => c.key === 'sr_test')
+  ok('একক কার্ড: কভার/ছবি না থাকলে রঙের গ্রেডিয়েন্ট + আইকন; "মোট টাকা ৳ ১২,৫০,০০০", "মোট ক্যাটাগরি ৪"; home নয় এমন কার্ড (জেলা) নেই', s && s.fallback && !s.img && s.text.includes('৳ ১২,৫০,০০০ মোট টাকা') && s.text.includes('৪ মোট ক্যাটাগরি') && !s.text.includes('জেলা কভার') && s.text.includes('প্রকল্প দেখুন'), s?.text)
+  const hero = await p.evaluate(() => [...document.querySelectorAll('section dl dd')].slice(0, 3).map((d) => d.textContent))
+  const bn = (n) => String(n).replace(/\d/g, (d) => '০১২৩৪৫৬৭৮৯'[d])
+  ok('হিরো: আস-সুন্নাহ ফাউন্ডেশন — "আমাদের সেবা প্রকল্পসমূহ"; মোট প্রকল্প/উপকারভোগী/জেলা = ওভারভিউর global', (await text(p)).includes('আমাদের সেবা প্রকল্পসমূহ') && hero.join(',') === [live.global.projects, live.global.total, live.global.districts].map(bn).join(','), `${hero.join(',')} ↔ ${JSON.stringify(live.global)}`)
+  const dataCalls = [...calls].map((c) => c.split(' ')[1].split('?')[0].replace('/rest/v1/', ''))
+  ok('হোমে API কল ২টি: রেজিস্ট্রি (projects + ফিল্ড embed, এক কলে) আর projects_overview', calls.size === 2 && dataCalls.sort().join(',') === 'projects,rpc/projects_overview' && [...calls].some((c) => decodeURIComponent(c).includes('project_fields(*)')), [...calls].map((c) => c.slice(0, 90)).join(' || '))
+  const cols = async (q) => q.evaluate(() => getComputedStyle(document.querySelector('[data-project-card]').closest('ul')).gridTemplateColumns.split(' ').length)
+  ok('১২৮০px এ ৩ কলাম (xl)', (await cols(p)) === 3, String(await cols(p)))
+  await p.screenshot({ path: '.smoke/home-1280.png', fullPage: true })
+  ok('হোমে কোনো page error নেই', p.errors.length === 0, p.errors.join(' | '))
+  await p.close()
+
+  for (const [w, want, lang] of [[360, 1, 'bn'], [768, 2, 'en'], [1024, 2, 'bn']]) {
+    const q = await newPage(w, w < 768, lang, false)
+    await q.goto(BASE + '/', { waitUntil: 'domcontentloaded' })
+    await settle(q)
+    await sleep(800)
+    const over = await q.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)
+    const c = await cols(q)
+    const t2 = await text(q)
+    const words = lang === 'en' ? ['Our service projects', 'View project', 'Total amount'] : ['আমাদের সেবা প্রকল্পসমূহ', 'প্রকল্প দেখুন']
+    ok(`${w}px (${lang}): অনুভূমিক ওভারফ্লো নেই, ${want} কলাম, লেখা ঠিক ভাষায়`, !over && c === want && words.every((x) => t2.includes(x)), `over=${over} cols=${c} ${words.filter((x) => !t2.includes(x)).join(',')}`)
+    await q.screenshot({ path: `.smoke/home-${w}-${lang}.png`, fullPage: true })
+    await q.close()
+  }
+  overviewExtra.length = 0
+
+  // কভার ছবি — সেটিংসে (demo এর লেখা নকল)
+  const cv = await newPage(1280)
+  await cv.goto(BASE + '/admin/projects/demo', { waitUntil: 'domcontentloaded' })
+  await settle(cv)
+  ok('সেটিংসে "কভার ছবি" অংশ; কভার নেই → রঙের পটভূমি ও "কভার নেই"', (await cv.evaluate(() => document.querySelector('[data-cover-upload]')?.innerText ?? '')).includes('কভার নেই'))
+  const coverFile = '.smoke/photos/cover-test.png'
+  fs.mkdirSync('.smoke/photos', { recursive: true })
+  fs.writeFileSync(coverFile, await sharp({ create: { width: 1200, height: 675, channels: 3, background: '#2c7a7b' } }).png().toBuffer())
+  let before = writes.length
+  await (await cv.$('[data-cover-upload] input[type="file"]')).uploadFile(coverFile)
+  await cv.waitForFunction(() => document.querySelector('[data-cover-upload] img')?.getAttribute('src')?.includes('/housing/_projects/demo/cover.webp?v='), { timeout: 20000 }).catch(() => {})
+  await settle(cv)
+  let w = writes.slice(before)
+  const up = w.find((x) => x.path === '/storage/v1/object/housing-photos/housing/_projects/demo/cover.webp')
+  const patch = w.find((x) => x.method === 'PATCH' && x.path === '/rest/v1/projects')
+  ok('আপলোড: housing/_projects/demo/cover.webp এ (multipart; WebP না হলে অ্যাডাপ্টারই আটকায়), তারপর projects.cover_path; প্রিভিউতে নতুন কভার (?v=)', !!up && (up.contentType ?? '').startsWith('multipart/form-data') && patch?.body?.cover_path === 'housing/_projects/demo/cover.webp' && /cover\.webp\?v=/.test((await cv.evaluate(() => document.querySelector('[data-cover-upload] img')?.getAttribute('src'))) ?? ''), w.map((x) => `${x.method} ${x.path} ${x.contentType ?? ''} ${JSON.stringify(x.body)?.slice(0, 60)}`).join(' | '))
+  before = writes.length
+  await clickText(cv, '[data-cover-upload] button', 'কভার মুছুন')
+  await sleep(200)
+  await clickText(cv, '[role="dialog"] button', 'মুছুন')
+  await settle(cv)
+  w = writes.slice(before)
+  ok('মূল এডমিন: "কভার মুছুন" → নিশ্চিতকরণ → ফাইল মোছা + cover_path null; আবার "কভার নেই"', w.some((x) => x.method === 'DELETE' && x.path === '/storage/v1/object/housing-photos') && w.some((x) => x.method === 'PATCH' && x.body?.cover_path === null) && (await cv.evaluate(() => document.querySelector('[data-cover-upload]')?.innerText ?? '')).includes('কভার নেই'), w.map((x) => `${x.method} ${x.path}`).join(' | '))
+  ok('কভার পরীক্ষায় page error নেই', cv.errors.length === 0, cv.errors.join(' | '))
+  await cv.close()
+  adminRole = 'admin'
+  created.project.cover_path = 'housing/_projects/demo/cover.webp'
+  const cv2 = await newPage(1280)
+  await cv2.goto(BASE + '/admin/projects/demo', { waitUntil: 'domcontentloaded' })
+  await settle(cv2)
+  const ct = await cv2.evaluate(() => document.querySelector('[data-cover-upload]')?.innerText ?? '')
+  ok('সাধারণ এডমিন: "কভার বদলান" আছে, "কভার মুছুন" নেই', ct.includes('কভার বদলান') && !ct.includes('কভার মুছুন'), ct.slice(0, 160))
+  await cv2.close()
+  created.project.cover_path = null
+  adminRole = 'main_admin'
 }
 
 // ---------------------------------------------------------------- E. ফোনে ড্রয়ার

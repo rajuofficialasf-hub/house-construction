@@ -243,9 +243,9 @@ if (!argv.includes('--no-build')) {
   const ucGz = unionChunk[0] ? zlib.gzipSync(fs.readFileSync(unionChunk[0])).length : 0
   ok('ইউনিয়নের ডাটা একটিই আলাদা chunk এ (মূল বান্ডলে নয়)', unionChunk.length === 1 && unionChunk[0] !== indexJs && /^bd-unions-/.test(path.basename(unionChunk[0])), unionChunk.map((x) => path.basename(x)).join(', '))
   ok('ইউনিয়নের chunk শুধু lazy import() দিয়ে আসে (কোথাও স্থির import নয়)', lazyRef.length >= 1 && staticRef.length === 0, `${lazyRef.map((x) => path.basename(x)).join(', ')} → ${path.basename(unionChunk[0] ?? '')} (${(ucGz / 1024).toFixed(1)} KB gzip)`)
-  // সর্বশেষ মাপা: M-ধাপ ১৩ এর বিল্ডে মূল বান্ডল ২৮২,৯৯৩ বাইট (Vite: 282.99 kB, gzip 86.18 kB) — M-ধাপ ১০ এ ছিল ২৭৩,০৯৬;
-  // বৃদ্ধি জেনেরিক তালিকা-পেইজের (ক্যাটাগরি-চার্ট, ইউনিয়ন/ক্যাটাগরি ফিল্টার, কনফিগ-চালিত কলাম)। পরের ধাপে বদলালে হালনাগাদ করুন
-  ok('মূল বান্ডল বাড়েনি (M-ধাপ ১৩: ২৮২,৯৯৩ বাইট)', indexBytes <= 282993, `${indexBytes} বাইট`)
+  // সর্বশেষ মাপা: M-ধাপ ১৫ এর বিল্ডে মূল বান্ডল ২৮৯,২৫৪ বাইট (Vite: 289.25 kB, gzip 87.40 kB). ইতিহাস: M-১০ ২৭৩,০৯৬ →
+  // M-১৩ ২৮২,৯৯৩ (জেনেরিক তালিকা) → M-১৪ ২৮১,৬৭০ (বিস্তারিত আলাদা chunk) → M-১৫ (নতুন হোম: প্রকল্প-কার্ড ও গ্রিড)। পরের ধাপে বদলালে হালনাগাদ করুন
+  ok('মূল বান্ডল বাড়েনি (M-ধাপ ১৫: ২৮৯,২৫৪ বাইট)', indexBytes <= 289254, `${indexBytes} বাইট`)
 }
 
 console.log(`\nফল: PASS ${pass}, FAIL ${fail}`)

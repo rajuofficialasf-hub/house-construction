@@ -2,7 +2,7 @@ import { Route } from 'react-router'
 import type { Project } from '@/backend'
 import { childrenOf, topLevelProjects } from '@/features/projects/registry'
 import { RequireAdmin } from '@/features/housing/components/RequireAdmin'
-import { HousingLandingPage } from '@/features/housing/pages/HousingLandingPage'
+import { GroupLandingPage } from '@/features/projects/landing/GroupLandingPage'
 import { ProjectListPage } from '@/features/projects/list/ProjectListPage'
 import { HousingLoginPage } from '@/features/housing/pages/HousingLoginPage'
 import {
@@ -31,7 +31,7 @@ export function projectRoutes(projects: Project[]) {
           index
           element={
             <ProjectFrame project={p}>
-              <HousingLandingPage group={p} />
+              <GroupLandingPage group={p} />
             </ProjectFrame>
           }
         />

@@ -8,10 +8,6 @@ export const EN: Record<string, string> = {
   // ---------------------------------------------------------------- সাইট / লেআউট
   'আস-সুন্নাহ ফাউন্ডেশন': 'As-Sunnah Foundation',
   'মানবতার সেবায় নিবেদিত': 'Dedicated to serving humanity',
-  'মানবসেবামূলক প্রকল্প': 'Humanitarian project',
-  'অসহায় ও দুস্থ পরিবারের জন্য নিরাপদ বাসস্থান নিশ্চিত করতে আমাদের ঘর নির্মাণ প্রকল্পের অগ্রগতি ও উপকারভোগীদের তথ্য এখানে পাওয়া যাবে।':
-    'Progress of our housing project and details of its beneficiaries — safe homes for helpless and distressed families.',
-  'ঘর নির্মাণ প্রকল্প দেখুন': 'View the housing project',
   'হোম': 'Home',
   'খসড়া — শুধু এডমিন দেখছেন': 'Draft — only admins can see this',
   'প্রধান মেনু': 'Main menu',
@@ -104,9 +100,6 @@ export const EN: Record<string, string> = {
   'আগের প্রকল্প': 'Previous project',
   'পরের প্রকল্প': 'Next project',
   '{title} — উপকারভোগীদের তালিকা দেখতে "আরো দেখুন" চাপুন।': '{title} — press "See more" to view the beneficiary list.',
-  'মোট ঘর নির্মাণ': 'Houses built',
-  'মোট জেলা কভার': 'Districts covered',
-  'মোট উপজেলা কভার': 'Upazilas covered',
   'মোট অগ্রগতি': 'Overall progress',
   'পরিসংখ্যান': 'Statistics',
 
@@ -869,4 +862,31 @@ Object.assign(EN, {
   'সারিতে চাপলে তালিকা সেই ক্যাটাগরিতে ফিল্টার হবে': 'Tap a row to filter the list by that category',
   'আরো দেখুন ({n})': 'Show more ({n})',
   'কম দেখান': 'Show less',
+
+  // ---------------------------------------------------------------- হোম পেইজ (M-ধাপ ১৫)
+  'আমাদের সেবা প্রকল্পসমূহ': 'Our service projects',
+  'অসহায় ও দুস্থ মানুষের পাশে আমাদের প্রকল্পগুলোর অগ্রগতি, উপকারভোগীদের তথ্য ও ছবি এখানে সবার জন্য উন্মুক্ত।': 'Progress of our projects standing by the helpless and the needy, with beneficiary details and photos — open to everyone.',
+  'মোট প্রকল্প': 'Projects',
+  'মোট উপকারভোগী': 'Beneficiaries',
+  'মোট জেলা': 'Districts',
+  'প্রকল্প দেখুন': 'View project',
+  'প্রতিটি প্রকল্পের উপকারভোগীদের তথ্য ও ছবি সবার জন্য উন্মুক্ত।': "Every project's beneficiary details and photos are open to everyone.",
+  'এখনো কোনো প্রকল্প প্রকাশিত হয়নি।': 'No project has been published yet.',
+
+  // ---------------------------------------------------------------- কভার ছবি (M-ধাপ ১৫)
+  'কভার ছবি (হোম পেইজের কার্ডে)': 'Cover photo (on the home page card)',
+  'প্রকাশিত প্রকল্পে আসল ছবি দিন। না দিলে হোমে সর্বশেষ রেকর্ডের ছবি, তাও না থাকলে রঙের পটভূমি ও আইকন দেখাবে।': 'Use a real photo for published projects. Without one, the home page shows the latest record photo, or else the colour background with the icon.',
+  '{name} — কভার ছবি': '{name} — cover photo',
+  'কভার নেই': 'No cover',
+  'প্রক্রিয়া চলছে…': 'Processing…',
+  'আগে বাকি পরিবর্তন সংরক্ষণ বা বাতিল করুন, তারপর কভার বদলান।': 'Save or discard the other changes first, then change the cover.',
+  'কভার বদলান': 'Change cover',
+  'কভার ছবি দিন': 'Add cover photo',
+  'কভার মুছুন': 'Delete cover',
+  'jpg/png/webp — নিজে থেকে WebP (সর্বোচ্চ ১৬০০px) হবে': 'jpg/png/webp — converted to WebP automatically (max 1600px)',
+  'কভার ছবি মুছবেন?': 'Delete the cover photo?',
+  'হোমের কার্ডে তখন সর্বশেষ রেকর্ডের ছবি বা রঙের পটভূমি দেখাবে।': 'The home card will then show the latest record photo or the colour background.',
+  'কভার ছবি আপলোড হয়েছে': 'Cover photo uploaded',
+  'কভার ছবি মুছে ফেলা হয়েছে': 'Cover photo deleted',
+  'কভার ছবি ৫ MB এর বেশি': 'Cover photo is larger than 5 MB',
 })

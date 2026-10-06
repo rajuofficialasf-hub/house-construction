@@ -49,6 +49,8 @@ export function createRestProjectsApi(_baseUrl: string): ProjectsApi {
     overview: async () => notImplemented('projects.overview'), // GET  ENDPOINTS.projects.overview
     create: async () => notImplemented('projects.create'), // POST ENDPOINTS.projects.list
     update: async () => notImplemented('projects.update'), // PATCH ENDPOINTS.projects.byKey (If-Match)
+    uploadCover: async () => notImplemented('projects.uploadCover'), // PUT  ENDPOINTS.projects.cover (multipart photo)
+    deleteCover: async () => notImplemented('projects.deleteCover'), // DELETE ENDPOINTS.projects.cover (মূল এডমিন)
     delete: async () => notImplemented('projects.delete'), // DELETE ENDPOINTS.projects.byKey
     reorder: async () => notImplemented('projects.reorder'), // PUT  ENDPOINTS.projects.order
     createField: async () => notImplemented('projects.createField'), // POST ENDPOINTS.projects.fields

@@ -167,5 +167,37 @@ const rec = { id: 'r1', project_type: 'semi_pucca', serial_no: 1, year: 2024, na
   ok('নতুন DB: প্রকল্পের সেটিং ক্যাশ থেকে (প্রতি লেখায় নতুন কল নয়)', log.filter((l) => l.target === 'projects').length === before)
 }
 
+// ===================================================================== ৩. রেজিস্ট্রি এক কলে (M-ধাপ ১৫: project_fields embed)
+{
+  resetLegacyState()
+  const F = (id: string, project_key: string, key: string, sort_order: number) => ({ id, project_key, key, label_bn: key, label_en: key, help_bn: '', help_en: '', type: 'text', options: null, required: false, visibility: 'public', show_in_table: true, show_in_card: false, show_in_detail: true, filterable: false, searchable: false, fill_down: false, max_length: null, min_value: '5', max_value: null, import_aliases: null, sort_order, is_active: true, created_at: '', updated_at: '' })
+  const rows = () => [
+    { ...structuredClone(FALLBACK_PROJECTS[1]), fields: undefined, project_fields: [F('b', 'semi_pucca', 'zeta', 20), F('a', 'semi_pucca', 'alpha', 20), F('c', 'semi_pucca', 'first', 10)] },
+    { ...structuredClone(FALLBACK_PROJECTS[2]), fields: undefined, project_fields: [] },
+  ]
+  // ক) embed চলে: একটিই কল, ফিল্ড প্রকল্পে, ক্রম sort_order → key, project_fields কী প্রকল্পে থাকে না
+  let log: { target: string; ops: Op[] }[] = []
+  let projects = createSupabaseProjectsApi(fakeClient((t) => (t === 'projects' ? { data: rows(), error: null } : { data: null, error: { message: 'unexpected ' + t } }), log), { trustedServer: true })
+  let list = await projects.list({ includeDrafts: true })
+  const sel = log.find((l) => l.target === 'projects')?.ops.find((o) => o[0] === 'select')?.[1][0]
+  const semi = list.find((p) => p.key === 'semi_pucca')
+  ok('রেজিস্ট্রি: একটিই কল (select "*, project_fields(*)"), আলাদা project_fields কল নেই', log.length === 1 && sel === '*, project_fields(*)', `${log.map((l) => l.target).join(',')} ${String(sel)}`)
+  ok('রেজিস্ট্রি: embed এর ফিল্ড প্রকল্পে, আগের ক্রমে (sort_order, তারপর key), সংখ্যা/তালিকা স্বাভাবিক; প্রকল্পে project_fields কী নেই', semi?.fields.map((f) => f.key).join() === 'first,alpha,zeta' && semi.fields[0].min_value === 5 && Array.isArray(semi.fields[0].options) && !('project_fields' in (semi as object)) && list.find((p) => p.key === 'tin')?.fields.length === 0, semi?.fields.map((f) => f.key).join())
+  // খ) embed নেই (PGRST200 — সম্পর্ক অচেনা): আগের মতো দুই কল
+  log = []
+  projects = createSupabaseProjectsApi(
+    fakeClient((t, ops) => {
+      const s = ops.find((o) => o[0] === 'select')?.[1][0]
+      if (t === 'projects' && s !== '*') return { data: null, error: { code: 'PGRST200', message: 'Could not find a relationship' } }
+      if (t === 'projects') return { data: rows().map(({ project_fields: _f, ...p }) => p), error: null }
+      if (t === 'project_fields') return { data: rows()[0].project_fields, error: null }
+      return { data: null, error: null }
+    }, log),
+    { trustedServer: true },
+  )
+  list = await projects.list({ includeDrafts: true })
+  ok('রেজিস্ট্রি: embed না চললে (PGRST200) আগের দুই কলে — একই ফল, পুরনো-ডাটাবেস মোড নয়', log.map((l) => l.target).join() === 'projects,projects,project_fields' && list.find((p) => p.key === 'semi_pucca')?.fields.map((f) => f.key).join() === 'first,alpha,zeta' && (await projects.backendMode()) === 'full', log.map((l) => l.target).join())
+}
+
 console.log(`\nফল: PASS ${pass}, FAIL ${fail}`)
 process.exit(fail ? 1 : 0)

@@ -40,6 +40,13 @@ export interface ProjectsApi {
    * প্রকাশ/অপ্রকাশ = { is_published }।
    */
   update(key: ProjectKey, patch: ProjectPatch, opts?: { expectedUpdatedAt?: string }): Promise<Project>
+  /**
+   * কভার ছবি (M-ধাপ ১৫; চুক্তি §৪.১.৮): WebP (ক্লায়েন্টে কম্প্রেস করা), ≤ ৫ MB → `housing/_projects/{key}/cover.webp`
+   * (একই পাথে ওভাররাইট), `cover_path` বসে; বদলানো প্রকল্প ফেরত। এডমিন।
+   */
+  uploadCover(key: ProjectKey, file: Blob): Promise<Project>
+  /** কভার ছবির ফাইল ও `cover_path` মোছা — শুধু মূল এডমিন */
+  deleteCover(key: ProjectKey): Promise<Project>
   /** মূল এডমিন; রেকর্ড থাকলে (বা আগে ছিল) ডাটাবেস আটকায় */
   delete(key: ProjectKey): Promise<void>
   /** keys এর ক্রমে sort_order */

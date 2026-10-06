@@ -10,6 +10,7 @@ import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import { friendlyProjectError, photoNameExample, prefixError, slugError } from '../projects/projectRules'
 import { publishChecklist } from '../projects/publishChecklist'
 import { UnpublishDialog } from '../projects/UnpublishDialog'
+import { CoverUpload } from '../projects/CoverUpload'
 import { FieldsTab } from '../projects/tabs/FieldsTab'
 import { StatsTab } from '../projects/tabs/StatsTab'
 import { Badge } from '../ui/Badge'
@@ -395,6 +396,8 @@ export function ProjectSettingsPage() {
                 ))}
               </div>
             </div>
+
+            <CoverUpload project={project} blocked={dirty} onChanged={changed} />
           </>
         )}
 

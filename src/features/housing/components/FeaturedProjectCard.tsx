@@ -3,6 +3,8 @@ import { Link } from 'react-router'
 import { formatBanglaNumber, toBanglaNumber } from '@/lib/banglaNumber'
 import type { HousingRecord, Project } from '../../../backend/interfaces/types'
 import { useCountUp } from '../hooks/useCountUp'
+import { formatTaka } from '@/lib/money'
+import { cardValue, homeCards, homeLabel } from '@/features/projects/stats/statCards'
 import { useFeaturedRecord } from '../hooks/useFeaturedRecord'
 import { useHousingStats } from '../hooks/useHousingStats'
 import { photoSrc } from '../utils/imagePath'
@@ -27,6 +29,8 @@ export function FeaturedProjectCard({ project }: Props) {
   const record = state.status === 'ready' ? state.record : null
   const listPath = projectPath(project)
   const photo = record ? photoSrc(record.current_photo_url ?? record.prev_photo_url, record.photo_updated_at) : null
+  // টাইল প্রকল্পের কনফিগ থেকে (M-ধাপ ১৫): `home: true` কার্ড, লেবেল home_label → label; ঘর নির্মাণে আগের তিনটি হুবহু
+  const cards = homeCards(project)
 
   return (
     <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl bg-white shadow-md ring-1 ring-slate-200/70">
@@ -52,11 +56,13 @@ export function FeaturedProjectCard({ project }: Props) {
         {/* লেখা */}
         <div className="flex min-w-0 flex-1 flex-col">
           <h3 className="text-lg font-bold text-slate-900">{title}</h3>
-          <dl className="mt-3 grid flex-1 grid-cols-3 gap-2">
-            <StatTile label={t('মোট ঘর নির্মাণ')} value={stats.status === 'ready' ? stats.data.total : null} loading={stats.status === 'loading'} accent />
-            <StatTile label={t('মোট জেলা কভার')} value={stats.status === 'ready' ? stats.data.distinct.districts : null} loading={stats.status === 'loading'} />
-            <StatTile label={t('মোট উপজেলা কভার')} value={stats.status === 'ready' ? stats.data.distinct.upazilas : null} loading={stats.status === 'loading'} />
-          </dl>
+          {cards.length > 0 && (
+            <dl className={`mt-3 grid flex-1 ${TILE_COLS[cards.length] ?? 'grid-cols-3'} gap-2`}>
+              {cards.map((c, i) => (
+                <StatTile key={c.id} label={homeLabel(c)} value={stats.status === 'ready' ? cardValue(c, stats.data) : null} loading={stats.status === 'loading'} money={c.format === 'money'} accent={i === 0} />
+              ))}
+            </dl>
+          )}
           <div className="mt-4">
             <Link
               to={listPath}
@@ -78,16 +84,20 @@ export function FeaturedProjectCard({ project }: Props) {
   )
 }
 
-/** কার্ডের ছোট পরিসংখ্যান টাইল: বড় বাংলা সংখ্যা (count-up) + লেবেল; লোডিংয়ে skeleton; ডাটা না এলে "—" */
-function StatTile({ label, value, loading, accent = false }: { label: string; value: number | null; loading: boolean; accent?: boolean }) {
+/** টাইলের কলাম (Tailwind পুরো ক্লাসের নাম দেখতে চায়) */
+const TILE_COLS: Record<number, string> = { 1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-3' }
+
+/** কার্ডের ছোট পরিসংখ্যান টাইল: বড় বাংলা সংখ্যা (count-up; টাকা ৳) + লেবেল; লোডিংয়ে skeleton; ডাটা না এলে "—" */
+function StatTile({ label, value, loading, accent = false, money = false }: { label: string; value: number | null; loading: boolean; accent?: boolean; money?: boolean }) {
   const shown = useCountUp(value ?? 0)
+  const fmt = money ? formatTaka : formatBanglaNumber
   return (
     <div className={`flex min-w-0 flex-col items-center justify-center rounded-xl px-2 py-3 text-center ${accent ? 'bg-brand-700 text-white' : 'bg-brand-50 text-brand-900'}`}>
       {loading ? (
         <dd className={`h-7 w-10 animate-pulse rounded ${accent ? 'bg-white/30' : 'bg-brand-200'}`} aria-busy="true" />
       ) : (
-        <dd className="text-2xl leading-none font-bold tabular-nums sm:text-3xl" aria-label={`${label}: ${value === null ? t('অজানা') : formatBanglaNumber(value)}`}>
-          {value === null ? '—' : formatBanglaNumber(shown)}
+        <dd className={money ? 'text-lg leading-none font-bold tabular-nums sm:text-xl' : 'text-2xl leading-none font-bold tabular-nums sm:text-3xl'} aria-label={`${label}: ${value === null ? t('অজানা') : fmt(value)}`}>
+          {value === null ? '—' : fmt(Math.round(shown))}
         </dd>
       )}
       <dt className={`mt-1.5 text-[11px] leading-tight font-medium sm:text-xs ${accent ? 'text-white/85' : 'text-brand-800/80'}`}>{label}</dt>

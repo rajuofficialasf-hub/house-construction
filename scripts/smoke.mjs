@@ -194,9 +194,12 @@ try {
         new MutationObserver(check).observe(document, { subtree: true, childList: true, characterData: true })
       }, NOT_FOUND_TEXT)
       let errors = []
+      /** এই পাতার আলাদা আলাদা ডাটা-কল (একই অনুরোধ দুবার — dev এর StrictMode — একবার গোনা) */
+      let pageCalls = new Set()
       page.on('request', (r) => {
         const m = r.url().match(/\/rest\/v1\/((?:rpc\/)?[a-z_]+)/)
         if (m) apiHits.set(m[1], (apiHits.get(m[1]) ?? 0) + 1)
+        if (m && r.method() !== 'OPTIONS') pageCalls.add(`${r.method()} ${r.url()} ${r.postData() ?? ''}`)
       })
       page.on('pageerror', (e) => errors.push(`page error: ${e.message}`))
       page.on('console', (m) => {
@@ -206,12 +209,16 @@ try {
       for (const pg of PAGES) {
         if (pg.widths && !pg.widths.includes(width)) continue
         errors = []
+        pageCalls = new Set()
         const problems = []
         try {
           await page.goto(BASE + pg.path, { waitUntil: 'networkidle0', timeout: 45000 })
           await page.waitForFunction(() => !document.querySelector('[aria-busy="true"]'), { timeout: 12000 }).catch(() => problems.push('লোড শেষ হয়নি (aria-busy ১২ সেকেন্ডেও আছে)'))
           await sleep(300)
           problems.push(...(await inspect(page, pg)))
+          // M-ধাপ ১৫: হোমে ডাটা-কল ≤ ২ (রেজিস্ট্রি ১ + projects_overview ১); পুরনো ডাটাবেসে ফলব্যাক ≤ ৩ (housing_stats প্রতি প্রকল্পে)
+          const maxCalls = LEGACY ? 3 : 2
+          if (pg.name === 'home' && pageCalls.size > maxCalls) problems.push(`হোমে ${pageCalls.size}টি API কল (সর্বোচ্চ ${maxCalls}): ${[...pageCalls].map((c) => c.split('?')[0].replace(/^.*\/rest\/v1\//, '')).join(', ')}`)
         } catch (e) {
           problems.push(`খোলা যায়নি: ${e.message}`)
         }

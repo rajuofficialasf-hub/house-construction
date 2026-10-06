@@ -14,6 +14,8 @@ export interface Accent {
   text: string
   /** বোতামের বর্ডার ও লেখা (hover-এ ভরাট) */
   outline: string
+  /** কভার না থাকলে হোম কার্ডের পটভূমি (bg-gradient-to-br এর সাথে; M-ধাপ ১৫) */
+  gradient: string
 }
 
 export const ACCENTS = {
@@ -24,6 +26,7 @@ export const ACCENTS = {
     solid: 'bg-brand-700 text-white',
     text: 'text-brand-700',
     outline: 'border-brand-600 text-brand-700 hover:bg-brand-600 hover:text-white',
+    gradient: 'from-brand-800 via-brand-700 to-brand-500',
   },
   teal: {
     label_bn: 'নীলচে সবুজ',
@@ -32,6 +35,7 @@ export const ACCENTS = {
     solid: 'bg-teal-700 text-white',
     text: 'text-teal-700',
     outline: 'border-teal-600 text-teal-700 hover:bg-teal-600 hover:text-white',
+    gradient: 'from-teal-800 via-teal-700 to-teal-500',
   },
   sky: {
     label_bn: 'আকাশি',
@@ -40,6 +44,7 @@ export const ACCENTS = {
     solid: 'bg-sky-700 text-white',
     text: 'text-sky-700',
     outline: 'border-sky-600 text-sky-700 hover:bg-sky-600 hover:text-white',
+    gradient: 'from-sky-800 via-sky-700 to-sky-500',
   },
   indigo: {
     label_bn: 'নীল',
@@ -48,6 +53,7 @@ export const ACCENTS = {
     solid: 'bg-indigo-700 text-white',
     text: 'text-indigo-700',
     outline: 'border-indigo-600 text-indigo-700 hover:bg-indigo-600 hover:text-white',
+    gradient: 'from-indigo-800 via-indigo-700 to-indigo-500',
   },
   amber: {
     label_bn: 'সোনালি',
@@ -56,6 +62,7 @@ export const ACCENTS = {
     solid: 'bg-amber-600 text-white',
     text: 'text-amber-800',
     outline: 'border-amber-600 text-amber-800 hover:bg-amber-600 hover:text-white',
+    gradient: 'from-amber-700 via-amber-600 to-amber-400',
   },
   rose: {
     label_bn: 'গোলাপি',
@@ -64,6 +71,7 @@ export const ACCENTS = {
     solid: 'bg-rose-700 text-white',
     text: 'text-rose-700',
     outline: 'border-rose-600 text-rose-700 hover:bg-rose-600 hover:text-white',
+    gradient: 'from-rose-800 via-rose-700 to-rose-500',
   },
 } as const satisfies Record<string, Accent>
 

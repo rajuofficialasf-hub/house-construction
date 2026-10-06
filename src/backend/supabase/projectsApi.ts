@@ -11,14 +11,19 @@ import {
   type ProjectOverviewItem,
   type ProjectStats,
 } from '../interfaces/types'
-import type { GetClient } from './client'
+import { PHOTO_SPEC } from '../../features/housing/utils/photoSpec'
+import { STORAGE_BUCKET, type GetClient } from './client'
 import { mapSupabaseError } from './errors'
 import { isKnownMissing, isMissingError, legacyWriteError, withFallback } from './legacy'
-import { assertAdmin } from './session'
+import { adminRole, assertAdmin } from './session'
 import { fetchProjectStats, normalizeStats } from './stats'
 
 export const PROJECTS_TABLE = 'projects'
 export const FIELDS_TABLE = 'project_fields'
+
+/** কভার ছবি: একটি নির্দিষ্ট পাথ (ডাটাবেসের projects_cover_path চেকের সমান), WebP, ≤ ৫ MB (চুক্তি §৪.১.৮) */
+export const COVER_MAX_BYTES = 5 * 1024 * 1024
+export const coverPath = (key: ProjectKey) => `housing/_projects/${key}/cover.webp`
 
 /** get() এর ক্যাশ (লেখার payload ঠিক করতে বারবার লাগে); প্যানেলের তালিকা (list) সবসময় তাজা */
 const CACHE_MS = 60_000
@@ -84,15 +89,30 @@ export function createSupabaseProjectsApi(getClient: GetClient, options: Supabas
     const list = await withFallback(
       'projects',
       async () => {
-        const [p, f] = await Promise.all([
-          getClient().from(PROJECTS_TABLE).select('*').order('sort_order').order('key'),
-          getClient().from(FIELDS_TABLE).select('*').order('sort_order').order('key'),
-        ])
-        if (p.error) throw mapSupabaseError(p.error)
-        if (f.error) throw mapSupabaseError(f.error)
-        const fields = ((f.data ?? []) as Row[]).map(toField)
+        // এক কলে প্রকল্প + ফিল্ড (PostgREST embed, FK project_fields.project_key → projects.key) — M-ধাপ ১৫:
+        // প্রতিটি পাতায় রেজিস্ট্রির কল ২ → ১। embed না চললে (PGRST200) বা উত্তরে না এলে আগের মতো আলাদা ফিল্ড-কল।
+        const p = await getClient().from(PROJECTS_TABLE).select(`*, ${FIELDS_TABLE}(*)`).order('sort_order').order('key')
+        let rows = (p.data ?? []) as Row[]
+        let fieldRows: Row[] | null = null
+        if (p.error && p.error.code === 'PGRST200') {
+          const plain = await getClient().from(PROJECTS_TABLE).select('*').order('sort_order').order('key')
+          if (plain.error) throw mapSupabaseError(plain.error)
+          rows = (plain.data ?? []) as Row[]
+        } else if (p.error) {
+          throw mapSupabaseError(p.error)
+        } else if (rows.every((r) => Array.isArray(r[FIELDS_TABLE]))) {
+          fieldRows = rows.flatMap((r) => r[FIELDS_TABLE] as Row[])
+          rows = rows.map(({ [FIELDS_TABLE]: _embedded, ...r }) => r)
+        }
+        if (!fieldRows) {
+          const f = await getClient().from(FIELDS_TABLE).select('*').order('sort_order').order('key')
+          if (f.error) throw mapSupabaseError(f.error)
+          fieldRows = (f.data ?? []) as Row[]
+        }
+        // আগের মতো ক্রম: sort_order, তারপর key
+        const fields = fieldRows.map(toField).sort((a, b) => a.sort_order - b.sort_order || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0))
         mode = 'full'
-        return ((p.data ?? []) as Row[]).map((r) => toProject(r, fields))
+        return rows.map((r) => toProject(r, fields))
       },
       async () => {
         mode = 'legacy'
@@ -214,6 +234,29 @@ export function createSupabaseProjectsApi(getClient: GetClient, options: Supabas
         throw new HousingApiError(exists ? 'FORBIDDEN' : 'NOT_FOUND', exists ? 'প্রকল্প বদলানোর অনুমতি নেই' : 'প্রকল্প পাওয়া যায়নি')
       }
       return fetchOne(key)
+    },
+
+    async uploadCover(key, file) {
+      await guard()
+      assertWritable()
+      if (file.type !== PHOTO_SPEC.mime) throw new HousingApiError('VALIDATION_ERROR', 'কভার ছবি WebP হতে হবে')
+      if (file.size > COVER_MAX_BYTES) throw new HousingApiError('PAYLOAD_TOO_LARGE', 'কভার ছবি ৫ MB এর বেশি')
+      const path = coverPath(key)
+      const { error } = await getClient().storage.from(STORAGE_BUCKET).upload(path, file, { upsert: true, contentType: PHOTO_SPEC.mime, cacheControl: '86400' })
+      if (error) throw mapSupabaseError(error, 'কভার ছবি আপলোড ব্যর্থ হয়েছে')
+      // একই পাথে ওভাররাইট হলেও update এ updated_at বদলায় — URL এর ?v= তাতেই নতুন হয়
+      return api.update(key, { cover_path: path })
+    },
+
+    async deleteCover(key) {
+      if (!options.trustedServer) {
+        const uid = await assertAdmin(getClient)
+        if ((await adminRole(getClient, uid)) !== 'main_admin') throw new HousingApiError('FORBIDDEN', 'শুধু মূল এডমিন কভার ছবি মুছতে পারেন')
+      }
+      assertWritable()
+      const { error } = await getClient().storage.from(STORAGE_BUCKET).remove([coverPath(key)])
+      if (error) throw mapSupabaseError(error, 'কভার ছবি মুছতে সমস্যা হয়েছে')
+      return api.update(key, { cover_path: null })
     },
 
     async delete(key) {

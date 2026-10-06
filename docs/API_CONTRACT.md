@@ -1,7 +1,7 @@
 # As-Sunnah Foundation প্রকল্প-প্ল্যাটফর্ম — REST API চুক্তি (API_CONTRACT.md)
 
 > নিজস্ব সার্ভারের ডেভেলপারের জন্য। ফ্রন্টএন্ডের `rest` অ্যাডাপ্টার (`src/backend/rest/`, পাথ `src/backend/rest/endpoints.ts`) ঠিক এই চুক্তি অনুযায়ী কল করবে।
-> সংস্করণ: **১.৩** — সর্বশেষ আপডেট: ২০২৬-১০-০৬ (পর্ব ২, M-ধাপ ১২: ক্লায়েন্ট-ইভেন্ট `category_merge`; ছবির ফাইলনামের নিয়ম সব প্রকল্পে)
+> সংস্করণ: **১.৪** — সর্বশেষ আপডেট: ২০২৬-১০-০৬ (পর্ব ২, M-ধাপ ১৫: কভার ছবি `ProjectsApi.uploadCover/deleteCover`; হোম পেইজের কার্ডের নিয়ম)
 > সার্ভারের প্রযুক্তি (ভাষা/ফ্রেমওয়ার্ক/DB) অনির্ধারিত; এই চুক্তি প্রযুক্তি-নিরপেক্ষ। "TBD" অংশ এখনো চূড়ান্ত নয়। ধাপ ১৩ (নিজস্ব সার্ভার) স্থগিত।
 > রেফারেন্স বাস্তবায়ন: Supabase (`supabase/sql/*.sql` — ট্রিগার ও RLS এ প্রতিটি নিয়ম আছে; `src/backend/supabase/`)। দুই জায়গায় নিয়ম আলাদা হলে **এই চুক্তি সংশোধন করে** মেলাতে হবে।
 
@@ -236,7 +236,7 @@
 | PATCH | `/api/projects/:key` (`If-Match`) | এডমিন | `ProjectsApi.update` |
 | DELETE | `/api/projects/:key` | **মূল এডমিন** | `ProjectsApi.delete` |
 | PUT | `/api/projects/order` | এডমিন | `ProjectsApi.reorder` |
-| PUT / DELETE | `/api/projects/:key/cover` | এডমিন / **মূল এডমিন** | (M-ধাপ ৭-এ) |
+| PUT / DELETE | `/api/projects/:key/cover` | এডমিন / **মূল এডমিন** | `ProjectsApi.uploadCover` / `deleteCover` (v১.৪) |
 | GET | `/api/projects/:key/fields` | পাবলিক (গোপন শুধু এডমিন) | (`list` এর ভেতরে) |
 | POST | `/api/projects/:key/fields` | এডমিন | `ProjectsApi.createField` |
 | PATCH | `/api/fields/:id` | এডমিন | `ProjectsApi.updateField` |
@@ -299,7 +299,9 @@ body: §৩.১ এর যেকোনো উপসেট (`key`, `fields`, `cre
 body `{ "keys": ["housing", "self_reliance", "skill"] }` → সেই ক্রমে `sort_order` (১০, ২০, …)। অচেনা key উপেক্ষিত। → `204`।
 
 #### ৪.১.৮ PUT / DELETE `/api/projects/:key/cover`
-`multipart/form-data` `photo` (WebP, ≤ ৫ MB) → পাথ `housing/_projects/{key}/cover.webp`, `cover_path` আপডেট → `200 { "data": Project }`। DELETE (মূল এডমিন) → ফাইল ও `cover_path` মোছে → `200`। (ফ্রন্টএন্ড M-ধাপ ৭-এ ব্যবহার শুরু করবে।)
+`multipart/form-data` `photo` (WebP, ≤ ৫ MB) → পাথ `housing/_projects/{key}/cover.webp` (একই পাথে ওভাররাইট), `cover_path` আপডেট (ফলে `updated_at` বদলায়) → `200 { "data": Project }`। WebP না হলে `400 VALIDATION_ERROR`, বড় হলে `413 PAYLOAD_TOO_LARGE`। DELETE (মূল এডমিন; অন্যরা `403`) → ফাইল ও `cover_path` মোছে → `200 { "data": Project }`। `cover_path` সবসময় ঠিক এই পাথ বা `null` (অন্য মান `400`)।
+
+ফ্রন্টএন্ড (v১.৪, M-ধাপ ১৫): ব্রাউজারে ছবি WebP করে (সর্বোচ্চ ১৬০০px) পাঠায়; কভারের URL = পাবলিক স্টোরেজ URL + `?v=<প্রকল্পের updated_at>` (ওভাররাইটের পর পুরনো ছবি ক্যাশ থেকে না আসে)। হোম পেইজের কার্ডে ছবির ক্রম: কভার → ওভারভিউর `featured.thumb_url` → প্রকল্পের রঙের পটভূমি ও আইকন। কার্ড আসে শুধু শীর্ষ-স্তরের (গ্রুপ বা একক) প্রকাশিত প্রকল্পের যার `show_on_home` চালু; গ্রুপের প্রকাশিত উপ-প্রকল্প কার্ডে চিপ হিসেবে। কার্ডের সংখ্যা = `stat_cards` এর `home: true` (≤ ৩টি), লেবেল `home_label_*` থাকলে সেটা।
 
 ### ৪.২ ফিল্ড
 
@@ -517,6 +519,7 @@ Supabase রেফারেন্সে এগুলো `supabase/sql/10b_projec
 | ২০২৬-১০-০৫ | **১.০** | **বহু-প্রকল্প (পর্ব ২, M-ধাপ ৪):** প্রকল্প, ফিল্ড, ওভারভিউ endpoint; পাথ `/api/projects/:key/...` ও `/api/records/:id/...` (§৯); রেকর্ডে `union_name`, `extra`; গোপন মান endpoint; ফিল্ডের ধরন ও যাচাই; `ProjectStats` শেপ (by_union, by_project, fields, distinct.unions); কাস্টম ফিল্টার `f.<key>` (whitelist), `sort=extra.<key>`; ছবি-মোড; খসড়া লুকানো; অপরিবর্তনীয় জিনিসের তালিকা; লগের নতুন action; PUT এর বদলে PATCH (আংশিক আপডেট); ছবি endpoint `PUT/DELETE …/photos/:slot` |
 | ২০২৬-১০-০৫ | ১.১ | `POST /api/projects/:key/records/private` (অনেক রেকর্ডের গোপন মান একসাথে, ≤ ১০০; গোপনসহ CSV এক্সপোর্ট — M-ধাপ ১০); ক্লায়েন্ট-ইভেন্ট `records_export` |
 | ২০২৬-১০-০৫ | ১.২ | বাল্ক আপডেট: গোপন key → গোপন অংশে মার্জ (TBD ৪ চূড়ান্ত), `_clear` শুধু পাবলিক, শীটের `(মুছুন)` রীতি (ফ্রন্টএন্ড → `_clear`); টাকার সীমা ১০০০ কোটি = 1e10 (আগে 1e11 লেখা ছিল, যা আসলে ১০,০০০ কোটি; Supabase: `13_money_limit.sql`) — M-ধাপ ১১ |
+| ২০২৬-১০-০৬ | ১.৪ | কভার ছবি: `ProjectsApi.uploadCover` / `deleteCover` (§৪.১.৮ — WebP ≤ ৫ MB, ত্রুটির কোড, মোছা মূল এডমিন), কভারের ক্যাশ-ভাঙা ও হোম কার্ডের নিয়ম — M-ধাপ ১৫। (রেজিস্ট্রি আগে থেকেই এক কলে: `GET /api/projects?include=fields`; Supabase অ্যাডাপ্টারও এখন এক কলে — ফিল্ড embed) |
 | ২০২৬-১০-০৬ | ১.৩ | ক্লায়েন্ট-ইভেন্ট `category_merge`; `photo_bulk_run` প্রকল্প ধরে আলাদা; ছবির ফাইলনাম: প্রিফিক্স = file_prefix/key/slug (অঙ্কসহ), শুধু-পরের-ছবি প্রকল্পে আগে/পরে না লিখলে `current`, `prev` হলে ভুল — M-ধাপ ১২ |
 
 ## ৯. পুরনো (v০.৯) → নতুন (v১.০) পাথ

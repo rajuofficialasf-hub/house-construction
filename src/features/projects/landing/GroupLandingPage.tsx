@@ -1,14 +1,16 @@
 import { lt, t } from '@/i18n'
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
-import type { Project } from '../../../backend/interfaces/types'
-import { FeaturedProjects } from '../components/FeaturedProjects'
-import { HousingSubnav } from '../components/HousingSubnav'
+import type { Project } from '@/backend'
+import { FeaturedProjects } from '@/features/housing/components/FeaturedProjects'
+import { HousingSubnav } from '@/features/housing/components/HousingSubnav'
+import { HOUSING_GROUP_KEY } from '@/features/projects/registry'
 
 /**
  * গ্রুপের ল্যান্ডিং (যেমন /housing) — উপরে পরিচিতি (রেজিস্ট্রির নাম ও বর্ণনা), নিচে হোমের মতোই ছবিসহ উপ-প্রকল্পের কার্ড
- * (পরিসংখ্যান + প্রথম উপকারভোগী + "আরো দেখুন")। কোনো লগইন লাগে না। নতুন গ্রুপ-ল্যান্ডিং ডিজাইন আসবে M-ধাপ ১৫-এ।
+ * (প্রকল্পের home কার্ডের পরিসংখ্যান + প্রথম উপকারভোগী + "আরো দেখুন")। কোনো লগইন লাগে না।
+ * M-ধাপ ১৫-এ HousingLandingPage থেকে — যেকোনো গ্রুপের; /housing দেখতে আগের হুবহু।
  */
-export function HousingLandingPage({ group }: { group: Project }) {
+export function GroupLandingPage({ group }: { group: Project }) {
   const title = lt(group, 'name')
   useDocumentTitle(title)
   return (
@@ -22,7 +24,8 @@ export function HousingLandingPage({ group }: { group: Project }) {
         </div>
       </section>
 
-      <FeaturedProjects groupKey={group.key} />
+      {/* ঘর নির্মাণে আগের লেখা; অন্য গ্রুপে তার সারাংশ (না থাকলে লেখা নেই) */}
+      <FeaturedProjects groupKey={group.key} intro={lt(group, 'summary') || (group.key === HOUSING_GROUP_KEY ? undefined : '')} />
     </>
   )
 }
