@@ -1,5 +1,6 @@
-// Who may call the admin routes added with the bulk, photo, serial and activity work
-// (docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md, "P3 decisions"): one
+// Who may call the admin routes added with the bulk, photo, serial and activity work and the
+// project and field writes (docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md,
+// "P3 decisions" and "P4 decisions"): one
 // table of routes, each checked for the same refusals, so a new route can't skip one.
 import { Writable } from 'node:stream';
 import request from 'supertest';
@@ -37,7 +38,7 @@ const limited = createApp({
 });
 const P = 'auth_p';
 
-type Method = 'get' | 'post' | 'put' | 'delete';
+type Method = 'get' | 'post' | 'put' | 'patch' | 'delete';
 interface AdminRoute {
   method: Method;
   /** The path, with ID standing for a real record's id. */
@@ -53,6 +54,10 @@ const ROUTES: AdminRoute[] = [
   { method: 'post', path: '/api/v1/records/ID/serial', body: { serial_no: 5 } },
   { method: 'get', path: '/api/v1/activity' },
   { method: 'post', path: '/api/v1/activity', body: { action: 'import_run' } },
+  { method: 'post', path: '/api/v1/projects', body: {} },
+  { method: 'put', path: '/api/v1/projects/order', body: { keys: ['tin'] } },
+  { method: 'patch', path: `/api/v1/projects/${P}`, body: { name_bn: 'ক' } },
+  { method: 'delete', path: '/api/v1/projects/nope' },
 ];
 
 let id = '';

@@ -55,3 +55,6 @@ export const requireMainAdmin = mainAdminOnly('শুধু মূল এডম�
 
 /** requireMainAdmin for a photo delete, with the contract's own message (§4.4.11). */
 export const requireMainAdminForPhotos = mainAdminOnly('শুধু মূল এডমিন ছবি মুছতে পারেন');
+
+/** requireMainAdmin for a project cover delete, with the message the admin screens show (§4.1.8). */
+export const requireMainAdminForCovers = mainAdminOnly('শুধু মূল এডমিন কভার ছবি মুছতে পারেন');

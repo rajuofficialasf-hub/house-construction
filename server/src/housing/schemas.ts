@@ -1,5 +1,7 @@
 import { z } from 'zod';
-import { projectKey } from '../projects/schemas.js';
+import { projectKey, writeText } from '../projects/schemas.js';
+
+export { writeText };
 
 // Request and response shapes of the public housing reads (docs/api/API_CONTRACT.md §3, §4).
 // The routes parse with the request schemas, and the OpenAPI document is built from all of them,
@@ -123,13 +125,6 @@ export const CLIENT_EVENT_ACTIONS = ['import_run', 'photo_bulk_run', 'records_ex
 /** How deep the activity list may page; past it a filter is the way in, not a long OFFSET scan. */
 export const MAX_ACTIVITY_PAGE = 10_000;
 
-/** Trimmed and NFC-normalized before the length check, so stored text compares exactly (contract §3.3). */
-export function writeText(min: number, max: number) {
-  return z
-    .string()
-    .transform((value) => value.trim().normalize('NFC'))
-    .pipe(z.string().min(min).max(max));
-}
 
 export const year = z.number().int().min(YEAR_MIN).max(YEAR_MAX);
 export const serialNo = z.number().int().min(1).max(INT4_MAX);

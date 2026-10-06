@@ -1548,7 +1548,7 @@ These settle what P4's research turned up. They add to Technical decisions, the 
   - **OpenAPI:** the drift test passes.
 - **Done when:** the tests pass, and on the dev stack a `curl` POST with an admin cookie creates a draft that `GET /api/v1/projects?drafts=1` lists.
 - **Depends on:** U20; U21 for the 409 cases
-- **Status:** todo
+- **Status:** done
 
 ### U23. Field create, update, archive, delete and reorder
 - **Goal:** Admins add, edit, archive, restore and reorder a project's fields. Once data exists, a field's identity can't change. Only a `main_admin` deletes an unused field.

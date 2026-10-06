@@ -1,13 +1,27 @@
 import { z } from 'zod';
 
-// Request and response shapes of the project registry reads (docs/api/PROJECTS_API_CONTRACT.md
-// §3.1, §3.2, §4.1). The routes parse with the request schemas and the OpenAPI document is built
-// from all of them, as for the housing routes.
+// Request and response shapes of the project registry (docs/api/PROJECTS_API_CONTRACT.md §3.1,
+// §3.2, §4.1, §4.2). The routes parse with the request schemas and the OpenAPI document is built
+// from all of them, as for the housing routes. The write bodies mirror the CHECKs in
+// 0011_projects_registry.sql, so a bad value is a 400 naming its field before the database sees
+// it; the guards in 0015_project_guards.sql stay as the backstop. Every object is strict: an
+// unknown key is refused without being echoed, and none reaches an insert or update.
 
 /** A project's permanent key, as housing_projects_key_format allows (0011_projects_registry.sql). */
 export const projectKey = z.string().regex(/^[a-z][a-z0-9_]{1,39}$/, 'not a project key');
 
 export const projectKeyParams = z.object({ key: projectKey });
+
+/** A custom field's key, as housing_project_fields_key_format allows (0011_projects_registry.sql). */
+export const FIELD_KEY = /^[a-z][a-z0-9_]{0,39}$/;
+
+/** Trimmed and NFC-normalized before the length check, so stored text compares exactly (contract §3.3). */
+export function writeText(min: number, max: number) {
+  return z
+    .string()
+    .transform((value) => value.trim().normalize('NFC'))
+    .pipe(z.string().min(min).max(max));
+}
 
 export const projectListQuery = z.object({
   /** Embed each project's fields. */
@@ -82,3 +96,157 @@ export const project = z.strictObject({
   /** Present on GET /projects/:key, and on the list with include=fields. */
   fields: z.array(projectField).optional(),
 });
+
+// ---------------------------------------------------------------- write bodies
+
+const fieldKey = z.string().regex(FIELD_KEY, 'not a field key');
+const token = z.string().regex(/^[a-z0-9-]{1,40}$/, 'not a token');
+// housing_projects_slug_format, after the guard's lower-case and trim.
+const slug = z
+  .string()
+  .transform((value) => value.trim().toLowerCase())
+  .pipe(z.string().max(60).regex(/^(?![0-9]+$)[a-z0-9]+(-[a-z0-9]+)*$/, 'not a slug'));
+const filePrefix = z.string().regex(/^[a-z][a-z0-9]{0,15}$/, 'not a file prefix');
+const sortOrder = z.number().int().min(0).max(1_000_000);
+
+const coreFieldConfig = z.strictObject({
+  label_bn: writeText(0, 60).optional(),
+  label_en: writeText(0, 60).optional(),
+  enabled: z.boolean().optional(),
+  required: z.boolean().optional(),
+});
+/** CoreFieldsConfig in src/backend/interfaces/types.ts. */
+export const coreFields = z.strictObject({
+  year: coreFieldConfig.optional(),
+  name: coreFieldConfig.optional(),
+  father_or_husband_name: coreFieldConfig.optional(),
+  division: coreFieldConfig.optional(),
+  district: coreFieldConfig.optional(),
+  upazila: coreFieldConfig.optional(),
+  union_name: coreFieldConfig.optional(),
+  address: coreFieldConfig.optional(),
+});
+
+/** StatCardDef in src/backend/interfaces/types.ts. Which kind needs a field or level is the guard's check. */
+export const statCard = z.strictObject({
+  id: z.string().trim().min(1).max(40),
+  kind: z.enum(['count', 'geo', 'sum', 'distinct']),
+  level: z.enum(['division', 'district', 'upazila', 'union']).optional(),
+  field: fieldKey.optional(),
+  label_bn: writeText(1, 60),
+  label_en: writeText(0, 60),
+  home_label_bn: writeText(0, 60).optional(),
+  home_label_en: writeText(0, 60).optional(),
+  icon: token.optional(),
+  home: z.boolean().optional(),
+  format: z.enum(['money', 'number']).optional(),
+});
+
+/** ProjectDisplay in src/backend/interfaces/types.ts. */
+export const display = z.strictObject({
+  show_map: z.boolean().optional(),
+  geo_columns: z.enum(['split', 'merged']).optional(),
+  breakdown_field: fieldKey.optional(),
+});
+
+// Every column an admin may set. key, cover_path, is_published and the timestamps are set elsewhere.
+const projectColumns = {
+  parent_key: projectKey.nullable(),
+  is_group: z.boolean(),
+  slug,
+  name_bn: writeText(1, 120),
+  name_en: writeText(1, 120),
+  summary_bn: writeText(0, 300),
+  summary_en: writeText(0, 300),
+  description_bn: writeText(0, 2000),
+  description_en: writeText(0, 2000),
+  unit_bn: writeText(0, 40),
+  unit_en: writeText(0, 40),
+  photo_mode: z.enum(['before_after', 'after_only', 'none']),
+  prev_label_bn: writeText(0, 60),
+  prev_label_en: writeText(0, 60),
+  current_label_bn: writeText(0, 60),
+  current_label_en: writeText(0, 60),
+  geo_depth: z.enum(['upazila', 'union']),
+  core_fields: coreFields,
+  stat_cards: z.array(statCard).max(8),
+  display,
+  file_prefix: filePrefix.nullable(),
+  icon: token,
+  accent: token,
+  sort_order: sortOrder,
+  show_on_home: z.boolean(),
+};
+
+// Every field column an admin may set; key, type and visibility are refused by the guard once values exist.
+const fieldColumns = {
+  label_bn: writeText(1, 120),
+  label_en: writeText(0, 120),
+  help_bn: writeText(0, 300),
+  help_en: writeText(0, 300),
+  type: z.enum(['text', 'long_text', 'number', 'money', 'category', 'date', 'phone']),
+  options: z.array(z.string().max(100)).max(100),
+  required: z.boolean(),
+  visibility: z.enum(['public', 'admin']),
+  show_in_table: z.boolean(),
+  show_in_card: z.boolean(),
+  show_in_detail: z.boolean(),
+  filterable: z.boolean(),
+  searchable: z.boolean(),
+  fill_down: z.boolean(),
+  max_length: z.number().int().min(1).max(2000).nullable(),
+  min_value: z.number().finite().nullable(),
+  max_value: z.number().finite().nullable(),
+  import_aliases: z.array(writeText(1, 100)).max(20),
+  sort_order: sortOrder,
+};
+
+/** A new field: key, label_bn and type are required (§4.2). */
+export const fieldCreateBody = z
+  .strictObject({ key: fieldKey, ...fieldColumns })
+  .partial()
+  .required({ key: true, label_bn: true, type: true });
+export type FieldCreateBody = z.infer<typeof fieldCreateBody>;
+
+const nonEmpty = (value: object) => Object.keys(value).length > 0;
+
+/** Any non-empty subset of a field's columns; archive is { is_active: false }. */
+export const fieldPatchBody = z
+  .strictObject({ key: fieldKey, ...fieldColumns, is_active: z.boolean() })
+  .partial()
+  .refine(nonEmpty, { message: 'nothing to change', params: { reason: 'empty' } });
+export type FieldPatchBody = z.infer<typeof fieldPatchBody>;
+
+/**
+ * A new project and its fields (§4.1.4). is_published is accepted and dropped: a project is always
+ * created as a draft. A leaf needs a file prefix, a group has none (housing_projects_group_shape).
+ */
+export const projectCreateBody = z.strictObject({
+  project: z
+    .strictObject({ key: projectKey, ...projectColumns, is_published: z.boolean() })
+    .partial()
+    .required({ key: true, slug: true, name_bn: true, name_en: true })
+    .superRefine((p, ctx) => {
+      if (!p.is_group && !p.file_prefix) ctx.addIssue({ code: 'custom', path: ['file_prefix'], message: 'a project needs a file prefix', params: { reason: 'required' } });
+      if (p.is_group && p.file_prefix) ctx.addIssue({ code: 'custom', path: ['file_prefix'], message: 'a group has no file prefix', params: { reason: 'group' } });
+    })
+    .transform(({ is_published: _ignored, ...p }) => p),
+  fields: z.array(fieldCreateBody).max(40).default([]),
+});
+export type ProjectCreateBody = z.infer<typeof projectCreateBody>;
+
+/** Any non-empty subset of a project's columns; publish is { is_published: true } (§4.1.5). */
+export const projectPatchBody = z
+  .strictObject({ ...projectColumns, is_published: z.boolean() })
+  .partial()
+  .refine(nonEmpty, { message: 'nothing to change', params: { reason: 'empty' } });
+export type ProjectPatchBody = z.infer<typeof projectPatchBody>;
+
+/** The registry is small; 200 matches the list cap in reads.ts. */
+export const projectOrderBody = z.strictObject({ keys: z.array(projectKey).min(1).max(200) });
+
+/** If-Match: the project's updated_at as last read, bare or in double quotes. */
+export const ifMatch = z
+  .string()
+  .transform((value) => value.trim().replace(/^"(.*)"$/, '$1'))
+  .pipe(z.iso.datetime({ offset: true }));

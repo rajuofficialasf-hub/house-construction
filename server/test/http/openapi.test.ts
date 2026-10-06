@@ -9,6 +9,7 @@ import { housingAdminRouter } from '../../src/routes/v1/housing-admin.js';
 import { housingReadRouter } from '../../src/routes/v1/housing.js';
 import { openapiRouter } from '../../src/routes/v1/openapi.js';
 import { photosRouter } from '../../src/routes/v1/photos.js';
+import { projectsAdminRouter } from '../../src/routes/v1/projects-admin.js';
 import { projectsReadRouter } from '../../src/routes/v1/projects.js';
 import { activityRouter } from '../../src/routes/v1/activity.js';
 import { recordsAdminRouter } from '../../src/routes/v1/records-admin.js';
@@ -66,6 +67,7 @@ describe('GET /api/v1/openapi.json', () => {
       ...routesOf('', recordsAdminRouter({ sql, ...testPhotoDeps(), receivePhoto: () => Promise.reject(new Error('unused')) })),
       ...routesOf('/photos', photosRouter(sql, testPhotoDeps().storage)),
       ...routesOf('', activityRouter({ sql })),
+      ...routesOf('', projectsAdminRouter({ sql })),
     ];
     expect(documentedRoutes().sort()).toEqual(mounted.sort());
   });

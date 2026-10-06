@@ -36,7 +36,15 @@ import {
   YEAR_MAX,
   YEAR_MIN,
 } from './housing/schemas.js';
-import { project, projectField, projectKeyParams, projectListQuery } from './projects/schemas.js';
+import {
+  project,
+  projectCreateBody,
+  projectField,
+  projectKeyParams,
+  projectListQuery,
+  projectOrderBody,
+  projectPatchBody,
+} from './projects/schemas.js';
 import {
   bulkCreateBody,
   bulkUpdateBody as recordsBulkUpdateBody,
@@ -65,7 +73,7 @@ type JsonSchema = Record<string, unknown>;
 
 interface Parameter {
   name: string;
-  in: 'query' | 'path';
+  in: 'query' | 'path' | 'header';
   required: boolean;
   description?: string;
   schema: JsonSchema;
@@ -141,7 +149,7 @@ const ERROR_DESCRIPTIONS = {
   401: 'No admin session (UNAUTHENTICATED)',
   403: 'The Origin header is missing or not allowed, or a delete comes from an admin who is not the main admin (FORBIDDEN)',
   404: 'No such record, photo or project, or a draft project asked for without an admin session (NOT_FOUND)',
-  409: 'The serial is already in use in that project (CONFLICT)',
+  409: 'The serial, project key, slug, file prefix or field key is already in use, or If-Match no longer matches (CONFLICT); details.field names the field',
   413: 'The body, a photo or the number of rows is too large (PAYLOAD_TOO_LARGE)',
   429: 'Too many requests (RATE_LIMITED): per IP on reads, photos and login, per admin on writes',
   500: 'Server or database failure (INTERNAL_ERROR)',
@@ -333,6 +341,16 @@ export function buildOpenApiDocument(): OpenApiDocument {
           }),
           responses: { 200: ok('The projects', { type: 'array', items: ref('Project') }), ...errors(400, 429, 500) },
         },
+        post: admin('Create a project and its fields in one transaction, always as a draft (is_published is ignored); a leaf gets its serial counter', {
+          requestBody: body(projectCreateBody),
+          responses: { 201: ok('The new project with its fields', ref('Project')), ...errors(400, 401, 403, 409, 429, 500) },
+        }, 'projects-admin'),
+      },
+      '/projects/order': {
+        put: admin('Set sort_order 10, 20, ... in the given order; unknown keys are ignored and nothing is logged', {
+          requestBody: body(projectOrderBody),
+          responses: { 204: { description: 'Reordered' }, ...errors(400, 401, 403, 429, 500) },
+        }, 'projects-admin'),
       },
       '/projects/{key}': {
         get: {
@@ -341,6 +359,24 @@ export function buildOpenApiDocument(): OpenApiDocument {
           parameters: parameters(projectKeyParams, 'path'),
           responses: { 200: ok('The project', ref('Project')), ...errors(400, 404, 429, 500) },
         },
+        patch: admin('Change some of a project\'s settings; publish or unpublish with is_published. A published project keeps its slug and parent', {
+          parameters: [
+            ...parameters(projectKeyParams, 'path'),
+            {
+              name: 'If-Match',
+              in: 'header',
+              required: false,
+              description: 'The project\'s updated_at as last read, compared to the millisecond; 409 when someone changed it since',
+              schema: { type: 'string' },
+            },
+          ],
+          requestBody: body(projectPatchBody),
+          responses: { 200: ok('The project with its fields', ref('Project')), ...errors(400, 401, 403, 404, 409, 429, 500) },
+        }, 'projects-admin'),
+        delete: admin('Delete a project that never held a record, with its fields; a group must have no children. Main admin only', {
+          parameters: parameters(projectKeyParams, 'path'),
+          responses: { 204: { description: 'Deleted' }, ...errors(400, 401, 403, 404, 429, 500) },
+        }, 'projects-admin'),
       },
       '/projects/{key}/fields': {
         get: {

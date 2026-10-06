@@ -17,15 +17,15 @@ import {
   YEAR_MAX,
   YEAR_MIN,
 } from '../housing/schemas.js';
-import { projectKey } from '../projects/schemas.js';
+import { FIELD_KEY, projectKey } from '../projects/schemas.js';
+
+export { FIELD_KEY };
 
 // Request and response shapes of the single-record routes (docs/api/PROJECTS_API_CONTRACT.md
 // §3.3, §4.4). The routes parse with these and the OpenAPI document is built from them.
 
 export { idParams, serialsQuery } from '../housing/schemas.js';
 
-/** A custom field's key, as housing_project_fields_key_format allows (0011_projects_registry.sql). */
-export const FIELD_KEY = /^[a-z][a-z0-9_]{0,39}$/;
 export const MAX_FIELD_FILTERS = 10;
 const MAX_TEXT = 100;
 
