@@ -55,11 +55,13 @@ begin
     'by_district', coalesce((select jsonb_object_agg(k, c) from (select district as k, count(*) as c from base group by district) t), '{}'::jsonb),
     'by_upazila', coalesce((select jsonb_object_agg(k, c) from (select upazila as k, count(*) as c from base group by upazila) t), '{}'::jsonb),
     'by_location', coalesce((select jsonb_object_agg(k, c) from (select district || '|' || upazila as k, count(*) as c from base group by district, upazila) t), '{}'::jsonb),
+    -- Distinct counts compare bytes (collate "C"): equality is the same as under the database
+    -- locale, but a locale sort of 50k Bangla strings takes about a second.
     'distinct', jsonb_build_object(
-      'divisions', (select count(distinct division) from base),
-      'districts', (select count(distinct district) from base),
-      'upazilas',  (select count(*) from (select distinct district, upazila from base) u),
-      'unions',    (select count(*) from (select distinct district, upazila, union_name from base where union_name <> '') u)
+      'divisions', (select count(distinct division collate "C") from base),
+      'districts', (select count(distinct district collate "C") from base),
+      'upazilas',  (select count(*) from (select distinct district collate "C", upazila collate "C" from base) u),
+      'unions',    (select count(*) from (select distinct district collate "C", upazila collate "C", union_name collate "C" from base where union_name <> '') u)
     ),
     'by_project', coalesce((
       select jsonb_object_agg(l, coalesce(c.n, 0))
@@ -87,34 +89,34 @@ begin
         from public.housing_beneficiaries
        where project_type = any (leaves) and jsonb_typeof(extra -> f.key) = 'number';
     else
-      select jsonb_build_object('type', 'category', 'distinct', count(distinct extra ->> f.key))
+      select jsonb_build_object('type', 'category', 'distinct', count(distinct (extra ->> f.key) collate "C"))
         into v
         from public.housing_beneficiaries
        where project_type = any (leaves) and jsonb_typeof(extra -> f.key) = 'string' and extra ->> f.key <> '';
       if not p_light then
         v := v || jsonb_build_object('by_value', coalesce((
-          select jsonb_object_agg(c.val, jsonb_build_object('n', c.n, 'sums', c.sums))
+          -- One grouped pass for the counts and one for every (value, money key) sum, instead of a
+          -- scan per value.
+          select jsonb_object_agg(g.val, jsonb_build_object('n', g.n, 'sums', coalesce(s.sums, '{}'::jsonb)))
             from (
-              select g.val, g.n,
-                     coalesce((
-                       select jsonb_object_agg(mk, tot)
-                         from (
-                           select mk, sum((b2.extra ->> mk)::numeric) as tot
-                             from public.housing_beneficiaries b2
-                             cross join unnest(money_keys) as mk
-                            where b2.project_type = any (leaves)
-                              and b2.extra ->> f.key = g.val
-                              and jsonb_typeof(b2.extra -> mk) = 'number'
-                            group by mk
-                         ) s
-                     ), '{}'::jsonb) as sums
+              select extra ->> f.key as val, count(*) as n
+                from public.housing_beneficiaries
+               where project_type = any (leaves) and jsonb_typeof(extra -> f.key) = 'string' and extra ->> f.key <> ''
+               group by extra ->> f.key
+            ) g
+            left join (
+              select t.val, jsonb_object_agg(t.mk, t.tot) as sums
                 from (
-                  select extra ->> f.key as val, count(*) as n
-                    from public.housing_beneficiaries
-                   where project_type = any (leaves) and jsonb_typeof(extra -> f.key) = 'string' and extra ->> f.key <> ''
-                   group by extra ->> f.key
-                ) g
-            ) c
+                  select b2.extra ->> f.key as val, mk, sum((b2.extra ->> mk)::numeric) as tot
+                    from public.housing_beneficiaries b2
+                    cross join unnest(money_keys) as mk
+                   where b2.project_type = any (leaves)
+                     and jsonb_typeof(b2.extra -> f.key) = 'string' and b2.extra ->> f.key <> ''
+                     and jsonb_typeof(b2.extra -> mk) = 'number'
+                   group by 1, 2
+                ) t
+               group by t.val
+            ) s on s.val = g.val
         ), '{}'::jsonb));
       end if;
     end if;
@@ -172,7 +174,7 @@ begin
   return jsonb_build_object(
     'projects', items,
     'global', (
-      select jsonb_build_object('projects', cardinality(pub_leaves), 'total', count(*), 'districts', count(distinct district))
+      select jsonb_build_object('projects', cardinality(pub_leaves), 'total', count(*), 'districts', count(distinct district collate "C"))
         from public.housing_beneficiaries where project_type = any (pub_leaves)
     )
   );
