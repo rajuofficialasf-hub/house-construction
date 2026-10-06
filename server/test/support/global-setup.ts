@@ -10,6 +10,8 @@ const migrationCount = readdirSync(new URL('../../db/migrations', import.meta.ur
 export default async function setup(): Promise<void> {
   const sql = ownerDb();
   try {
+    // 0010 puts pg_trgm in its own schema, which dropping public alone would leave behind.
+    await sql`drop schema if exists extensions cascade`;
     await sql`drop schema if exists public cascade`;
     await sql`create schema public`;
 
@@ -20,7 +22,9 @@ export default async function setup(): Promise<void> {
       where n.nspname = 'public' and c.relname like 'housing%'
       union all
       select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-      where n.nspname = 'public' and p.proname like 'housing%'`;
+      where n.nspname = 'public' and p.proname like 'housing%'
+      union all
+      select nspname from pg_namespace where nspname = 'extensions'`;
     if (left.length > 0) {
       throw new Error(`down migrations left objects behind: ${left.map((r) => r.relname as string).join(', ')}`);
     }

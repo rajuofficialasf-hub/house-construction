@@ -258,7 +258,7 @@ Everything the new stack needs exists on staging and is prepared for production 
   - With `enable_seqscan = off` in the test's transaction, `explain` of the search and the actor filter names the new indexes (proves they are usable, not that the planner picks them on tiny data).
 - **Done when:** `npm --prefix server test` and `npm run test:contract:rest` pass, and `psql -f deploy/sql/perf-check.sql` runs on the dev database.
 - **Depends on:** none
-- **Status:** todo
+- **Status:** done
 
 ### U3. Import CLI: records, counters, serial changes, activity log, admins
 - **Goal:** `import-supabase import` copies everything but photos from a read-only snapshot into an empty target in one transaction.
@@ -380,10 +380,11 @@ Server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$PATH`
 ## Progress
 - **Branch:** `migrate/c7-cutover`
 - **Updated:** 2026-10-06 11:10
-- **Next:** U2, write `server/db/migrations/0010_search_and_activity_indexes.sql` after `0008_read_indexes.sql`
+- **Next:** U3, add `housing_source_test` to `server/db/docker-init/01-init.sh` and write `server/test/fixtures/supabase-source.sql`
 - **Uncommitted:** none
 - **Notes:**
   - `origin/main` was not ahead; `dev-forhad` already equals `migrate/c6-deploy` (`7397bbb`), so there was nothing to merge or port.
   - Photo bodies are streamed to a private temp file (not held in memory) before the sharp checks and `storage.put`, to keep `NS-04`; the plan's "holds at most one 5 MB body" means that file.
   - `i18n-check` runs under the installed Node 26 (needs ≥ 24).
   - U1: the repo has no React component test setup (no jsdom/testing-library), so the `RequireAdmin` and login-page checks are a Playwright test in `e2e/mock/route-protection.spec.ts` that runs only in `admin-rest`. The retry button reloads the page. `HousingLoginPage.tsx` needed no change: it only redirects on `ready` + admin.
+  - U2: `pg_trgm` lives in its own `extensions` schema, not `public`. A trusted extension is installed as the bootstrap superuser, so its functions keep PUBLIC `EXECUTE` and the owner can't revoke it; `server/test/db/privileges.test.ts` caught that. The test reset in `server/test/support/global-setup.ts` now drops `extensions` too. Indexes reference `extensions.gin_trgm_ops`.

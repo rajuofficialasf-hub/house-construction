@@ -39,7 +39,7 @@ npm install -g pm2
 # AWS CLI v2: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
 ```
 
-- PostgreSQL 17 comes from the PGDG repository: https://www.postgresql.org/download/linux/redhat/. Install `postgresql17-server`.
+- PostgreSQL 17 comes from the PGDG repository: https://www.postgresql.org/download/linux/redhat/. Install `postgresql17-server` and `postgresql17-contrib` (migration 0010 needs its `pg_trgm`).
 - If `age` isn't packaged, use the release binary from https://github.com/FiloSottile/age/releases.
 
 ## 2. Users and directories
