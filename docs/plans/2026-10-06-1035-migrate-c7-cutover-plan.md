@@ -1,7 +1,7 @@
 ---
 title: C7 Data Import and Cutover
 type: migrate
-status: in-progress
+status: done
 source: plan
 date: 2026-10-06
 doc_review: 2026-10-06
@@ -370,19 +370,8 @@ Server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$PATH`
 - **A bad day after the switch**: rollback within 72 hours as above; after that, fix forward. Supabase stays frozen and a final encrypted dump stays 30 days in the backup bucket.
 - **0010 needs to be undone**: it only adds an extension and indexes; its down section drops them, and no code depends on them.
 
-## Definition of done
-- All units done and their tests pass
-- Verification commands pass
-- `ae-review` has run, with no open P0 or P1
-- Code from abandoned attempts is removed
-- The cutover itself (rehearsal, freeze, switch) is a runbook procedure for the people with box, Supabase, AWS and Cloudflare access; its checklist (section 20) is the hand-off, not part of this session's done
-
-## Progress
-- **Branch:** `migrate/c7-cutover`
-- **Updated:** 2026-10-06 11:10
-- **Next:** ae-compound, then set the plan to done
-- **Uncommitted:** none
-- **Notes:**
+## Notes for later chunks
+- Built as planned, with these differences:
   - `origin/main` was not ahead; `dev-forhad` already equals `migrate/c6-deploy` (`7397bbb`), so there was nothing to merge or port.
   - Photo bodies are streamed to a private temp file (not held in memory) before the sharp checks and `storage.put`, to keep `NS-04`; the plan's "holds at most one 5 MB body" means that file.
   - `i18n-check` runs under the installed Node 26 (needs ≥ 24).
@@ -395,3 +384,14 @@ Server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$PATH`
   - U7: the plugin's stack guard blocks new `@supabase/supabase-js` imports, so the script calls Supabase's auth, REST and storage HTTP APIs with `fetch` (it also survives C8). Confirmed on the local stack: a missing public object answers HTTP 400 `{"statusCode":"404","error":"not_found"}`. Local baseline on 20 records: import 0.5 s, verify with photos 0.3 s.
   - U8: the final Supabase dump goes under the backup bucket's `production/` prefix (the backup IAM user can only write there) with a `.pgdump.age` suffix, because `restore-drill.sh` takes the newest `*.dump.age` by sorted name and `supabase-final-…` would sort after every `housing-…` backup. Checked on Node 22.20: with two `--env-file` flags the later file wins, and a shell variable beats both (hence `env -u` in the runbook).
   - Review (2026-10-06): no P0 or P1. Fixed: the report file is created (`wx`) before anything is copied and removed again when nothing committed, and a failed post-commit write prints the report (P2); verify's missing-record, admin and photo-slot checks now have failing cases, and `useAuth`'s error decision is a tested pure function (P2s); P3s: `--confirm-db` takes `host:port/database`, a non-"not found" 400 no longer cancels a read body, a malformed `%` escape is a gap, `lock_timeout` 10 s, the wipe names `housing_admin_sessions` instead of cascading, only JPEG/PNG/WebP reach sharp, the runbook's final dump and `perf-check` keep secrets out of argv and the shell, the `R16` citation names the roadmap, the broadcast test waits on a signal. Left: the retry button reloads the page (works, tested), a non-UNAUTHENTICATED 401 from `/auth/me` (the server only sends UNAUTHENTICATED there), zod for the report file and the jsonb snapshot (both written by this CLI, and schema parity is checked first).
+- Not run here (no access): everything in runbook sections 19 and 20. The cutover happens when the people with box, Supabase, AWS and Cloudflare access work through section 20.
+- `test:e2e:edge` and shellcheck weren't run locally (a fresh seed would wipe the dev data; shellcheck isn't installed). CI runs both.
+- C8: remove, with the rest of Supabase, `server/src/cli/import-supabase.ts`, `server/src/import/`, its tests and `server/test/fixtures/supabase-source.sql`, the `housing_source_test` database in `server/db/docker-init/01-init.sh`, `scripts/import-supabase-local.mjs` and its npm script, and runbook section 19's Supabase steps (keep the rollback history). Keep `test:contract:rest-readonly`, the browser write guard and migration 0010.
+- C8: start only after the 14-day window, with Supabase still frozen (runbook section 20, last line). The final encrypted dump expires from the backup bucket 30 days after the cutover.
+
+## Definition of done
+- All units done and their tests pass
+- Verification commands pass
+- `ae-review` has run, with no open P0 or P1
+- Code from abandoned attempts is removed
+- The cutover itself (rehearsal, freeze, switch) is a runbook procedure for the people with box, Supabase, AWS and Cloudflare access; its checklist (section 20) is the hand-off, not part of this session's done
