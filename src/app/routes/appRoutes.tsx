@@ -7,11 +7,9 @@ import { HousingListPage } from '@/features/housing/pages/HousingListPage'
 import { HousingLoginPage } from '@/features/housing/pages/HousingLoginPage'
 import {
   Lazy,
-  LazyHousingActivityPage,
   LazyHousingDetailPage,
-  LazyHousingPhotoBulkPage,
 } from '@/features/housing/pages/lazyPages'
-import { LazyAdminDashboardPage, LazyAdminProjectsPage, LazyAdminRecordsPage, LazyImportPage, LazyProjectSettingsPage, LazyProjectWizardPage, LazyRecordFormPage } from '@/features/admin/pages/lazyAdminPages'
+import { LazyAdminDashboardPage, LazyAdminProjectsPage, LazyActivityPage, LazyAdminRecordsPage, LazyImportPage, LazyPhotoBulkPage, LazyProjectSettingsPage, LazyProjectWizardPage, LazyRecordFormPage } from '@/features/admin/pages/lazyAdminPages'
 import { ProjectFrame } from './ProjectFrame'
 import { LegacyAdminRedirect } from './routeGuards'
 
@@ -85,8 +83,8 @@ export const adminRoutes = [
     <Route path="records/:key/new" element={<Lazy><LazyRecordFormPage mode="new" /></Lazy>} />
     <Route path="records/:key/:serial/edit" element={<Lazy><LazyRecordFormPage mode="edit" /></Lazy>} />
     <Route path="import" element={<Lazy><LazyImportPage /></Lazy>} />
-    <Route path="photos" element={<Lazy><LazyHousingPhotoBulkPage /></Lazy>} />
-    <Route path="activity" element={<Lazy><LazyHousingActivityPage /></Lazy>} />
+    <Route path="photos" element={<Lazy><LazyPhotoBulkPage /></Lazy>} />
+    <Route path="activity" element={<Lazy><LazyActivityPage /></Lazy>} />
   </Route>,
   <Route key="legacy-admin" path="housing/admin/*" element={<LegacyAdminRedirect />} />,
 ]

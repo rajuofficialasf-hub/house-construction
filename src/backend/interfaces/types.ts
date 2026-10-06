@@ -418,6 +418,8 @@ export type ActivityAction =
   | 'photo_bulk_run'
   /** ক্লায়েন্ট-ইভেন্ট (M-ধাপ ১০): CSV এক্সপোর্ট — details { rows, private } (মান নয়) */
   | 'records_export'
+  /** ক্লায়েন্ট-ইভেন্ট (M-ধাপ ১২): ক্যাটাগরির বানান একীকরণ — details { field, from, to, records } */
+  | 'category_merge'
   // পর্ব ২ (SQL ১২): গোপন মান (শুধু ফিল্ডের নাম, মান নয়) আর প্রকল্প/ফিল্ডের সেটিং
   | 'private_update'
   | 'project_create'

@@ -4,6 +4,9 @@
  *
  * চালানো:   npm run migrate-photos -- --csv data/photos.csv --project semi_pucca
  *           npm run migrate-photos -- --local-folder ./photos --project tin
+ *           npm run migrate-photos -- --from-db --project self-reliance --dry-run
+ * প্রকল্পের তালিকা আসে ডাটাবেস থেকে (service_role — খসড়াসহ সব প্রকল্প; M-ধাপ ১২)। ছবি মোড মানা হয়:
+ * "শুধু পরের ছবি" প্রকল্পে আগের ছবির কাজ বাদ, "ছবি নেই" প্রকল্প বাদ।
  * (ভেতরে `tsx` চলে, তাই src/ এর TypeScript অ্যাডাপ্টার সরাসরি ব্যবহার হয় — একই কোড, একই পাথ নিয়ম।)
  *
  * .env (প্রজেক্ট রুটে, গিটে যায় না):
@@ -11,16 +14,22 @@
  *   SUPABASE_SERVICE_ROLE_KEY=eyJ...      ← service_role key; কখনো VITE_ প্রিফিক্স দেবেন না, ফ্রন্টএন্ডে রাখবেন না
  *
  * অপশন:
- *   --from-db               CSV লাগে না: ডাটাবেসে থাকা রেকর্ডের prev/current_photo_source লিঙ্ক থেকেই কাজ (ইম্পোর্টের পর সবচেয়ে সহজ)
- *   --csv <file>            শীট থেকে রপ্তানি CSV (UTF-8)। কলাম: সিরিয়াল, পূর্বের ছবির লিঙ্ক, বর্তমান ছবির লিঙ্ক (+ ঐচ্ছিক প্রকল্প)
- *   --local-folder <dir>    সিরিয়াল-নামের ফাইল (semi_0001_prev.jpg / 0001_current.png) থেকে আপলোড
+ *   --from-db               CSV লাগে না: ডাটাবেসে থাকা রেকর্ডের prev/current_photo_source লিঙ্ক থেকেই কাজ (ইম্পোর্টের পর সবচেয়ে সহজ)।
+ *                           --project না দিলে ছবিসহ সব প্রকল্পে; শুধু-পরের-ছবি প্রকল্পে prev বাদ
+ *   --csv <file>            শীট বা রেকর্ড-পাতার এক্সপোর্ট CSV (UTF-8)। কলাম নিজে চেনা হয় সাধারণ শব্দে:
+ *                             সিরিয়াল ("সিরিয়াল", "ক্রমিক", "serial", "SL") · আগের ছবি ("আগের/পূর্বের … ছবি/লিঙ্ক", "before", "prev")
+ *                             · পরের ছবি ("বর্তমান/পরের … ছবি/লিঙ্ক", "after", "current"; শুধু-পরে প্রকল্পে শুধু "ছবি"/"photo" ও চলে)
+ *                             · ঐচ্ছিক প্রকল্প ("প্রকল্প", "project" — key, slug, প্রিফিক্স বা নাম)। এক্সপোর্টের "(সিস্টেম URL)" কলাম উপেক্ষা
+ *   --local-folder <dir>    সিরিয়াল-নামের ফাইল থেকে আপলোড: semi_0001_prev.jpg, 0001_current.png, self-reliance-0003.jpg,
+ *                           demo_0001.jpg (শুধু-পরে প্রকল্পে আগে/পরে লাগে না) — প্রিফিক্স = file_prefix, key বা slug (অঙ্কও চলে)
  *   লিঙ্ক সমর্থন: SharePoint/OneDrive (download=1), Google Drive (file/d/ID বা ?id= → uc?export=download; শেয়ার "Anyone with the link" লাগবে),
  *                 যেকোনো সরাসরি http(s) ছবি-লিঙ্ক।
  *   --local-root <dir>      CSV এর SharePoint/OneDrive লিঙ্কের ফোল্ডার-পাথ ধরে লোকাল কপি থেকে ছবি নেওয়া (লিঙ্ক ডাউনলোড না করে):
  *                           (Google Drive লিঙ্কে ফাইলনাম থাকে না, তাই এই মোড Drive এ কাজ করে না — সরাসরি ডাউনলোড বা --local-folder)
  *                           OneDrive এ "ঘর নির্মাণ-…" ফোল্ডারটি জিপ করে নামিয়ে আনজিপ করুন; লিঙ্কের ".../Documents/A/B/IMG.jpg" অংশ
  *                           <dir>/A/B/IMG.jpg বা <dir>/B/IMG.jpg হিসেবে খোঁজা হয়। না পেলে সাধারণ ডাউনলোডে ফিরে যায়।
- *   --project <type>        semi_pucca | tin  (CSV তে প্রকল্প কলাম না থাকলে / ফাইলনামে প্রিফিক্স না থাকলে আবশ্যক)
+ *   --project <প্রকল্প>     key, slug বা ফাইল-প্রিফিক্স — যেমন semi_pucca / semi-pucca / semi, self_reliance / self-reliance / sr
+ *                           (CSV তে প্রকল্প কলাম না থাকলে / ফাইলনামে প্রিফিক্স না থাকলে আবশ্যক; --from-db এ না দিলে সব প্রকল্প)
  *   --col-serial/--col-prev/--col-current/--col-project <header>   কলামের হেডার নাম (স্বয়ংক্রিয় শনাক্ত না হলে)
  *   --local-only            --local-root এ ফাইল না পেলে লিঙ্ক ডাউনলোড না করে "বাদ" (ধাপে ধাপে ছবি বসালে সুবিধা)
  *   --concurrency <n>       একসাথে কতটি (ডিফল্ট ৪)
@@ -36,7 +45,8 @@ import { createClient } from '@supabase/supabase-js'
 import sharp from 'sharp'
 import { createSupabaseHousingApi, createSupabaseImageStorage } from '../src/backend/supabase/index.ts'
 import { PHOTO_SPEC } from '../src/features/housing/utils/photoSpec.ts'
-import { buildProjectAliases, parsePhotoFilename } from '../src/features/housing/utils/photoFilename.ts'
+import { createSupabaseProjectsApi } from '../src/backend/supabase/projectsApi.ts'
+import { buildProjectAliases, parsePhotoFilename, photoTarget } from '../src/features/housing/utils/photoFilename.ts'
 import { FALLBACK_PROJECTS } from '../src/backend/fallbackProjects.ts'
 
 // ---------------------------------------------------------------- args
@@ -45,12 +55,6 @@ if (args.help || (!args.csv && !args['local-folder'] && !args['from-db'])) {
   printHelp()
   process.exit(args.help ? 0 : 1)
 }
-// এই স্ক্রিপ্ট শুধু ঘর নির্মাণের (সেমিপাকা, টিন) — প্রকল্প ও ফাইলনামের প্রিফিক্স কোডের ফলব্যাক রেজিস্ট্রি থেকে
-const HOUSING_LEAVES = FALLBACK_PROJECTS.filter((p) => p.parent_key === 'housing')
-const PROJECT_TYPES = HOUSING_LEAVES.map((p) => p.key)
-const PROJECT_ALIASES = buildProjectAliases(HOUSING_LEAVES)
-const project = args.project ?? null
-if (project && !PROJECT_TYPES.includes(project)) die(`--project অবশ্যই semi_pucca বা tin (পেয়েছি: ${project})`)
 const concurrency = Math.max(1, Number(args.concurrency ?? 4))
 const limit = args.limit ? Number(args.limit) : Infinity
 const force = !!args.force
@@ -77,6 +81,28 @@ const getClient = () => {
 }
 const storage = createSupabaseImageStorage(getClient)
 const api = createSupabaseHousingApi(getClient, storage, { trustedServer: true })
+
+// ---------------------------------------------------------------- প্রকল্প (M-ধাপ ১২: ডাটাবেস থেকে, সব প্রকল্প)
+// service_role এ খসড়াসহ সব; dry-run এ anon key হলে শুধু প্রকাশিত। ডাটাবেসে প্রকল্প-টেবিল না থাকলে কোডের ফলব্যাক (ঘর নির্মাণ)।
+let ALL_PROJECTS
+try {
+  ALL_PROJECTS = await createSupabaseProjectsApi(getClient, { trustedServer: true }).list({ includeDrafts: true })
+} catch (err) {
+  log(`প্রকল্পের তালিকা আনা যায়নি (${err?.message ?? err}) — কোডের ফলব্যাক তালিকা (ঘর নির্মাণ) ব্যবহার হচ্ছে`)
+  ALL_PROJECTS = FALLBACK_PROJECTS
+}
+const LEAVES = ALL_PROJECTS.filter((p) => !p.is_group)
+const PHOTO_PROJECTS = LEAVES.filter((p) => p.photo_mode !== 'none')
+const PROJECT_ALIASES = buildProjectAliases(LEAVES)
+const projectByKey = new Map(LEAVES.map((p) => [p.key, p]))
+const project = args.project ? resolveProject(args.project) : null
+if (args.project && !project) die(`--project "${args.project}" চেনা যায়নি। প্রকল্প: ${LEAVES.map((p) => `${p.key} (${p.slug}${p.file_prefix ? ', ' + p.file_prefix : ''})`).join(' · ')}`)
+if (project && projectByKey.get(project)?.photo_mode === 'none') die(`"${project}" প্রকল্পে ছবি নেই (ছবি মোড: ছবি নেই)`)
+/** ছবি মোড অনুযায়ী যেসব ঘরের কাজ চলে */
+const kindsOf = (pt) => {
+  const mode = projectByKey.get(pt)?.photo_mode ?? 'before_after'
+  return mode === 'before_after' ? ['prev', 'current'] : mode === 'after_only' ? ['current'] : []
+}
 
 // ---------------------------------------------------------------- jobs
 /** @typedef {{ project_type: string, serial_no: number, kind: 'prev'|'current', source: string, local?: string }} Job */
@@ -176,21 +202,21 @@ if (failed.length) {
     failed.map((f) => [f.serial_no, f.project_type, f.kind, f.local ?? f.source, f.reason]),
   )
   fs.writeFileSync(failedPath, '﻿' + rows.map((r) => r.map(csvCell).join(',')).join('\r\n') + '\r\n', 'utf8')
-  log(`ব্যর্থদের তালিকা: ${failedPath} — এগুলো ম্যানুয়ালি নামিয়ে সিরিয়াল-নামে (যেমন semi_0007_prev.jpg) /housing/admin/photos পেইজে দিন`)
+  log(`ব্যর্থদের তালিকা: ${failedPath} — এগুলো ম্যানুয়ালি নামিয়ে সিরিয়াল-নামে (যেমন semi_0007_prev.jpg) /admin/photos পেইজে দিন`)
 }
 process.exit(results.failed ? 2 : 0)
 
 // ================================================================ helpers
 /** ডাটাবেসের রেকর্ড থেকে কাজ: যেসব রেকর্ডে লিঙ্ক আছে কিন্তু (force ছাড়া) ছবি নেই */
 async function jobsFromDb() {
-  const projects = project ? [project] : PROJECT_TYPES
+  const projects = project ? [project] : PHOTO_PROJECTS.map((p) => p.key)
   const out = []
   for (const pt of projects) {
     let page = 1
     for (;;) {
       const p = await api.list({ project_type: pt, page, page_size: 100, sort: 'serial_no', order: 'asc' })
       for (const r of p.data) {
-        for (const kind of ['prev', 'current']) {
+        for (const kind of kindsOf(pt)) {
           const src = r[`${kind}_photo_source`]
           if (src && /^https?:\/\//i.test(src) && (force || !r[`${kind}_photo_url`])) out.push({ project_type: pt, serial_no: r.serial_no, kind, source: src })
         }
@@ -221,13 +247,20 @@ function jobsFromCsv(file) {
     }
     return -1
   }
-  const iSerial = col('col-serial', ['serial_no', 'serial', 'sl', 'sl no', 'সিরিয়াল', 'সিরিয়াল নং', 'ক্রমিক', 'ক্রমিক নং'])
-  const iPrev = col('col-prev', ['prev_photo_source', 'prev', 'previous', 'before', 'পূর্বের ঘরের ছবি', 'পূর্বের ছবি', 'আগের ছবি', 'পূর্বের ঘরের ছবি (লিঙ্ক)'])
-  const iCur = col('col-current', ['current_photo_source', 'current', 'after', 'বর্তমান ঘরের ছবি', 'বর্তমান ছবি', 'বর্তমান ঘরের ছবি (লিঙ্ক)'])
-  const iProj = col('col-project', ['project_type', 'project', 'প্রকল্প'])
+  // হুবহু নাম না মিললে সাধারণ শব্দে (এক্সপোর্টের "(সিস্টেম URL)" কলাম কখনো নয় — ওগুলো আমাদের নিজের ছবির ঠিকানা)
+  const hint = (i, re) => (i !== -1 ? i : header.findIndex((h) => re.test(h) && !/সিস্টেম url|system url/i.test(h)))
+  const iSerial = hint(col('col-serial', ['serial_no', 'serial', 'sl', 'sl no', 'সিরিয়াল', 'সিরিয়াল নং', 'ক্রমিক', 'ক্রমিক নং']), /সিরিয়াল|ক্রমিক|serial|^sl\b/i)
+  const PREV_RE = /(পূর্ব|আগে|আগের|before|prev|old).*(ছবি|photo|image|লিঙ্ক|link)|^(prev|before)/i
+  const iPrev = hint(col('col-prev', ['prev_photo_source', 'prev', 'previous', 'before', 'পূর্বের ঘরের ছবি', 'পূর্বের ছবি', 'আগের ছবি', 'পূর্বের ঘরের ছবি (লিঙ্ক)']), PREV_RE)
+  const curRe = /(বর্তমান|পরে|পরের|after|current|now).*(ছবি|photo|image|লিঙ্ক|link)|^(current|after)/i
+  let iCur = hint(col('col-current', ['current_photo_source', 'current', 'after', 'বর্তমান ঘরের ছবি', 'বর্তমান ছবি', 'বর্তমান ঘরের ছবি (লিঙ্ক)']), curRe)
+  // শুধু-পরে প্রকল্পে একটিই ছবি — "উপকরণসহ ছবি (লিঙ্ক)" বা শুধু "ছবি"/"photo"
+  if (iCur === -1) iCur = header.findIndex((h, i) => i !== iPrev && /ছবি|photo|image|লিঙ্ক|link/i.test(h) && !/সিস্টেম url|system url|আপডেট|update/i.test(h))
+  const iProj = hint(col('col-project', ['project_type', 'project', 'প্রকল্প']), /প্রকল্প|project/i)
   if (iSerial === -1) die(`সিরিয়াল কলাম পাওয়া যায়নি; --col-serial দিন। হেডার: ${header.join(' | ')}`)
   if (iPrev === -1 && iCur === -1) die(`ছবির লিঙ্কের কলাম পাওয়া যায়নি; --col-prev / --col-current দিন। হেডার: ${header.join(' | ')}`)
-  if (iProj === -1 && !project) die('CSV তে প্রকল্প কলাম নেই; --project semi_pucca|tin দিন')
+  if (iProj === -1 && !project) die('CSV তে প্রকল্প কলাম নেই; --project দিন (key, slug বা প্রিফিক্স)')
+  log(`CSV কলাম: সিরিয়াল="${header[iSerial]}"${iPrev !== -1 ? `, আগের ছবি="${header[iPrev]}"` : ''}${iCur !== -1 ? `, পরের ছবি="${header[iCur]}"` : ''}${iProj !== -1 ? `, প্রকল্প="${header[iProj]}"` : ''}`)
   const out = []
   let bad = 0
   for (let r = 1; r < table.length; r++) {
@@ -244,6 +277,11 @@ function jobsFromCsv(file) {
       if (i === -1) continue
       const link = (row[i] ?? '').trim()
       if (!link) continue
+      if (!kindsOf(pt).includes(kind)) {
+        bad++
+        log(`সারি ${r + 1} ${kind}: "${pt}" প্রকল্পে এই ছবির ঘর নেই (ছবি মোড) — বাদ`)
+        continue
+      }
       if (!/^https?:\/\//i.test(link)) {
         bad++
         log(`সারি ${r + 1} ${kind}: লিঙ্ক নয় — "${link.slice(0, 60)}"`)
@@ -276,17 +314,33 @@ function jobsFromFolder(dir) {
       log(`ফোল্ডার: "${name}" — প্রকল্প প্রিফিক্স নেই, --project দিন`)
       continue
     }
-    out.push({ project_type: pt, serial_no: p.serial_no, kind: p.kind, source: `file:${name}`, local: full })
+    const target = photoTarget(p.kind, projectByKey.get(pt)?.photo_mode ?? 'before_after')
+    if (!target.ok) {
+      unmatched++
+      const why = { prev_not_allowed: 'এই প্রকল্পে শুধু পরের ছবি — _prev চলবে না', kind_missing: 'আগে না পরে লেখা নেই (_prev / _current)', no_photos: 'এই প্রকল্পে ছবি নেই' }[target.reason]
+      log(`ফোল্ডার: "${name}" — ${why}, বাদ`)
+      continue
+    }
+    out.push({ project_type: pt, serial_no: p.serial_no, kind: target.kind, source: `file:${name}`, local: full })
   }
   log(`ফোল্ডার: ${out.length} ছবির কাজ${unmatched ? `, ${unmatched}টি বাদ` : ''}`)
   return out
 }
 
 function normalizeProject(v) {
-  const s = String(v ?? '').trim().toLowerCase()
-  if (['semi_pucca', 'semi', 'semipucca', 'সেমিপাকা', 'সেমি পাকা'].includes(s)) return 'semi_pucca'
-  if (['tin', 'টিন', 'টিনের ঘর'].includes(s)) return 'tin'
-  return null
+  return resolveProject(v)
+}
+
+/** key, slug, ফাইল-প্রিফিক্স বা নাম (বাংলা/ইংরেজি; "সেমিপাকা", "টিন" এর মতো ছোট রূপও) → প্রকল্পের key */
+function resolveProject(v) {
+  const s = String(v ?? '').trim().normalize('NFC').toLowerCase()
+  if (!s) return null
+  if (PROJECT_ALIASES[s]) return PROJECT_ALIASES[s]
+  const byName = LEAVES.find((p) => [p.name_bn, p.name_en].some((n) => n && n.normalize('NFC').toLowerCase() === s))
+  if (byName) return byName.key
+  // নামের শুরু দিয়ে (যেমন "সেমিপাকা" → "সেমিপাকা ঘর নির্মাণ") — শুধু একটি মিললে
+  const starts = LEAVES.filter((p) => p.name_bn && p.name_bn.normalize('NFC').toLowerCase().startsWith(s))
+  return starts.length === 1 ? starts[0].key : null
 }
 
 /**

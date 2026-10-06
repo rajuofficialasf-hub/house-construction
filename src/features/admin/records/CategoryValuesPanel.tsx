@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useToast } from '@/components/useToast'
 import { formatBanglaNumber } from '@/lib/banglaNumber'
 import { nearDuplicates } from '@/lib/fuzzyMatch'
-import { getProjectsApi, HousingApiError, type Project, type ProjectField } from '@/backend'
+import { getHousingApi, getProjectsApi, HousingApiError, type Project, type ProjectField } from '@/backend'
 import { ConfirmDialog } from '@/features/housing/components/ConfirmDialog'
 import { categoryFields, type CategoryUsage } from './useCategoryUsage'
 
@@ -39,6 +39,8 @@ export function CategoryValuesPanel({ project, usage, onChanged }: Props) {
     setBusy(true)
     try {
       const n = await getProjectsApi().renameFieldValue(project.key, merge.field.key, from, merge.to)
+      // ডাটাবেস প্রতিটি রেকর্ডের বদল আলাদা লগ করে; এক লাইনের সারসংক্ষেপ (কতটি রেকর্ড) ক্লায়েন্ট-ইভেন্টে
+      void getHousingApi().logActivity('category_merge', { field: merge.field.key, from, to: merge.to, records: n }, project.key)
       toast.success(t('{n}টি রেকর্ডে «{from}» → «{to}»', { n: formatBanglaNumber(n), from, to: merge.to }))
       setMerge(null)
       onChanged()

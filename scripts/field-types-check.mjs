@@ -266,5 +266,20 @@ eq('আপডেট: "(মুছুন)" → _clear (ঐচ্ছিক ঘর),
 eq('আপডেট: আবশ্যক ঘর (টাকা, নাম) মোছা যায় না → ভুল', U.rows[2].errors.filter((e) => e.includes('মোছা যায় না')).length, 2)
 eq('আপডেট: সিরিয়াল ছাড়া সারি → ভুল; সাল/নাম/ঠিকানা আবশ্যক নয়', [U.rows[3].errors, U.rows[0].errors.length], [['সিরিয়াল ফাঁকা'], 0])
 
+section('ছবির ফাইলনাম — যেকোনো প্রকল্প (M-ধাপ ১২)')
+const { buildProjectAliases, parsePhotoFilename, photoTarget, photoNameExamples } = await import('../src/features/housing/utils/photoFilename.ts')
+const demo12 = { ...semi, key: 'demo', slug: 'demo', file_prefix: 'demo', photo_mode: 'after_only', parent_key: null }
+const sr12 = { ...semi, key: 'self_reliance', slug: 'self-reliance', file_prefix: 'sr2', photo_mode: 'after_only', parent_key: null }
+const PA = buildProjectAliases([...FALLBACK_PROJECTS, demo12, sr12])
+const PF = (n) => {
+  const r = parsePhotoFilename(n, PA)
+  return r ? `${r.project_type}:${r.serial_no}:${r.kind}` : null
+}
+eq('আগের নাম আগের মতোই (semi_0001_prev, tin_0012_current, semi_pucca-7-before, 0001_current)', ['semi_0001_prev.jpg', 'tin_0012_current.png', 'semi_pucca-7-before.webp', '0001_current.jpg'].map(PF), ['semi_pucca:1:prev', 'tin:12:current', 'semi_pucca:7:prev', 'null:1:current'])
+eq('প্রিফিক্স রেজিস্ট্রি থেকে: slug (self-reliance), অঙ্কসহ প্রিফিক্স (sr2), - ছাড়া slug', ['self-reliance-0003.jpg', 'sr2_0004_after.png', 'selfreliance_5.jpeg'].map(PF), ['self_reliance:3:null', 'self_reliance:4:current', 'self_reliance:5:null'])
+eq('আগে/পরে না লেখা → kind null; অচেনা প্রিফিক্স/শূন্য সিরিয়াল → null', ['demo_0001.jpg', 'xyz_0001_prev.jpg', 'semi_0000_prev.jpg', '2024_0001_prev.jpg'].map(PF), ['demo:1:null', null, null, null])
+eq('ছবি মোড: শুধু-পরে → current; সেখানে prev → ভুল; আগে-পরে এ আগে/পরে আবশ্যক; ছবিহীন → ভুল', [photoTarget(null, 'after_only'), photoTarget('prev', 'after_only'), photoTarget(null, 'before_after'), photoTarget('prev', 'before_after'), photoTarget('current', 'none')], [{ ok: true, kind: 'current' }, { ok: false, reason: 'prev_not_allowed' }, { ok: false, reason: 'kind_missing' }, { ok: true, kind: 'prev' }, { ok: false, reason: 'no_photos' }])
+eq('উদাহরণের নাম প্রকল্প অনুযায়ী', [photoNameExamples(semi), photoNameExamples(demo12)], [['semi_0001_prev.jpg', 'semi_0001_current.jpg'], ['demo_0001.jpg']])
+
 console.log(`\nফল: PASS ${pass}, FAIL ${fail}`)
 process.exit(fail ? 1 : 0)

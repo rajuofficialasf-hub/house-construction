@@ -6,8 +6,6 @@ import { lazy, Suspense, type ReactNode } from 'react'
  * এডমিন কোড (ফর্ম, ইম্পোর্ট, ছবি বাল্ক, তুলনা) শুধু দরকার হলে নামে। routes.tsx এ <Lazy> দিয়ে মোড়ানো।
  */
 export const LazyHousingDetailPage = lazy(() => import('./HousingDetailPage').then((m) => ({ default: m.HousingDetailPage })))
-export const LazyHousingPhotoBulkPage = lazy(() => import('./HousingPhotoBulkPage').then((m) => ({ default: m.HousingPhotoBulkPage })))
-export const LazyHousingActivityPage = lazy(() => import('./HousingActivityPage').then((m) => ({ default: m.HousingActivityPage })))
 /** মানচিত্র (d3-geo + topojson ~৪০ KB gzip) শুধু তালিকা পেইজে দরকার হলে নামে */
 export const LazyUpazilaMapPanel = lazy(() => import('../components/UpazilaMapPanel').then((m) => ({ default: m.UpazilaMapPanel })))
 

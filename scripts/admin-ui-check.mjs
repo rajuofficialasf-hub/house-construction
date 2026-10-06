@@ -57,6 +57,8 @@ const allFields = () => [...(created?.fields ?? []), ...addedFields]
 
 // ---- নকল রেকর্ড-ভাণ্ডার (M-ধাপ ১০): খসড়া demo প্রকল্পের রেকর্ড, গোপন মান, ক্যাটাগরির মান — সব এখানেই, লাইভে কিছু নয়
 let adminRole = 'main_admin'
+const fakeLog = [] // housing_activity_log এর নকল সারি (একটিভিটি পাতার পরীক্ষা)
+const logEvents = [] // housing_log_event (ক্লায়েন্ট-ইভেন্ট) এর body
 const demoRecs = [] // housing_beneficiaries এর সারি (project_type = demo)
 const demoPrivate = {} // record_id → data
 const eqParam = (u, k) => u.searchParams.get(k)?.replace(/^eq\./, '')
@@ -70,6 +72,11 @@ function usageOf(key) {
 async function fakeRecords(u, method, req, respond0) {
   // উত্তর দিলে true (await এর পর respond এর Promise undefined হয় — তাই আলাদা চিহ্ন)
   const respond = (...a) => respond0(...a).then(() => true)
+  // demo এর ছবি (স্টোরেজ) — নকল; ঘর নির্মাণের ছবিতে কখনো নয় (অচেনা লেখা হিসেবে আটকায়)
+  if (u.pathname.startsWith('/storage/v1/object/housing-photos/housing/demo/') && (method === 'POST' || method === 'PUT')) {
+    writes.push({ method, path: u.pathname, search: u.search, body: null })
+    return respond(200, { Key: u.pathname.replace('/storage/v1/object/', ''), Id: 'fake' })
+  }
   const body = req.postData() ? JSON.parse(req.postData()) : null
   const accept = req.headers()['accept'] ?? ''
   const one = accept.includes('vnd.pgrst.object')
@@ -146,7 +153,9 @@ async function fakeRecords(u, method, req, respond0) {
   }
   if (method === 'GET') {
     let rows = demoRecs.filter((r) => !id || r.id === id)
-    const sn = eqParam(u, 'serial_no')
+    const sn = u.searchParams.get('serial_no')?.startsWith('eq.') ? eqParam(u, 'serial_no') : null
+    const snIn = u.searchParams.get('serial_no')?.match(/^in\.\((.*)\)$/)?.[1]?.split(',')
+    if (snIn) rows = rows.filter((r) => snIn.includes(String(r.serial_no)))
     if (sn) rows = rows.filter((r) => String(r.serial_no) === sn)
     const cs = u.searchParams.get('extra')?.match(/^cs\.(.*)$/)?.[1]
     if (cs) {
@@ -190,8 +199,11 @@ async function handle(req) {
   }
   if (u.pathname === '/rest/v1/rpc/housing_current_admin') return respond(200, [{ role: adminRole, email: USER.email }])
   if (await fakeRecords(u, method, req, respond)) return
-  if (u.pathname === '/rest/v1/housing_activity_log') return respond(200, [], { 'content-range': '*/0' })
-  if (u.pathname === '/rest/v1/rpc/housing_log_event') return respond(200, 'null')
+  if (u.pathname === '/rest/v1/housing_activity_log') return respond(200, fakeLog, { 'content-range': fakeLog.length ? `0-${fakeLog.length - 1}/${fakeLog.length}` : '*/0' })
+  if (u.pathname === '/rest/v1/rpc/housing_log_event') {
+    logEvents.push(req.postData() ? JSON.parse(req.postData()) : null)
+    return respond(200, 'null')
+  }
 
   const readRpc = ['projects_overview', 'project_stats', 'housing_stats', 'housing_years', 'housing_next_serial']
   const isRead = method === 'GET' || (method === 'POST' && readRpc.some((n) => u.pathname === `/rest/v1/rpc/${n}`))
@@ -939,6 +951,90 @@ for (const [w, mobile] of [[1280, false], [390, true]]) {
   ok('ইম্পোর্ট-পাতায় কোনো page error নেই', p.errors.length === 0, p.errors.join(' | '))
   await p.close()
   demoRecs.length = 0
+}
+
+// ---------------------------------------------------------------- L. ছবি বাল্ক — যেকোনো প্রকল্প (M-ধাপ ১২)
+{
+  const ts = new Date().toISOString()
+  const rec = (serial, name, extra = {}) => ({ id: `00000000-0000-0000-0000-00000000e${String(serial).padStart(3, '0')}`, project_type: 'demo', serial_no: serial, year: 2025, name, father_or_husband_name: '', division: 'চট্টগ্রাম', district: 'চট্টগ্রাম', upazila: 'মীরসরাই', union_name: '', address: '', extra: { category: 'গাভী', amount: 1 }, prev_photo_url: null, prev_thumb_url: null, current_photo_url: null, current_thumb_url: null, prev_photo_source: null, current_photo_source: null, photo_updated_at: null, created_at: ts, updated_at: ts, ...extra })
+  demoRecs.length = 0
+  demoRecs.push(rec(1, 'রহিমা'), rec(2, 'করিম'))
+  // ১×১ PNG (ব্রাউজারে কম্প্রেস করা যায়) — নাম .jpg হলেও চলে
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
+  fs.mkdirSync('.smoke/photos', { recursive: true })
+  const files = ['demo_0001.jpg', 'demo_0002_prev.jpg', 'semi_0001_prev.jpg', 'xyz_0001.jpg'].map((n) => {
+    fs.writeFileSync(`.smoke/photos/${n}`, png)
+    return `.smoke/photos/${n}`
+  })
+  const p = await newPage()
+  await p.goto(BASE + '/admin/photos?project=demo', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  let s = await text(p)
+  ok('ছবি বাল্ক: প্রকল্প রেজিস্ট্রি থেকে (খসড়া demo), উদাহরণ "demo_0001.jpg", শুধু-পরের নোট', (await p.$eval('#bulk-project', (x) => x.value)) === 'demo' && s.includes('demo_0001.jpg') && s.includes('এই প্রকল্পে শুধু পরের ছবি ("উপকরণসহ ছবি")'), s.match(/ফাইলনাম:[^\n]*/)?.[0])
+  const input = await p.$('input[type="file"]')
+  await input.uploadFile(...files)
+  await settle(p)
+  s = await text(p)
+  const rowText = (name) => p.evaluate((n) => [...document.querySelectorAll('tbody tr')].find((tr) => tr.textContent.includes(n))?.innerText.replace(/\s+/g, ' ') ?? '', name)
+  ok('"demo_0001.jpg" (আগে/পরে নেই) → শুধু-পরে প্রকল্পে পরের ছবি "উপকরণসহ ছবি", রেকর্ড "রহিমা"', (await rowText('demo_0001.jpg')).includes('উপকরণসহ ছবি') && (await rowText('demo_0001.jpg')).includes('রহিমা'), await rowText('demo_0001.jpg'))
+  ok('শুধু-পরে প্রকল্পে "_prev" ফাইল লাল: "এই প্রকল্পে শুধু পরের ছবি — "_prev" ফাইল চলবে না"', (await rowText('demo_0002_prev.jpg')).includes('"_prev" ফাইল চলবে না') && (await p.evaluate(() => [...document.querySelectorAll('tbody tr')].find((tr) => tr.textContent.includes('demo_0002_prev.jpg')).className.includes('bg-red-50'))), await rowText('demo_0002_prev.jpg'))
+  ok('"semi_0001_prev.jpg" → সেমিপাকা #১, আগের ছবি আছে → "ওভাররাইট হবে" ব্যাজ', (await rowText('semi_0001_prev.jpg')).includes('ওভাররাইট হবে') && s.includes('ওভাররাইট হবে ১'), await rowText('semi_0001_prev.jpg'))
+  ok('অচেনা প্রিফিক্স "xyz_0001.jpg" → ফাইলনাম বোঝা যায়নি; গণনা: মিলেছে ২, ভুল ঘর ১', (await rowText('xyz_0001.jpg')).includes('ফাইলনাম বোঝা যায়নি') && s.includes('মিলেছে ২') && s.includes('ভুল ছবির ঘর ১'))
+  let before = writes.length
+  await clickText(p, 'button', 'নিশ্চিত: ২টি আপলোড (১টি ওভাররাইট)')
+  await sleep(200)
+  const dlg = await dlgText(p)
+  ok('ওভাররাইট থাকলে আপলোডের আগে নিশ্চিতকরণ (কোনটি ওভাররাইট হবে তা দেখায়)', dlg.includes('১টি ছবি ওভাররাইট হবে') && dlg.includes('সেমিপাকা ঘর নির্মাণ · সিরিয়াল ১'), dlg.slice(0, 160))
+  await clickText(p, '[role="dialog"] button', 'বাতিল')
+  await sleep(200)
+  ok('"বাতিল" → কিছুই আপলোড হয় না (ঘর নির্মাণের ছবি অক্ষত)', writes.length === before && !(await p.$('[role="dialog"]')) && (await text(p)).includes('নিশ্চিত: ২টি আপলোড'))
+  // ঘর নির্মাণের ফাইল বাদ দিয়ে শুধু demo আপলোড (নকল স্টোরেজে)
+  await p.evaluate(() => [...document.querySelectorAll('tbody tr')].find((tr) => tr.textContent.includes('semi_0001_prev.jpg'))?.querySelector('button[aria-label="তালিকা থেকে বাদ দিন"]')?.click())
+  await sleep(200)
+  before = writes.length
+  const ev0 = logEvents.length
+  await clickText(p, 'button', '১টি ছবি আপলোড করুন')
+  await p.waitForFunction(() => document.body.innerText.includes('সফল ১'), { timeout: 20000 }).catch(() => {})
+  await settle(p)
+  const w = writes.slice(before)
+  ok('শুধু demo #১ এর পরের ছবি আপলোড: স্টোরেজ housing/demo/0001/current(_thumb).webp, রেকর্ডে url; ঘর নির্মাণে কোনো লেখা নয়', w.filter((x) => x.path.startsWith('/storage/v1/object/housing-photos/housing/demo/0001/current')).length === 2 && !w.some((x) => x.path.includes('semi_pucca')) && demoRecs[0].current_photo_url?.includes('/housing/demo/0001/current.webp'), w.map((x) => `${x.method} ${x.path}`).join(', '))
+  const ev = logEvents.slice(ev0).filter((x) => x?.p_action === 'photo_bulk_run')
+  ok('photo_bulk_run লগ প্রকল্প ধরে আলাদা (demo: সফল ১)', ev.length === 1 && ev[0].p_project_type === 'demo' && ev[0].p_details?.done === 1, JSON.stringify(ev))
+  await p.screenshot({ path: '.smoke/admin-photos-demo.png', fullPage: true })
+  ok('ছবি বাল্ক পাতায় কোনো page error নেই', p.errors.length === 0, p.errors.join(' | '))
+  await p.close()
+  demoRecs.length = 0
+}
+
+// ---------------------------------------------------------------- M. একটিভিটি লগ — ফিল্ডের লেবেল, টাকা, কনফিগ-বদল (M-ধাপ ১২)
+{
+  const at = new Date().toISOString()
+  const base = { actor_id: null, actor_email: 'ui-test@example.org', at, record_id: null, serial_no: null, record_name: null }
+  fakeLog.push(
+    { ...base, id: 9, action: 'update', project_type: 'demo', record_id: '00000000-0000-0000-0000-00000000e001', serial_no: 1, record_name: 'রহিমা', details: { changes: { 'extra.amount': { old: 50000, new: 60000 }, 'extra.category': { old: 'গাভি', new: 'গরু' }, 'extra.zzz_unknown': { old: 'ক', new: 'খ' }, union_name: { old: '', new: 'করেরহাট' } }, photo_kinds: [] } },
+    { ...base, id: 8, action: 'category_merge', project_type: 'demo', details: { field: 'category', from: 'গাভি', to: 'গরু', records: 3 } },
+    { ...base, id: 7, action: 'field_update', project_type: 'demo', record_name: 'টাকা', details: { field_key: 'amount', changes: { show_in_table: { old: false, new: true }, label_en: { old: '', new: 'Amount' } } } },
+    { ...base, id: 6, action: 'project_update', project_type: 'demo', record_name: 'পরীক্ষা প্রকল্প', details: { changes: { photo_mode: { old: 'before_after', new: 'after_only' }, stat_cards: { old: [], new: [{}] } } } },
+    { ...base, id: 5, action: 'private_update', project_type: 'demo', record_id: '00000000-0000-0000-0000-00000000e001', serial_no: 1, record_name: 'রহিমা', details: { fields: ['mobile'], masked: true } },
+    { ...base, id: 4, action: 'photo_bulk_run', project_type: 'demo', details: { rows: 2, done: 1, failed: 0, overwrite: 0 } },
+  )
+  const p = await newPage()
+  await p.goto(BASE + '/admin/activity', { waitUntil: 'domcontentloaded' })
+  await settle(p)
+  const s = await text(p)
+  ok('লগে টাকার বদল: "টাকা: ৳ ৫০,০০০ → ৳ ৬০,০০০"', /টাকা:\s*৳\s৫০,০০০\s*→\s*৳\s৬০,০০০/.test(s), s.match(/টাকা:[^\n]{0,40}/)?.[0])
+  ok('ফিল্ডের লেবেল সংজ্ঞা থেকে ("উপকরণের ক্যাটাগরি: গাভি → গরু", "ইউনিয়ন/পৌরসভা"); অচেনা হলে কাঁচা key', s.includes('উপকরণের ক্যাটাগরি: গাভি → গরু') && s.includes('ইউনিয়ন/পৌরসভা: — → করেরহাট') && s.includes('extra.zzz_unknown: ক → খ'))
+  ok('ক্যাটাগরির এক-বানান লগে: «গাভি» → «গরু» · ৩টি রেকর্ড', s.includes('«গাভি» → «গরু» · ৩টি রেকর্ড'))
+  ok('ফিল্ডের সেটিং-বদল: «টাকা» · টেবিলে: না → হ্যাঁ, লিংক সেটিংসে', s.includes('ফিল্ড «টাকা»') && s.includes('টেবিলে: না → হ্যাঁ') && !!(await p.$('a[href="/admin/projects/demo?tab=fields"]')))
+  ok('প্রকল্পের সেটিং-বদল: ছবি মোড আগে-পরে → শুধু পরে; স্ট্যাট কার্ড (বদলেছে)', s.includes('ছবি মোড: আগে-পরে → শুধু পরে') && s.includes('স্ট্যাট কার্ড: (বদলেছে) → (বদলেছে)'))
+  ok('গোপন মান: শুধু ফিল্ডের নাম ("🔒 মোবাইল নম্বর"), মান নয়', s.includes('🔒 মোবাইল নম্বর') && s.includes('মান লগে রাখা হয় না'))
+  ok('রেকর্ডের লিংক /admin/records/demo/1/edit', !!(await p.$('a[href="/admin/records/demo/1/edit"]')))
+  const opts = await p.evaluate(() => [...document.querySelectorAll('select[aria-label="প্রকল্প"] option')].map((o) => o.textContent))
+  ok('প্রকল্প ফিল্টার ডাটাবেসের তালিকা থেকে (গ্রুপ, তার উপ-প্রকল্প, খসড়া demo)', opts.includes('ঘর নির্মাণ প্রকল্প') && opts.includes('↳ সেমিপাকা ঘর নির্মাণ') && opts.includes('পরীক্ষা প্রকল্প (খসড়া)'), opts.join(' | '))
+  await p.screenshot({ path: '.smoke/admin-activity.png', fullPage: true })
+  ok('লগ-পাতায় কোনো page error নেই', p.errors.length === 0, p.errors.join(' | '))
+  await p.close()
+  fakeLog.length = 0
 }
 
 // ---------------------------------------------------------------- E. ফোনে ড্রয়ার

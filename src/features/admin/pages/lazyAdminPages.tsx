@@ -10,3 +10,6 @@ export const LazyAdminRecordsPage = lazy(() => import('../records/AdminRecordsPa
 export const LazyRecordFormPage = lazy(() => import('../records/RecordFormPage').then((m) => ({ default: m.RecordFormPage })))
 /** বাল্ক ইম্পোর্ট (M-ধাপ ১১-এ features/housing থেকে সরানো — এখন যেকোনো প্রকল্পের, ফিল্ড-চালিত) */
 export const LazyImportPage = lazy(() => import('../import/ImportPage').then((m) => ({ default: m.ImportPage })))
+/** ছবি বাল্ক আপডেট ও একটিভিটি লগ (M-ধাপ ১২-এ features/housing থেকে সরানো — যেকোনো প্রকল্পের) */
+export const LazyPhotoBulkPage = lazy(() => import('../photos/PhotoBulkPage').then((m) => ({ default: m.PhotoBulkPage })))
+export const LazyActivityPage = lazy(() => import('../activity/ActivityPage').then((m) => ({ default: m.ActivityPage })))
