@@ -80,6 +80,6 @@ describe('admin CLI', () => {
     expect((await cli(['disable', '--email', 'cli@example.org'])).code).toBe(0);
     const res = await cli(['list']);
     expect(res.code).toBe(0);
-    expect(res.stdout).toMatch(/cli@example\.org.*disabled/);
+    expect(res.stdout).toMatch(/cli@example\.org.*disabled.*argon2id/);
   });
 });

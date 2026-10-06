@@ -103,6 +103,8 @@ describe('listAdmins', () => {
       { email: 'a@example.org', name: 'এ', disabled: false },
       { email: 'b@example.org', name: null, disabled: true },
     ]);
-    expect(JSON.stringify(admins)).not.toContain('argon2');
+    // The hash kind is listed; the hash itself never is.
+    expect(admins.map((a) => a.hash)).toEqual(['argon2id', 'argon2id']);
+    expect(JSON.stringify(admins)).not.toContain('$argon2');
   });
 });

@@ -7,13 +7,12 @@
 //   admin set-password --email <email>
 //   admin disable --email <email>
 //   admin enable --email <email>
-//   admin list
-import { createInterface } from 'node:readline/promises';
-import { Writable } from 'node:stream';
+//   admin list            (the hash column shows who still has a bcrypt hash imported from Supabase)
 import { parseArgs } from 'node:util';
 import postgres from 'postgres';
 import { z } from 'zod';
 import { AdminCliError, createAdmin, listAdmins, setDisabled, setPassword } from '../auth/admins.js';
+import { readSecret } from './prompt.js';
 
 const COMMANDS = ['create', 'set-password', 'disable', 'enable', 'list'] as const;
 type Command = (typeof COMMANDS)[number];
@@ -26,40 +25,7 @@ const USAGE = `usage:
   admin enable --email <email>
   admin list`;
 
-/** Reads a password: hidden and asked twice on a terminal, one line from piped stdin otherwise. */
-async function readPassword(): Promise<string> {
-  if (!process.stdin.isTTY) {
-    const rl = createInterface({ input: process.stdin, terminal: false });
-    for await (const line of rl) {
-      rl.close();
-      return line;
-    }
-    throw new AdminCliError('no password given on stdin');
-  }
-  let muted = false;
-  const output = new Writable({
-    write(chunk, encoding, done) {
-      if (!muted) process.stdout.write(chunk, encoding);
-      done();
-    },
-  });
-  const rl = createInterface({ input: process.stdin, output, terminal: true });
-  const ask = async (prompt: string) => {
-    process.stdout.write(prompt);
-    muted = true;
-    const answer = await rl.question('');
-    muted = false;
-    process.stdout.write('\n');
-    return answer;
-  };
-  try {
-    const password = await ask('Password: ');
-    if ((await ask('Repeat password: ')) !== password) throw new AdminCliError('the passwords do not match');
-    return password;
-  } finally {
-    rl.close();
-  }
-}
+const readPassword = () => readSecret('Password', { confirm: true });
 
 function requireEmail(email: string | undefined): string {
   if (!email) throw new AdminCliError(`--email is required\n${USAGE}`);
@@ -105,7 +71,7 @@ async function run(args: string[]): Promise<void> {
       case 'list':
         for (const admin of await listAdmins(sql)) {
           const status = admin.disabled ? 'disabled' : 'active';
-          console.log(`${admin.id}  ${admin.email}  ${status}  ${admin.name ?? '-'}  ${admin.created_at.toISOString()}`);
+          console.log(`${admin.id}  ${admin.email}  ${status}  ${admin.hash}  ${admin.name ?? '-'}  ${admin.created_at.toISOString()}`);
         }
         break;
     }

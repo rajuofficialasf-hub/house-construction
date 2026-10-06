@@ -277,7 +277,7 @@ Everything the new stack needs exists on staging and is prepared for production 
   - The prompted URL, admin emails and hashes never appear in stdout, stderr or an error message.
 - **Done when:** `npm --prefix server test` passes, including the new tests, and `npm --prefix server run build` emits `dist/cli/import-supabase.js`.
 - **Depends on:** U2 (the target must be at 0010 for the required-tables check)
-- **Status:** todo
+- **Status:** done
 
 ### U4. Import CLI: photos
 - **Goal:** Every photo slot is copied through the storage adapter, recorded in `housing_files` and pointed at by the record's URL, with gaps reported.
@@ -380,7 +380,7 @@ Server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$PATH`
 ## Progress
 - **Branch:** `migrate/c7-cutover`
 - **Updated:** 2026-10-06 11:10
-- **Next:** U3, add `housing_source_test` to `server/db/docker-init/01-init.sh` and write `server/test/fixtures/supabase-source.sql`
+- **Next:** U4, export `encodeVariant` from `server/src/photos/process.ts`, then write `server/src/import/photos.ts`
 - **Uncommitted:** none
 - **Notes:**
   - `origin/main` was not ahead; `dev-forhad` already equals `migrate/c6-deploy` (`7397bbb`), so there was nothing to merge or port.
@@ -388,3 +388,4 @@ Server commands run with Node 22: `PATH=~/.nvm/versions/node/v22.20.0/bin:$PATH`
   - `i18n-check` runs under the installed Node 26 (needs ≥ 24).
   - U1: the repo has no React component test setup (no jsdom/testing-library), so the `RequireAdmin` and login-page checks are a Playwright test in `e2e/mock/route-protection.spec.ts` that runs only in `admin-rest`. The retry button reloads the page. `HousingLoginPage.tsx` needed no change: it only redirects on `ready` + admin.
   - U2: `pg_trgm` lives in its own `extensions` schema, not `public`. A trusted extension is installed as the bootstrap superuser, so its functions keep PUBLIC `EXECUTE` and the owner can't revoke it; `server/test/db/privileges.test.ts` caught that. The test reset in `server/test/support/global-setup.ts` now drops `extensions` too. Indexes reference `extensions.gin_trgm_ops`.
+  - U3: rows travel as `to_jsonb` text and load with `jsonb_populate_recordset` in one statement per table (no 500-row batches), so timestamps keep their microseconds and `details` keeps exact numbers; the serial-change and log JSON is never parsed in JS. Bind that text as `${json}::text::jsonb`: a JS string bound straight to `::jsonb` is JSON-encoded a second time. The report goes to `--report <file>` (mode 600, never overwritten), not stdout. Existing local volumes need `housing_source_test` (`docker compose exec db createdb -U postgres -O housing_owner housing_source_test`). A staging re-run needs `--discard-new-writes` too, because staging's own log rows are newer than the source's.

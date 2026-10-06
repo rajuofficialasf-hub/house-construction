@@ -9,7 +9,7 @@ const origin = z
 
 // The API's own public base URL, which stored photo URLs are built from (docs/api/API_CONTRACT.md §3.2).
 // Scheme, host, optional path; no trailing slash, query or fragment, so `${url}/api/v1/…` is always right.
-const baseUrl = z
+export const baseUrl = z
   .string()
   .trim()
   .refine((value) => {
@@ -59,7 +59,7 @@ const configSchema = z.object({
 // Which storage driver holds the photos, and only that driver's settings (NS-34). No default: a
 // deployment must say where its files live. S3 credentials are not settings here; the AWS SDK reads
 // AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY or the host's IAM role (NS-43).
-const storageSchema = z.discriminatedUnion('STORAGE_DRIVER', [
+export const storageSchema = z.discriminatedUnion('STORAGE_DRIVER', [
   z.object({ STORAGE_DRIVER: z.literal('nas'), STORAGE_ROOT: z.string().trim().min(1) }),
   // TEMP: S3 is a stopgap until the NAS is ready; remove this branch with drivers/s3.ts.
   z.object({

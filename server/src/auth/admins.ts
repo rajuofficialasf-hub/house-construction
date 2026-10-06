@@ -79,11 +79,17 @@ export async function setDisabled(sql: Sql, email: string, disabled: boolean): P
 
 export interface AdminListing extends AdminPrincipal {
   disabled: boolean;
+  /** The hash kind: an imported Supabase admin keeps 'bcrypt' until their first login rehashes it. */
+  hash: 'argon2id' | 'bcrypt' | 'none';
   created_at: Date;
 }
 
 export async function listAdmins(sql: Sql): Promise<AdminListing[]> {
   return sql<AdminListing[]>`
-    select id, email, name, disabled_at is not null as disabled, created_at
+    select id, email, name, disabled_at is not null as disabled,
+      case when password_hash like '$argon2id$%' then 'argon2id'
+           when password_hash ~ '^\\$2[aby]\\$' then 'bcrypt'
+           else 'none' end as hash,
+      created_at
     from public.housing_admins order by email`;
 }
