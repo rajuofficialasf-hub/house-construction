@@ -208,7 +208,7 @@ Meanwhile the other developer rebuilt the app as a multi-project platform on Sup
   | `0013_record_rules` | `10b`: `housing_field_value` (money limit 1e10 from 13), `housing_validate_record`, `beneficiary_private_validate` | P2 |
   | `0014_record_functions_v2` | `11`: `project_leaf_keys`, `housing_bulk_update_by_serial` v2, `housing_next_serial` v2; `12`: record and private activity-log v2 | P3 |
   | `0015_project_guards` | `10b`: `projects_guard`, `projects_after_write`, `project_fields_guard`; `11`: `project_create`, reorders, `project_field_usage`, `project_field_rename_value`; `12`: config-change log; `housing_files` gains cover kind and `project_key` | P4 |
-  | `0016_project_stats` | `11`: `project_stats(key, light)`, `projects_overview(drafts)`, added beside the old `housing_stats` and `housing_years`, which stay untouched until P9 deletes them | P5 |
+  | `0016_project_stats` | `11`: `project_stats` and `projects_overview`, ported as `housing_project_stats(p_key, p_light, p_public_only)` and `housing_projects_overview(p_drafts)` (P5 decisions), added beside the old `housing_stats` and `housing_years`, which stay untouched until P9 deletes them | P5 |
 
 - **The route switch: new routes go in beside the old ones** (confirmed by the user at doc review).
   - P1–P5 add the `/api/v1/projects…`, `/records…` and `/activity` routes beside `/api/v1/housing`.
@@ -239,7 +239,15 @@ Each chunk is one session that ends with green tests and commits. Chunks run in 
 | **P9** | Removal: Supabase package, adapter, `supabase/` folder, scripts, tests, Playwright projects, env vars; `deploy/`, the edge service and jobs, the runbook; `import:supabase` and its tests and fixtures; `/housing` routes and `API_CONTRACT.md`; `PROJECTS_API_CONTRACT.md` corrected to the server as built; docs rewritten, including the mermaid pages in `docs/diagrams/` (`backend-architecture.md` loses the Supabase, deploy and cutover pictures and gains the registry tables; `test-strategy.md` loses the live-Supabase lanes); bundle check; AE4 search | R15, R16, R17, R18 | P8 checklist fully checked |
 | **P10** | Handoff guide: run, extend, test; `CLAUDE.md` profile final | R19 | P9 |
 
-P1 to P4 are planned in full below. Each chunk from P5 on gets its own units from `ae-plan` at its start, against the code as it is then.
+P1 to P7 are planned in full below. P8 to P10 get their own units from `ae-plan` at their start, against the code as it is then.
+
+**P5–P7 run as one batch** (user-directed, 2026-10-06):
+
+- They are planned together, after P4, and built back to back in order P5 → P6 → P7.
+- Each unit still commits with its own tests green. Each chunk still ends with its full verification commands, and its commit range and test counts go in Progress.
+- `ae-simplify` and `ae-review` run once over the P5–P7 commit range, not at the end of each chunk. The reviewers get one commit range per chunk (P5, P6, P7) rather than one diff.
+- That combined pass must finish before P8, so the walkthrough tests final code. It also comes before P9, while local Supabase still exists as the parity reference.
+- P8, P9 and P10 keep their gates unchanged. The combined pass is part of P7's definition of done, so P7 isn't green until it has run, and P8's gate ("P7 green in CI") covers it.
 
 ## Implementation units — P1 (Foundation)
 
@@ -1748,6 +1756,597 @@ These settle what P4's research turned up. They add to Technical decisions, the 
   - `If-Match` is compared to the millisecond
   - the create and PATCH bodies refuse `cover_path`
 
+## Implementation units — P5 (Stats, overview, OpenAPI, dev seed)
+
+### P5 decisions
+
+These settle what the P5–P7 research turned up, against the code after P4 and the `main` merge (e2aa826). They add to the earlier decisions and change none of them.
+
+- **`0016` ports `project_stats` and `projects_overview` from `11_project_rpcs.sql` (a8e2154, lines 53–151 and 212–271) as `housing_project_stats(p_key text, p_light boolean, p_public_only boolean)` and `housing_projects_overview(p_drafts boolean)`.**
+  - Both are plain invoker, `stable`, `set search_path = public`, return `jsonb`, and are granted to `housing_app` (`docs/learnings/database/postgres-default-privileges-public-execute.md`). Neither reads a session setting or an admin flag of its own (`docs/learnings/security/postgres-session-setting-guards-are-spoofable.md`). The route decides who sees drafts and passes plain booleans.
+  - They sit beside `housing_stats` and `housing_years` from `0003`, which stay untouched until P9 (Deferred to Planning table).
+- **`p_public_only` replaces what RLS did on Supabase.** With it set, the leaf list is `housing_project_leaf_keys(p_key)` intersected with `housing_public_project_keys()`. A visitor's stats for a published group then count only its published children, and a draft child's fields don't show in `fields`. This matches what the anon role saw on Supabase.
+- **The response always carries every `ProjectStats` key** (`src/backend/interfaces/types.ts:338`). Light mode returns `by_union: {}` and no `by_value`, and `by_project` lists every leaf with 0 for an empty one. The P6 adapter then needs no `normalizeStats`.
+  - `fields` holds only active public `money`, `number` and `category` fields of the counted leaves, deduplicated by key. Private and archived fields never appear. Private values can't reach `fields` anyway, because they live in `housing_beneficiary_private`, not `extra`.
+  - `by_project` comes from one `group by project_type`, left-joined to the leaf list, not one count per leaf.
+- **A visitor asking for a draft's stats gets 404, not zeros.** Contract §4.3 allows "404 or dropped". The server's other reads 404 a hidden project, so a visitor can't tell a draft from a missing key (`recordProject`, `server/src/records/reads.ts:51`). Supabase returned zeros through RLS. P9 records the 404 in the contract.
+- **The overview follows the reference exactly.** Its shape is `ProjectOverview` (`types.ts:387`): `{ projects: ProjectOverviewItem[], global: { projects, total, districts } }`.
+  - `projects` holds the published projects for a visitor, or every project for an admin with `drafts=1`, ordered by `sort_order, key`.
+  - Each item's `stats` is light stats with `p_public_only = not drafts`.
+  - `featured` is the newest record across the item's leaves (`created_at desc, serial_no desc`) whose `coalesce(current_thumb_url, prev_thumb_url)` is not null.
+  - `featured` and `without_photo` use the same leaf list as the counts, so `p_public_only` applies to them too. A visitor never gets a draft child's photo through a published group's card.
+  - `without_photo` is a count only when drafts are on, else `null`.
+  - `global` always counts public leaves only, even for an admin.
+  - A visitor's `drafts=1` is ignored (contract §4.1.2).
+- **No new index in `0016`.** The `0011` indexes already cover the year, geo, union and `created_at` lookups. The contract's target is stats under 300 ms at 50k rows (§5.2). The P5 verification measures it once on 50k synthetic rows in the dev database. A miss gets a new migration with the partial index for `featured`, not a change to `0016`.
+- **Both routes join `projectsReadRouter`** (`server/src/routes/v1/projects.ts`), with `/overview` registered before `/:key` (contract line 25). They inherit the read limiter and `sessionAwareCaching`. Both are public GETs on the public-read CORS list, with a test (Technical decisions). Only `/stats` needs a new pattern, because the existing `/projects/:key` pattern already matches `/projects/overview`.
+- **"OpenAPI complete" means every mounted route except `/auth/*`.** `/auth` stays out on purpose (`server/src/openapi.ts:75`; `openapi.test.ts` "leaves the admin auth routes out"), because only this site uses it.
+  - P5 adds the two new paths.
+  - It documents the `If-Match` header on `PATCH /projects/{key}`, a 403 on every main-admin-only route and the 409s P4 added.
+  - It renames the header comment from "/housing routes" to the v1 routes.
+- **The dev seed's draft project lives in its own file, `server/db/seed/demo-project.sql`.**
+  - `db:seed` runs it after `dev.sql`. The REST contract harness (P6) and the admin-rest reset (P7) load the same file, so all three share one fixture.
+  - The project is `demo`, a draft leaf with photo mode `after_only`, with four fields:
+    - `amount`, money, public
+    - `family_size`, number, public
+    - `trade`, category, public, with three options
+    - `phone`, text, private
+  - Six records carry `extra`, `union_name` and private values.
+  - The file is idempotent like `dev.sql`: `on conflict do nothing`, and a counter row from the `0015` trigger.
+  - It runs only where `dev.sql` runs: `db:seed` refuses a non-local database (`assertLocalDatabaseUrl`, `server/scripts/local-db.ts`), and the harnesses load it only into `housing_test`. No migration or deploy path loads a seed or creates a seeded admin account.
+
+### U26. Migration `0016_project_stats`
+- **Goal:** The database computes a project's stats and the home-page overview the way Supabase did, with visibility passed in by the caller.
+- **Requirements:** R5, R7, R2 (overview).
+- **Files:**
+  - `server/db/migrations/0016_project_stats.sql`
+  - `server/test/db/project-stats.test.ts` (new)
+  - `server/test/db/privileges.test.ts` (extend: `housing_app` can execute both, PUBLIC can't)
+- **Approach:**
+  - Port `project_stats` and `projects_overview` from `git show a8e2154:supabase/sql/11_project_rpcs.sql`.
+  - Strip `auth.uid()`, the RLS reliance and `is_admin`. Add `p_public_only` (P5 decisions). Reuse `housing_project_leaf_keys` from `0014` and `housing_public_project_keys` from `0011`.
+  - Follow `0014`/`0015` for the header ("Differences from Supabase"), naming, grants and a `-- migrate:down` that drops both functions.
+  - Bind nothing as a bare jsonb string.
+- **Tests** (as `appDb`, like `server/test/db/stats.test.ts`):
+  - **Counts:**
+    - a leaf: `total`, `by_year`, `by_division`, `by_district`, `by_upazila`, `by_location`, `distinct.{divisions,districts,upazilas,unions}` against hand-counted fixture rows (`TS-11`)
+    - a group: sums its children, and `by_project` lists every leaf including a 0
+  - **Unions and fields:**
+    - `by_union` is keyed `district|upazila|union` and skips empty unions
+    - light mode returns `by_union: {}` and no `by_value`
+    - money and number `sum` and `count` take only numeric `extra` values
+    - category `distinct`, and `by_value[v].n` with `sums` per public money and number key
+  - **Hidden data:**
+    - private and archived fields are absent from `fields`
+    - `p_public_only` drops a draft child from a published group's counts, `by_project` and `fields`
+  - **Overview:**
+    - item order
+    - `featured` picks the newest record with a thumb and is `null` with none
+    - a published group whose draft child has the newest thumb gives a visitor `featured` from a published leaf, or `null`
+    - `without_photo` is a number with `p_drafts` and `null` without
+    - `global` ignores drafts with `p_drafts` set
+    - an unknown key gives zeros, not an error (the route answers 404)
+  - **Migrations:** down then up leaves no function behind (the global setup's rollback).
+- **Done when:** `npm --prefix server run db:migrate`, `db:rollback`, `db:migrate` run clean on the dev database, and the new tests and the whole server suite pass.
+- **Depends on:** none
+- **Status:** todo
+
+### U27. Stats and overview routes
+- **Goal:** `GET /api/v1/projects/:key/stats[?light=1]` and `GET /api/v1/projects/overview[?drafts=1]` serve the U26 functions with the visibility rules.
+- **Requirements:** R5, R7, R9 (CORS list, OpenAPI), R2 (overview).
+- **Files:**
+  - `server/src/projects/reads.ts`: `projectStats`, `projectsOverview`
+  - `server/src/projects/schemas.ts`: `statsQuery` (`light` as `'1'|'true'` → boolean), `overviewQuery`
+  - `server/src/routes/v1/projects.ts`: the two routes, `/overview` before `/:key`
+  - `server/src/app.ts`: `PUBLIC_READ_ROUTES` gains the `/projects/:key/stats` pattern. `/projects/overview` already matches `^/api/v1/projects/[^/]+/?$`, so its CORS test is a regression check that passes before the change.
+  - `server/src/openapi.ts`: both paths, with response schemas mirroring `ProjectStats` and `ProjectOverview`
+  - `server/test/http/projects-stats.test.ts` (new, copying `projects-reads.test.ts`)
+  - `server/test/http/cors.test.ts` (extend)
+- **Approach:**
+  - The stats route looks the key up with the existing visibility check (`visibleProject` in `server/src/records/reads.ts:178`, or the `projects/reads.ts` equivalent). A miss is `AppError('NOT_FOUND')`. Then it calls `housing_project_stats(key, light, !viewer.admin)`.
+  - Overview passes `drafts = query.drafts && viewer.admin`.
+  - Both use `sessionAwareCaching`, so an admin body is `private, no-store` and a visitor body is public with `Vary: Cookie`.
+- **Tests:**
+  - **Stats:**
+    - a visitor gets a published leaf's and group's stats
+    - a visitor gets 404 for a draft and for an unknown key, with the same body (`TS-13`: the other-viewer refusal)
+    - an admin gets a draft's stats
+    - `light=1` changes the shape
+    - a bad `light` value is 400
+  - **Overview:**
+    - a visitor's `drafts=1` is ignored, so no draft and `without_photo` is null
+    - an admin with `drafts=1` sees the draft and a number
+  - **Headers:**
+    - caching headers for each viewer
+    - a partner origin gets credential-less CORS on both paths
+    - a partner origin sending `drafts=1` and a cookie gets no `Access-Control-Allow-Credentials` and no draft in the body
+    - a visitor's overview body holds no draft child's thumb URL
+    - the route order: `GET /projects/overview` is not read as a key
+- **Done when:** the new HTTP tests and `openapi.test.ts` pass, and `curl localhost:3001/api/v1/projects/overview` on the seeded dev server returns the three registry projects.
+- **Depends on:** U26
+- **Status:** todo
+
+### U28. OpenAPI complete
+- **Goal:** `/api/v1/openapi.json` describes every mounted route apart from `/auth`, with its parameters, bodies, responses and admin rules.
+- **Requirements:** R9 (the OpenAPI document), R1.
+- **Files:**
+  - `server/src/openapi.ts`
+  - `server/test/http/openapi.test.ts` (extend)
+- **Approach:**
+  - Walk the routers in `app.ts` against `document.paths`. Paths can't drift (the existing test), so this unit checks content:
+    - every operation has a 2xx response with a schema
+    - every route behind `requireMainAdmin*` lists 403
+    - `PATCH /projects/{key}` lists the `If-Match` header and its 409
+    - project and field creates list their 409
+  - Update the file's header comment.
+  - Schemas come from the routes' zod schemas, as today.
+- **Tests:**
+  - every operation has a 2xx response with content (or a 204)
+  - every operation whose route uses a main-admin guard lists 403; the test reads the guard from the router stack, not a hand-kept list
+  - `If-Match` is a header parameter on `PATCH /projects/{key}`
+  - the existing drift, `$ref` and no-`$schema` checks stay
+- **Done when:** `openapi.test.ts` passes and the served document validates as OpenAPI 3.1 in the existing check.
+- **Depends on:** U27
+- **Status:** todo
+
+### U29. Dev seed gains a draft project with custom and private fields
+- **Goal:** A fresh local stack has a draft project that exercises custom public fields, a private field, unions and stats, for the walkthrough and the P6 and P7 harnesses.
+- **Requirements:** R19 (run locally with realistic data), R4, R5, R7.
+- **Files:**
+  - `server/db/seed/demo-project.sql` (new)
+  - `server/scripts/db-seed.ts`: run it after `dev.sql`
+  - `server/test/db/seed.test.ts`: counts become `demo: 6`, `semi_pucca: 12`, `tin: 8` (the existing 20 records are not touched; user-decided at doc review), plus a check that `demo` is a draft with its four fields and six private rows
+- **Approach:**
+  - Insert the project and its fields as the owner, so the `0015` guards and the config log run as for any create. Then insert the records with `extra` and `union_name`, then `housing_beneficiary_private` rows.
+  - Every insert uses `on conflict do nothing`, so a second run adds nothing.
+- **Tests:**
+  - `seed.test.ts`: first run, second run unchanged
+  - `demo` is unpublished
+  - the private field is `visibility = 'private'`
+  - the stats function as a visitor (`p_public_only`) omits `demo` from the overview's `global`
+- **Done when:** `npm --prefix server run db:seed` twice on the dev database is clean, and the seeded API's `GET /projects?drafts=1&include=fields` with an admin cookie lists `demo` with four fields.
+- **Depends on:** U26 (the seed test reads stats)
+- **Status:** todo
+
+### P5 order and parallel lanes
+
+- **Lane A:** U26 → U27 → U28.
+- **Lane B:** U29 can start after U26. It touches only seed files.
+
+### Verification (P5)
+
+- `npm --prefix server run typecheck` and `npm --prefix server test` (needs `docker compose up -d db`)
+- `npx tsc -b`, `npm run lint` and `npm test` at the root
+- `npm run test:contract:rest` and `npm run test:e2e:rest-admin`: the old routes still pass
+- `npm run test:all`
+- `npm --prefix server run db:migrate`, `db:rollback`, `db:migrate` and `db:seed` (twice) on the dev database
+- Timing, once: load 50k synthetic records into one project of the dev database and time `GET /projects/:key/stats` and `GET /projects/overview` against the 300 ms target. Record the result in Progress. Remove the rows with `docker compose down -v` or a re-seed.
+
+### Risks and rollback (P5)
+
+- **`0016` is additive.** Down drops two functions and nothing else reads them before P6.
+- **The full stats run one scan per field and per category value** (`by_value`). Seed-size projects are far below the 5 s `statement_timeout`, and the home page uses only the light path. The timing check is the early warning.
+- **The seed file is shared by three harnesses after P6–P7.** A change to it changes contract and e2e fixtures. Tests assert relations, not fixed counts, except `seed.test.ts`.
+
+### Definition of done (P5)
+
+- U26–U29 are done and their tests pass.
+- The P5 verification commands pass, and the commit range and test counts are in Progress.
+- No `ae-simplify` or `ae-review` at the end of P5. They run once over P5–P7 (Session chunks).
+
+## Implementation units — P6 (REST adapter and default backend)
+
+### P6 decisions
+
+- **Every interface method maps to a v1 route, with no legacy fallback.**
+
+  | Interface | Method | Route |
+  |---|---|---|
+  | `HousingApi` | `list` | `GET /projects/:key/records` |
+  | | `getById` | `GET /records/:id` |
+  | | `getBySerial` | `GET /projects/:key/records/serial/:n` |
+  | | `getBySerials` | `GET /projects/:key/records/serials` (≤ 100 per call, as today) |
+  | | `create` | `POST /projects/:key/records` |
+  | | `update` | `PATCH /records/:id` |
+  | | `delete` | `DELETE /records/:id` |
+  | | `bulkInsert` | `POST /projects/:key/records/bulk` |
+  | | `bulkUpdateBySerial` | `PUT /projects/:key/records/bulk` |
+  | | `stats` | `GET /projects/:key/stats` (U27) |
+  | | `years` | `GET /projects/:key/years` |
+  | | `nextSerial` | `GET /projects/:key/next-serial` |
+  | | `changeSerial` | `POST /records/:id/serial` |
+  | | `uploadPhoto` | `PUT /records/:id/photos/:slot` |
+  | | `deletePhoto` | `DELETE /records/:id/photos/:slot` |
+  | | `getPrivate` | `GET /records/:id/private` |
+  | | `setPrivate` | `PUT /records/:id/private` |
+  | | `getPrivateMany` | `POST /projects/:key/records/private` |
+  | | `listActivity` | `GET /activity` |
+  | | `logActivity` | `POST /activity` |
+  | | `filterOptions` | no route: built from `years` and `stats` as the Supabase adapter does (`src/backend/supabase/housingApi.ts:356`) |
+  | `ProjectsApi` | `list` | `GET /projects` |
+  | | `get` | `GET /projects/:key` |
+  | | `overview` | `GET /projects/overview` (U27) |
+  | | `create` | `POST /projects` |
+  | | `update` | `PATCH /projects/:key` |
+  | | `delete` | `DELETE /projects/:key` |
+  | | `reorder` | `PUT /projects/order` |
+  | | `createField` | `POST /projects/:key/fields` |
+  | | `updateField` | `PATCH /fields/:id` |
+  | | `deleteField` | `DELETE /fields/:id` |
+  | | `reorderFields` | `PUT /projects/:key/fields/order` |
+  | | `uploadCover` | `PUT /projects/:key/cover` |
+  | | `deleteCover` | `DELETE /projects/:key/cover` |
+  | | `fieldUsage` | `GET /projects/:key/fields/:field_key/usage` |
+  | | `renameFieldValue` | `POST /projects/:key/fields/:field_key/rename-value` |
+  | | `backendMode` | no route: always `'full'` |
+
+  `AdminUsersApi` stays `NOT_IMPLEMENTED`. M-step 19 is after `a8e2154` and isn't ported (Key Decisions).
+- **A `HousingApi` call with no project key is a `VALIDATION_ERROR` in the REST adapter.**
+  - The server has no all-projects record or stats route, and the UI always passes a key. `list` takes `project_type`; `stats`, `years` and `nextSerial` take their first argument.
+  - The contract suite stops relying on calls without a key (`tests/contract/housingApiContract.ts:87–134` call `list()` and `stats()` bare). It passes a seeded leaf key on every backend, so the same assertions hold on mock, REST and Supabase.
+  - A group key on `list` is the server's 400 (`recordProject`). The UI never lists a group's records: group pages use the overview.
+- **The adapter always sends `If-Match` when the caller passes `expectedUpdatedAt`.** This settles the P4 note "P6 decides whether the adapter always sends it". `ProjectSettingsPage` passes it on every save and on publish, so concurrent edits are caught. `restRequest` (`src/backend/rest/http.ts`) gains a `headers` option, used only for this.
+- **Responses need no mapping.** P1–P5 shaped every response to the UI types (P1 decision at U6, P5 decisions). The adapter unwraps `{ data }`, or passes the page through for `list` and `listActivity`. The legacy helpers go: `withDefaults`, `legacyPayload`, `legacyProjectType`, `fromLegacyStats` and the empty `getPrivate`/`getPrivateMany`.
+- **Photos and covers are multipart with the client-encoded `photo` and `thumb` parts,** the same body the old `/housing/:id/photo` took. `uploadCover(key, file)` sends `file` as both parts, because the server re-encodes and the UI has only one blob; the photo receiver stores both variants (P4 decisions). The unit checks the receiver's part names in `server/src/photos/process.ts` before writing the body.
+- **`createRestImageStorage().publicUrl(path)` returns `path` unchanged when it is an absolute `http(s)` URL, and throws otherwise.** On REST, `cover_path` already holds `/api/v1/photos/<id>` as a full URL (P4 decisions). `src/features/projects/home/cover.ts` calls `publicUrl` and would otherwise show no cover. `upload`, `delete` and `move` stay `NOT_IMPLEMENTED`: only the Supabase adapter and `migrate-photos` use them, and P9 deletes both.
+- **`legacyProjectsApi.ts` moves to `src/backend/mock/legacyProjectsApi.ts`**, because the mock is its only user after this chunk (Deferred to Planning). `fallbackProjects.ts` stays where it is, because the Supabase adapter and several UI files read it.
+- **`friendlyProjectError` reads `details.field`.**
+  - The field maps to the Bangla text for its four unique constraints (`slug`, `key`, `file_prefix`, a field's `key`) and the reserved field key (P4 decisions, U21). Otherwise it shows the server's message, which for `HC` errors is our own text.
+  - The constraint-name regexes stay only while the Supabase adapter exists, and P9 removes them. Matching on the Supabase message is the old behaviour, not a new use.
+  - `FieldsTab.tsx:62`, `StatsTab.tsx:59` and `AdminProjectsPage.tsx:78` show "someone else changed this" only for a `CONFLICT` with no `details.field`. Research found the same pattern in the latter two, so all three change together.
+- **REST becomes the default backend:**
+  - `DEFAULT_BACKEND = 'rest'` in `src/backend/factory.ts:23`
+  - `.env.example`: `VITE_HOUSING_BACKEND=rest` and `VITE_API_BASE_URL=http://localhost:3001`
+  - `compose.yaml` web service defaults to `rest`
+  - `supabase` stays selectable until P9 as the parity reference, and `mock` stays dev-only (R10). No new Supabase code is added.
+- **The contract suite gains a `ProjectsApi` part** in `tests/contract/projectsApiContract.ts`, run by the same per-backend files.
+  - `ContractHarness` gains an optional `projects: ProjectsApi`. The mock harness leaves it out, so the part skips on the mock: the mock is legacy and refuses edits by design.
+  - **REST:** the REST harness also loads `server/db/seed/demo-project.sql` after `dev.sql`.
+  - **Local Supabase:** `supabase.local.contract.test.ts` passes its projects API.
+  - Each write test creates and deletes its own draft project, so no test depends on another (`TS-14`).
+  - The blocks that need custom or private fields (`f.<key>`, private values, `by_value`, `without_photo`) also build their own draft project and fields through `ProjectsApi`, the same way on REST and Supabase (user-decided at doc review). The demo seed serves only REST-only read checks. No Supabase-side fixture is added.
+  - Behaviour that differs between REST and Supabase on purpose is listed in `knownGaps` with the decision that caused it, and each entry goes on the P9 contract-rewrite list. Examples are a visitor's draft stats (404 against zeros) and `cover_path` (a URL against a storage path).
+  - A gap nobody decided on is a bug to fix, not an entry.
+- **The merged `main` UI hides more from a plain `admin` than the server refuses:** serial change (`RecordForm.tsx:255`), replacing an existing photo (`PhotoBulkPage.tsx:73`) and the import clear token (`ImportPage.tsx:104`). The server keeps `a8e2154`'s rules (Key Decisions: nothing after `a8e2154` is ported). The UI is only stricter, so nothing is exposed. The P8 checklist notes it, and P9's contract rewrite says the UI hides these for plain admins.
+
+### U30. `restRequest` headers and the real REST `ProjectsApi`
+- **Goal:** Every `ProjectsApi` method calls its v1 route, with `If-Match` on updates and the cover as multipart.
+- **Requirements:** R1, R2, R3.
+- **Files:**
+  - `src/backend/rest/http.ts` (`headers` option)
+  - `src/backend/rest/projectsApi.ts` (new)
+  - `src/backend/rest/endpoints.ts` (a `projects` and `fields` section)
+  - `src/backend/rest/index.ts` (re-export; drop `createLegacyProjectsApi`)
+  - `src/backend/rest/projectsApi.test.ts` (new, stubbed `fetch` like `authProvider.test.ts`)
+- **Approach:**
+  - Follow `src/backend/supabase/projectsApi.ts` for method semantics, and the current `rest/index.ts` `call` helper for unwrapping.
+  - `create(input, fields)` sends `{ ...input, fields }` as the route expects. Read `projectCreateBody` in `server/src/projects/schemas.ts` for the exact field name.
+  - `update` sends `If-Match` only when `expectedUpdatedAt` is set.
+  - Bodies are the patch as given, and the server refuses unknown keys.
+- **Tests:**
+  - each method hits the right method, path and body
+  - `If-Match` is sent with the value given and absent without one
+  - a 409 with `details.field` reaches the caller as `CONFLICT` with `details.field`
+  - a 403 is `FORBIDDEN`, and a 404 is `NOT_FOUND`
+  - cover upload sends multipart with both parts
+  - `backendMode()` is `'full'`
+  - the end-to-end proof is U35's contract run against the real server
+- **Done when:** `npm test` passes and `rg "legacyProjectsApi" src/backend/rest` is empty.
+- **Depends on:** U27 (overview route)
+- **Status:** todo
+
+### U31. REST `HousingApi` on the new routes
+- **Goal:** Every `HousingApi` method calls its v1 route, carries `union_name`, `extra` and private values, and no `/housing` path is left in the adapter.
+- **Requirements:** R1, R4, R5, R8.
+- **Files:**
+  - `src/backend/rest/endpoints.ts` (rewritten: `/housing` goes, `projects`/`records`/`activity` come in, `adminUsers` stays)
+  - `src/backend/rest/index.ts`
+  - `src/backend/rest/housingApi.test.ts` (rewritten)
+- **Approach:**
+  - Keep the parts of today's adapter that aren't legacy:
+    - the `getBySerials` dedupe, sort, int4 filter and 100-per-call chunks
+    - the `q` length cap
+    - page clamping
+    - `logActivity` skipping `login`/`logout` and swallowing errors
+  - Query names follow the routes' zod schemas: `f.<key>`, `union_name`, `sort=extra.<key>`, and `/activity`'s project filter. Read `server/src/records/schemas.ts` and `server/src/routes/v1/activity.ts`.
+  - `stats(key, { light })` sends `light=1`. `filterOptions` composes `years` and `stats`, as Supabase does.
+  - `publicUrl` follows the P6 decision.
+  - A missing key throws `VALIDATION_ERROR` before any request.
+- **Tests:**
+  - path, method and query for every method
+  - `union_name`, `extra` and `_clear` reach the bulk body unchanged
+  - private get, set and many hit the private routes
+  - photo upload is multipart to `/records/:id/photos/:slot`
+  - a missing key is refused with no request
+  - `publicUrl` passes an absolute URL through and throws on a bare path
+  - `rg "/housing" src/backend/rest` finds only comments that P9 removes, or nothing
+- **Done when:** `npm test` passes, and `npm run test:contract:rest` passes with the suite as it stands. U35 widens it.
+- **Depends on:** U30 (shared `endpoints.ts` and `http.ts`)
+- **Status:** todo
+
+### U32. Legacy into the mock
+- **Goal:** Only the mock backend knows the three-fixed-projects legacy view.
+- **Requirements:** R10, R1 (no legacy fallback outside the mock).
+- **Files:**
+  - `git mv src/backend/legacyProjectsApi.ts src/backend/mock/legacyProjectsApi.ts`
+  - `src/backend/mock/index.ts`, `src/backend/mock/housingApi.ts` (imports)
+  - any test importing it
+- **Approach:** A move with import changes only. `fallbackProjects.ts` stays.
+- **Tests:** none new. `npm test`, `npm run test:e2e:mock` and the mock contract run are the check (behaviour-free move).
+- **Done when:** `rg "legacyProjectsApi" src --glob '!src/backend/mock/**'` is empty, and the mock suites pass. The `LEGACY_GROUP_KEY` in `src/backend/supabase/stats.ts` is the Supabase adapter's own constant and stays until P9.
+- **Depends on:** U30, U31
+- **Status:** todo
+
+### U33. Registry errors by field in the UI
+- **Goal:** A duplicate slug, key, file prefix or field key shows its own message, and only a real stale edit shows "someone else changed this".
+- **Requirements:** R2, R3.
+- **Files:**
+  - `src/features/admin/projects/projectRules.ts` (`friendlyProjectError`, line 86)
+  - `src/features/admin/projects/tabs/FieldsTab.tsx` (line 62)
+  - `src/features/admin/projects/tabs/StatsTab.tsx` (line 59)
+  - `src/features/admin/pages/AdminProjectsPage.tsx` (line 78)
+  - `src/features/admin/projects/projectRules.test.ts` (new or extend)
+- **Approach:** Read `HousingApiError.details?.field` first. Keep the Supabase message regexes after it until P9 (P6 decisions). Add one shared `isStaleEdit(err)` helper in `projectRules.ts` for the three components.
+- **Tests:**
+  - each of the five fields gives its text
+  - a `CONFLICT` without a field is the stale-edit text
+  - `FORBIDDEN` is the no-permission text
+  - anything else passes the server message through
+- **Done when:** `npm test` and `npm run lint` pass.
+- **Depends on:** none (can run beside U30–U32)
+- **Status:** todo
+
+### U34. REST is the default backend
+- **Goal:** `npm run dev`, the production build and `docker compose up` use the REST backend unless told otherwise.
+- **Requirements:** R10.
+- **Files:**
+  - `src/backend/factory.ts` and `src/backend/factory.test.ts`
+  - `.env.example`
+  - `compose.yaml` (web service default and its comment)
+  - `README.md` and `docs/testing/README.md` (the run and backend lines)
+- **Approach:**
+  - Flip the default.
+  - `.env.example` lists `rest | mock | supabase` and says `supabase` goes in P9.
+  - The README's quick start becomes: compose up `db`, migrate and seed, start the API, then `npm run dev`.
+  - `check:prod-bundle` and the CI `checks` build must still pass with the new default. If the bundle check asserts a Supabase default, change that assertion to REST.
+- **Tests:**
+  - `factory.test.ts`: no env gives `rest`
+  - `mock` is honoured only in dev
+  - an unknown value warns and falls back to `rest`
+  - `supabase` still selects Supabase
+- **Done when:** `npm run build` and `npm run check:prod-bundle` pass, and `docker compose up` serves the UI against the local API with the seeded projects.
+- **Depends on:** U35 (the default flips only after the contract proves the adapter)
+- **Status:** todo
+
+### U35. Contract suite: `ProjectsApi` and every new `HousingApi` method
+- **Goal:** One shared suite proves the REST adapter against the server and against local Supabase as the parity reference.
+- **Requirements:** R11, R1–R5, R7.
+- **Files:**
+  - `tests/contract/harness.ts` (`projects?: ProjectsApi`)
+  - `tests/contract/projectsApiContract.ts` (new)
+  - `tests/contract/housingApiContract.ts` (explicit keys; new method blocks)
+  - `tests/contract/rest.contract.test.ts` (projects harness; load `demo-project.sql`)
+  - `tests/contract/supabase.local.contract.test.ts` (projects harness)
+  - `tests/contract/mock.contract.test.ts` (unchanged options; the projects part skips)
+  - `tests/contract/rest.readonly.contract.test.ts` and `supabase.readonly.contract.test.ts`: no `projects` part. The new `HousingApi` blocks respect `writes` and `seeded`, so private reads and `changeSerial` skip in the read-only runs.
+- **Approach:** Follow `runHousingApiContract`'s structure and options.
+  - **`ProjectsApi` part, reads:**
+    - list without and with drafts, as visitor and admin (AE2)
+    - get a draft as admin, and `NOT_FOUND` as visitor
+    - overview items, `featured` and `without_photo` by viewer
+  - **`ProjectsApi` part, writes:**
+    - create (always a draft), update with a matching and a stale `expectedUpdatedAt` (`CONFLICT`)
+    - publish and unpublish
+    - reorder
+    - field create, update, archive, reorder and delete
+    - usage, and rename-value
+    - cover upload and delete
+    - a plain admin's delete is `FORBIDDEN` (AE1, on backends with `nonAdminAccounts`)
+    - a duplicate slug is `CONFLICT` with `details.field = 'slug'`
+  - **New `HousingApi` blocks:**
+    - `union_name` and `extra` round-trip
+    - `f.<key>` filter, `q` over searchable fields, `sort=extra.<key>`
+    - private get, set and many, admin only
+    - `stats` keys (`by_union`, `by_project`, field sums, `by_value`) and the light shape
+    - `years`, `nextSerial` (null for a draft as visitor), `changeSerial`
+    - the photo mode refusal (AE3)
+- **Tests:** the suite itself. Each block runs on REST. Local Supabase runs the same blocks with `knownGaps` for the decided differences, each with a one-line reason that names the decision.
+- **Done when:**
+  - `npm run test:contract:rest` passes.
+  - `npm run test:contract:supabase-local` passes, with any `knownGaps` listed in Progress for P9.
+  - The mock contract run in `npm test` still passes.
+- **Depends on:** U30, U31, U29 (seed file)
+- **Status:** todo
+
+### P6 order and parallel lanes
+
+- **Lane A (sequential):** U30 → U31 → U32 → U35 → U34. They share `endpoints.ts`, `http.ts`, `rest/index.ts` and the contract harness. The default flips last.
+- **Lane B (parallel with A):** U33. It touches only the admin project components and `projectRules.ts`.
+
+### Verification (P6)
+
+- `npm --prefix server run typecheck` and `npm --prefix server test`
+- `npx tsc -b`, `npm run lint` and `npm test` at the root (includes the mock contract run and `factory.test.ts`)
+- `npm run test:contract:rest`
+- `npm run test:contract:supabase-local` (local Supabase running), as the parity reference
+- `npm run test:e2e:rest-admin`: the existing specs now run through the new routes
+- `npm run test:e2e:rest` against the seeded dev API, and `npm run test:all`
+- `npm run build` and `npm run check:prod-bundle`
+- Manual, once: `docker compose up` and open `http://localhost:5173`. The home page, a group page and a project list load from the API with no console errors.
+
+### Risks and rollback (P6)
+
+- **The adapter switch moves `admin-rest` and `public-rest` onto new routes in one go.** Every existing spec is the regression check. A red spec is read with `ae-trace` before anything else changes.
+- **Flipping the default changes what a developer sees on `npm run dev`.** Without the API running, the UI shows its "can't reach the server" state, not mock data. The README and `.env.example` say so, and `npm run dev:mock` stays.
+- **Local Supabase may not be running** on the machine doing P6. The Supabase contract run is then reported as not run, never as passed, and it must run before P9 starts (P9's gate).
+- **Rollback:** the default is one constant and two env lines. The old `/housing` routes still exist until P9, so the old adapter can be restored from git if needed.
+
+### Definition of done (P6)
+
+- U30–U35 are done and their tests pass.
+- The P6 verification commands pass, and the commit range and test counts are in Progress, including whether the local-Supabase contract run happened.
+- No `ae-simplify` or `ae-review` at the end of P6. They run once over P5–P7 (Session chunks).
+
+## Implementation units — P7 (Playwright, import tests, CI on REST)
+
+### P7 decisions
+
+- **The new admin specs live in `e2e/admin/`, which only `admin-rest` runs.**
+  - The mock can't create or edit projects (Deferred to Planning: the mock doesn't grow), so these specs would fail on the `mock` project.
+  - `admin-rest` in `playwright.config.ts:88` changes from `testDir: './e2e/mock'` to `testDir: './e2e'` with `testMatch` over `mock/**` and `admin/**`.
+  - The `mock` project keeps `./e2e/mock`.
+- **The admin-rest reset gets realistic data** (`e2e/support/rest-data.ts`):
+  - It stops stripping `union_name` and `extra`; the comment there predates `0011`.
+  - It loads `server/db/seed/demo-project.sql` (U29) after the fixture records.
+  - It inserts a plain `admin` (`editor@example.test`) next to the `main_admin`, defined in `rest-data.ts` itself. The mock fixtures and store don't change (user-decided at doc review), because only `e2e/admin/` specs use it, and only `admin-rest` runs them.
+  - `e2e/support/auth.ts` gains `loginAs(page, { email, password }, to)`.
+- **AE1's "direct delete request is refused" is checked through the browser's own session:**
+  - The spec sends `fetch(url, { method: 'DELETE', credentials: 'include' })` from inside the page with `page.evaluate`, after logging in as the plain admin.
+  - The browser then sends the site's `Origin`. A bare `page.request.delete` sends none, and `originCheck` (`server/src/http/origin.ts`) would refuse it before the role check, so the test would pass even with `requireMainAdmin` gone.
+  - The spec expects 403 with `requireMainAdmin`'s message, not the origin-refusal text, and checks that the record is still there.
+- **Specs seed through the UI or the reset, never through private test endpoints** (`TS-32`). Login happens per spec through the form, as the existing specs do. Stored auth state is left for later: the reset truncates sessions before each test.
+- **"CI runs all suites on REST":**
+  - CI already runs the server suite, `test:contract:rest`, `admin-rest` and `public-rest` against Postgres in `db-suites` (`.github/workflows/ci.yml`). The `e2e/admin/` specs join automatically through the `admin-rest` change.
+  - The `checks` build now uses the REST default (U34).
+  - The `e2e-mock` job stays, because the mock remains a supported dev backend (R10).
+  - `test:contract:supabase-local` stays out of CI: it needs a local Supabase, and P9 deletes it.
+- **Import unit tests follow `importParse.test.ts`** (Vitest, beside the source, node environment). They test `importFields.ts` and `importAnalyze.ts` through their exports only (`TS-16`).
+
+### U36. Unit tests for `importFields.ts` and `importAnalyze.ts`
+- **Goal:** The import mapping and row analysis have the coverage the `main` merge removed.
+- **Requirements:** R14.
+- **Files:**
+  - `src/features/admin/import/importFields.test.ts` (new)
+  - `src/features/admin/import/importAnalyze.test.ts` (new)
+- **Approach:** Build small `Project` fixtures inline: a project with a custom money field, a category with options and aliases, a private field, and photo-link fields.
+  - **`importFields`:**
+    - `normHeader`
+    - `isIgnoredHeader`
+    - `buildImportFields`: core, `x.<key>` custom, private flag, `*_photo_source`, archived fields left out
+    - `guessMapping`: exact, alias and unknown headers
+  - **`analyzeRows`:**
+    - insert and update modes
+    - `serialFromFile` and `startSerial`
+    - `fillDown`
+    - `geoFixes` and unresolved geo
+    - `unions`
+    - `categoryFixes`
+    - `CLEAR_TOKEN` allowed only with `canClear`
+    - a private column routed to private values
+    - an invalid money value as a row error
+- **Tests:** as above, each asserting the returned rows and errors against hand-written expectations (`TS-11`).
+- **Done when:** `npm test` passes with both files.
+- **Depends on:** none (can start at P7's start, or during P6)
+- **Status:** todo
+
+### U37. Admin-rest groundwork
+- **Goal:** Specs in `e2e/admin/` run on `admin-rest` with the demo project, custom values and both admin roles.
+- **Requirements:** R12.
+- **Files:**
+  - `playwright.config.ts` (`admin-rest` dirs)
+  - `e2e/support/rest-data.ts`
+  - `e2e/support/auth.ts`
+  - `e2e/admin/smoke.spec.ts` (new)
+  - `scripts/e2e-rest-admin.mjs`, only if the folder list is passed there
+- **Approach:** As in the P7 decisions. The reset stays one function called by the `backend.ts` auto fixture.
+- **Tests:**
+  - an `e2e/admin/smoke.spec.ts` that logs in as each role and sees the `demo` draft in the admin project list
+  - every existing `e2e/mock` spec still passes on `admin-rest` and `mock`
+- **Done when:** `npm run test:e2e:rest-admin` and `npm run test:e2e:mock` pass.
+- **Depends on:** P6 done (the adapter must call the new routes)
+- **Status:** todo
+
+### U38. Specs: wizard, settings, builders, covers
+- **Goal:** The project-registry flows `main` added are covered end to end on the server.
+- **Requirements:** R12, R2, R3.
+- **Files:**
+  - `e2e/admin/project-wizard.spec.ts`
+  - `e2e/admin/project-settings.spec.ts`
+  - `e2e/admin/fields-builder.spec.ts`
+  - `e2e/admin/stat-cards.spec.ts`
+  - `e2e/admin/project-cover.spec.ts`
+- **Approach:** Selectors by role, label and Bangla text, as in `e2e/mock/record-delete.spec.ts` (`TS-30`), with web-first waits only (`TS-31`).
+  - **Wizard** (`ProjectWizardPage.tsx`): create a leaf from a template. The toast says draft, and a visitor gets "not found" at its URL.
+  - **Settings** (`ProjectSettingsPage.tsx`): edit the general tab and save; publish through the checklist, after which the visitor sees it; unpublish through `UnpublishDialog`.
+    - Stale edit: two pages save in turn, and the second shows the conflict text and reloads.
+    - A duplicate slug shows its own message (U33).
+  - **Fields** (`FieldsTab.tsx`, `FieldEditorDrawer.tsx`): add a category field, archive and restore it, reorder.
+    - Changing a field's key after data exists is refused with the guard's text.
+  - **Stat cards** (`StatsTab.tsx`, `StatCardPicker.tsx`): add a sum card on a money field. The public list page shows the seeded total.
+  - **Cover** (`CoverUpload.tsx`): upload, see it on the home card, delete it as main admin. The plain admin sees no delete control.
+- **Tests:** the specs above, about 12 to 15 cases in all.
+- **Done when:** `npm run test:e2e:rest-admin` passes twice in a row (no flakes).
+- **Depends on:** U37
+- **Status:** todo
+
+### U39. Specs: import, CSV export, category rename, AE1
+- **Goal:** The data flows with custom and private fields, and the delete rule, are covered end to end.
+- **Requirements:** R12, R4, R6, AE1.
+- **Files:**
+  - `e2e/admin/import-custom-fields.spec.ts`
+  - `e2e/admin/csv-export-private.spec.ts`
+  - `e2e/admin/category-rename.spec.ts`
+  - `e2e/admin/delete-roles.spec.ts`
+- **Approach:**
+  - **Import** (`ImportPage.tsx`): upload a BOM CSV into `demo` with custom, category and private columns, as `import-new.spec.ts` does. Map the columns and fix one category through `CategoryReviewPanel`.
+    - The records appear, and the record form shows the private value to the admin.
+    - A visitor can't see `demo` at all.
+  - **Export** (`AdminRecordsPage.tsx:231`, the dialog at 373): with private columns, the downloaded file name ends in `-private` and its header has `phone`. Without, no `phone`.
+  - **Rename** (the category block on the records page): rename a value. The list filter and the stats show the new spelling, and the activity log has the summary row.
+  - **AE1:**
+    - The plain admin sees no `ডিলেট` row button and no bulk delete. A direct `DELETE /api/v1/records/:id` from the page (P7 decisions: in-page `fetch`, so the origin check passes) is 403 with the main-admin message, and the record is still there.
+    - The main admin deletes the same record.
+- **Tests:** the specs above, about 8 to 10 cases.
+- **Done when:** `npm run test:e2e:rest-admin` passes twice in a row.
+- **Depends on:** U37
+- **Status:** todo
+
+### U40. CI and test docs on REST
+- **Goal:** CI runs every suite on the REST backend, and the docs say which command runs what.
+- **Requirements:** R12, R19 (groundwork).
+- **Files:**
+  - `.github/workflows/ci.yml` (only if U34 or U37 need a change: the `admin-rest` folders, the build env)
+  - `docs/testing/README.md`
+  - `package.json`, only if a script must name the new folder
+- **Approach:**
+  - Check that the CI `db-suites` job runs `e2e/admin/` through `admin-rest`, and that the `checks` build uses the REST default.
+  - Write the per-suite table in the testing README: command, backend, needs, run in CI or not.
+- **Tests:** a CI run on the pushed branch is green, or a local `act` run if pushing is not wanted yet. Pushing is the user's call.
+- **Done when:** the README table matches `package.json` and `ci.yml`, and the local runs of every suite listed there pass.
+- **Depends on:** U38, U39
+- **Status:** todo
+
+### P7 order and parallel lanes
+
+- **Lane A:** U37 → U38 and U39 (the two spec units share only the groundwork and can be built in either order) → U40.
+- **Lane B:** U36 is independent and may run any time from P6 on.
+
+### Verification (P7)
+
+- `npm --prefix server run typecheck` and `npm --prefix server test`
+- `npx tsc -b`, `npm run lint` and `npm test` at the root
+- `npm run test:contract:rest` and `npm run test:contract:supabase-local` (parity reference)
+- `npm run test:e2e:rest-admin` (twice), `npm run test:e2e:rest` and `npm run test:e2e:mock`
+- `npm run test:all`
+- CI green on the branch, once the user pushes it
+
+### Risks and rollback (P7)
+
+- **The housing_test database is shared** by the server suite, the contract suite and `admin-rest`. They must never run in parallel (they all reset it). The verification runs them one after another.
+- **Download and upload specs can be flaky** on file timing. Wait on the download event and on the visible result, never on time (`TS-31`). A flaky spec is fixed or reported, never retried into green (`TS-15`).
+- **Specs only; no product code changes.** A spec that finds an app defect stops for a fix in the app, never a workaround in the spec (the `playwright-healer` rule).
+
+### Definition of done (P7, and the P5–P7 batch)
+
+- U36–U40 are done and their tests pass.
+- The P7 verification commands pass, and the commit range and test counts are in Progress.
+- **One `ae-simplify` over the P5–P7 commit range** (first P5 commit to last P7 commit), with its changes verified by the full P7 verification.
+- **One `ae-review` with one commit range per chunk** (P5, P6, P7) handed to the reviewers, not one diff.
+  - Every P0 and P1 is fixed, and the P2s as in earlier chunks.
+  - Results are recorded in Progress.
+- **The full verification re-runs after the fixes,** including `npm run test:contract:supabase-local` as the parity reference.
+- Progress says P5–P7 are done, with test counts, review results and items left for later. **Next** is P8, the Chrome walkthrough, which needs the user.
+
 ## Verification
 
 Run these at the end of P1:
@@ -1775,7 +2374,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-06
-- **Next:** P5. Run `ae-plan` on this file to add P5's units (stats and overview, `0016`, OpenAPI complete, dev seed with a draft project), then `ae-work`.
+- **Next:** `ae-doc-review` on the P5–P7 sections, then the user's go-ahead, then `ae-work` on U26 (P5 → P6 → P7 as one batch).
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
@@ -1908,3 +2507,40 @@ Run these at the end of P1:
       - The field delete guard's "has values" check takes no lock, so a record insert at the same moment could keep a value for a field being deleted.
       - `If-Match` is optional, as the contract says. P6 decides whether the adapter always sends it.
       - The points for P9's contract rewrite are listed under "Definition of done (P4)".
+  - **`main` merged again (2026-10-06, e2aa826):** `a8e2154..a66fef3`, M-steps 17–20 (project users, SQL 14, `editor` role, `AdminUsersApi`) plus the logo and home-title changes. The parity target stays at `a8e2154`. The REST and mock backends answer `AdminUsersApi` with `NOT_IMPLEMENTED`. The REST auth provider fills `allProjects`/`projects` as `main`'s does, so every server admin keeps all projects. After the merge: UI 165, contract 40, admin-rest 35, `test:all` 53, server 1036.
+  - **P5–P7 planned together (2026-10-06):** `ae-plan` added the P5, P6 and P7 decisions and U26–U40, and Session chunks records the batch rule (one `ae-simplify` and one `ae-review` over P5–P7, before P8). Choices made in planning:
+    - a visitor's draft stats are 404
+    - `p_public_only` replaces RLS for group stats
+    - `/auth` stays out of OpenAPI
+    - the demo project lives in `server/db/seed/demo-project.sql`, shared by the seed, the contract harness and the admin-rest reset
+    - the adapter refuses a missing project key
+    - `If-Match` is always sent when given
+    - `publicUrl` passes server URLs through
+    - the new specs live in `e2e/admin/` on `admin-rest` only
+    - **`ae-doc-review` ran on P5–P7 (2026-10-06)** with coherence, feasibility, scope and security reviewers.
+      - It fixed:
+        - the stale "P1 to P4 planned" line
+        - `after` → `after_only`
+        - the `0016` row's signatures
+        - `include=fields` in U29's check
+        - U37's smoke spec file
+        - AE1 sends its DELETE from the page, so `originCheck` passes and the 403 is the role check
+        - U32's grep (Supabase keeps its own `LEGACY_GROUP_KEY`)
+        - only `/stats` needs a CORS pattern
+        - the overview shape is `{ projects, global }`
+        - `featured` and `without_photo` obey `p_public_only`, with draft-thumb tests
+        - extra cross-origin CORS tests
+        - the seed's local-only guard noted
+        - the read-only contract files
+        - P8's gate covers the combined pass
+      - The user chose:
+        - no `union_name` edits to the existing 20 seed records
+        - the plain admin lives only in the REST reset (the mock is untouched)
+        - contract blocks build their own projects and fields on every backend
+      - FYI, not acted on:
+        - public full stats have only the generic read limiter
+        - U32 and U40 are thin (they could merge into U31 and U37)
+        - the README table may be rewritten in P9
+        - U38's stale-edit and duplicate-slug cases overlap the contract suite
+        - the 50k timing run isn't in the P5 row
+        - U28 could assert 403s from an explicit route list instead of reading the router stack
