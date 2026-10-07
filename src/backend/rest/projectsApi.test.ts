@@ -70,7 +70,11 @@ describe('createRestProjectsApi list coalescing', () => {
     const releases: ((r: Response) => void)[] = []
     const fetchMock = vi.fn((_url: string, _init: RequestInit) => new Promise<Response>((resolve) => releases.push(resolve)))
     vi.stubGlobal('fetch', fetchMock)
-    return { fetchMock, release: (n: number, body: unknown, status = 200) => releases[n]!(json(status, body)) }
+    return {
+      fetchMock,
+      release: (n: number, body: unknown, status = 200) => releases[n]!(json(status, body)),
+      releaseEmpty: (n: number) => releases[n]!(new Response(null, { status: 204 })),
+    }
   }
 
   it('sends one request for concurrent identical lists and gives each caller its own copy', async () => {
@@ -132,6 +136,40 @@ describe('createRestProjectsApi list coalescing', () => {
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
     release(1, { data: PROJECT })
     await update
+    const after = api.list()
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
+    release(0, { data: [] })
+    release(2, { data: [PROJECT] })
+    expect(await before).toEqual([])
+    expect(await after).toEqual([PROJECT])
+  })
+
+  it('does not join a list that started before clearInFlight (a login or logout)', async () => {
+    const { fetchMock, release } = deferredFetch()
+    const api = createRestProjectsApi(BASE)
+    const before = api.list({ includeDrafts: true })
+    api.clearInFlight()
+    const after = api.list({ includeDrafts: true })
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    release(0, { data: [] })
+    release(1, { data: [PROJECT] })
+    expect(await before).toEqual([])
+    expect(await after).toEqual([PROJECT])
+  })
+
+  it.each([
+    ['delete', (api: ReturnType<typeof createRestProjectsApi>) => api.delete('demo'), null],
+    ['reorder', (api: ReturnType<typeof createRestProjectsApi>) => api.reorder(['demo']), null],
+    ['uploadCover', (api: ReturnType<typeof createRestProjectsApi>) => api.uploadCover('demo', new Blob(['x'], { type: 'image/webp' })), { data: PROJECT }],
+  ] as const)('does not join a list that started before %s finished', async (_name, write, reply) => {
+    const { fetchMock, release, releaseEmpty } = deferredFetch()
+    const api = createRestProjectsApi(BASE)
+    const before = api.list()
+    const done = write(api)
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    if (reply) release(1, reply)
+    else releaseEmpty(1)
+    await done
     const after = api.list()
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
     release(0, { data: [] })

@@ -7,7 +7,11 @@ import type { FieldUsage, Project, ProjectField, ProjectOverview } from '../inte
 import { ENDPOINTS } from './endpoints'
 import { queryOf, restData, restRequest, type RestRequestOptions } from './http'
 
-export function createRestProjectsApi(baseUrl: string): ProjectsApi {
+/**
+ * `clearInFlight` ভাগে চলমান list() ছেড়ে দেয়; factory এটি লগইন ও লগআউটে ডাকে, যাতে এক এডমিনের
+ * খসড়াসহ তালিকায় পরের এডমিন যোগ না দেন। এটি ProjectsApi-র অংশ নয়, কারণ শুধু REST ভাগ করে।
+ */
+export function createRestProjectsApi(baseUrl: string): ProjectsApi & { clearInFlight(): void } {
   // একই সময়ে একই list() অনেক জায়গা থেকে আসে (হেডার, পাতা, ফর্ম); তারা একটিই অনুরোধ ভাগ করে।
   // উত্তর এলেই ভাগ শেষ, কোনো ক্যাশ নয়; তাই updated_at (If-Match) সবসময় সার্ভারের সর্বশেষ।
   // প্রতিটি লেখা চলমান ভাগও বাদ দেয়, যাতে লেখার পরের list() লেখার আগের উত্তরে না জোড়ে।
@@ -38,6 +42,7 @@ export function createRestProjectsApi(baseUrl: string): ProjectsApi {
   const drafts = (includeDrafts?: boolean) => (includeDrafts ? '1' : undefined)
 
   return {
+    clearInFlight: () => inFlight.clear(),
     backendMode: async () => 'full',
     list: (opts = {}) => sharedList(ENDPOINTS.projects.list(queryOf({ drafts: drafts(opts.includeDrafts), include: 'fields' }))),
     get: (key) => call<Project>(ENDPOINTS.projects.byKey(key)),

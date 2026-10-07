@@ -3021,7 +3021,7 @@ git grep -nIE '(^|[^A-Za-z])RLS([^A-Za-z]|$)|SQL [0-9০-৯]+|পুরনো �
   - `delete`, `reorder` and `uploadCover` each drop an in-flight list
 - **Done when:** `npm test` passes.
 - **Depends on:** none
-- **Status:** todo
+- **Status:** done
 
 ### U52. The serial dialog says what the server does
 - **Goal:** The serial-change warning names the record's real link and doesn't claim that photos move.
@@ -3343,7 +3343,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** `ae-doc-review` on the P9 section, then (after the user's yes) `ae-work` on P9, starting with the `pre-p9` tag and U51.
+- **Next:** P9 `ae-work`: U52 (serial dialog text), then U53, U55, U56, U54, U57, U58, U59, U61, U63, U62, U64; then simplify, review and the full verification.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.

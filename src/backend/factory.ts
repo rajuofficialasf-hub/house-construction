@@ -106,10 +106,14 @@ function buildBackend(): Backend {
   if (kind === 'mock' && import.meta.env.DEV) return buildMockBackend()
   if (kind === 'rest') {
     const base = restBaseUrl()
+    const projectsApi = createRestProjectsApi(base)
+    const authProvider = createRestAuthProvider(base)
+    // এক এডমিনের চলমান (খসড়াসহ) তালিকা যেন পরের এডমিনের সঙ্গে ভাগ না হয়; ব্যাকএন্ড ক্যাশ হয়, তাই সাবস্ক্রিপশন একবারই
+    authProvider.onAuthChange(() => projectsApi.clearInFlight())
     return {
       housingApi: createRestHousingApi(base),
-      projectsApi: createRestProjectsApi(base),
-      authProvider: createRestAuthProvider(base),
+      projectsApi,
+      authProvider,
       imageStorage: createRestImageStorage(base),
       adminUsersApi: createRestAdminUsersApi(base),
     }
