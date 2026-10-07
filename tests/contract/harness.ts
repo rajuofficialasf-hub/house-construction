@@ -1,3 +1,4 @@
+import type { AdminUsersApi } from '../../src/backend/interfaces/adminUsersApi'
 import type { AuthProvider } from '../../src/backend/interfaces/authProvider'
 import type { HousingApi } from '../../src/backend/interfaces/housingApi'
 import type { ProjectsApi } from '../../src/backend/interfaces/projectsApi'
@@ -24,6 +25,10 @@ export interface ContractHarness {
   admin?: Credentials
   /** সাধারণ এডমিন (role admin): সব লেখা পারেন, মোছা নয় (AE1, docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md) */
   plainAdmin?: Credentials
+  /** ইউজার-ব্যবস্থাপনার API; থাকলে runAdminUsersContract চলে। শুধু REST এ — মক বাড়ে না (docs/testing/README.md) */
+  adminUsers?: AdminUsersApi
+  /** প্রকল্পের ইউজার (role editor), শুরুতে শুধু tin প্রকল্পে */
+  editor?: Credentials
   /** আছে কিন্তু এডমিন তালিকায় নেই (AE2) */
   nonAdmin?: Credentials
   /** লগইনের মাধ্যমে নয়, সরাসরি এমন সেশন বসানো যাতে "লগইন করা কিন্তু এডমিন নয়" লেখা-অনুমতি পরীক্ষা করা যায় (মক-সেতু) */
