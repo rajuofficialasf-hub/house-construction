@@ -239,10 +239,10 @@ Each chunk is one session that ends with green tests and commits. Chunks run in 
 | **P8** | Chrome walkthrough on the local stack against a checklist drawn from M-steps 1–15 (`docs/history/MULTI_PROJECT_PLAN.md`), saved in `docs/progress/`; fix whatever it finds | R13 | P7 green in CI |
 | **P8b** | Filtered stat cards on the server: the adapters report an unfiltered fallback, one shared record-filter builder, the list's filters on `GET /projects/:key/stats` with `main`'s filtered shape, the REST adapter, contract and specs (parity target `main` 87c7241 for this feature only) | R1, R5, R7, R9, R10, R11, R12 | P8 done (checklist fully checked) |
 | **P9** | Removal: Supabase package, adapter, `supabase/` folder, scripts, tests, Playwright projects, env vars; `deploy/`, the edge service and jobs, the runbook; `import:supabase` (already removed in P1); `/housing` routes and `API_CONTRACT.md`; `PROJECTS_API_CONTRACT.md` corrected to the server as built; docs rewritten, including the mermaid pages in `docs/diagrams/` (`backend-architecture.md` loses the Supabase, deploy and cutover pictures and gains the registry tables; `test-strategy.md` loses the live-Supabase lanes); bundle check; AE4 search | R15, R16, R17, R18 | P8 checklist fully checked and P8b done |
-| **P9b** | User management on the server (option A, user-decided 2026-10-07): `GET/PUT /api/v1/admin/users` (main admin only), the `editor` role with per-project assignment and "all projects", `/auth/me` sends them, an editor's project scope enforced on every write route and the activity view; REST adapter, contract and `admin-rest` spec (parity target `main` 87c7241, SQL 14) | R6, R7, R9, R11, R12 | P9 |
+| **P9b** | User management on the server (option A, user-decided 2026-10-07): `GET/PUT /api/v1/admin/users` (main admin only), the `editor` role with per-project assignment and "all projects", `/auth/me` sends them, an editor's project scope enforced on every write route and the activity view; REST adapter, contract and `admin-rest` spec (parity target `main` 87c7241, SQL 14) | R2, R3, R6, R8, R9, R10, R11, R12, R17, R18 | P9 |
 | **P10** | Handoff guide: run, extend, test; `CLAUDE.md` profile final | R19 | P9b |
 
-P1 to P9 are planned in full below. P9b and P10 get their own units from `ae-plan` at their start, against the code as it is then.
+P1 to P9b are planned in full below. P10 gets its own units from `ae-plan` at its start, against the code as it is then.
 
 **P5–P7 run as one batch** (user-directed, 2026-10-06):
 
@@ -3316,6 +3316,421 @@ Run once, after U64:
   - the review results
 - **Next** is P9b: `ae-plan` adds its units (user management on the server, option A). P10 (the handoff guide and the final `CLAUDE.md` profile, including the mock rule and the migration-comment exception) follows P9b.
 
+## Implementation units — P9b (User management on the server)
+
+**Why now:**
+- P9 kept `/admin/users`, `AdminUsersApi`, the `editor` role in `AdminRole` and `AuthUser`'s `allProjects` and `projects`, but on REST the page answers `NOT_IMPLEMENTED` and every server admin has every project.
+- `main` 87c7241 (SQL 14, M-steps 18–19 in `docs/history/MULTI_PROJECT_PLAN.md`) lets the main admin give a login a set of projects and limits that login to adding and filling in. This chunk builds that on the server (option A, user-decided 2026-10-07).
+- The parity reference is `git show 87c7241:supabase/sql/14_project_users.sql` and `git show 87c7241:src/backend/supabase/adminUsersApi.ts`. Everything else stays at `a8e2154`.
+
+**Where it happens:** only on `dev-forhad`. `main` is frozen evidence: no merge, no push, no PR (memory: parallel-migration-strategy).
+
+### P9b decisions
+
+**Three roles.** Here the plain `admin` stays, beside the new `editor`:
+
+| Role | Projects | May | May not |
+|---|---|---|---|
+| `main_admin` (one, set only by the CLI) | all | everything | — |
+| `admin` | all | everything but deletes, as today: project settings, serial change, replacing a photo and `_clear` (P6 decisions) | delete |
+| `editor` | its assigned ones, or all with "all projects" | add, edit (fill an empty value, change a value), import, upload a photo into an empty slot, export, private values, the activity of its projects | delete, replace an existing photo, empty a filled value (including `_clear`), change a serial, project and field settings, `/admin/users` |
+
+- On `main`, SQL 14 turned every `admin` into `editor` plus "all projects" (Q22). Here `admin` keeps today's server rights, so no existing behaviour is removed (user rule: no feature loss). The UI already hides serial change, photo replace and "(মুছুন)" from every non-main admin; that stays.
+- **The one-main-admin rule stays:** the unique index `housing_admins_one_main_admin` (`0012`). Only the CLI makes or unmakes a main admin. The page can neither choose `main_admin` nor change the main admin's row.
+
+**Data (`0019_editor_role`):**
+- `housing_admins_role_check` admits `editor`. The column default stays `admin`, so every existing row and every existing CLI call keeps its meaning.
+- `housing_admins.all_projects boolean not null default false` (`DB-MIG-04`). It means something only for an `editor`.
+- `housing_admin_projects(admin_id uuid references housing_admins on delete cascade, project_key text references housing_projects(key) on delete cascade, created_at timestamptz not null default now(), primary key (admin_id, project_key))`, with an index on `project_key` (`DB-MIG-07`; the primary key covers `admin_id`). A key may be a leaf or a group. Deleting a project drops its assignments.
+  - `revoke all on public.housing_admin_projects from public; grant select on public.housing_admin_projects to housing_app`. No insert, update or delete: only the save function (a definer) writes it. Tables get no default grant (`0006_app_role_grants.sql`), and the scope function and the list run as `housing_app`.
+- **Enable and disable** use the existing `disabled_at`, as the CLI's `disable` and `enable` do. A disabled admin's sessions are deleted, and `authenticate()` already refuses a disabled admin, so it applies on the next request.
+- **The scope** is one function, `housing_admin_project_keys(p_admin uuid) returns text[]` (stable, security invoker, `search_path = public`, `grant execute … to housing_app`): the assigned keys, plus every project whose `parent_key` is an assigned key, plus the parent of an assigned child (as `housing_my_project_keys()` in SQL 14). A group therefore covers its children at query time, including ones added later.
+  - The parent of an assigned child is there for the UI's menu and the group's own activity rows. It grants no write: a group holds no records (`recordProject` answers a group key with 400, reason `group`), and every settings route refuses an editor. U69 tests that a child-only editor's write to the parent key is refused.
+- **The save is one security definer function**, `housing_admin_user_save(p_email text, p_role text, p_all_projects boolean, p_projects text[], p_active boolean) returns uuid`, owned by `housing_owner` and granted only to `housing_app` (`docs/learnings/database/postgres-default-privileges-public-execute.md`).
+  - `housing_app` gets no direct UPDATE on `role` or `all_projects`, so `server/test/db/admin-roles.test.ts`'s "the app can't change a role" stays true. The function is the only way the app changes them, and it can't make a main admin (the `0002` definer pattern: `search_path = public`, actor from `session_user` as a fallback, `docs/learnings/security/postgres-session-setting-guards-are-spoofable.md`).
+  - The function refuses, as `HC400` with a field key in DETAIL (so `errors.ts` gives a 400 with `details.field`):
+    - a role other than `admin` or `editor` (`role`)
+    - the main admin's row (`email`; the route refuses it first with a 403)
+    - an unknown project key (`projects`; the message lists the keys, as SQL 14)
+    - an active `editor` with no projects and no "all projects" (`projects`)
+  - It takes `select … for update` on the target `housing_admins` row first. The login takes the same lock when it rechecks `disabled_at` (`server/src/auth/service.ts`, `docs/learnings/security/login-must-recheck-credentials-inside-session-transaction.md`), so a login racing a disable either finishes first and its session is then deleted, or sees the admin disabled.
+  - An unknown email raises `P0002`, as a backstop only: `errors.ts` gives every `P0002` the fixed text "রেকর্ড পাওয়া যায়নি". The route reads the target row first (U68) and itself answers an unknown email with `AppError('NOT_FOUND', …)` carrying SQL 14's hint (create the login with the CLI first), and the main admin's row with 403. The function's refusal of the main admin's row is a backstop too.
+  - It writes `role`, `all_projects` (false unless `editor`), `disabled_at` and `updated_at`, deletes and re-inserts the assignments (none unless an `editor` without "all projects"), deletes the sessions when it disables, and logs `admin_user_update` through `housing_log_event` with `{email, role, all_projects, projects, active}`, as SQL 14 logs it.
+  - The route calls it inside `withActor`, so the log row carries the main admin.
+
+**The session carries the scope.**
+- `authenticate()` (`server/src/auth/session.ts`) returns `all_projects` (true for `main_admin` and `admin`, and for an `editor` with the flag) and `projects` (`housing_admin_project_keys(a.id)` for an `editor` without the flag, otherwise `{}`), in its one statement.
+- `AdminPrincipal` gains `allProjects` and `projects`. A change on the page applies on the admin's next request, not their next login.
+- `/auth/me` and `/auth/login`'s `user` send `allProjects` and `projects` (camelCase, like `AuthUser`; `/auth` stays out of OpenAPI). `projects` is `[]` whenever `allProjects` is true.
+- One helper module, `server/src/auth/scope.ts`, holds the rules:
+  - `canEditProject(admin, key)`
+  - `requireProjectScope(admin, key)`, which throws `AppError('FORBIDDEN', 'এই প্রকল্পে আপনার কাজের অনুমতি নেই')`
+  - `refuseEditor(message)`, a middleware
+  - `isEditor(admin)`
+
+  Refusals log `req.log.warn({ adminId, project_key }, 'write refused: outside the editor's projects')` (`NE-LOG-03`), as `mainAdminOnly` does.
+- `requireMainAdminForUsers` is built with `mainAdminOnly` in `middleware.ts`, beside the other three. `mainAdminOnly` gains a log-text parameter, because its fixed "delete refused: not the main admin" is wrong for the users page.
+
+**Where each rule is enforced** (all in the API, `NE-SEC-03`; RLS-style triggers keyed to settings are not used):
+
+| Route | Editor rule |
+|---|---|
+| `POST /projects/:key/records`, `POST` and `PUT /projects/:key/records/bulk`, `POST /projects/:key/records/private` | `requireProjectScope` on the path key, before the body is used |
+| `PATCH /records/:id`, `PUT /records/:id/photos/:slot`, `GET` and `PUT /records/:id/private` | the record's `project_type` is looked up first (404 if the record doesn't exist), then `requireProjectScope`. A record never changes project, so the lookup can't race |
+| `POST /records/:id/serial` | refused (`refuseEditor`, "সিরিয়াল নম্বর বদলাতে পারেন শুধু মূল এডমিন ও এডমিন") |
+| `PUT /projects/:key/records/bulk` with `_clear` | refused when any row has `_clear` (403, `details.field` the first key). A `_clear` on an empty cell changes nothing, so refusing it outright differs from SQL 14 only in that no-op case. Bulk `""` and `null` already mean "unchanged" |
+| `PATCH /records/:id` | inside the update's transaction, the row is read `for update`. An editor's patch is refused when it would empty a filled value: a text column sent as `""`, or a custom key that was non-blank and is now missing, `null` or blank in a sent `extra`. The check is a pure function, `emptiedFields(before, patch)`, in `server/src/records/editorRules.ts` |
+| `PUT /records/:id/private` | the same check on `data`, inside `putPrivate`'s existing row lock |
+| `PUT /records/:id/photos/:slot` | an occupied slot is refused before the body is read (`checkPhotoSlot` returns whether the slot is filled), and again under `savePhoto`'s record lock, so two uploads at once can't replace each other. The stored files are removed on that refusal, as on any failed save |
+| every route in `projects-admin.ts` (create, order, PATCH, fields, field order, field PATCH, cover upload, usage, rename-value) | refused (`refuseEditor`, "প্রকল্পের সেটিং বদলাতে পারেন শুধু মূল এডমিন ও এডমিন"). The deletes stay main-admin only |
+| `GET /activity` | an editor without "all projects" sees rows whose `project_type` is in its scope, or whose `actor_id` is its own (SQL 14) |
+| `POST /activity` | a `project_type` outside the scope is refused |
+| `GET` and `PUT /admin/users` | main admin only (`requireMainAdminForUsers`, "ব্যবহারকারী সামলাতে পারেন শুধু মূল এডমিন") |
+
+- Refusals are 403 `FORBIDDEN`, and a refused emptied value carries `details.field` (`extra.<key>` or the column), as SQL 14's DETAIL did.
+- **An editor's admin view of reads is scoped too** (user-decided in the doc review, 2026-10-07; SQL 14 did the same):
+  - `Viewer` (`server/src/projects/reads.ts`) becomes `{ admin: boolean; drafts: 'all' | string[] }`. `'all'` is for a main admin, an admin, and an editor with "all projects"; a scoped editor gets its scope keys; a visitor `[]`. `admin` keeps deciding only the caching headers.
+  - `viewerOf` (`routes/v1/projects.ts`) gives `drafts: 'all'` only when `req.admin.allProjects === true`, the scope keys when `projects` is an array, and `[]` for anything else (fail closed).
+  - One helper, `seesAsAdmin(sql, viewer, expr)`, takes a SQL expression (a column, or `coalesce(b.project_type, f.project_key)` in `photos/serve.ts`). It is `true` for `'all'`, `expr = any(drafts)` for a scoped editor, `false` for a visitor. Every `(${viewer.admin} or <key> = any(public.housing_public_project_keys()))` becomes `(seesAsAdmin(…) or <key> = any(…))`.
+  - Three sites decide per row, not per call, and use the helper inside the SQL:
+    - `fieldsOf` (`projects/reads.ts`): `visibility = 'public' or seesAsAdmin(project_key)`
+    - `listProjects` with `drafts=1`: a draft row is listed when `seesAsAdmin(key)`
+    - `recordColumns` (`records/reads.ts`), used by `getRecord` and `getRecordsBySerials`: `case when seesAsAdmin(b.project_type) then b.extra else <public keys> end`
+  - **Roll-ups take one `public_only` flag per call**, so it is chosen per key:
+    - `housing_project_stats`, `housing_project_counted_leaves` and the filtered stats run with `public_only = false` only for `'all'` or a **leaf** in the editor's scope. For a group they run with `public_only = true` for a scoped editor, even when the group is assigned, so a group's total never counts a child the editor can't see. An in-scope draft child is then absent from its group's roll-up and shows its counts on its own page. `projectStats` and `filteredProjectStats` select `is_group` for this.
+    - `projectsOverview` passes `drafts && viewer.drafts === 'all'`, so a scoped editor gets the visitor's overview (`featured` and `without_photo` included) and finds its drafts through `GET /projects?drafts=1`.
+    - No SQL function changes.
+  - Writes keep `{ admin: true, drafts: 'all' }` (`records-admin.ts`' `recordProject` calls, `projects-admin.ts`' `ADMIN_VIEW`); their scope check is `requireProjectScope`.
+  - Search, filters and sort stay on public fields for every viewer (`recordProject` builds them from public fields only), as today.
+
+**The API.**
+- `GET /api/v1/admin/users` returns `{ data: AdminUser[] }`, with the main admin first, then by `created_at`. Each row is `{ id, email, name, role, all_projects, is_active, projects, created_at, last_seen_at }`. `projects` holds the assigned keys (not the expanded scope), and `last_seen_at` is the newest session's `last_seen_at`, or `null`. No hash or session token is selected (`DB-Q-05`). The list is bounded by the small admin table; it is capped at 500 rows (`DB-Q-04`).
+- `PUT /api/v1/admin/users` takes `{ email, role: 'admin' | 'editor', all_projects, projects, is_active }` (strict, `email` trimmed and lowercased, at most 254 characters, `projects` unique keys matching the key pattern, at most 200) and returns `{ data: AdminUser }`, the saved row. It creates no login and takes no password.
+- A new router, `server/src/routes/v1/admin-users.ts`, mounted at `/api/v1` with full paths, like `records-admin.ts`. Guards: `requireMainAdminForUsers` then the read limiter (GET) or the write limiter (PUT). `privateNoStore` on both. Not on `PUBLIC_READ_ROUTES`. `originCheck` covers the PUT.
+- OpenAPI gains both paths ("Main admin only", 403). In `openapi.test.ts`, `MAIN_ADMIN_GUARDS` (matched by handler identity) gains `requireMainAdminForUsers`, the router scan gains the new router, and the pinned main-admin list gains both routes.
+- The PUT writes a security-event line, `{ event: 'admin_user_update', actor, target, role, all_projects, projects, active }` (`NE-LOG-03`), as the private saves do. `actor` and `target` are admin ids, never emails (`NE-LOG-02`); the activity row, which only the main admin reads, keeps the email as SQL 14 does.
+
+**The admin CLI** (`server/src/cli/admin.ts`, `server/src/auth/admins.ts`):
+- `--role admin|editor|main_admin` on `create` and `set-role`. `create` still defaults to `admin`, so the documented commands keep working. A new `editor` has no projects until the main admin gives it some on the page.
+- `list` gains a projects column: `all`, or the assigned keys.
+- The CLI assigns no projects; the page does. `set-role` away from `editor` leaves the assignment rows, which only an `editor` reads.
+
+**The UI.**
+- **`UsersError` goes.** It existed for Supabase's "SQL 14 isn't installed" `CONFIG_ERROR`. REST raises `CONFIG_ERROR` only for a missing `VITE_API_BASE_URL`, which `ErrorNotice` already explains, and the mock's `NOT_IMPLEMENTED` also has its `ErrorNotice` text.
+- **`withProjects`' old-contract fallback goes.** It turned a missing `allProjects` into "all projects". The server now always sends both fields, so `rest/authProvider.ts` keeps only a fail-closed normaliser: `allProjects` is true only when the server sends `true`, and a missing `projects` is `[]`.
+- **`AdminUserRow` and `AdminUserSaveResult` follow the server:** `id` (was `user_id`), `last_seen_at` (was `last_sign_in_at`), and a new `name`. The save returns the saved row (the old `created` is always false here, because the login must already exist). `AdminUserInput` gains `role: 'admin' | 'editor'`.
+- **The users page** gains a role choice ("প্রকল্পের ইউজার" for `editor`, "এডমিন" for `admin`). Picking "এডমিন" hides the project ticks, because an admin has every project. Role labels cover all three roles. The CLI hint stays. The main admin's row stays read-only.
+- **Editor views:** settings, `/admin/users` and delete are already hidden from an editor (`SETTINGS_ROLES`, `RoleGate`, `canEditProject`). P9b changes no other screen, and the walkthrough checks it.
+- **The mock keeps `NOT_IMPLEMENTED`** for `AdminUsersApi`, and its auth keeps "all projects". The rule "the mock doesn't grow; new admin specs run on `admin-rest`" (`docs/testing/README.md`) holds: a users page that only works with a database is what the rule is for.
+
+**Project key shadowing is fixed** (`0020_reserved_project_keys`).
+- A project keyed `overview` is unreachable at `GET /projects/overview`, and one keyed `order` at `PUT /projects/order`.
+- A CHECK, `housing_projects_key_reserved` (`key not in ('overview', 'order')`), plus the same words in zod `projectKey` and the UI's `projectRules.ts`, with `errors.ts` mapping the CHECK to `details.field = 'key'`, as U21 does for the other constraints.
+- No row uses either key (checked on the dev database before the migration runs; the up section fails loudly otherwise). It is cheap, and a project that silently can't be opened is worse than a refused key.
+
+**Tests for every new endpoint and every scoped route (`TS-12`, `TS-13`):**
+- an editor outside its projects is refused (403), and the same editor inside them succeeds
+- a plain admin is refused on the main-admin routes (`/admin/users`)
+- a visitor (no session) gets 401, and a disabled editor gets 401
+- a public-read origin gets no CORS headers on `/admin/users`, and its PUT fails `originCheck` (403)
+- `p3-admin-auth.test.ts`'s route table gains the two new routes (401, disabled 401, wrong origin 403, 429)
+- an editor with no projects and no "all projects" (possible only if saved inactive, then re-enabled by the CLI) is refused on every write route
+- an editor re-scoped or turned into an admin mid-session is judged by the new rights on its very next write, for both `requireProjectScope` and `refuseEditor`
+- the main admin's row can't be changed through another spelling of its email (upper case, surrounding spaces)
+
+**Bangla text:** every new message, label and doc paragraph is written with `ae-bangla-copy`. The SQL 14 messages are reused where they fit.
+
+**Testing cadence** (as P9, user-decided): each unit writes its tests first, runs a fast check of what it touched and commits. The full verification runs once, after the simplify and review pass.
+
+**Order:** the database first, then the session, then the API (users, then records, then settings and activity), then the UI, the contract and the specs, then the docs.
+
+### U65. Migration `0019_editor_role`
+- **Goal:** The database holds the `editor` role, the assignments and "all projects", with one function for the scope and one for the save.
+- **Requirements:** R6, R9.
+- **Files:**
+  - a new `server/db/migrations/0019_editor_role.sql`
+  - `server/test/support/db.ts` (`resetTestData` truncates `housing_admin_projects`; `AdminRole` and `insertAdmin` gain `editor`, `allProjects` and `projects`)
+  - a new `server/test/db/editor-role.test.ts`
+  - `server/test/db/admin-roles.test.ts` and `server/test/db/privileges.test.ts` (the app may select `housing_admin_projects` but not insert, update or delete it; both functions are executable by `housing_app` and not by PUBLIC)
+- **Approach:** as in the P9b decisions. Follow `0012_admin_roles.sql` for the CHECK change and `0002_serial.sql` for the definer function's form. The down section drops both functions, the table and the column and restores `0012`'s CHECK, after turning any `editor` back into `admin` (`DB-MIG-05`: assignments and the flag are lost, acceptable before any deploy).
+- **Tests:**
+  - `housing_admin_project_keys`: a leaf assignment; a group assignment covers its children, including a child added after the assignment; an assigned child brings its parent; no assignment gives `{}`
+  - deleting a project deletes its assignment rows
+  - `housing_admin_user_save`:
+    - assigns, replaces and clears projects; `all_projects` stores no rows
+    - turns an `editor` into an `admin` and back
+    - disabling sets `disabled_at` and deletes the sessions; enabling clears it
+    - logs one `admin_user_update` row with the main admin as actor
+    - locks the target row: a disable waits for a login holding the row lock, and the login's session is deleted with the others
+    - refuses (`HC400`, DETAIL): role `main_admin`, the main admin's row, an unknown key (the message lists it), an active `editor` with no projects
+    - an unknown email is `P0002`
+  - `housing_app` still can't `update housing_admins set role` directly, and can't execute anything owned by the owner beyond its grants; nothing is granted to PUBLIC
+  - the migration's down runs cleanly (the global setup's round trip)
+- **Done when:** `npm --prefix server run db:migrate`, `db:rollback`, `db:migrate` pass on the test database, and `npx vitest run test/db` (from `server/`) passes.
+- **Depends on:** none
+- **Status:** done
+
+### U66. The session carries the scope, and `/auth` sends it
+- **Goal:** Every request knows the admin's projects, and `/auth/me` and the login answer send `allProjects` and `projects`.
+- **Requirements:** R6, R9.
+- **Files:**
+  - `server/src/auth/types.ts` (`ADMIN_ROLES` gains `editor`; `AdminPrincipal` gains `allProjects` and `projects`)
+  - `server/src/auth/session.ts` (`authenticate()`), `server/src/auth/service.ts` (the login's principal)
+  - a new `server/src/auth/scope.ts` and `server/src/auth/scope.test.ts`
+  - `server/src/auth/middleware.ts` (`requireMainAdminForUsers`, and `mainAdminOnly`'s log-text parameter)
+  - `server/test/http/auth.test.ts` and `server/test/http/main-admin.test.ts`
+- **Approach:** one `authenticate()` statement, as now, with the two extra returned columns from the P9b decisions. The login's principal is read the same way (one helper selects the principal for both). `scope.ts` holds `canEditProject`, `requireProjectScope`, `refuseEditor` and `isEditor`.
+- **Tests:**
+  - `/auth/me` and the login answer: a main admin and an admin give `allProjects: true, projects: []`; an editor with "all projects" the same; an editor with a group gives the group, its children and nothing else
+  - a change saved after login applies on the next `/auth/me` (no new login)
+  - a disabled editor's next request is 401
+  - unit: `canEditProject` for each role and for an editor with "all projects"; `refuseEditor` passes an admin and refuses an editor with 403
+- **Done when:** `npm --prefix server run typecheck` passes, and `npx vitest run test/http/auth.test.ts test/http/main-admin.test.ts src/auth` passes.
+- **Depends on:** U65
+- **Status:** todo
+
+### U67. The admin CLI knows `editor`
+- **Goal:** The CLI creates and lists editors, and its role option names all three roles.
+- **Requirements:** R6.
+- **Files:** `server/src/cli/admin.ts`, `server/src/auth/admins.ts`, `server/test/cli/admin.test.ts` and `server/test/auth/admins.test.ts`.
+- **Approach:** `parseRole` takes `admin|editor|main_admin`. `create` keeps its `admin` default. `listAdmins` adds the projects column (`all`, or the assigned keys, joined in the same query). The usage text and the error message name the three roles.
+- **Tests:**
+  - `create --role editor`, and `set-role --role editor` then `--role admin`, each log `admin_create` or `admin_role_set`
+  - an invalid role prints "the role must be admin, editor or main_admin, got root"
+  - `list` shows `all` for an admin and the keys for an assigned editor
+  - the one-main-admin refusal still holds
+- **Done when:** `npx vitest run test/cli test/auth` (from `server/`) passes.
+- **Depends on:** U65
+- **Status:** todo
+
+### U68. `GET` and `PUT /api/v1/admin/users`
+- **Goal:** The main admin lists every login and saves an admin's role, projects and status.
+- **Requirements:** R6, R9.
+- **Files:**
+  - a new `server/src/routes/v1/admin-users.ts` and `server/src/auth/users.ts` (the list query and the save call)
+  - a new `server/src/auth/userSchemas.ts` for `adminUserBody` and `adminUser`, reusing `emailSchema` from `server/src/auth/credentials.ts`
+  - `server/src/app.ts` (mount)
+  - `server/src/openapi.ts`
+  - a new `server/test/http/admin-users.test.ts`
+  - `server/test/http/p3-admin-auth.test.ts`, `server/test/http/security.test.ts` and `server/test/http/openapi.test.ts`
+- **Approach:** as in the P9b decisions. Follow `records-admin.ts` for the router (full paths, guards per route, `actorOf`, `withActor`). The route reads the target row first (by the normalised email): no row is a 404 with the CLI hint, and the main admin's row is a 403, both before calling the save function, whose own refusals are backstops.
+- **Tests:**
+  - GET as the main admin: the main admin first, each row's shape, assigned keys only, no hash or token in the body
+  - PUT: assign leaves, assign a group, "all projects", switch to `admin`, disable and enable; the answer is the saved row; one `admin_user_update` activity row
+  - errors: a bad body (400), an unknown key (400 with `details.field = 'projects'`), an active editor with no projects (400), an unknown email (404 with the CLI hint, not "রেকর্ড পাওয়া যায়নি"), the main admin's row (403, also as `MAIN@…` and with spaces)
+  - the security-event line carries ids, not emails
+  - refused (`TS-13`): a plain admin (403 on both), an editor (403 on both), a visitor (401), a disabled main admin's old cookie (401), a public-read origin (no CORS headers; the PUT is 403 from `originCheck`)
+  - the route table in `p3-admin-auth.test.ts` (401, disabled 401, wrong origin 403, 429)
+  - OpenAPI: both paths documented, "Main admin only" with a 403, and in the pinned list
+- **Done when:** `npm --prefix server run typecheck` and `npx vitest run test/http/admin-users.test.ts test/http/p3-admin-auth.test.ts test/http/security.test.ts test/http/openapi.test.ts` pass.
+- **Depends on:** U66
+- **Status:** todo
+
+### U69. An editor writes records only in its projects
+- **Goal:** Every record write route, the private reads and `POST /activity` refuse an editor outside its projects, and the serial change and `_clear` refuse every editor.
+- **Requirements:** R6, R9.
+- **Files:**
+  - `server/src/routes/v1/records-admin.ts`, `server/src/routes/v1/activity.ts`
+  - `server/src/records/reads.ts` (a `recordProjectKey(sql, id)` lookup)
+  - a new `server/test/http/editor-scope.test.ts`
+- **Approach:** the table in the P9b decisions. Path-key routes call `requireProjectScope` after `recordProject`; id routes look up the key first. `refuseEditor` sits in the serial route's guard chain, after `requireAdmin`.
+- **Tests** (an editor assigned the `tin` leaf, an editor assigned the `housing` group, and an editor with "all projects"):
+  - inside its projects: create, bulk insert, bulk update without `_clear`, PATCH filling an empty value and changing a value, a photo into an empty slot, private read and save, the bulk private read, and `POST /activity` all succeed
+  - a group's editor writes in a child added after the assignment
+  - a child-only editor's create and bulk insert on the parent group's key are refused (400 `group`, as for every admin), and nothing is written
+  - outside its projects, each of those routes is 403, nothing changes, and no file is stored (`TS-13`)
+  - a serial change by an editor is 403, even in its project; an admin's still succeeds
+  - a bulk update with `_clear` by an editor is 403 with `details.field`; an admin's still clears
+  - an unknown record id is 404 for an editor, as for an admin
+  - "all projects" writes anywhere
+- **Done when:** `npx vitest run test/http/editor-scope.test.ts test/http/records-writes.test.ts test/http/records-bulk.test.ts test/http/records-photos.test.ts test/http/records-private.test.ts test/http/records-years-serial.test.ts test/http/activity.test.ts` (from `server/`) passes.
+- **Depends on:** U66
+- **Status:** todo
+
+### U70. An editor never empties a filled value or replaces a photo
+- **Goal:** A PATCH, a private save or a photo upload by an editor can fill and change but never empty or overwrite.
+- **Requirements:** R6, R8, R9.
+- **Files:**
+  - a new `server/src/records/editorRules.ts` and `server/src/records/editorRules.test.ts`
+  - `server/src/records/writes.ts` (`patchRecord`), `server/src/records/private.ts` (`putPrivate`)
+  - `server/src/records/reads.ts` (`checkPhotoSlot` returns whether the slot is filled), `server/src/photos/service.ts` (`savePhoto` takes `refuseReplace`)
+  - `server/src/routes/v1/records-admin.ts`
+  - `server/test/http/editor-scope.test.ts`
+- **Approach:** the PATCH, private and photo rows of the P9b decisions. `emptiedFields(before, patch)` returns the first emptied key, compared after trimming, like SQL 14's `btrim`. The record's row lock is taken before the compare in both writes.
+- **Tests:**
+  - unit (`emptiedFields`): a text column to `""`; an `extra` key dropped, set to `null`, to `""` or to spaces; an empty value filled; a value changed; an unsent column; an `extra` not sent at all
+  - HTTP, as an editor in its project: each emptying case is 403 with `details.field` and the record is unchanged; filling and changing succeed; the private save the same, with the private key as the field
+  - a photo upload into a filled slot is 403 before the body is read, and no file is stored; a second upload racing into the same empty slot (both past the early check, the slot filled under the lock) is 403 and its files are removed
+  - an admin can still empty a value and replace a photo (no change for admins)
+- **Done when:** `npx vitest run src/records test/http/editor-scope.test.ts test/http/records-photos.test.ts test/http/records-private.test.ts test/http/records-writes.test.ts test/http/photos.test.ts` (from `server/`) passes.
+- **Depends on:** U69
+- **Status:** todo
+
+### U71. Settings refuse an editor, and the activity view shows its projects
+- **Goal:** No project or field setting is open to an editor, and the activity log shows an editor only its projects and its own rows.
+- **Requirements:** R2, R3, R6, R9.
+- **Files:**
+  - `server/src/routes/v1/projects-admin.ts`, `server/src/routes/v1/activity.ts`, `server/src/housing/activity.ts` (`listActivity` takes the scope)
+  - `server/src/openapi.ts` (the settings routes' 403 text)
+  - `server/test/http/editor-scope.test.ts` and `server/test/http/openapi.test.ts`
+- **Approach:** `refuseEditor` after `requireAdmin` on every non-delete route of `projects-admin.ts`. `listActivity` adds `(project_type = any(${keys}) or actor_id = ${self})` for a scoped editor, as SQL 14's activity policy.
+- **Tests:**
+  - each settings route (create, order, PATCH, field create, field order, field PATCH, cover upload, usage, rename-value) is 403 for an editor, even one with "all projects", and still succeeds for an admin
+  - the activity list for a scoped editor: rows of its projects and its own rows, never another project's; with `project_type` set to another project only its own rows come back; "all projects" sees everything
+  - OpenAPI: every settings route lists a 403
+- **Done when:** `npx vitest run test/http/editor-scope.test.ts test/http/openapi.test.ts test/http/activity.test.ts test/http/projects-writes.test.ts` (from `server/`) passes.
+- **Depends on:** U69
+- **Status:** todo
+
+### U77. An editor sees drafts only in its projects
+- **Goal:** An editor's reads give the admin view only for its projects, and the visitor's view everywhere else.
+- **Requirements:** R6, R7.
+- **Files:**
+  - `server/src/projects/reads.ts` (`Viewer`, `seesAsAdmin`, `fieldsOf`, `listProjects`, `projectStats`, `projectsOverview`), `server/src/projects/filteredStats.ts`
+  - `server/src/records/reads.ts` (`recordColumns`, `getRecord`, `getRecordsBySerials`), `server/src/photos/serve.ts`
+  - `server/src/routes/v1/projects.ts` (`viewerOf`), `server/src/routes/v1/records.ts` and `server/src/routes/v1/photos.ts` if their calls change
+  - `server/src/routes/v1/records-admin.ts` and `server/src/routes/v1/projects-admin.ts` (their `{ admin: true }` literals gain `drafts: 'all'`)
+  - a new `server/test/http/editor-reads.test.ts`
+- **Approach:** the "scoped too" bullets of the P9b decisions. First, a characterization run: the existing read suites (`projects-reads`, `records-reads`, `projects-stats`, `projects-stats-filtered`, `projects-cover`, `photos`) pass unchanged with `drafts: 'all'` for every admin before any check is rerouted (`TS-22`).
+- **Tests** (a scoped editor on the draft `demo` leaf, plus a second draft project outside its scope, and a draft child in a group):
+  - inside its scope: the draft's get, field list with `visibility = 'admin'` fields, records list and get with those `extra` keys, years, next serial, stats and filtered stats, and a photo download all answer as for an admin
+  - outside it (`TS-13`): the other draft is absent from `GET /projects?drafts=1`, its get, records, stats, years and photo are 404, its next serial is `null`, and a published project outside the scope shows no `visibility = 'admin'` field or `extra` key
+  - a group's stats and filtered stats for a scoped editor equal a visitor's, also when the editor is assigned the group and a second draft child of it is out of scope, and when its own draft child is in the group
+  - `GET /projects/overview?drafts=1` for a scoped editor equals a visitor's, and an out-of-scope draft's photo is absent from `featured` and `without_photo`
+  - `GET /records/:id` of an out-of-scope draft record is 404, and of an out-of-scope published record carries only public `extra` keys
+  - search and an `f.<key>` filter on a `visibility = 'admin'` field are ignored for a scoped editor, in and out of scope (as for an admin)
+  - `viewerOf`: a principal with no `projects` array gets `drafts: []`
+  - an editor with "all projects", an admin and the main admin see every draft, as before
+  - a change of scope applies on the next read
+- **Done when:** `npx vitest run test/http/editor-reads.test.ts test/http/projects-reads.test.ts test/http/records-reads.test.ts test/http/projects-stats.test.ts test/http/projects-stats-filtered.test.ts test/http/projects-cover.test.ts test/http/photos.test.ts` (from `server/`) passes.
+- **Depends on:** U66
+- **Status:** todo
+
+### U72. REST `AdminUsersApi` and the users page
+- **Goal:** On REST, `/admin/users` lists the logins and saves roles and projects, and the auth provider uses the server's scope.
+- **Requirements:** R6, R10, R11.
+- **Files:**
+  - `src/backend/interfaces/types.ts` (`AdminUserRow`, `AdminUserInput`, `AdminUserSaveResult`) and `src/backend/interfaces/adminUsersApi.ts`
+  - `src/backend/rest/index.ts` (`createRestAdminUsersApi`), `src/backend/rest/endpoints.ts`
+  - `src/backend/rest/authProvider.ts` (`withProjects` replaced) and `src/backend/rest/authProvider.test.ts`
+  - a new `src/backend/rest/adminUsersApi.test.ts`
+  - `src/features/admin/users/AdminUsersPage.tsx` and `src/i18n/` for new strings
+- **Approach:** follow the REST `ProjectsApi` (`restData`, `RestRequestOptions`). `save` checks the email and the "at least one project" rule before sending, as `main`'s adapter does, so the page shows the field error without a round trip; the server checks both again. `UsersError` goes. The mock is untouched.
+- **Tests:**
+  - adapter: `list` and `save` send the right method, path and body; a 403, 404 and 400 map to `FORBIDDEN`, `NOT_FOUND` and `VALIDATION_ERROR` with `details.field`; the client-side email and projects checks
+  - auth provider: a server `/me` with `allProjects: false, projects: ['tin']` stays scoped; a body with no `allProjects` gives `false` and no projects (fail closed)
+  - `npm run i18n-check` passes
+- **Done when:** `npx tsc -b`, `npm run lint` and `npm test` pass.
+- **Depends on:** U68
+- **Status:** todo
+
+### U73. Contract blocks for user management and the editor
+- **Goal:** The contract suite proves the users API and the editor's limits through the real adapters.
+- **Requirements:** R11.
+- **Files:**
+  - `tests/contract/harness.ts` (`adminUsers?`, `editor?`)
+  - a new `tests/contract/adminUsersContract.ts`
+  - `tests/contract/rest.contract.test.ts` (an editor login and the new block)
+- **Approach:** follow `projectsApiContract.ts`'s `describe('roles')`. The block runs only on REST; the mock has no `adminUsers` and doesn't run it (the mock doesn't grow).
+- **Tests:**
+  - the main admin lists the users and saves an editor's projects; the editor's `auth.me()` then shows them
+  - the editor creates a record in its project, and is `FORBIDDEN` in another project, on a serial change and on emptying a filled value
+  - a plain admin's `adminUsers.list()` is `FORBIDDEN`
+- **Done when:** `npm run test:contract:rest` passes.
+- **Depends on:** U70, U71, U72
+- **Status:** todo
+
+### U74. `admin-rest` specs for the users page and the editor
+- **Goal:** Playwright proves the page and an editor's view on the REST backend.
+- **Requirements:** R12.
+- **Files:**
+  - `e2e/support/rest-data.ts` (a `PROJECT_EDITOR` login, role `editor`, assigned `tin`; the existing `PLAIN_ADMIN`, `editor@example.test`, is a plain `admin` and keeps its name)
+  - a new `e2e/admin/admin-users.spec.ts`
+  - `e2e/mock/admin-users.spec.ts`, only if its assertions no longer hold on `admin-rest`
+- **Approach:** follow `e2e/admin/delete-roles.spec.ts` (`loginAs`, `inFreshContext`, in-page `fetch` probes, role and label locators, `TS-30`, `TS-31`).
+- **Tests:**
+  - the main admin sees every login, the main admin's row read-only, gives `PROJECT_EDITOR` the `semi_pucca` project instead of `tin`, and the editor's next page shows only `semi_pucca`
+  - the main admin switches a login between "এডমিন" and "প্রকল্পের ইউজার", and disables and re-enables one
+  - the editor sees no settings, no "প্রকল্পসমূহ" item and no delete, and `/admin/users` shows the role gate's message
+  - in-page probes as the editor: a record PATCH in another project is 403, emptying a filled value is 403, a serial change is 403
+  - a plain admin is kept off `/admin/users`
+- **Done when:** `npx playwright test --project=admin-rest e2e/admin/admin-users.spec.ts` (through `npm run test:e2e:rest-admin -- e2e/admin/admin-users.spec.ts`) passes.
+- **Depends on:** U70, U71, U72
+- **Status:** todo
+
+### U75. Migration `0020_reserved_project_keys`
+- **Goal:** No project can take a key that a project route already uses.
+- **Requirements:** R2, R9.
+- **Files:**
+  - a new `server/db/migrations/0020_reserved_project_keys.sql`
+  - `server/src/projects/schemas.ts` (`projectKey`), `server/src/errors.ts`
+  - `src/features/admin/projects/projectRules.ts` and its test
+  - `server/test/db/project-guards.test.ts` and `server/test/http/projects-writes.test.ts`
+- **Approach:** as in the P9b decisions. The down section drops the CHECK.
+- **Tests:** a create with key `overview` or `order` is 400 with `details.field = 'key'` from zod; a direct insert hits the CHECK, and `errors.ts` maps it the same way; the wizard shows the key error; `overviews` and `orders` are allowed.
+- **Done when:** `npx vitest run test/db/project-guards.test.ts test/http/projects-writes.test.ts` (from `server/`) and `npm test` pass.
+- **Depends on:** none
+- **Status:** todo
+
+### U76. Docs
+- **Goal:** The contract, the admin guide, the architecture notes and the testing README describe the three roles and user management as built.
+- **Requirements:** R17, R18.
+- **Files:**
+  - `docs/api/PROJECTS_API_CONTRACT.md`: §২ (three roles, the `/auth/me` example with `allProjects` and `projects`), §৪ (the endpoint table gains `/admin/users`), §৪.৫ (`admin_user_update`; an editor sees its projects' activity), §৪.৬ (rewritten: the two routes, the body and row, the errors, the editor's rules, and its scoped draft reads with the visitor's counts on group roll-ups), §৫.৭ (the server refuses an editor what the UI hides), and the reserved keys in §৪.১
+  - `docs/ADMIN_GUIDE.md`: §১ (three roles), §১.১ (a third column, প্রকল্পের ইউজার), §১ক (`--role admin|editor|main_admin`, then give projects on the page)
+  - `docs/architecture/migration-notes.md` (roles and the migration list gain `0019` and `0020`)
+  - `docs/testing/README.md` (the editor login in the reset data, the new spec and contract block, and the mock rule restated: no `AdminUsersApi` in the mock)
+- **Approach:** Bangla through `ae-bangla-copy`. The contract states the rules in present terms (P9 decisions).
+- **Tests:** none (docs). Checked by `openapi.test.ts`'s paths-in-contract case and by the two AE4 searches.
+- **Done when:** `npx vitest run test/http/openapi.test.ts` (from `server/`) passes and both AE4 searches print what they printed after P9.
+- **Depends on:** U68–U75, U77
+- **Status:** todo
+
+### P9b order and parallel lanes
+
+- **Server:** U65 → U66 → U67 and U68 → U69 → U70 → U71 → U77. U75 is independent.
+- **Then:** U72 → U73 → U74 → U76.
+- The `housing_test` suites never run in parallel, so everything is built in one session, one unit after another.
+
+### Verification (P9b)
+
+Run once, after the simplify and review pass:
+- `npm --prefix server run typecheck` and `npm --prefix server test`
+- `npx tsc -b`, `npm run lint` and `npm test` at the root
+- `npm run test:contract:rest`
+- `npm run test:e2e:rest-admin`, twice
+- `npm run test:e2e:rest`, with `docker compose up -d db api`, once `GET /api/v1/projects` answers (after `down -v` the `api` container reinstalls `node_modules`)
+- `npm run test:e2e:mock`, `npm run test:all`, `npm run build` and `npm run check:prod-bundle`
+- `npm --prefix server run db:migrate`, `db:rollback` and `db:migrate` on the dev database (`0020`, then `0019` on a second rollback, both round-trip)
+- the two AE4 searches
+- The `housing_test` suites never run in parallel.
+
+**Chrome walkthrough (after the verification):** on the local stack, with three test logins the user creates with the CLI (the CLI prompts for a password only on a TTY, P8): a main admin, a plain admin and an editor.
+- the main admin opens `/admin/users`, gives the editor one project, switches the plain admin's role and back, and disables and enables a login
+- the plain admin can't open `/admin/users`, and keeps settings
+- the editor sees only its project, no settings and no delete, and no other project's draft; in-page probes for another project's write, emptying a value and a serial change are 403
+- no console errors and no unexpected failed requests
+- At the end, the three test logins are disabled. Progress records the result.
+
+### Risks and rollback (P9b)
+
+- **Auth rules on every write route.** A missed route would leave an editor unscoped. `editor-scope.test.ts` walks every write route by name, and the review's security reviewer checks the router list against it.
+- **U77 reroutes every draft-visibility check.** A missed one leaks a draft to an editor, and a wrong one hides drafts from admins. The characterization run comes first, and `editor-reads.test.ts` covers each read route.
+- **A scoped editor's group and home totals are the visitor's.** That is deliberate (fail closed); the walkthrough checks that the editor's own leaf still shows its counts.
+- **`housing_admin_user_save` is a security definer function.** Its body is short, has a fixed `search_path`, is granted only to `housing_app`, and can't make a main admin. The route's main-admin guard is the authorization; the function is the integrity check.
+- **`authenticate()` gains a function call per request.** It runs only for an editor without "all projects", over a handful of rows.
+- **The UI types change** (`user_id` → `id`, `last_sign_in_at` → `last_seen_at`). Only the users page and the REST adapter use them, and `tsc -b` catches the rest.
+- **Migrations:** `0019`'s down turns editors back into admins and loses the assignments and the flag (`DB-MIG-05`); `0020`'s down drops a CHECK. Nothing is deployed, and no shared data exists.
+- **Rollback:** each unit is one commit, reverted on its own; the `pre-p9` tag and `main@87c7241` still hold everything P9 removed.
+
+### Definition of done (P9b)
+
+- U65–U77 are done and their tests pass.
+- One `ae-simplify` and one `ae-review` ran over the P9b commits. Every P0 and P1 is fixed, and the P2s too.
+- The P9b verification passes, both AE4 searches are as after P9, and the Chrome walkthrough passed, with its test logins disabled.
+- Progress records the commit range, the test counts, the review results and the walkthrough result.
+- **Next** is P10: the handoff guide (R19) and the final `CLAUDE.md` profile, including the three roles, the mock "doesn't grow" rule and the one-time migration-comment exception.
+
 ## Verification
 
 Run these at the end of P1:
@@ -3343,8 +3758,8 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** P9b, user management on the server (option A, Session chunks). Run `ae-plan` on this file first to add its units against the code as it is then (parity target `main` 87c7241: SQL 14, M-steps 18–19). P10 (the handoff guide and the final `CLAUDE.md` profile, with the mock rule and the migration-comment exception) follows P9b.
-- **Uncommitted:** none
+- **Next:** `ae-work` on P9b, U66 (U65 done). P10 (the handoff guide and the final `CLAUDE.md` profile, with the mock rule and the migration-comment exception) follows P9b.
+- **Uncommitted:** nothing.
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
   - The user confirmed that nothing is deployed and no users carry over (2026-10-06), so `0012` promotes no admin.
@@ -3838,4 +4253,33 @@ Run these at the end of P1:
       - **`admin-rest` failed one spec in both runs:** `e2e/mock/route-protection.spec.ts`, "a server error on the session check offers a retry". The spec removed its fake 503 right after `goto`, but the app asks for the session after the page loads, so the real `/me` won the race. This was a spec defect, not an app defect: the spec's own first half shows the retry on a 503. It now waits for the retry button before removing the route; it passed 3 times alone, then the full `admin-rest` passed twice in a row (66 passed, 1 skipped each).
     - Counts against P8b: server 1095 → 968 (the old `/housing` and old-schema tests went; their rules have v1 tests); contract REST 63 + 1 gap → 64 with none; the local-Supabase contract run is gone; `public-rest` 18 → 17 and `admin-rest` 64 → 66 (write-guard spec gone; users-page and serial-dialog specs added).
     - The `pre-p9` tag is pushed (the restore point in `docs/history/README.md`).
-
+  - **P9b planned (2026-10-07):** `ae-plan` added the P9b decisions and U65–U77. Before planning, every gate held: U51–U64 (U60 dropped), 9cc1c43, 504e516 and da6c478 committed; CI green on da6c478 (run 37582575636, `checks`, `db-suites`, `e2e-mock`); both AE4 searches as after P9. Choices made in planning:
+    - three roles: `admin` keeps today's rights beside the new `editor` (SQL 14 had folded `admin` into `editor`)
+    - the save is one security definer function, so the app role still can't change a role directly
+    - the scope travels with the session, and a change applies on the next request
+    - the CLI's `--role` takes `admin|editor|main_admin`, and `create` still defaults to `admin`
+    - `UsersError` and `withProjects`' fallback go; the auth provider fails closed
+    - the mock keeps `NOT_IMPLEMENTED`
+    - an editor's draft reads are scoped, with the visitor's counts on group roll-ups (U77)
+    - the project key shadowing is fixed in `0020`
+    - **`ae-doc-review` ran on P9b** (coherence, feasibility, scope, security).
+      - It fixed:
+        - the grant on `housing_admin_projects` (select only)
+        - the save function locks the target row, as the login does
+        - the route answers an unknown email itself (every `P0002` reads "রেকর্ড পাওয়া যায়নি")
+        - the parent of an assigned child grants no write, with a test
+        - `MAIN_ADMIN_GUARDS` and `mainAdminOnly`'s log text
+        - ids, not emails, in the log line
+        - the missing test cases (empty scope, mid-session change, email spelling)
+        - U74's dependencies, U68's schema file, the done-check test files and the Session chunks row
+      - The user chose:
+        - scope an editor's draft reads (new U77)
+        - keep `admin` beside `editor`
+        - keep U75
+      - FYI, not acted on:
+        - `POST /activity` already takes only four action names, so an editor can't forge a server action
+        - the scope function serves both `authenticate()` and the list
+        - the adapter's pre-checks give inline field errors
+        - the contract and spec repeat a few server cases on purpose, one per layer
+        - the save function trusts the route's guard, not a DB-side actor check
+      - **A second pass on U77** (feasibility, security) made it concrete: `seesAsAdmin` takes an expression; `fieldsOf`, `listProjects` and `recordColumns` decide per row; a roll-up runs as the admin view only for `'all'` or an in-scope leaf, so a group is always the visitor's total for a scoped editor; the overview passes `drafts && viewer.drafts === 'all'`; writes keep `drafts: 'all'`; `viewerOf` fails closed; plus the tests for each.

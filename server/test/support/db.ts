@@ -20,7 +20,7 @@ export function ownerDb(): Sql {
 export async function resetTestData(owner: Sql): Promise<void> {
   await owner`truncate public.housing_activity_log, public.housing_serial_changes, public.housing_files,
     public.housing_beneficiary_private, public.housing_beneficiaries, public.housing_project_fields,
-    public.housing_projects, public.housing_admin_sessions, public.housing_admins restart identity`;
+    public.housing_projects, public.housing_admin_projects, public.housing_admin_sessions, public.housing_admins restart identity`;
   await owner`select public.housing_seed_projects()`;
   await owner`delete from public.housing_serial_counters
     where project_type not in (select key from public.housing_projects)`;
@@ -80,9 +80,13 @@ export interface AdminInput {
   passwordHash?: string;
   disabled?: boolean;
   role?: AdminRole;
+  /** Only an editor reads it. */
+  allProjects?: boolean;
+  /** An editor's assigned project keys. */
+  projects?: string[];
 }
 
-export type AdminRole = 'admin' | 'main_admin';
+export type AdminRole = 'admin' | 'editor' | 'main_admin';
 
 export interface InsertedAdmin {
   id: string;
@@ -99,10 +103,14 @@ export async function insertAdmin(owner: Sql, input: AdminInput = {}): Promise<I
     password_hash: input.passwordHash ?? 'not-a-hash',
     disabled_at: input.disabled ? new Date() : null,
     role: input.role ?? 'admin',
+    all_projects: input.allProjects ?? false,
   };
   const [inserted] = await owner<InsertedAdmin[]>`
     insert into public.housing_admins ${owner(row)} returning id, email, name, role`;
   if (!inserted) throw new Error('insert returned no row');
+  for (const key of input.projects ?? []) {
+    await owner`insert into public.housing_admin_projects (admin_id, project_key) values (${inserted.id}, ${key})`;
+  }
   return inserted;
 }
 
