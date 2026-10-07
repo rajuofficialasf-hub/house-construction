@@ -1,15 +1,14 @@
 /**
  * অ্যাডাপ্টার ফ্যাক্টরি।
  * env ভ্যারিয়েবল VITE_HOUSING_BACKEND ('rest' | 'mock' — mock শুধু dev/test) দেখে কোন অ্যাডাপ্টার চলবে তা ঠিক করে।
- * UI কোড শুধু getHousingApi / getProjectsApi / getAuthProvider / getImageStorage ব্যবহার করবে।
+ * UI কোড শুধু getHousingApi / getProjectsApi / getAuthProvider / getAdminUsersApi ব্যবহার করবে।
  */
 import type { AuthProvider } from './interfaces/authProvider'
 import type { HousingApi } from './interfaces/housingApi'
-import type { ImageStorage } from './interfaces/imageStorage'
 import type { ProjectsApi } from './interfaces/projectsApi'
 import type { AdminUsersApi } from './interfaces/adminUsersApi'
 import { HousingApiError } from './interfaces/types'
-import { createRestAdminUsersApi, createRestAuthProvider, createRestHousingApi, createRestImageStorage, createRestProjectsApi } from './rest'
+import { createRestAdminUsersApi, createRestAuthProvider, createRestHousingApi, createRestProjectsApi } from './rest'
 
 export type BackendKind = 'rest' | 'mock'
 
@@ -40,7 +39,6 @@ interface Backend {
   housingApi: HousingApi
   projectsApi: ProjectsApi
   authProvider: AuthProvider
-  imageStorage: ImageStorage
   adminUsersApi: AdminUsersApi
 }
 
@@ -76,21 +74,12 @@ function buildMockBackend(): Backend {
       }
     },
   }
-  const imageStorage: ImageStorage = {
-    upload: (file, target) => load().then((b) => b.imageStorage.upload(file, target)),
-    delete: (paths) => load().then((b) => b.imageStorage.delete(paths)),
-    move: (from, to) => load().then((b) => b.imageStorage.move(from, to)),
-    publicUrl: () => {
-      throw new Error('mock ImageStorage.publicUrl: সিঙ্ক্রোনাস কল সমর্থিত নয়')
-    },
-    pathFromUrl: () => null,
-  }
   // ইউজার-ব্যবস্থাপনা (পর্ব চ) মকে নেই — প্যারিটি a8e2154 এ স্থির, REST অ্যাডাপ্টারের মতোই NOT_IMPLEMENTED
   const notInMock = async (): Promise<never> => {
     throw new HousingApiError('NOT_IMPLEMENTED', 'মক ব্যাকএন্ডে ইউজার-ব্যবস্থাপনা নেই')
   }
   const adminUsersApi: AdminUsersApi = { list: notInMock, save: notInMock }
-  return { housingApi, projectsApi, authProvider, imageStorage, adminUsersApi }
+  return { housingApi, projectsApi, authProvider, adminUsersApi }
 }
 
 function buildBackend(): Backend {
@@ -104,7 +93,6 @@ function buildBackend(): Backend {
     housingApi: createRestHousingApi(base),
     projectsApi,
     authProvider,
-    imageStorage: createRestImageStorage(base),
     adminUsersApi: createRestAdminUsersApi(base),
   }
 }
@@ -124,10 +112,6 @@ export function getProjectsApi(): ProjectsApi {
 
 export function getAuthProvider(): AuthProvider {
   return backend().authProvider
-}
-
-export function getImageStorage(): ImageStorage {
-  return backend().imageStorage
 }
 
 /** ইউজার-ব্যবস্থাপনা (শুধু মূল এডমিন; পর্ব চ) */

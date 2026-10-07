@@ -149,9 +149,6 @@ export interface FieldUsage {
   values: { value: string; n: number }[]
 }
 
-/** ডাটাবেসের অবস্থা: full = SQL ১০–১২ চালানো; legacy = পুরনো ডাটাবেস (adapter ফলব্যাকে চলছে) */
-export type BackendMode = 'full' | 'legacy'
-
 /** রেকর্ডের কাস্টম (পাবলিক) মান: extra.<key> — টাকা/সংখ্যা JSON number, বাকি string */
 export type ExtraValues = Record<string, string | number>
 

@@ -1,6 +1,6 @@
 import { hasStatsFilters } from '../statsFilters'
 import type { HousingApi } from '../interfaces/housingApi'
-import type { ImageStorage } from '../interfaces/imageStorage'
+import type { ImageStorage } from './storage'
 import {
   DEFAULT_PAGE_SIZE,
   HousingApiError,

@@ -4,7 +4,6 @@
  * অনুমতি সার্ভারে যাচাই হয়; রেকর্ডের ও কভারের ছবির URL সার্ভারের দেওয়া (`/api/v1/photos/:id`)।
  */
 import type { HousingApi } from '../interfaces/housingApi'
-import type { ImageStorage } from '../interfaces/imageStorage'
 import {
   DEFAULT_PAGE_SIZE,
   HousingApiError,
@@ -163,22 +162,6 @@ export function createRestHousingApi(baseUrl: string): HousingApi {
     },
   }
   return api
-}
-
-/**
- * REST মোডে ছবি রাখা/মোছা HousingApi ও ProjectsApi দিয়ে, আর URL দেয় সার্ভার। UI শুধু publicUrl ডাকে (কভার ছবি,
- * src/features/projects/home/cover.ts), আর সার্ভারের `cover_path` আগেই পূর্ণ URL — তাই সেটি অপরিবর্তিত ফেরে।
- * বাকি মেথড Supabase অ্যাডাপ্টার ও migrate-photos এর জন্য; Supabase সরানোর সময় (পর্ব P9,
- * docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md) সেগুলোও যাবে।
- */
-export function createRestImageStorage(_baseUrl: string): ImageStorage {
-  return {
-    upload: async () => notImplemented('upload'),
-    delete: async () => notImplemented('delete'),
-    move: async () => notImplemented('move'),
-    publicUrl: (path) => (/^https?:\/\//i.test(path) ? path : notImplemented('publicUrl')),
-    pathFromUrl: () => null,
-  }
 }
 
 /** ইউজার-ব্যবস্থাপনা (চুক্তি v১.৫ §৪.৭) — নিজস্ব সার্ভারে পরে */

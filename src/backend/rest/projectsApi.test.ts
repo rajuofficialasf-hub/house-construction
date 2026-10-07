@@ -55,10 +55,6 @@ describe('createRestProjectsApi reads', () => {
     expect(callOf(fetchMock, 2).query).toEqual({})
   })
 
-  it('is always a full backend', async () => {
-    expect(await createRestProjectsApi(BASE).backendMode()).toBe('full')
-  })
-
   it('passes a 404 on as NOT_FOUND', async () => {
     stubFetch(() => json(404, { error: { code: 'NOT_FOUND', message: 'প্রকল্প পাওয়া যায়নি' } }))
     await expect(createRestProjectsApi(BASE).get('nope')).rejects.toMatchObject({ code: 'NOT_FOUND', message: 'প্রকল্প পাওয়া যায়নি' })

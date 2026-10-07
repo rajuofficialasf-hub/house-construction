@@ -1,5 +1,4 @@
 import type {
-  BackendMode,
   FieldUsage,
   Project,
   ProjectField,
@@ -16,13 +15,10 @@ import type {
  *
  * পড়া (list, get, overview): লগইন ছাড়া — শুধু প্রকাশিত প্রকল্প ও পাবলিক ফিল্ড; এডমিন খসড়া ও গোপন ফিল্ডও পান।
  * লেখা: এডমিন; মোছা (delete, deleteField) শুধু মূল এডমিন। অনুমতি ব্যাকএন্ডে যাচাই হয়।
- * পুরনো ডাটাবেসে (SQL ১০ চালানো হয়নি) পড়া চলে ফলব্যাকে (ঘর নির্মাণের ৩টি সারি), লেখা CONFIG_ERROR।
  *
  * রেকর্ড ও পরিসংখ্যান HousingApi তে (stats(key) = project_stats)।
  */
 export interface ProjectsApi {
-  /** ডাটাবেস নতুন (full) না পুরনো (legacy) — প্রথম পড়ার পর নিশ্চিত হয় */
-  backendMode(): Promise<BackendMode>
   /**
    * সব প্রকল্প (ফিল্ডসহ, sort_order অনুযায়ী)।
    * includeDrafts = false (ডিফল্ট) হলে এডমিনের জন্যও শুধু প্রকাশিত (যার গ্রুপও প্রকাশিত)।
@@ -30,7 +26,7 @@ export interface ProjectsApi {
   list(opts?: { includeDrafts?: boolean }): Promise<Project[]>
   /** key দিয়ে একটি (খসড়া শুধু এডমিন পান); না পেলে NOT_FOUND */
   get(key: ProjectKey): Promise<Project>
-  /** হোম পেইজ/ড্যাশবোর্ড: সব প্রকল্প + হালকা স্ট্যাট + একটি ছবি, এক কলে (পুরনো ডাটাবেসে ≤ ৩ কল) */
+  /** হোম পেইজ/ড্যাশবোর্ড: সব প্রকল্প + হালকা স্ট্যাট + একটি ছবি, এক কলে */
   overview(opts?: { includeDrafts?: boolean }): Promise<ProjectOverview>
 
   /** প্রকল্প + ফিল্ড একসাথে (একটি ভুল হলে কিছুই তৈরি হয় না); সবসময় খসড়া */

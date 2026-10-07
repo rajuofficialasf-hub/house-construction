@@ -3073,7 +3073,7 @@ git grep -nIE '(^|[^A-Za-z])RLS([^A-Za-z]|$)|SQL [0-9০-৯]+|পুরনো �
   - The mock's photo tests still pass.
 - **Done when:** `npx tsc -b`, `npm run lint` and `npm test` pass, and `git grep -nE 'getImageStorage|backendMode' src` finds nothing (`pathFromUrl` stays inside `src/backend/mock/`, which is why AE4 doesn't search for it).
 - **Depends on:** U56 (the Supabase adapter imports `ImageStorage` and `BackendMode` until it is deleted)
-- **Status:** todo
+- **Status:** done
 
 ### U55. Remove the Supabase test lanes and rename the public specs
 - **Goal:** No test, script or Playwright project needs Supabase, and the public specs live in `e2e/public/`.
@@ -3343,7 +3343,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** P9 `ae-work`: U54 (shrink the backend surface), then U57, U58, U59, U61, U63, U62, U64; then simplify, review and the full verification.
+- **Next:** P9 `ae-work`: U57 (deploy, edge, runbook; hosting requirements first), then U58, U59, U61, U63, U62, U64; then simplify, review and the full verification.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.

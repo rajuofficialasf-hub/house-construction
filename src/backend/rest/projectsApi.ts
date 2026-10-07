@@ -43,7 +43,6 @@ export function createRestProjectsApi(baseUrl: string): ProjectsApi & { clearInF
 
   return {
     clearInFlight: () => inFlight.clear(),
-    backendMode: async () => 'full',
     list: (opts = {}) => sharedList(ENDPOINTS.projects.list(queryOf({ drafts: drafts(opts.includeDrafts), include: 'fields' }))),
     get: (key) => call<Project>(ENDPOINTS.projects.byKey(key)),
     overview: (opts = {}) => call<ProjectOverview>(ENDPOINTS.projects.overview(queryOf({ drafts: drafts(opts.includeDrafts) }))),

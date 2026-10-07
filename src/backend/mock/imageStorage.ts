@@ -1,4 +1,4 @@
-import type { ImageStorage } from '../interfaces/imageStorage'
+import type { ImageStorage } from './storage'
 import { HousingApiError } from '../interfaces/types'
 import { photoPath } from '@/features/housing/utils/imagePath'
 import { MOCK_PHOTO_PREFIX } from './fixtures'

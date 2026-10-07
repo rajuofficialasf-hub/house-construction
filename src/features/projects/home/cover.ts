@@ -1,15 +1,10 @@
-import { getImageStorage } from '@/backend'
 import { photoSrc } from '@/features/housing/utils/imagePath'
 
 /**
- * প্রকল্পের কভার ছবির URL (M-ধাপ ১৫): `cover_path` (স্টোরেজ পাথ `housing/_projects/{key}/cover.webp`) → পাবলিক URL,
- * ক্যাশ-ভাঙা ?v=প্রকল্পের updated_at (একই পাথে ওভাররাইট হয়)। পাথ নেই বা এই ব্যাকএন্ডে URL বানানো যায় না → null।
+ * প্রকল্পের কভার ছবির URL (M-ধাপ ১৫): সার্ভার `cover_path` এ ফাইলের পূর্ণ URL রাখে; সাথে ক্যাশ-ভাঙা ?v=প্রকল্পের
+ * updated_at। পাথ নেই বা পূর্ণ http(s) URL নয় → null।
  */
 export function coverSrc(coverPath: string | null | undefined, updatedAt: string | null | undefined): string | null {
-  if (!coverPath) return null
-  try {
-    return photoSrc(getImageStorage().publicUrl(coverPath), updatedAt ?? null)
-  } catch {
-    return null
-  }
+  if (!coverPath || !/^https?:\/\//i.test(coverPath)) return null
+  return photoSrc(coverPath, updatedAt ?? null)
 }

@@ -53,7 +53,6 @@ export function createMockProjectsApi(stats: (key: ProjectKey) => Promise<Projec
     FALLBACK_PROJECTS.filter((p) => includeDrafts || isPublic(p)).map((p) => structuredClone(p))
 
   return {
-    backendMode: async () => 'legacy',
     list: async (opts = {}) => all(opts.includeDrafts),
     async get(key) {
       const found = all(true).find((p) => p.key === key)

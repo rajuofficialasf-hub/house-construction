@@ -4,7 +4,7 @@
  */
 import type { AuthProvider } from '../interfaces/authProvider'
 import type { HousingApi } from '../interfaces/housingApi'
-import type { ImageStorage } from '../interfaces/imageStorage'
+import type { ImageStorage } from './storage'
 import type { ProjectsApi } from '../interfaces/projectsApi'
 import { createMockProjectsApi } from './projectsApi'
 import { createMockAuthProvider } from './authProvider'

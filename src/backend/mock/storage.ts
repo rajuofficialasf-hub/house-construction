@@ -1,8 +1,8 @@
-import type { UploadResult, UploadTarget } from './types'
+import type { UploadResult, UploadTarget } from '../interfaces/types'
 
 /**
- * ছবি স্টোরেজের নিম্নস্তরের ইন্টারফেস: শুধু ফাইল রাখা/মোছা/URL।
- * রেকর্ডের url কলাম আপডেট এর কাজ নয়; সেটা HousingApi.uploadPhoto করে (ভেতরে এটি ব্যবহার করে)।
+ * মক ব্যাকএন্ডের ইন-মেমরি ছবি স্টোরেজের ইন্টারফেস: শুধু ফাইল রাখা/মোছা/URL। সার্ভারে ছবি HousingApi ও ProjectsApi
+ * দিয়েই যায়, তাই UI এটি দেখে না। রেকর্ডের url কলাম আপডেট এর কাজ নয়; সেটা মকের HousingApi.uploadPhoto করে।
  * ফাইলের পাথ সিরিয়াল দিয়ে নির্ধারিত (utils/imagePath.ts), তাই upload এ ফাইলনাম নেওয়া হয় না।
  * একই target এ পুনরায় upload করলে আগের ফাইল প্রতিস্থাপিত হবে।
  */

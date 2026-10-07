@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { HousingApiError, type HousingRecord } from '../interfaces/types'
-import { createRestHousingApi, createRestImageStorage } from './index'
+import { createRestHousingApi } from './index'
 
 // REST HousingApi: সঠিক মেথড, URL ও body পাঠায়, Supabase অ্যাডাপ্টারের মতোই page/page_size সীমিত করে,
 // আর সার্ভারের উত্তর অপরিবর্তিত ফেরত দেয় (docs/api/PROJECTS_API_CONTRACT.md §৪.৩–৪.৫)।
@@ -320,13 +320,5 @@ describe('createRestHousingApi activity', () => {
   it('fails quietly when the event is refused', async () => {
     stubFetch(() => json(401, { error: { code: 'UNAUTHENTICATED', message: 'লগইন করুন' } }))
     await expect(createRestHousingApi(BASE).logActivity('import_run')).resolves.toBeUndefined()
-  })
-})
-
-describe('createRestImageStorage', () => {
-  it('passes the server\'s full cover URL through and refuses a bare storage path', () => {
-    const storage = createRestImageStorage(BASE)
-    expect(storage.publicUrl('http://api.test/api/v1/photos/abc')).toBe('http://api.test/api/v1/photos/abc')
-    expect(() => storage.publicUrl('housing/_projects/demo/cover.webp')).toThrow(HousingApiError)
   })
 })
