@@ -2850,7 +2850,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** P9, the removal (Session chunks). Its gate, the P8 checklist fully checked, is met. Run `ae-plan` on this file first to add P9's units against the code as it is then. CI on the pushed branch is still to run, once the user pushes (Success Criteria).
+- **Next:** P9, the removal (Session chunks). Its gate is met: the P8 checklist is fully checked and P8b is done. Run `ae-plan` on this file first to add P9's units against the code as it is then. CI on the pushed branch is still to run, once the user pushes (Success Criteria).
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
@@ -3228,3 +3228,42 @@ Run these at the end of P1:
       - `e2e/support/public.ts` gains `listTotal` and `filteredBanner`.
       - `list-filters.spec.ts`: the no-match locator is narrowed to the empty-list notice, and the "stat total unaffected" test became the banner-conditional relation.
       - Results: admin-rest 64, public-rest 18, the `public-mock` `list-filters` 6.
+  - **P8b done (2026-10-07):** U46–U50 are committed (5555a81..0fbbd76), plus simplify 898ea9f and the review fixes 7bd205e.
+    - **Built:**
+      - The list page's stat cards follow its filters on the server: `GET /projects/:key/stats` with the list's filters, one query sharing the list's `recordFilters`, and `main`'s filtered shape.
+      - The REST adapter sends the filters from the shared `statsFilterEntries`, and the mock answers `filtered: false`.
+      - A contract block (a known gap on local Supabase), the `admin-rest` spec, and the deterministic `list-filters` relation.
+    - **`ae-simplify`** applied 7 changes:
+      - `hasRecordFilters` beside `BaseFilters`
+      - empty leaves skip the fields query
+      - linear grouping
+      - one aggregate per money or number field
+      - typed result
+      - comments
+      - the field-value note
+
+      It skipped 3: a `MAX_SEARCH` shared across layers, and merging two round trips (5–64 ms needs neither).
+    - **`ae-review`** ran correctness, standards, security, database and testing reviewers.
+      - Correctness, security and database found nothing.
+      - **Standards:** three P2 comments citing `P8b` with no plan path, plus two P3 references. All fixed.
+      - **Testing:** three P2s, all fixed:
+        - the banner race in `list-filters`, now split by backend
+        - `light` with filters
+        - a group with only draft children
+      - **Testing P3:** the admin's `by_project` now includes the draft child.
+    - **The `jsonb_build_object` 100-argument edge** raised by two reviewers can't happen: the field guard caps a project at 40 fields (80 arguments). A comment says so.
+    - **The 2s statement timeout is deliberately untested.** A timeout is a generic 500, like any database error.
+    - **Final full run:**
+      - server 1095
+      - UI 229
+      - contract REST 63 plus 1 known gap
+      - contract local Supabase 57 plus 9 known gaps
+      - admin-rest 64 twice in a row
+      - public-rest 18 (2 skipped)
+      - `test:all` 53
+      - Typecheck, `tsc -b`, lint, build and `check:prod-bundle` are clean.
+    - **For P9's `PROJECTS_API_CONTRACT.md` rewrite**, the server's filtered stats differ from SQL 15:
+      - `q` escapes `%`, `_` and `\` with no `*` wildcard
+      - an invalid filter value is a 400, not silently dropped
+      - a field counts only if public and active with the same type in every counted leaf (SQL 15: in any leaf)
+      - the parameters are the list's (`year`, `division`, `district`, `upazila`, `union_name`, `q`, `f.<key>`)
