@@ -31,7 +31,10 @@ export function activityRouter({ sql, readRateLimit = DEFAULT_READ_RATE_LIMIT, w
   const limitWrites = writeRateLimiter(writeRateLimit);
 
   router.get('/activity', privateNoStore, requireAdmin, limitReads, async (req, res) => {
-    res.json(await listActivity(sql, projectActivityQuery.parse(req.query)));
+    const admin = req.admin;
+    // An editor without "all projects" sees its projects' rows and its own (fails closed: anything but an exact true is scoped).
+    const scope = admin && admin.allProjects !== true ? { projects: admin.projects, adminId: admin.id } : undefined;
+    res.json(await listActivity(sql, projectActivityQuery.parse(req.query), scope));
   });
 
   // A client event is the browser's own summary of work it did (an import, an export); its details

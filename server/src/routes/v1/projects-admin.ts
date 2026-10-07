@@ -1,5 +1,6 @@
 import { Router, type Request } from 'express';
 import { requireAdmin, requireMainAdmin, requireMainAdminForCovers } from '../../auth/middleware.js';
+import { refuseEditor } from '../../auth/scope.js';
 import type { Sql } from '../../db.js';
 import { AppError } from '../../errors.js';
 import type { PhotoReceiver } from '../../photos/process.js';
@@ -76,6 +77,9 @@ async function adminProject(sql: Sql, key: string) {
   return project;
 }
 
+/** Project and field settings are for the main admin and admins; an editor only adds and fills in. */
+const refuseSettings = refuseEditor('প্রকল্পের সেটিং বদলাতে পারেন শুধু মূল এডমিন ও এডমিন');
+
 export function projectsAdminRouter({
   sql,
   storage,
@@ -88,17 +92,17 @@ export function projectsAdminRouter({
   const limitReads = readRateLimiter(readRateLimit, 'project admin reads rate-limited');
   const limitWrites = writeRateLimiter(writeRateLimit);
 
-  router.post('/projects', requireAdmin, limitWrites, async (req, res) => {
+  router.post('/projects', requireAdmin, refuseSettings, limitWrites, async (req, res) => {
     const key = await createProject(sql, actorOf(req), projectCreateBody.parse(req.body));
     res.status(201).json({ data: await adminProject(sql, key) });
   });
 
-  router.put('/projects/order', requireAdmin, limitWrites, async (req, res) => {
+  router.put('/projects/order', requireAdmin, refuseSettings, limitWrites, async (req, res) => {
     await reorderProjects(sql, actorOf(req), projectOrderBody.parse(req.body).keys);
     res.status(204).end();
   });
 
-  router.patch('/projects/:key', requireAdmin, limitWrites, async (req, res) => {
+  router.patch('/projects/:key', requireAdmin, refuseSettings, limitWrites, async (req, res) => {
     const { key } = projectKeyParams.parse(req.params);
     const patch = projectPatchBody.parse(req.body);
     const result = await updateProject(sql, actorOf(req), key, patch, ifMatchOf(req));
@@ -113,20 +117,20 @@ export function projectsAdminRouter({
     res.status(204).end();
   });
 
-  router.post('/projects/:key/fields', requireAdmin, limitWrites, async (req, res) => {
+  router.post('/projects/:key/fields', requireAdmin, refuseSettings, limitWrites, async (req, res) => {
     const { key } = projectKeyParams.parse(req.params);
     const field = await createField(sql, actorOf(req), key, fieldCreateBody.parse(req.body));
     if (!field) throw projectNotFound();
     res.status(201).json({ data: field });
   });
 
-  router.put('/projects/:key/fields/order', requireAdmin, limitWrites, async (req, res) => {
+  router.put('/projects/:key/fields/order', requireAdmin, refuseSettings, limitWrites, async (req, res) => {
     const { key } = projectKeyParams.parse(req.params);
     if (!(await reorderFields(sql, actorOf(req), key, fieldOrderBody.parse(req.body).ids))) throw projectNotFound();
     res.status(204).end();
   });
 
-  router.patch('/fields/:id', requireAdmin, limitWrites, async (req, res) => {
+  router.patch('/fields/:id', requireAdmin, refuseSettings, limitWrites, async (req, res) => {
     const { id } = fieldIdParams.parse(req.params);
     const field = await updateField(sql, actorOf(req), id, fieldPatchBody.parse(req.body));
     if (!field) throw fieldNotFound();
@@ -142,7 +146,7 @@ export function projectsAdminRouter({
   // Covers (§4.1.8). Multipart, through the record photos' receiver: any image it accepts, re-encoded
   // to WebP without metadata. The project is checked before the body is read, so a refused upload
   // stores nothing. Any admin may upload or replace; only the main admin removes.
-  router.put('/projects/:key/cover', requireAdmin, limitWrites, async (req, res) => {
+  router.put('/projects/:key/cover', requireAdmin, refuseSettings, limitWrites, async (req, res) => {
     const { key } = projectKeyParams.parse(req.params);
     if (!(await visibleProject(sql, key, ADMIN_VIEW))) throw projectNotFound();
     const upload = await receivePhoto(req, { kind: 'cover' });
@@ -157,14 +161,14 @@ export function projectsAdminRouter({
   });
 
   // Admin-only, so never cached and never on the public-read CORS list.
-  router.get('/projects/:key/fields/:field_key/usage', privateNoStore, requireAdmin, limitReads, async (req, res) => {
+  router.get('/projects/:key/fields/:field_key/usage', privateNoStore, requireAdmin, refuseSettings, limitReads, async (req, res) => {
     const { key, field_key: fieldKey } = fieldKeyParams.parse(req.params);
     const usage = await fieldUsage(sql, key, fieldKey);
     if (!usage) throw fieldNotFound();
     res.json({ data: usage });
   });
 
-  router.post('/projects/:key/fields/:field_key/rename-value', requireAdmin, limitWrites, async (req, res) => {
+  router.post('/projects/:key/fields/:field_key/rename-value', requireAdmin, refuseSettings, limitWrites, async (req, res) => {
     const { key, field_key: fieldKey } = fieldKeyParams.parse(req.params);
     const { from, to } = renameValueBody.parse(req.body);
     const updated = await renameFieldValue(sql, actorOf(req), key, fieldKey, from, to);

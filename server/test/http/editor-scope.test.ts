@@ -36,7 +36,7 @@ beforeEach(async () => {
   await resetTestData(owner);
   await insertField(owner, { project_key: 'tin', key: 'phone', type: 'phone', visibility: 'admin' });
   await insertField(owner, { project_key: 'semi_pucca', key: 'phone', type: 'phone', visibility: 'admin' });
-  await insertField(owner, { project_key: 'tin', key: 'tribe' });
+  await insertField(owner, { project_key: 'tin', key: 'tribe', type: 'category' });
 });
 afterAll(async () => {
   await Promise.all([sql.end(), owner.end()]);
@@ -289,4 +289,80 @@ async function waitForBlockedQuery(tx: Tx) {
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
   throw new Error('no query blocked on a lock');
+}
+
+describe('project and field settings', () => {
+  /** Every non-delete route of projects-admin.ts, by name. */
+  const settingsRoutes = (fieldId: string) => ({
+    'POST /projects': (c: string) => send(c, 'post', '/projects', { project: { key: 'newp', slug: 'newp', name_bn: 'ক', name_en: 'K', file_prefix: 'newp' } }),
+    'PUT /projects/order': (c: string) => send(c, 'put', '/projects/order', { keys: ['tin', 'semi_pucca'] }),
+    'PATCH /projects/:key': (c: string) => send(c, 'patch', '/projects/tin', { name_bn: 'নতুন নাম' }),
+    'POST /projects/:key/fields': (c: string) => send(c, 'post', '/projects/tin/fields', { key: 'size', label_bn: 'মাপ', type: 'number' }),
+    'PUT /projects/:key/fields/order': (c: string) => send(c, 'put', '/projects/tin/fields/order', { ids: [fieldId] }),
+    'PATCH /fields/:id': (c: string) => send(c, 'patch', `/fields/${fieldId}`, { label_bn: 'নতুন' }),
+    'PUT /projects/:key/cover': (c: string) =>
+      request(app).put('/api/v1/projects/tin/cover').set('origin', TEST_ORIGIN).set('cookie', c).attach('photo', png, 'cover.png'),
+    'GET /projects/:key/fields/:field_key/usage': (c: string) => send(c, 'get', '/projects/tin/fields/tribe/usage'),
+    'POST /projects/:key/fields/:field_key/rename-value': (c: string) => send(c, 'post', '/projects/tin/fields/tribe/rename-value', { from: 'ক', to: 'খ' }),
+  });
+  const fieldIdOf = async () => (await owner<{ id: string }[]>`select id from public.housing_project_fields where project_key = 'tin' and key = 'tribe'`)[0]!.id;
+
+  it.each(Object.keys(settingsRoutes('')))('refuses %s to an editor with "all projects", and changes nothing', async (name) => {
+    const projects = await owner`select key, name_bn, sort_order, cover_path from public.housing_projects order by key`;
+    const fields = await owner`select key, label_bn, sort_order from public.housing_project_fields order by project_key, key`;
+    const cookie = await as({ role: 'editor', allProjects: true });
+    const res = await settingsRoutes(await fieldIdOf())[name as keyof ReturnType<typeof settingsRoutes>](cookie);
+    expect(res.status).toBe(403);
+    expect(res.body.error).toEqual({ code: 'FORBIDDEN', message: 'প্রকল্পের সেটিং বদলাতে পারেন শুধু মূল এডমিন ও এডমিন' });
+    expect(await owner`select key, name_bn, sort_order, cover_path from public.housing_projects order by key`).toEqual(projects);
+    expect(await owner`select key, label_bn, sort_order from public.housing_project_fields order by project_key, key`).toEqual(fields);
+  });
+
+  it.each(Object.keys(settingsRoutes('')))('still lets an admin use %s', async (name) => {
+    const cookie = await as({ role: 'admin' });
+    const res = await settingsRoutes(await fieldIdOf())[name as keyof ReturnType<typeof settingsRoutes>](cookie);
+    expect(res.status, JSON.stringify(res.body)).toBeLessThan(300);
+  });
+});
+
+describe('the activity view of a scoped editor', () => {
+  async function seedLog() {
+    const other = await insertRecord(sql, { project_type: 'semi_pucca', name: 'অন্য প্রকল্প' });
+    const own = await insertRecord(sql, { project_type: 'tin', name: 'নিজের প্রকল্প' });
+    return { other, own };
+  }
+  const names = (res: request.Response) => res.body.data.map((e: { action: string; project_type: string | null }) => `${e.action}:${e.project_type}`);
+
+  it("shows its projects' rows and its own, never another project's", async () => {
+    await seedLog();
+    const editor = await tinEditor();
+    expect((await send(editor, 'post', '/activity', { action: 'import_run' })).status).toBe(201);
+    const res = await send(editor, 'get', '/activity');
+    expect(res.status).toBe(200);
+    // The setup's field_create rows for tin are in its project too.
+    expect(names(res).sort()).toEqual(['create:tin', 'field_create:tin', 'field_create:tin', 'import_run:null', 'login:null']);
+    expect(res.body.meta.total).toBe(5);
+  });
+
+  it("asked for another project, returns only its own rows there", async () => {
+    await seedLog();
+    const { admin, cookie } = await loginAdmin(app, owner, { email: 'ed@example.org', role: 'editor', projects: ['tin'] });
+    await withActorRow(admin.id, 'semi_pucca');
+    const res = await send(cookie, 'get', '/activity?project_type=semi_pucca');
+    expect(names(res)).toEqual(['import_run:semi_pucca']);
+    expect(res.body.data[0].actor_id).toBe(admin.id);
+  });
+
+  it('shows everything to an editor with "all projects" and to an admin', async () => {
+    await seedLog();
+    for (const cookie of [await as({ role: 'editor', allProjects: true }), await as({ role: 'admin' })]) {
+      const res = await send(cookie, 'get', '/activity?action=create');
+      expect(names(res).sort()).toEqual(['create:semi_pucca', 'create:tin']);
+    }
+  });
+});
+
+/** A client-event row in this project with this admin as the actor, written as the owner. */
+async function withActorRow(adminId: string, projectType: string) {
+  await owner`insert into public.housing_activity_log (actor_id, actor_email, action, project_type) values (${adminId}, 'ed@example.org', 'import_run', ${projectType})`;
 }

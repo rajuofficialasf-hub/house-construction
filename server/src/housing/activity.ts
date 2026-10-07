@@ -24,8 +24,15 @@ export interface ActivityEntry {
 }
 
 /** One page of the log, newest first, with the filtered total. */
-export async function listActivity(sql: Sql, query: AnyActivityQuery): Promise<Page<ActivityEntry>> {
+/** An editor's view of the log: rows in its projects, and its own rows anywhere. */
+export interface ActivityScope {
+  projects: string[];
+  adminId: string;
+}
+
+export async function listActivity(sql: Sql, query: AnyActivityQuery, scope?: ActivityScope): Promise<Page<ActivityEntry>> {
   const conditions = [sql`true`];
+  if (scope) conditions.push(sql`(project_type = any(${scope.projects}) or actor_id = ${scope.adminId})`);
   if (query.action) conditions.push(sql`action = ${query.action}`);
   if (query.project_type) conditions.push(sql`project_type = ${query.project_type}`);
   if (query.record_id) conditions.push(sql`record_id = ${query.record_id}`);

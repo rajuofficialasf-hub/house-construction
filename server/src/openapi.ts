@@ -280,7 +280,7 @@ export function buildOpenApiDocument(): OpenApiDocument {
                 values: { type: 'array', items: { type: 'object', required: ['value', 'n'], properties: { value: { type: 'string' }, n: { type: 'integer' } } } },
               },
             }),
-            ...errors(400, 401, 404, 429, 500),
+            ...errors(400, 401, 403, 404, 429, 500),
           },
         }, 'projects-admin'),
       },

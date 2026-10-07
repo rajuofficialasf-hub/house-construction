@@ -139,6 +139,16 @@ describe('GET /api/v1/openapi.json', () => {
     }
   });
 
+  it('lists a 403 on every project and field setting, which an editor is refused', () => {
+    const deps = { sql, ...testPhotoDeps(), receivePhoto: () => Promise.reject(new Error('unused')) };
+    const settings = routesOf('', projectsAdminRouter(deps));
+    expect(settings.length).toBeGreaterThan(9);
+    for (const route of settings) {
+      const [method, path] = route.split(' ') as [string, string];
+      expect(document.paths[path]?.[method.toLowerCase() as 'get']?.responses, route).toHaveProperty('403');
+    }
+  });
+
   it('documents If-Match on a project update, with its 409', () => {
     const patch = document.paths['/projects/{key}']?.patch;
     expect(patch?.parameters?.find((p) => p.name === 'If-Match')).toMatchObject({ in: 'header', required: false });

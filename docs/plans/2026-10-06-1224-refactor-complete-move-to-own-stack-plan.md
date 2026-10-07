@@ -3580,7 +3580,7 @@ Run once, after U64:
   - OpenAPI: every settings route lists a 403
 - **Done when:** `npx vitest run test/http/editor-scope.test.ts test/http/openapi.test.ts test/http/activity.test.ts test/http/projects-writes.test.ts` (from `server/`) passes.
 - **Depends on:** U69
-- **Status:** todo
+- **Status:** done
 
 ### U77. An editor sees drafts only in its projects
 - **Goal:** An editor's reads give the admin view only for its projects, and the visitor's view everywhere else.
@@ -3758,7 +3758,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** `ae-work` on P9b, U71 (U65–U70 done). P10 (the handoff guide and the final `CLAUDE.md` profile, with the mock rule and the migration-comment exception) follows P9b.
+- **Next:** `ae-work` on P9b, U77 (U65–U71 done). P10 (the handoff guide and the final `CLAUDE.md` profile, with the mock rule and the migration-comment exception) follows P9b.
 - **Uncommitted:** nothing.
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
