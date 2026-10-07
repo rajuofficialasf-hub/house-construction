@@ -1,4 +1,4 @@
-import { expect, test } from '../support/test'
+import { expect, test } from '@playwright/test'
 
 test('switching to English changes the page language, keeps the route, and survives a reload', async ({ page }) => {
   await page.goto('/housing/tin')

@@ -1,4 +1,4 @@
-import { expect, test } from '../support/test'
+import { expect, test } from '@playwright/test'
 import { columnTexts, dataRows, filteredBanner, listTotal, statTotal, waitForList } from '../support/public'
 
 // ক্রম | সাল | নাম | পিতা/স্বামী | বিভাগ | জেলা | উপজেলা | ঠিকানা | ছবি | ছবি | বিস্তারিত

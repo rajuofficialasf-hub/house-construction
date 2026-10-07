@@ -47,7 +47,3 @@ dist.zip
 playwright-report
 test-results
 blob-report
-.edge/
-
-# smoke টেস্টের স্ক্রিনশট/রিপোর্ট (scripts/smoke.mjs)
-.smoke/

@@ -3148,7 +3148,7 @@ git grep -nIE '(^|[^A-Za-z])RLS([^A-Za-z]|$)|SQL [0-9০-৯]+|পুরনো �
   - `actionlint`, if installed, or else a YAML parse of `ci.yml`.
 - **Done when:** the tests above hold, the Hosting requirements section exists, and `git ls-files deploy docs/operations` is empty. The pushed CI run is the final proof.
 - **Depends on:** U55
-- **Status:** todo
+- **Status:** done
 
 ### U58. Remove bcrypt support
 - **Goal:** The server verifies only its own argon2 hashes.
@@ -3343,7 +3343,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** P9 `ae-work`: U57 (deploy, edge, runbook; hosting requirements first), then U58, U59, U61, U63, U62, U64; then simplify, review and the full verification.
+- **Next:** P9 `ae-work`: U58 (bcrypt), then U59, U61, U63, U62, U64; then simplify, review and the full verification.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.

@@ -1,5 +1,5 @@
-# Every push and pull request runs the whole suite (docs/plans/2026-10-06-0925-migrate-c6-deploy-plan.md).
-# No secrets: the S3 storage tests skip without TEST_S3_* and are run once by hand (docs/operations/runbook.md).
+# Every push and pull request runs the whole suite.
+# No secrets: the S3 storage tests skip without TEST_S3_* and are run once by hand (docs/testing/README.md).
 # Third-party actions are pinned to commit SHAs; Dependabot updates them.
 name: CI
 
@@ -26,10 +26,11 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             server/package-lock.json
-      # Install scripts stay off, as on the box (ST-32).
+      # Install scripts stay off (ST-32).
       - run: npm ci --ignore-scripts
       - run: npm ci --ignore-scripts --prefix server
       - run: npm run lint
+      - run: shellcheck -x scripts/docker-dev-entry.sh server/db/docker-init/01-init.sh
       # tsc -b (the web typecheck) and the vite build
       - run: npm run build
       - run: npm --prefix server run typecheck
@@ -68,7 +69,7 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             server/package-lock.json
-      # Install scripts stay off, as on the box (ST-32).
+      # Install scripts stay off (ST-32).
       - run: npm ci --ignore-scripts
       - run: npm ci --ignore-scripts --prefix server
       - name: Create roles and databases
@@ -104,7 +105,7 @@ jobs:
       - name: Start the built API in the background
         env:
           DATABASE_URL: postgres://housing_app:housing_app_local@127.0.0.1:5432/housing?sslmode=disable
-          ALLOWED_ORIGINS: http://localhost:5185,http://localhost:8080
+          ALLOWED_ORIGINS: http://localhost:5185
           COOKIE_SECURE: 'false'
           PUBLIC_API_URL: http://localhost:3001
           STORAGE_DRIVER: nas
@@ -121,22 +122,6 @@ jobs:
           exit 1
       - name: Public flows against the API (public-rest)
         run: npm run test:e2e:rest
-      # The same public flows through nginx 1.20 with the box's locations, headers and CSP; any
-      # CSP violation fails a test (e2e/support/test.ts). Host networking lets nginx reach the
-      # API on loopback, as on the box.
-      - name: Public flows through the nginx edge (edge-rest)
-        run: |
-          npm run build:edge
-          docker run -d --name edge --network host \
-            -e HOUSING_API_UPSTREAM=127.0.0.1:3001 -e HOUSING_LISTEN_PORT=8080 \
-            -v "$PWD/deploy:/deploy:ro" -v "$PWD/.edge/dist:/usr/share/nginx/html:ro" \
-            nginx:1.20 bash -c "bash /deploy/render-nginx.sh local /etc/nginx/housing && cp /etc/nginx/housing/housing.conf /etc/nginx/conf.d/default.conf && exec nginx -g 'daemon off;'"
-          for _ in $(seq 1 30); do
-            curl -sf http://localhost:8080/api/v1/readyz >/dev/null && break
-            sleep 1
-          done
-          curl -sfI http://localhost:8080/ | grep -i '^content-security-policy:'
-          npm run test:e2e:edge
       - if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -145,8 +130,6 @@ jobs:
             test-results/
             ${{ runner.temp }}/api.log
           retention-days: 7
-      - if: failure()
-        run: docker logs edge || true
 
   e2e-mock:
     runs-on: ubuntu-24.04
@@ -180,34 +163,3 @@ jobs:
           name: e2e-mock-results
           path: test-results/
           retention-days: 7
-
-  # The box's config, checked without the box: nginx 1.20 syntax for every rendered vhost (staging
-  # and production together, so their names can't clash), the shell scripts, and the PM2 file.
-  deploy-config:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: .nvmrc
-      - run: shellcheck -x deploy/*.sh scripts/docker-dev-entry.sh server/db/docker-init/01-init.sh
-      - name: Load the PM2 ecosystem for each environment
-        run: |
-          for env in staging production; do
-            HOUSING_ENV=$env node -e "const { apps } = require('./deploy/ecosystem.config.cjs'); console.log(apps.map((a) => a.name).join(' '))"
-          done
-          if node -e "require('./deploy/ecosystem.config.cjs')" 2>/dev/null; then echo 'loaded without HOUSING_ENV'; exit 1; fi
-      - name: Render the vhosts and run nginx -t on nginx 1.20
-        run: |
-          command -v envsubst >/dev/null || sudo apt-get install -y -qq gettext-base
-          out=$RUNNER_TEMP/nginx
-          for env in staging production; do
-            HOUSING_SERVER_NAME=$env.housing.example.org deploy/render-nginx.sh $env "$out/$env"
-            openssl req -x509 -newkey rsa:2048 -nodes -subj "/CN=$env" -days 1 \
-              -keyout "$out/$env/origin.key" -out "$out/$env/origin.pem" 2>/dev/null
-          done
-          cp "$out/staging/origin.pem" "$out/cloudflare-origin-pull-ca.pem"
-          HOUSING_API_UPSTREAM=127.0.0.1:3001 HOUSING_NGINX_DIR=/etc/nginx/housing/local deploy/render-nginx.sh local "$out/local"
-          printf 'include /etc/nginx/housing/%s/housing.conf;\n' staging production local > "$out/all.conf"
-          docker run --rm -v "$out:/etc/nginx/housing:ro" -v "$out/all.conf:/etc/nginx/conf.d/default.conf:ro" nginx:1.20 nginx -t
-

@@ -99,3 +99,19 @@ Another developer keeps shipping features on the Supabase version while the new 
 ## Safety net
 
 Before migrating, run the test suite described in [../testing/README.md](../testing/README.md). It lists which behaviors are verified only on the mock backend and how to re-point the suite at the new server.
+
+## Hosting requirements
+
+The repo has no deploy tooling. Whoever hosts the app must provide these protections, which live outside the app's code. They were last applied by the nginx config that `git show pre-p9:deploy/nginx/` holds.
+
+- **Security headers on the UI** (the API sets its own with helmet):
+  - `Strict-Transport-Security: max-age=31536000`
+  - `X-Content-Type-Options: nosniff`
+  - `Referrer-Policy: strict-origin-when-cross-origin`
+  - `Permissions-Policy: camera=(), microphone=(), geolocation=()`
+  - `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'`. This assumes the API is served at `/api/v1` on the UI's own origin, so photo URLs (`PUBLIC_API_URL/api/v1/photos/<id>`) are same-origin.
+- **Request body limits at the proxy**, so an oversized body is refused before it reaches Node:
+  - 1 MB for everything else
+  - 11 MB for the bulk import (`POST`/`PUT /api/v1/projects/:key/records/bulk`, which the API caps at 10 MB of JSON) and the uploads (`PUT /api/v1/records/:id/photos/:slot` and `PUT /api/v1/projects/:key/cover`: two parts of up to 5 MB each)
+- **Client IP:** the proxy in front of the API overwrites `X-Forwarded-For` with the address it saw, never appends to it. `TRUST_PROXY` is set to the number of proxy hops in front of the API (1 for a single nginx). Otherwise a client-sent `X-Forwarded-For` reaches the login and write rate limiters, and anyone can dodge them.
+- **Cookies:** `COOKIE_SECURE=true` whenever the site is served over HTTPS, so the session cookie is never sent in clear text.

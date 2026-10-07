@@ -18,9 +18,6 @@ const MOCK_PORT = 5184
 const REST_PORT = 5185
 const ADMIN_REST_PORT = 5186
 const restApiUrl = process.env.E2E_REST_API_URL?.trim()
-// The nginx edge (compose profile "edge", or CI): the built rest UI and the API behind the box's
-// nginx config, so the public specs also check the real headers and CSP (npm run test:e2e:edge).
-const edgeUrl = process.env.E2E_EDGE_URL?.trim()
 const adminRest = process.env.E2E_ADMIN_REST === '1'
 
 export default defineConfig({
@@ -46,15 +43,6 @@ export default defineConfig({
             name: 'public-rest',
             testDir: './e2e/public',
             use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${REST_PORT}` },
-          },
-        ]
-      : []),
-    ...(edgeUrl
-      ? [
-          {
-            name: 'edge-rest',
-            testDir: './e2e/public',
-            use: { ...devices['Desktop Chrome'], baseURL: edgeUrl },
           },
         ]
       : []),

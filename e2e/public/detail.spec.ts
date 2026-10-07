@@ -1,4 +1,4 @@
-import { expect, test } from '../support/test'
+import { expect, test } from '@playwright/test'
 import { bnInt } from '../support/bn'
 import { columnTexts, dataRows, waitForList } from '../support/public'
 

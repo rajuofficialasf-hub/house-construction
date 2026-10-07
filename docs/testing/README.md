@@ -33,7 +33,24 @@ The suite exists so that nothing is lost when the backend moves from Supabase to
 - `e2e-mock`: `test:e2e:mock`.
 - `deploy-config`: shellcheck, the PM2 file, and `nginx -t` on nginx 1.20 for every rendered vhost.
 
-The S3 storage tests don't run in CI, which holds no AWS keys. They run once by hand against a test bucket (`docs/operations/runbook.md`, section 11).
+The S3 storage tests don't run in CI, which holds no AWS keys. They run once by hand against a test bucket (see "S3 storage tests, by hand" below).
+
+## S3 storage tests, by hand
+
+The S3 driver is built but unused: dev and tests store photos with the NAS driver. Its contract and smoke tests skip without a bucket, and there is no local S3. Before the S3 driver is ever switched on, run them once against a test bucket, never a real one:
+
+1. Create a test bucket (for example `<org>-housing-photos-test`) with all four public-access blocks on and default encryption.
+2. Create a temporary IAM user whose policy allows only `s3:GetObject`, `s3:PutObject` and `s3:DeleteObject` on the bucket's objects and `s3:ListBucket` on the bucket. `ListBucket` makes S3 answer a missing key with 404; without it S3 answers 403, which the photo route turns into a 500.
+3. On a developer machine, with `docker compose up -d db`:
+
+   ```sh
+   TEST_S3_BUCKET=<org>-housing-photos-test TEST_S3_REGION=<region> \
+   AWS_ACCESS_KEY_ID=<test key> AWS_SECRET_ACCESS_KEY=<test secret> \
+   npm --prefix server test
+   # the S3 storage tests must run, not skip
+   ```
+
+4. Delete the test user's key and empty the test bucket afterwards.
 
 ## Rules
 

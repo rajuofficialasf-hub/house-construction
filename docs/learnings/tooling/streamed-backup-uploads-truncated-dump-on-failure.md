@@ -10,6 +10,8 @@ applies_when: writing a backup or export script that pipes a producer into an up
 
 # Upload a backup only after the whole pipeline succeeded
 
+> The `deploy/backup.sh` described here was removed with the rest of the deploy tooling (restore it from the `pre-p9` tag). The lesson applies to any future backup or export script.
+
 ## What happened
 `deploy/backup.sh` first streamed the dump straight to S3:
 
