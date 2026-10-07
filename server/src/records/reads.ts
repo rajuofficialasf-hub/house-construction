@@ -2,14 +2,15 @@ import type { Sql } from '../db.js';
 import { AppError } from '../errors.js';
 import { RECORD_COLUMNS, toPage, type HousingRecord, type Page } from '../housing/reads.js';
 import type { PhotoKind } from '../photos/process.js';
-import type { Viewer } from '../projects/reads.js';
+import { seesAsAdmin, visibleTo, type Viewer } from '../projects/reads.js';
 import { recordFilters } from './filters.js';
 import type { RecordListQuery } from './schemas.js';
 
 // The single-record reads (docs/api/PROJECTS_API_CONTRACT.md §4.4.1–§4.4.3). A visitor reaches only
 // records of projects in housing_public_project_keys(), and sees only public fields' values in
 // extra; an admin session sees every project and extra as stored
-// (docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md, "P2 decisions").
+// (docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md, "P2 decisions"); a scoped
+// editor gets that admin view only in its own projects ("P9b decisions").
 
 // project_type is any registered project key here, not HousingRecord's two-value enum.
 export type ProjectRecord = Omit<HousingRecord, 'project_type'> & {
@@ -34,19 +35,22 @@ export const ADMIN_RECORD_COLUMNS = [...RECORD_COLUMNS, 'union_name', 'extra'] a
 
 /**
  * The record columns for this viewer. A visitor's extra keeps only keys of the project's public
- * fields (archived ones too), a whitelist, so a key with no public field never leaves the server.
+ * fields (archived ones too), a whitelist, so a key with no public field never leaves the server;
+ * so does a scoped editor's, outside its projects.
  */
 function recordColumns(sql: Sql, viewer: Viewer) {
-  const extra = viewer.admin
-    ? sql`b.extra`
-    : sql`(select coalesce(jsonb_object_agg(e.key, e.value), '{}'::jsonb) from jsonb_each(b.extra) e
+  const publicExtra = sql`(select coalesce(jsonb_object_agg(e.key, e.value), '{}'::jsonb) from jsonb_each(b.extra) e
            where exists (select from public.housing_project_fields f
                          where f.project_key = b.project_type and f.key = e.key and f.visibility = 'public'))`;
+  // Decided per row: a scoped editor's own projects give extra as stored, other projects the whitelist.
+  const extra =
+    viewer.drafts === 'all'
+      ? sql`b.extra`
+      : viewer.drafts.length === 0
+        ? publicExtra
+        : sql`case when ${seesAsAdmin(sql, viewer, sql`b.project_type`)} then b.extra else ${publicExtra} end`;
   return sql`${sql(RECORD_COLUMNS.map((column) => `b.${column}`))}, b.union_name, ${extra} as extra`;
 }
-
-const visibleTo = (sql: Sql, viewer: Viewer) =>
-  sql`(${viewer.admin} or b.project_type = any(public.housing_public_project_keys()))`;
 
 /**
  * A project the viewer may read records of, with its public active fields. Unknown and hidden
@@ -110,7 +114,7 @@ export async function listProjectRecords(
 export async function getRecord(sql: Sql, id: string, viewer: Viewer): Promise<ProjectRecord | null> {
   const [row] = await sql<ProjectRecord[]>`
     select ${recordColumns(sql, viewer)} from public.housing_beneficiaries b
-    where b.id = ${id} and ${visibleTo(sql, viewer)}`;
+    where b.id = ${id} and ${visibleTo(sql, viewer, sql`b.project_type`)}`;
   return row ?? null;
 }
 
@@ -158,7 +162,7 @@ export async function recordProjectKey(sql: Sql, id: string): Promise<string> {
 export async function visibleProject(sql: Sql, key: string, viewer: Viewer): Promise<{ is_group: boolean } | null> {
   const [project] = await sql<{ is_group: boolean }[]>`
     select is_group from public.housing_projects
-    where key = ${key} and (${viewer.admin} or key = any(public.housing_public_project_keys()))`;
+    where key = ${key} and ${visibleTo(sql, viewer, sql`key`)}`;
   return project ?? null;
 }
 
@@ -172,7 +176,7 @@ export async function projectYears(sql: Sql, key: string, viewer: Viewer): Promi
   const rows = await sql<{ year: number }[]>`
     select distinct year from public.housing_beneficiaries
     where project_type = any(public.housing_project_leaf_keys(${key}))
-      and (${viewer.admin} or project_type = any(public.housing_public_project_keys()))
+      and ${visibleTo(sql, viewer, sql`project_type`)}
     order by year desc`;
   return rows.map((row) => row.year);
 }

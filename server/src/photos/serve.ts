@@ -1,5 +1,5 @@
 import type { Sql } from '../db.js';
-import type { Viewer } from '../projects/reads.js';
+import { visibleTo, type Viewer } from '../projects/reads.js';
 
 export interface LiveFile {
   storage_key: string;
@@ -12,7 +12,7 @@ export interface LiveFile {
  * The file behind GET /api/v1/photos/:id, but only while a record or a project cover uses it: a
  * replaced (tombstoned) or detached file is not served. A visitor gets only files of a public
  * project, through its record or its cover, so a draft's photos stay hidden like its records
- * (NE-SEC-03); an admin session gets any live file.
+ * (NE-SEC-03); an admin session gets any live file, and a scoped editor those of its own projects.
  */
 // A record photo has no project_key and a cover no record (housing_files_cover_shape), so the
 // project is whichever one the file has.
@@ -22,6 +22,6 @@ export async function findLiveFile(sql: Sql, id: string, viewer: Viewer): Promis
     from public.housing_files f left join public.housing_beneficiaries b on b.id = f.record_id
     where f.id = ${id} and f.deleted_at is null
       and coalesce(b.project_type, f.project_key) is not null
-      and (${viewer.admin} or coalesce(b.project_type, f.project_key) = any(public.housing_public_project_keys()))`;
+      and ${visibleTo(sql, viewer, sql`coalesce(b.project_type, f.project_key)`)}`;
   return row ?? null;
 }

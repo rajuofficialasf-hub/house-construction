@@ -29,7 +29,7 @@ describe('search and activity indexes', () => {
     await insertRecord(owner, { name: 'সালমা', father_or_husband_name: 'জব্বার', address: 'রহিমপুর' });
     await insertRecord(owner, { name: 'অন্য কেউ', father_or_husband_name: 'কেউ না', address: 'দূরে' });
 
-    const visitor = { admin: false };
+    const visitor = { admin: false, drafts: [] };
     const project = await recordProject(app, 'semi_pucca', visitor);
     const found = await listProjectRecords(app, project, recordListQuery.parse({ q: 'রহিম' }), new Map(), visitor);
     expect(found.data.map((r) => r.name).sort()).toEqual(['আবুল', 'রহিমা খাতুন', 'সালমা'].sort());

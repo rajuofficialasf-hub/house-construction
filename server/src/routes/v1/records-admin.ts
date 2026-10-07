@@ -3,6 +3,7 @@ import { requireAdmin, requireMainAdmin, requireMainAdminForPhotos } from '../..
 import { isEditor, refuseEditor, requireProjectScope } from '../../auth/scope.js';
 import type { Sql } from '../../db.js';
 import { deleteRecord } from '../../housing/writes.js';
+import { ADMIN_VIEW } from '../../projects/reads.js';
 import { deletePhoto, savePhoto } from '../../photos/service.js';
 import type { PhotoReceiver } from '../../photos/process.js';
 import { ADMIN_RECORD_COLUMNS, checkPhotoSlot, recordNotFound, recordProject, recordProjectKey, type ProjectRecord } from '../../records/reads.js';
@@ -61,7 +62,7 @@ export function recordsAdminRouter({
 
   router.post('/projects/:key/records', requireAdmin, limitWrites, async (req, res) => {
     const { key } = projectRecordsParams.parse(req.params);
-    const project = await recordProject(sql, key, { admin: true });
+    const project = await recordProject(sql, key, ADMIN_VIEW);
     requireProjectScope(req, key);
     const body = recordCreateBody.parse(req.body);
     res.status(201).json({ data: await createProjectRecord(sql, actorOf(req), project, body) });
@@ -71,7 +72,7 @@ export function recordsAdminRouter({
   // the admin check, so only an admin can make the server read a large body.
   router.post('/projects/:key/records/bulk', requireAdmin, limitWrites, bulkJson, async (req, res) => {
     const { key } = projectRecordsParams.parse(req.params);
-    const project = await recordProject(sql, key, { admin: true });
+    const project = await recordProject(sql, key, ADMIN_VIEW);
     requireProjectScope(req, key);
     checkRowCount(req.body);
     const body = bulkCreateBody.parse(req.body);
@@ -80,7 +81,7 @@ export function recordsAdminRouter({
 
   router.put('/projects/:key/records/bulk', requireAdmin, limitWrites, bulkJson, async (req, res) => {
     const { key } = projectRecordsParams.parse(req.params);
-    const project = await recordProject(sql, key, { admin: true });
+    const project = await recordProject(sql, key, ADMIN_VIEW);
     requireProjectScope(req, key);
     checkRowCount(req.body);
     const body = bulkUpdateBody.parse(req.body);
@@ -169,7 +170,7 @@ export function recordsAdminRouter({
 
   router.post('/projects/:key/records/private', privateNoStore, requireAdmin, limitWrites, async (req, res) => {
     const { key } = projectRecordsParams.parse(req.params);
-    const project = await recordProject(sql, key, { admin: true });
+    const project = await recordProject(sql, key, ADMIN_VIEW);
     requireProjectScope(req, key);
     const { ids } = privateManyBody.parse(req.body);
     const data = await getPrivateMany(sql, project, ids);

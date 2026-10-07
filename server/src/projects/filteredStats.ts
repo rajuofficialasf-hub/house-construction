@@ -1,6 +1,6 @@
 import type { Sql } from '../db.js';
 import { recordFilters, type BaseFilters, type FilterFields } from '../records/filters.js';
-import type { Viewer } from './reads.js';
+import { publicOnly, visibleTo, type Viewer } from './reads.js';
 
 // A project's stats under the list's filters, for the list page's cards: one query over the counted
 // leaves with the list's own conditions (records/filters.ts), so the cards count what the list shows.
@@ -41,7 +41,7 @@ function sharedFields(leaves: string[], rows: LeafField[]) {
 
 /**
  * Filtered stats, or null when the project doesn't exist or the viewer may not see it. A visitor
- * counts only published leaves. The query runs under a short statement timeout, since anyone may
+ * counts only published leaves, and so does a scoped editor on a group (see publicOnly). The query runs under a short statement timeout, since anyone may
  * call it.
  */
 export async function filteredProjectStats(
@@ -54,9 +54,9 @@ export async function filteredProjectStats(
   return (await sql.begin(async (tx) => {
     await tx`set local statement_timeout = '2s'`;
     const [project] = await tx<{ leaves: string[] }[]>`
-      select public.housing_project_counted_leaves(key, ${!viewer.admin}) as leaves
+      select public.housing_project_counted_leaves(key, ${publicOnly(tx, viewer)}) as leaves
       from public.housing_projects
-      where key = ${key} and (${viewer.admin} or key = any(public.housing_public_project_keys()))`;
+      where key = ${key} and ${visibleTo(tx, viewer, tx`key`)}`;
     if (!project) return null;
     const { leaves } = project;
     const rows = leaves.length

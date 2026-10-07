@@ -3604,7 +3604,7 @@ Run once, after U64:
   - a change of scope applies on the next read
 - **Done when:** `npx vitest run test/http/editor-reads.test.ts test/http/projects-reads.test.ts test/http/records-reads.test.ts test/http/projects-stats.test.ts test/http/projects-stats-filtered.test.ts test/http/projects-cover.test.ts test/http/photos.test.ts` (from `server/`) passes.
 - **Depends on:** U66
-- **Status:** todo
+- **Status:** done
 
 ### U72. REST `AdminUsersApi` and the users page
 - **Goal:** On REST, `/admin/users` lists the logins and saves roles and projects, and the auth provider uses the server's scope.
@@ -3758,7 +3758,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** `ae-work` on P9b, U77 (U65–U71 done). P10 (the handoff guide and the final `CLAUDE.md` profile, with the mock rule and the migration-comment exception) follows P9b.
+- **Next:** `ae-work` on P9b, U75 (U65–U71 and U77 done). P10 (the handoff guide and the final `CLAUDE.md` profile, with the mock rule and the migration-comment exception) follows P9b.
 - **Uncommitted:** nothing.
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.

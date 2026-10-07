@@ -5,7 +5,7 @@ import type { Sql } from '../../db.js';
 import { AppError } from '../../errors.js';
 import type { PhotoReceiver } from '../../photos/process.js';
 import { deleteCover, saveCover } from '../../photos/service.js';
-import { fieldUsage, getProject } from '../../projects/reads.js';
+import { ADMIN_VIEW, fieldUsage, getProject } from '../../projects/reads.js';
 import { projectNotFound, visibleProject } from '../../records/reads.js';
 import {
   fieldCreateBody,
@@ -60,7 +60,6 @@ export interface ProjectsAdminDeps {
 }
 
 const fieldNotFound = () => new AppError('NOT_FOUND', 'ফিল্ড পাওয়া যায়নি');
-const ADMIN_VIEW = { admin: true };
 
 /** The If-Match header as a timestamp, or undefined when it isn't sent. */
 function ifMatchOf(req: Request): string | undefined {

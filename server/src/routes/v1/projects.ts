@@ -11,7 +11,16 @@ import { DEFAULT_READ_RATE_LIMIT, readRateLimiter, type ReadRateLimit } from './
 // The project registry reads (docs/api/PROJECTS_API_CONTRACT.md §4.1). Public, but an admin
 // session sees more, so every answer varies on the cookie and an admin's is never cached.
 
-export const viewerOf = (req: Request): Viewer => ({ admin: req.admin !== undefined });
+/**
+ * The reader as the read queries see it. Every draft only for an exact `allProjects: true`; a scoped
+ * editor its project keys; anything else (a visitor, a principal without a list) nothing: fails closed.
+ */
+export function viewerOf(req: Request): Viewer {
+  const admin = req.admin;
+  if (!admin) return { admin: false, drafts: [] };
+  if (admin.allProjects === true) return { admin: true, drafts: 'all' };
+  return { admin: true, drafts: Array.isArray(admin.projects) ? admin.projects : [] };
+}
 
 /** Answers vary on the cookie, and an admin's is never stored by any cache. */
 export const sessionAwareCaching: RequestHandler = (req, res, next) => {
