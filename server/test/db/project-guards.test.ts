@@ -108,6 +108,21 @@ describe('project guard', () => {
     await app`update public.housing_projects set photo_mode = 'after_only' where key = 'pics'`;
     await refused(app`update public.housing_projects set photo_mode = 'none' where key = 'pics'`, 'photo_mode');
   });
+
+  // The count is the database's own, never a value the client sent; the wording is a8e2154's 10b.
+  it('says how many records hold the photos the photo mode still needs', async () => {
+    await insertProject(owner, { key: 'pics', photo_mode: 'before_after' });
+    for (let i = 0; i < 2; i++) {
+      const rec = await insertRecord(app, { project_type: 'pics' });
+      await app`update public.housing_beneficiaries set prev_photo_url = 'p.webp', current_photo_url = 'c.webp' where id = ${rec.id}`;
+    }
+    const before = await refused(app`update public.housing_projects set photo_mode = 'after_only' where key = 'pics'`, 'photo_mode');
+    expect(before.message).toBe('2 টি রেকর্ডে আগের ছবি আছে — ছবি মোড "শুধু পরের ছবি"/"ছবি নেই" করা যাবে না');
+    await app`update public.housing_beneficiaries set prev_photo_url = null where project_type = 'pics'`;
+    await app`update public.housing_projects set photo_mode = 'after_only' where key = 'pics'`;
+    const current = await refused(app`update public.housing_projects set photo_mode = 'none' where key = 'pics'`, 'photo_mode');
+    expect(current.message).toBe('2 টি রেকর্ডে ছবি আছে — ছবি মোড "ছবি নেই" করা যাবে না');
+  });
 });
 
 describe('project delete', () => {

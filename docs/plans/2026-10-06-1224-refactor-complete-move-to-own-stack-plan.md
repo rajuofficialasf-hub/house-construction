@@ -181,7 +181,7 @@ Meanwhile the other developer rebuilt the app as a multi-project platform on Sup
   - error `details` carry the field key, never the value
   - a record delete cascades its private row (U2)
 - **Public-read CORS is an explicit list of public GET routes**, not a prefix. `/activity`, every `/private` route and every write stay off it. Public-read origins get credential-less CORS, so the browser sends no cookie and they can never get an admin body. Each chunk that adds a public GET adds it to the list, with a test.
-- **Guard messages carry only fixed text, a project or field label, and a field key.** P2 checks every `raise` in the ported SQL for this. A test asserts that `DETAIL` matches the field-key pattern (`^[a-z_]+(\.[a-z][a-z0-9_]*)?$`) and that a malformed `extra` value is not echoed back.
+- **Guard messages carry only fixed text, a project or field label, and a field key.** A count the database works out itself (never a client value) may appear too, as in the photo-mode guard's "% টি রেকর্ডে আগের ছবি আছে" (`0017`, P8 D1; user-decided 2026-10-07). P2 checks every `raise` in the ported SQL for this. A test asserts that `DETAIL` matches the field-key pattern (`^[a-z_]+(\.[a-z][a-z0-9_]*)?$`) and that a malformed `extra` value is not echoed back.
 - **Covers use the record-photo upload path:**
   - the same busboy and sharp receiver
   - magic-byte type check
