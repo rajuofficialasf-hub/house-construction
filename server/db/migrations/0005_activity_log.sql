@@ -1,15 +1,14 @@
--- Ported from supabase/sql/09_activity_log.sql. Admin checks move to the server; no row-level security; the actor comes from housing_current_actor().
+-- The activity log. Who may read or write it is the API's job; the actor comes from housing_current_actor().
 
 -- migrate:up
 -- =====================================================================
--- 09_activity_log.sql — একটিভিটি লগ (কে, কখন, কী করেছে)
+-- একটিভিটি লগ (কে, কখন, কী করেছে)
 -- দুই উৎস:
 --   ১) ট্রিগার: housing_beneficiaries এ INSERT/UPDATE/DELETE হলেই লগ — যে পথেই হোক (এডমিন UI, ইম্পোর্ট, ছবি স্ক্রিপ্ট)।
 --      বদলানো ফিল্ডের আগে→পরে মান details এ; ছবি বদল, সিরিয়াল বদল আলাদা action।
 --   ২) RPC housing_log_event(): ক্লায়েন্ট-ইভেন্ট (login, logout, import_run, photo_bulk_run …)।
 -- actor: সার্ভারের দেওয়া app.actor_id / app.actor_email (housing_current_actor())।
 -- housing_app লগ পড়তে পারে, বদলাতে/মুছতে পারে না (ট্রিগার/ফাংশন security definer)।
--- নিজস্ব সার্ভারে সমতুল্য: GET/POST /api/housing/activity (API_CONTRACT.md)।
 -- =====================================================================
 
 create table if not exists public.housing_activity_log (

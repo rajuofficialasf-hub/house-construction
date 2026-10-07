@@ -1,13 +1,8 @@
--- Ported from supabase/sql/01_schema.sql. Unchanged except: no pgcrypto extension (gen_random_uuid() is built in from PostgreSQL 13).
+-- The records table, housing_beneficiaries. gen_random_uuid() is built in from PostgreSQL 13, so no extension is needed.
 
 -- migrate:up
 -- =====================================================================
--- 01_schema.sql — মূল টেবিল housing_beneficiaries
--- যতটা সম্ভব পোর্টেবল SQL। Supabase (Postgres) এ সরাসরি চলবে।
--- নিজস্ব সার্ভারে Postgres হলে হুবহু; MySQL হলে নিচের নোট দেখুন।
---
--- MySQL নোট: uuid → CHAR(36) DEFAULT (UUID()); timestamptz → DATETIME(3);
---   text → VARCHAR(255)/TEXT; CHECK কাজ করে MySQL 8.0.16+; ট্রিগার সিনট্যাক্স আলাদা।
+-- মূল টেবিল housing_beneficiaries: প্রতিটি সারি একজন উপকারভোগীর রেকর্ড।
 -- =====================================================================
 
 create table if not exists public.housing_beneficiaries (

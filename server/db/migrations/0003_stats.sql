@@ -1,8 +1,8 @@
--- Ported from supabase/sql/04_rpc_stats.sql. Unchanged except: no anon/authenticated grants (see 0006).
+-- Single-project stats and years (0006 grants them to housing_app; 0018 drops them).
 
 -- migrate:up
 -- =====================================================================
--- পরিসংখ্যান ও সালের তালিকা। ব্যবহার: GET /api/housing/stats ও /api/housing/years (API_CONTRACT.md)।
+-- পরিসংখ্যান ও সালের তালিকা, এক প্রকল্প বা সব রেকর্ড মিলিয়ে।
 -- =====================================================================
 
 -- মোট, সাল/বিভাগ/জেলা/উপজেলা অনুযায়ী সংখ্যা, এবং distinct সংখ্যা। p_project_type null হলে দুই প্রকল্প মিলিয়ে।

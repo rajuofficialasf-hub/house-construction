@@ -1,14 +1,11 @@
--- Project and field guards, ported from supabase/sql/10b_project_guards.sql, 11_project_rpcs.sql and
--- 12_activity_log_v2.sql: the rules that keep a project's key, URL, serials and field data safe, the
+-- Project and field guards: the rules that keep a project's key, URL, serials and field data safe, the
 -- serial counter for a new project, project creation with its fields in one call, the reorders, field
 -- usage and category value rename, and the log of every project and field change. housing_files
 -- also learns to hold a project's cover.
--- Differences from the Supabase files:
---   * Names carry the server's housing_ prefix.
 --   * Every guard error is our own HC400 with fixed text, at most the stored project or field label,
 --     and a field key in DETAIL. No slug, card, count or other value the client sent is echoed.
 --   * A project that has ever issued a serial can't be deleted, with no override: the reference's
---     asf.allow_project_delete was a session setting, which any caller can set.
+--     an override keyed to a session setting could be set by any caller.
 --   * Deleting a project deletes its fields, once the guard's checks have passed: with no records
 --     they hold no values, and the fields' foreign key would otherwise refuse the delete.
 --   * A stat card needs an id too, as the contract says.
@@ -16,7 +13,6 @@
 --     instead of failing inside the record trigger.
 --   * Only the counter and log trigger functions are security definer: housing_app may only read
 --     the counters and the log. Who may call what is the API's job, so there is no admin check.
---   * No RLS, asf_meta, fingerprints or grants to anon/authenticated.
 --   (docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md, "P4 decisions")
 
 -- migrate:up

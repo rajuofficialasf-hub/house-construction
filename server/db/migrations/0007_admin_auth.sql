@@ -5,12 +5,12 @@
 
 -- migrate:up
 create table public.housing_admins (
-  -- A uuid so it fits housing_activity_log.actor_id. Imported Supabase admins keep their auth.users id.
+  -- A uuid so it fits housing_activity_log.actor_id.
   id             uuid primary key default gen_random_uuid(),
   -- Stored lower-cased, so the unique index is also the login lookup.
   email          text not null unique check (email = lower(email)),
   name           text,
-  -- argon2id, or a bcrypt hash imported from Supabase until that admin's next login.
+  -- argon2id; the API accepts no other scheme.
   password_hash  text not null,
   disabled_at    timestamptz,
   created_at     timestamptz not null default now(),

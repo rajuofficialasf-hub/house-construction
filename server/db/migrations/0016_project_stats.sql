@@ -1,14 +1,10 @@
--- A project's stats and the home-page overview, ported from supabase/sql/11_project_rpcs.sql
--- (project_stats, projects_overview).
--- Differences from the Supabase file:
---   * Names carry the server's housing_ prefix.
---   * Neither function knows who is asking. Supabase hid drafts through RLS; here the API passes
+-- A project's stats and the home-page overview.
+--   * Neither function knows who is asking. The API passes
 --     p_public_only (stats) or p_drafts (overview), already reduced to false for a visitor. With
 --     p_public_only a group counts only its published children, and featured and without_photo
 --     use the same leaves as the counts, so a draft child's records and photos never show.
 --   * The stats always carry by_union ({} when light), so callers get one shape.
 --   * by_project is one group-by joined to the leaf list, not a count per leaf.
---   * No RLS, asf_meta, fingerprints or grants to anon/authenticated.
 --   (docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md, "P5 decisions")
 
 -- migrate:up

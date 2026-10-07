@@ -1,18 +1,14 @@
--- Record functions v2, ported from supabase/sql/11_project_rpcs.sql and 12_activity_log_v2.sql:
+-- Record functions v2:
 -- a project's leaf keys, the v2 bulk update, a bulk insert for any project, and the activity log v2
 -- for records and private values.
--- Differences from the Supabase files:
---   * project_leaf_keys is housing_project_leaf_keys, after the server's table prefix. It doesn't
---     know who is asking; callers filter by housing_public_project_keys() for a visitor.
---   * The bulk update keeps its signature, so the old PUT /api/v1/housing/bulk runs it too. Its
---     private part updates first and inserts only when no row exists: an upsert fires the BEFORE
+--   * housing_project_leaf_keys doesn't know who is asking; callers filter by housing_public_project_keys() for a visitor.
+--   * The bulk update keeps v1's signature. Its private part updates first and inserts only when no row exists: an upsert fires the BEFORE
 --     INSERT trigger first, with no old row, which would refuse an unchanged archived private key.
 --   * housing_bulk_insert_records is new. Both bulk functions add the failing row's 0-based index to
 --     a guard's error as HINT 'row_index=<n>', which server/src/errors.ts passes to the client.
 --   * Errors are our own SQLSTATE HC400/HC409 with fixed text, never a key or value the client sent.
---   * housing_next_serial is unchanged: the Supabase v2 only adds a "drafts for admins" check, and
---     the API makes that check (a session setting can't be trusted for it).
---   * No RLS, asf_meta, fingerprints or grants to anon/authenticated.
+--   * housing_next_serial is unchanged: the API decides whether a caller may see a draft's next
+--     serial (a session setting can't be trusted for it).
 --   (docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md, "P3 decisions")
 
 -- migrate:up

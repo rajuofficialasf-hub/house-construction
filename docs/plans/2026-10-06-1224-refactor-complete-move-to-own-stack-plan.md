@@ -2989,7 +2989,7 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
 ```
 X=(-- . ':!docs/plans' ':!docs/learnings' ':!docs/history' ':!CLAUDE.md')
 git grep -nIiE 'supabase|deploy/|import[-:]supabase|anon[ _]key|service_role|SIMULATE_LEGACY|api/v1/housing|(^|[^_])API_CONTRACT\.md|bcrypt|backendMode' "${X[@]}"
-git grep -nIE '(^|[^A-Za-z])RLS([^A-Za-z]|$)|SQL [0-9০-৯]+|পুরনো ডাটাবেস' "${X[@]}"
+git grep -nIE '(^|[^A-Za-z])RLS([^A-Za-z]|$)|(^|[^A-Za-z])SQL [0-9০-৯]+|পুরনো ডাটাবেস' "${X[@]}"
 ```
 
 - The second search is case-sensitive, so `RLS` doesn't match "URLs".
@@ -3254,7 +3254,7 @@ git grep -nIE '(^|[^A-Za-z])RLS([^A-Za-z]|$)|SQL [0-9০-৯]+|পুরনো �
 - **Tests:** the global setup still migrates up and down cleanly. `npm --prefix server test` runs in the final verification.
 - **Done when:** a script check of the diff shows every changed line is a comment, and the AE4 searches show no hit in `server/db/migrations/`.
 - **Depends on:** U59
-- **Status:** todo
+- **Status:** done
 
 ### U64. Comment scrub and the AE4 search
 - **Goal:** Nothing live mentions the old system. AE4 holds.
@@ -3343,7 +3343,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** P9 `ae-work`: U59 (/housing routes and 0018; characterization map first), then U61, U63, U62, U64; then simplify, review and the full verification.
+- **Next:** P9 `ae-work`: finish U59 (test port in progress) and U61 (contract rewrite in progress), then U62, U64; then simplify, review and the full verification.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.

@@ -1,17 +1,16 @@
--- Record rules, ported from supabase/sql/10b_project_guards.sql: one custom value's check and
+-- Record rules: one custom value's check and
 -- normalisation (housing_field_value), the record check on every insert and update
 -- (housing_validate_record), and the private-values check (housing_beneficiary_private_validate).
--- Differences from the Supabase file:
 --   * Every raise uses our own SQLSTATE HC400, which server/src/errors.ts passes to the client with
 --     its message and the field key in DETAIL. Messages hold fixed text, a field or project label and
 --     configured limits, never a value or key the client sent; an unknown key goes only into DETAIL,
 --     and only when it has the field-key format.
---   * The money limit is 1e10 (supabase/sql/13_money_limit.sql).
---   * The "only a main admin may remove a photo" check is gone: a trigger can't know the caller's
---     role safely, so the API refuses photo columns in record bodies instead
+--   * The money limit is 1e10.
+--   * No trigger checks that only a main admin removes a photo: a trigger can't know the caller's
+--     role safely, so the API refuses photo columns in record bodies
 --     (docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md, "P2 decisions").
 --   * The functions run as the caller (no security definer); housing_app already reads the tables
---     they read. There is no RLS and no asf_meta.
+--     they read.
 
 -- migrate:up
 

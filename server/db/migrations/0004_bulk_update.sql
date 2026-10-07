@@ -1,4 +1,4 @@
--- Ported from supabase/sql/07_rpc_bulk.sql. Unchanged except: no authenticated grant (see 0006).
+-- Bulk update by serial (0006 grants it to housing_app; 0014 replaces it with v2).
 
 -- migrate:up
 -- =====================================================================
@@ -8,7 +8,6 @@
 -- যে ফিল্ড JSON এ নেই (null) সেটি অপরিবর্তিত থাকে। (project_type, serial_no) না মিললে সেই সিরিয়াল "missing" তালিকায়।
 -- এডমিন যাচাই সার্ভার করে (NE-SEC-03)।
 -- এক কলে সর্বোচ্চ ৫০০ সারি পাঠানোর নিয়ম (ফ্রন্টএন্ড ২০০ করে পাঠায়)।
--- নিজস্ব সার্ভারে সমতুল্য: PUT /api/housing/bulk (API_CONTRACT.md §৪.৯খ)
 -- =====================================================================
 
 create or replace function public.housing_bulk_update_by_serial(p_project_type text, p_rows jsonb)

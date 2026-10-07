@@ -1,8 +1,8 @@
--- The photo-mode guard says how many records hold the photos the current mode still needs, as the
--- reference does (a8e2154, supabase/sql/10b_project_guards.sql). 0015 had dropped the count under the
--- "fixed text" rule, which is about values the client sent; this count is the database's own.
+-- The photo-mode guard says how many records hold the photos the current mode still needs, so the
+-- admin knows what to clear first. The count is the database's own, never a value the client sent,
+-- so the "fixed text" rule allows it.
 -- Only housing_projects_guard() changes. The trigger keeps pointing at it.
--- (docs/progress/P8_WALKTHROUGH_CHECKLIST.md, D1)
+-- (docs/history/P8_WALKTHROUGH_CHECKLIST.md, D1)
 
 -- migrate:up
 create or replace function public.housing_projects_guard()

@@ -1,5 +1,5 @@
--- Indexes for the list sorts of GET /api/v1/housing (docs/api/API_CONTRACT.md §4.1). serial_no is
--- the default sort and is used without a project filter, where the (project_type, serial_no) unique
+-- Indexes for the records list's sorts (docs/api/PROJECTS_API_CONTRACT.md §৪.৪.১). serial_no is
+-- the default sort, also across a group's projects, where the (project_type, serial_no) unique
 -- index can't serve it; created_at is a sort option. The other filter and sort columns are indexed
 -- in 0001. Plain create index: the table holds a few thousand rows, so the lock is brief.
 

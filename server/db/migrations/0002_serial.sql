@@ -1,8 +1,8 @@
--- Ported from supabase/sql/02_serial.sql. Admin checks move to the server; the actor comes from housing_current_actor() (defined here).
+-- Permanent serials per project. Who may call what is the API's job; the actor comes from housing_current_actor() (defined here).
 
 -- migrate:up
 -- =====================================================================
--- 02_serial.sql — স্থায়ী সিরিয়াল বরাদ্দ
+-- স্থায়ী সিরিয়াল বরাদ্দ
 -- নিয়ম: প্রতি project_type এ আলাদা কাউন্টার, ১ থেকে শুরু, একবার দিলে বদলায় না,
 --       ডিলেট হলেও পুনঃব্যবহার হয় না (কাউন্টার কখনো কমে না)।
 -- ইনসার্টে serial_no না দিলে ট্রিগার পরের নম্বর দেয়;

@@ -1,14 +1,12 @@
--- The project registry, ported from supabase/sql/10_projects.sql: projects (groups and their
+-- The project registry: projects (groups and their
 -- sub-projects), the custom fields admins define per project, and the private (admin-only) values
 -- kept apart from the public record. Records now belong to a registered project through a foreign
 -- key instead of the fixed ('semi_pucca', 'tin') CHECK, and gain union_name and extra (public custom
 -- values).
--- Differences from the Supabase file:
---   * Tables keep the server's housing_ prefix: housing_projects, housing_project_fields and
+--   * Tables carry the housing_ prefix: housing_projects, housing_project_fields and
 --     housing_beneficiary_private.
---   * There is no RLS. The API decides who sees drafts and private fields
+--   * The API decides who sees drafts and private fields
 --     (docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md, "Visibility").
---   * There are no asf_meta fingerprint helpers.
 --   * cover_path has no path CHECK; the cover upload work adds the rule that fits the server's
 --     file storage.
 -- Validation and guard triggers come in later migrations, so this one holds only the shape.
