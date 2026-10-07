@@ -21,7 +21,7 @@ import type {
 } from './types'
 
 /**
- * রেকর্ড পড়া/লেখার ইন্টারফেস। UI শুধু এটি ব্যবহার করবে, কখনো সরাসরি Supabase/fetch নয়।
+ * রেকর্ড পড়া/লেখার ইন্টারফেস। UI শুধু এটি ব্যবহার করবে, কখনো সরাসরি fetch নয়।
  *
  * পড়া (list, getById, getBySerial, getBySerials, stats, years, filterOptions): লগইন ছাড়া।
  * লেখা (create, update, delete, bulkInsert, uploadPhoto, deletePhoto): এডমিন লগইন লাগবে;
@@ -32,7 +32,6 @@ import type {
  * প্রকল্পের ছবি-মোড মানা হয়: শুধু-পরের-ছবি প্রকল্পে 'prev' আর ছবিহীন প্রকল্পে যেকোনো ছবি VALIDATION_ERROR (আপলোডের আগেই)।
  *
  * পর্ব ২: রেকর্ডে union_name ও extra (কাস্টম পাবলিক মান); গোপন মান আলাদা (getPrivate/setPrivate)।
- * পুরনো ডাটাবেসেও চলে: union_name/extra লেখায় বাদ পড়ে, পড়ায় খালি বসে, stats আসে housing_stats থেকে।
  */
 export interface HousingApi {
   list(params: ListParams): Promise<Page<HousingRecord>>
@@ -50,7 +49,7 @@ export interface HousingApi {
    * প্রকল্পের পরিসংখ্যান (গ্রুপ দিলে উপ-প্রকল্প মিলিয়ে)। projectType না দিলে 'housing' (পুরনো আচরণ: ঘর নির্মাণের সব)।
    * light = true: হোম কার্ডের হালকা সংস্করণ (by_union ও ক্যাটাগরির by_value বাদ)।
    * filters (খালি নয়): তালিকার একই ফিল্টারে গোনা হালকা পরিসংখ্যান, `filtered: true` — কার্ডগুলো ফিল্টার অনুযায়ী বদলায়।
-   *   ডাটাবেসে সুবিধাটি না থাকলে (SQL ১৫ চালানো হয়নি) মোট ফেরত, `filtered: false` — পাতা ভাঙে না।
+   *   যে ব্যাকএন্ড ফিল্টার করে না (মক), সে মোট ফেরত দেয়, `filtered: false` — পাতা ভাঙে না।
    */
   stats(projectType?: ProjectType, opts?: { light?: boolean; filters?: StatsFilters }): Promise<ProjectStats>
   years(projectType?: ProjectType): Promise<number[]>
@@ -64,13 +63,13 @@ export interface HousingApi {
    * url কলাম আপডেট হয়; পুরনো সিরিয়াল পুনরায় ব্যবহার হয় না।
    */
   changeSerial(id: string, newSerialNo: number): Promise<HousingRecord>
-  /** গোপন ফিল্ডের মান (এডমিন): { phone: '017…' }; না থাকলে {} (পুরনো ডাটাবেসেও {}) */
+  /** গোপন ফিল্ডের মান (এডমিন): { phone: '017…' }; না থাকলে {} */
   getPrivate(id: string): Promise<ExtraValues>
-  /** গোপন মান পুরোটা বদলে রাখা (এডমিন); কোনো key বাদ দিলে সেটি মুছে যায়। পুরনো ডাটাবেসে CONFIG_ERROR */
+  /** গোপন মান পুরোটা বদলে রাখা (এডমিন); কোনো key বাদ দিলে সেটি মুছে যায়। মকে NOT_IMPLEMENTED */
   setPrivate(id: string, data: ExtraValues): Promise<ExtraValues>
   /**
    * অনেক রেকর্ডের গোপন মান একসাথে (এডমিন; গোপন কলামসহ CSV এক্সপোর্ট, M-ধাপ ১০) — এক কলে ≤ ১০০টি id।
-   * ফল: { [record_id]: data } — মান নেই এমন রেকর্ড বাদ; পুরনো ডাটাবেসে {}।
+   * ফল: { [record_id]: data } — মান নেই এমন রেকর্ড বাদ।
    */
   getPrivateMany(projectType: ProjectType, ids: string[]): Promise<Record<string, ExtraValues>>
   /** একটিভিটি লগ (এডমিন): নতুন আগে, পেজিনেশন */

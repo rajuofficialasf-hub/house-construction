@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { HousingApiError, type HousingRecord } from '../interfaces/types'
 import { createRestHousingApi } from './index'
 
-// REST HousingApi: সঠিক মেথড, URL ও body পাঠায়, Supabase অ্যাডাপ্টারের মতোই page/page_size সীমিত করে,
+// REST HousingApi: সঠিক মেথড, URL ও body পাঠায়, page/page_size সীমার ভেতরে আনে,
 // আর সার্ভারের উত্তর অপরিবর্তিত ফেরত দেয় (docs/api/PROJECTS_API_CONTRACT.md §৪.৩–৪.৫)।
 
 const BASE = 'http://api.test'
@@ -75,7 +75,7 @@ describe('createRestHousingApi reads', () => {
     })
   })
 
-  it('clamps page and page_size the way the Supabase adapter does, and leaves out empty values', async () => {
+  it('clamps page and page_size into the server\'s range, and leaves out empty values', async () => {
     const fetchMock = stubFetch(() => json(200, EMPTY_PAGE))
     const api = createRestHousingApi(BASE)
     await api.list({ project_type: 'tin', page: 0, page_size: 1000, q: '  ', division: '' })

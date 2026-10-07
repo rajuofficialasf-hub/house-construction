@@ -1,6 +1,6 @@
 /**
  * ডোমেইন টাইপ (সব প্রকল্প)।
- * ব্যাকএন্ড-নিরপেক্ষ: Supabase ও REST দুই অ্যাডাপ্টারই এই টাইপে ডাটা ফেরত দেয়।
+ * ব্যাকএন্ড-নিরপেক্ষ: REST ও মক দুই অ্যাডাপ্টারই এই টাইপে ডাটা ফেরত দেয়।
  * ফিল্ডের নাম ডাটাবেস টেবিল (`housing_beneficiaries`, `projects`, `project_fields`) ও docs/api/PROJECTS_API_CONTRACT.md এর সাথে হুবহু মেলে।
  */
 
@@ -9,7 +9,7 @@ export type ProjectKey = string
 /** পুরনো নাম (পর্ব ১) — নতুন কোডে ProjectKey। প্রকল্পের তালিকা আসে রেজিস্ট্রি থেকে (src/features/projects/registry) */
 export type ProjectType = ProjectKey
 
-// ---------------------------------------------------------------- প্রকল্প রেজিস্ট্রি (পর্ব ২; SQL ১০)
+// ---------------------------------------------------------------- প্রকল্প রেজিস্ট্রি (পর্ব ২)
 export type PhotoMode = 'before_after' | 'after_only' | 'none'
 export type GeoDepth = 'upazila' | 'union'
 export type GeoLevel = 'division' | 'district' | 'upazila' | 'union'
@@ -168,10 +168,10 @@ export interface HousingRecord {
   division: string
   district: string
   upazila: string
-  /** ইউনিয়ন/পৌরসভা ('' = নেই); পুরনো ডাটাবেসে adapter '' বসায় */
+  /** ইউনিয়ন/পৌরসভা ('' = নেই) */
   union_name: string
   address: string
-  /** কাস্টম পাবলিক ফিল্ডের মান; পুরনো ডাটাবেসে adapter {} বসায় */
+  /** কাস্টম পাবলিক ফিল্ডের মান */
   extra: ExtraValues
   prev_photo_url: string | null
   prev_thumb_url: string | null
@@ -200,7 +200,7 @@ export interface HousingRecordInput {
   address: string
   /** প্রকল্প ইউনিয়ন ব্যবহার করলে (geo_depth = union) পাঠানো হয়; নইলে adapter বাদ দেয় */
   union_name?: string
-  /** প্রকল্পে কাস্টম ফিল্ড থাকলে পাঠানো হয়; নইলে adapter বাদ দেয় (পুরনো ডাটাবেসেও লেখা চলে) */
+  /** প্রকল্পে কাস্টম ফিল্ড থাকলে পাঠানো হয়; নইলে adapter বাদ দেয় */
   extra?: ExtraValues
   prev_photo_source?: string | null
   current_photo_source?: string | null
@@ -255,7 +255,7 @@ export interface ListParams {
   division?: string
   district?: string
   upazila?: string
-  /** ইউনিয়ন (হুবহু মিল; পুরনো ডাটাবেসে উপেক্ষিত) */
+  /** ইউনিয়ন (হুবহু মিল) */
   union_name?: string
   /**
    * কাস্টম ফিল্ডের ফিল্টার: { category: 'গরু' } — হুবহু মিল।
@@ -330,7 +330,6 @@ export type FieldStats = NumericFieldStats | CategoryFieldStats
 
 /**
  * প্রকল্পের পরিসংখ্যান (`project_stats`) — HousingStats এর সব কী, সাথে নতুন কী।
- * পুরনো ডাটাবেসে adapter `housing_stats` থেকে বানায়: by_union {}, fields {}, distinct.unions 0।
  */
 export interface ProjectStats extends HousingStats {
   distinct: HousingStats['distinct'] & { unions: number }
@@ -341,7 +340,7 @@ export interface ProjectStats extends HousingStats {
   /** পাবলিক টাকা/সংখ্যা/ক্যাটাগরি ফিল্ড অনুযায়ী */
   fields: Record<string, FieldStats>
   /**
-   * ফিল্টার অনুযায়ী গোনা (`stats(key, { filters })`, SQL ১৫ `project_stats_filtered`) হলে true — তখন শুধু total, distinct,
+   * ফিল্টার অনুযায়ী গোনা (`stats(key, { filters })`, docs/api/PROJECTS_API_CONTRACT.md §৪.৩) হলে true — তখন শুধু total, distinct,
    * by_project ও fields ভরা (by_year … {})। ফিল্টার চাওয়া হলেও ডাটাবেসে ফাংশনটি না থাকলে false (মোট ফেরত আসে)।
    */
   filtered?: boolean
@@ -405,7 +404,7 @@ export interface FilterOptions {
   divisions: string[]
   districts: string[]
   upazilas: string[]
-  /** "জেলা|উপজেলা|ইউনিয়ন" (stats.by_union থেকে; পুরনো ডাটাবেসে খালি) */
+  /** "জেলা|উপজেলা|ইউনিয়ন" (stats.by_union থেকে) */
   unions: string[]
 }
 
@@ -431,7 +430,7 @@ export type ActivityAction =
   | 'records_export'
   /** ক্লায়েন্ট-ইভেন্ট (M-ধাপ ১২): ক্যাটাগরির বানান একীকরণ — details { field, from, to, records } */
   | 'category_merge'
-  // পর্ব ২ (SQL ১২): গোপন মান (শুধু ফিল্ডের নাম, মান নয়) আর প্রকল্প/ফিল্ডের সেটিং
+  // গোপন মান (শুধু ফিল্ডের নাম, মান নয়) আর প্রকল্প/ফিল্ডের সেটিং
   | 'private_update'
   | 'project_create'
   | 'project_update'
@@ -449,7 +448,7 @@ export interface ActivityEntry {
   id: number
   at: string
   actor_id: string | null
-  /** ইমেইল; স্ক্রিপ্ট হলে 'service_role' */
+  /** ইমেইল; সেশন ছাড়া (মাইগ্রেশন বা সার্ভারের স্ক্রিপ্ট) null */
   actor_email: string | null
   action: ActivityAction
   project_type: ProjectType | null
@@ -519,8 +518,8 @@ export class HousingApiError extends Error implements ApiError {
 
 /**
  * এডমিনের ভূমিকা: 'main_admin' = মূল/সুপার এডমিন (একজন) — সব, মোছা ও প্রকল্পের সেটিংসসহ;
- * 'editor' = প্রকল্পের ইউজার (SQL ১৪, পর্ব চ) — শুধু বরাদ্দ প্রকল্পে যোগ ও এডিট; মোছা, থাকা ছবি বদল, মান ফাঁকা করা,
- * সিরিয়াল বদল আর সেটিংস নয়; 'admin' = SQL ১৪-এর আগের সাধারণ এডমিন (পুরনো ডাটাবেসে)। সব নিষেধ ডাটাবেসে (RLS/ট্রিগার)।
+ * 'editor' = প্রকল্পের ইউজার — শুধু বরাদ্দ প্রকল্পে যোগ ও এডিট; মোছা, থাকা ছবি বদল, মান ফাঁকা করা, সিরিয়াল বদল আর
+ * সেটিংস নয়। সার্ভার এখনো দেয় শুধু 'admin' ও 'main_admin'; ইউজার-ব্যবস্থাপনা (docs/api/PROJECTS_API_CONTRACT.md §৪.৬) এলে 'editor' আসবে।
  */
 export type AdminRole = 'admin' | 'main_admin' | 'editor'
 
@@ -530,7 +529,7 @@ export interface AuthUser {
   name: string | null
   /** housing_admins টেবিল থেকে: main_admin (মোছা ও সেটিংস পারেন), editor (প্রকল্পের ইউজার) বা পুরনো admin */
   role: AdminRole
-  /** মূল এডমিন বা "সব প্রকল্প" এর ইউজার (SQL ১৪-এর আগে সবাই) — তখন projects দেখা হয় না */
+  /** মূল এডমিন বা "সব প্রকল্প" এর ইউজার (সার্ভারের সব এডমিন, এখন) — তখন projects দেখা হয় না */
   allProjects: boolean
   /** যেসব প্রকল্পে যোগ/এডিট করতে পারেন (গ্রুপ-বরাদ্দে উপ-প্রকল্পসহ) — শুধু UI দেখানো/লুকানোর জন্য; নিষেধ ডাটাবেসে */
   projects: ProjectKey[]

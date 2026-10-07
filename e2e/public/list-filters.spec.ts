@@ -84,7 +84,7 @@ test.describe('list filters (relationships only, no fixed data)', () => {
       await expect(filteredBanner(page)).toHaveCount(0)
       expect(await statTotal(page)).toBe(total)
     } else {
-      // The server and live Supabase (SQL 15) filter: the cards say so and count the list's total.
+      // The server filters: the cards say so and count the list's total.
       await expect(filteredBanner(page)).toBeVisible()
       expect(await statTotal(page)).toBe(await listTotal(page))
     }

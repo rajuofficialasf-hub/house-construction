@@ -2,8 +2,8 @@ import { expect, test } from '../support/backend'
 import { loginAsAdmin } from '../support/auth'
 import { GEO, uniqueName } from '../support/data'
 
-// On Supabase these rules are enforced only by the form (RecordForm validate + nfc), not by the backend,
-// so these specs are what guards them until the Express server enforces them too (contract known gaps).
+// The form checks these rules before sending (RecordForm validate + nfc), so a mistake shows at once;
+// the server enforces the same rules again (docs/api/PROJECTS_API_CONTRACT.md §৫.১).
 
 async function fillPlace(page: import('@playwright/test').Page) {
   await page.getByRole('combobox', { name: 'বিভাগ *', exact: true }).selectOption({ label: GEO.division })

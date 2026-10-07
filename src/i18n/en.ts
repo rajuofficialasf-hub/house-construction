@@ -371,7 +371,6 @@ export const EN: Record<string, string> = {
   'কে (ইমেইল)': 'Who (email)',
   'কোনো এন্ট্রি নেই।': 'No entries.',
   'একটি রেকর্ডের ইতিহাস দেখানো হচ্ছে — সব দেখুন': 'Showing history of one record — view all',
-  'স্ক্রিপ্ট (service_role)': 'Script (service_role)',
 }
 
 // ---------------------------------------------------------------- প্লেসহোল্ডারযুক্ত ও বাকি বার্তা

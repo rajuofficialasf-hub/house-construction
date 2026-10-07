@@ -38,7 +38,7 @@ export function useHousingStats(projectType?: ProjectType): StatsState {
 }
 
 /**
- * ফিল্টার অনুযায়ী পরিসংখ্যান (SQL ১৫): filters = null হলে কোনো কল নয়, null ফেরত (তখন মোট stats ব্যবহার করুন)।
+ * ফিল্টার অনুযায়ী পরিসংখ্যান (docs/api/PROJECTS_API_CONTRACT.md §৪.৩): filters = null হলে কোনো কল নয়, null ফেরত (তখন মোট stats ব্যবহার করুন)।
  * ফিল্টার বদলালে আবার লোড; পুরনো উত্তর (অন্য ফিল্টারের) উপেক্ষা হয়। ডাটাবেসে সুবিধা না থাকলে data.filtered = false।
  */
 export function useFilteredStats(projectType: ProjectType, filters: StatsFilters | null): StatsState | null {

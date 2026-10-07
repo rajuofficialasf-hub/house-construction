@@ -3,7 +3,7 @@ import type { AuthUser, ProjectKey } from '@/backend'
 
 /**
  * এডমিন প্যানেলের বর্তমান ইউজার (পর্ব চ, M-ধাপ ১৯) — RequireAdmin দেয়; প্যানেলের বাইরে null।
- * শুধু দেখানো/লুকানোর জন্য — প্রকৃত নিষেধ ডাটাবেসে (SQL ১৪: RLS, গার্ড-ট্রিগার, Storage পলিসি)।
+ * শুধু দেখানো/লুকানোর জন্য — প্রকৃত নিষেধ সার্ভারে।
  */
 export const AdminUserContext = createContext<AuthUser | null>(null)
 

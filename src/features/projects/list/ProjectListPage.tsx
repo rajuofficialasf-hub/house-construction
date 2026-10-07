@@ -66,7 +66,7 @@ export function ProjectListPage({ project }: Props) {
     [projectType, page, filters],
   )
   const list = useHousingList(params)
-  // কার্ড ফিল্টার অনুযায়ী (SQL ১৫): ফিল্টার থাকলে আলাদা হালকা stats; ড্রপডাউন ও মানচিত্র মোট stats থেকেই
+  // কার্ড ফিল্টার অনুযায়ী (docs/api/PROJECTS_API_CONTRACT.md §৪.৩): ফিল্টার থাকলে আলাদা হালকা stats; ড্রপডাউন ও মানচিত্র মোট stats থেকেই
   const statsFilters = useMemo<StatsFilters | null>(() => {
     if (!hasActiveListFilters(filters)) return null
     const { year, division, district, upazila, union_name, fields, q } = params

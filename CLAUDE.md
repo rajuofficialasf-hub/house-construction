@@ -1,6 +1,6 @@
 # House construction (As-Sunnah Foundation project platform)
 
-A public site listing each project's beneficiaries, with an admin panel for records, photos and the project registry. The React UI talks to the API only through the adapters in `src/backend/`. The move off Supabase is planned in `docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md`.
+A public site listing each project's beneficiaries, with an admin panel for records, photos and the project registry. The React UI talks to the API only through the adapters in `src/backend/`. The project moved here from a Supabase version (`docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md`); that history, and where to restore anything removed, is in `docs/history/README.md`.
 
 ## Stack profile
 
@@ -14,7 +14,7 @@ A public site listing each project's beneficiaries, with an admin panel for reco
   - separate `housing_owner` (migrations) and `housing_app` (runtime) roles
 - **Auth:** the server's own admin table and opaque cookie sessions (`server/src/auth/`), not auth-core. This is a deliberate deviation from ST-04: a few admins, no signup, public reads (`docs/architecture/migration-notes.md`). Admins have the role `admin` or `main_admin`, and only a `main_admin` may delete.
 - **File storage:** the storage adapter in `server/src/storage/`. The NAS driver is used in dev and tests. The S3 driver is built but unused (ST-05).
-- **Supabase:** being removed (ST-06). Don't add new uses.
+- **Supabase:** removed (ST-06). Don't add any use; `npm run check:prod-bundle` fails on it.
 
 ## Commands
 

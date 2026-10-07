@@ -89,7 +89,7 @@ export function createMockHousingApi(store: MockStore, storage: ImageStorage): H
     if (!s.isAdmin) throw new HousingApiError('FORBIDDEN', 'আপনার এডমিন অনুমতি নেই')
     return { id: s.user.id, email: s.user.email }
   }
-  /** মোছা (রেকর্ড, ছবি) শুধু মূল এডমিন — Supabase অ্যাডাপ্টারের মতো */
+  /** মোছা (রেকর্ড, ছবি) শুধু মূল এডমিন, সার্ভারের মতো */
   const requireMainAdmin = () => {
     const actor = requireAdmin()
     if (store.session?.user.role !== 'main_admin') throw new HousingApiError('FORBIDDEN', 'শুধু মূল এডমিন মুছতে পারেন')

@@ -79,7 +79,7 @@ export const adminRoutes = [
   <Route key="admin-login" path="admin/login" element={<HousingLoginPage />} />,
   <Route key="admin" path="admin" element={<RequireAdmin />}>
     <Route index element={<Lazy><LazyAdminDashboardPage /></Lazy>} />
-    {/* প্রকল্পের সেটিংস: মূল এডমিন ও (SQL ১৪-এর আগের) সাধারণ এডমিন; প্রকল্পের ইউজার নয় — পর্ব চ */}
+    {/* প্রকল্পের সেটিংস: মূল এডমিন ও সাধারণ এডমিন; প্রকল্পের ইউজার (editor) নয় */}
     <Route path="projects" element={<RoleGate allow={SETTINGS_ROLES}><Lazy><LazyAdminProjectsPage /></Lazy></RoleGate>} />
     <Route path="projects/new" element={<RoleGate allow={SETTINGS_ROLES}><Lazy><LazyProjectWizardPage /></Lazy></RoleGate>} />
     <Route path="projects/:key" element={<RoleGate allow={SETTINGS_ROLES}><Lazy><LazyProjectSettingsPage /></Lazy></RoleGate>} />

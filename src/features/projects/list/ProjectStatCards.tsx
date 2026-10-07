@@ -20,7 +20,7 @@ const ICON_CLASS = 'h-5 w-5 sm:h-6 sm:w-6'
 
 /**
  * প্রকল্পের পরিসংখ্যান কার্ড (M-ধাপ ১৩): যত কার্ড প্রকল্পের কনফিগে (`stat_cards`), তত — লেবেল pick() দিয়ে, আইকন
- * statIcons থেকে, টাকা formatTaka (৳), সংখ্যা count-up; লোডের সময় স্কেলেটন। ফিল্টার দিলে ফিল্টার অনুযায়ী (SQL ১৫; ২০২৬-১০-০৬)।
+ * statIcons থেকে, টাকা formatTaka (৳), সংখ্যা count-up; লোডের সময় স্কেলেটন। ফিল্টার দিলে ফিল্টার অনুযায়ী (docs/api/PROJECTS_API_CONTRACT.md §৪.৩)।
  * ঘর নির্মাণে আগের হুবহু চারটি কার্ড (মোট উপকারভোগী, বিভাগ, জেলা, উপজেলা)।
  */
 export function ProjectStatCards({ project, stats, filtered = false }: Props) {

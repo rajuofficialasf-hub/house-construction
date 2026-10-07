@@ -191,7 +191,7 @@ export function AdminDashboardPage() {
                   <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${ACTION_CLASS[e.action] ?? 'bg-slate-100 text-slate-700'}`}>
                     {ACTION_LABEL[e.action] ? t(ACTION_LABEL[e.action]) : e.action}
                   </span>
-                  <span className="truncate text-slate-700">{e.actor_email === 'service_role' ? t('স্ক্রিপ্ট (service_role)') : (e.actor_email ?? t('অজানা'))}</span>
+                  <span className="truncate text-slate-700">{e.actor_email ?? t('অজানা')}</span>
                   {p && <span className="text-slate-500">· {lt(p, 'name')}</span>}
                   {e.serial_no !== null && <span className="text-slate-500">· {t('সিরিয়াল')} {toBanglaNumber(e.serial_no)}</span>}
                   {e.record_name && <span className="truncate text-slate-500">({e.record_name})</span>}

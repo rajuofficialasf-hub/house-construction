@@ -4,8 +4,8 @@ import { MOCK_ACCOUNTS } from './fixtures'
 import type { MockStore } from './store'
 
 /**
- * মক অথ: সাইন-আপ নেই; শুধু fixtures এর অ্যাকাউন্ট। এডমিন তালিকায় না থাকলে লগইন সফল হলেও সেশন তৈরি হয় না (FORBIDDEN)
- * — Supabase অ্যাডাপ্টারের মতো (supabase/authProvider.ts)।
+ * মক অথ: সাইন-আপ নেই; শুধু fixtures এর অ্যাকাউন্ট। এডমিন তালিকায় না থাকলে লগইন সফল হলেও সেশন তৈরি হয় না
+ * (FORBIDDEN), যাতে "লগইন করা কিন্তু এডমিন নয়" অবস্থার UI পরীক্ষা করা যায়।
  */
 export function createMockAuthProvider(store: MockStore): AuthProvider {
   const adminUser = (): AuthUser | null => (store.session?.isAdmin ? store.session.user : null)

@@ -3,7 +3,7 @@ import type { AuthUser } from './types'
 /**
  * এডমিন অথেন্টিকেশনের ইন্টারফেস।
  * নিরাপত্তা এর উপর নির্ভর করে না; isAdmin() শুধু UI দেখানো/লুকানোর জন্য।
- * প্রকৃত অনুমতি যাচাই ব্যাকএন্ডে (Supabase RLS / নিজস্ব সার্ভার) হয়।
+ * প্রকৃত অনুমতি যাচাই সার্ভারে হয়।
  */
 export interface AuthProvider {
   login(email: string, password: string): Promise<AuthUser>

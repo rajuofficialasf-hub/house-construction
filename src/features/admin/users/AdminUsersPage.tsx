@@ -27,7 +27,7 @@ function StatusBadge({ active }: { active: boolean }) {
   )
 }
 
-/** CONFIG_ERROR এ ErrorNotice ".env.local" ইঙ্গিত দেখায় — এখানে আসল কারণ (SQL ১৪ চালানো হয়নি) দেখানো দরকার */
+/** CONFIG_ERROR হলে ErrorNotice এর সাধারণ ".env.local" ইঙ্গিতের বদলে ত্রুটির নিজের বার্তা দেখায় */
 function UsersError({ title, error }: { title: string; error: HousingApiError }) {
   if (error.code !== 'CONFIG_ERROR') return <ErrorNotice title={title} error={error} />
   return (

@@ -44,7 +44,7 @@ const clampPage = (page?: number) => Math.max(1, Math.floor(page ?? 1))
 const clampPageSize = (pageSize?: number) => Math.min(MAX_PAGE_SIZE, Math.max(1, Math.floor(pageSize ?? DEFAULT_PAGE_SIZE)))
 
 /**
- * সার্ভার পরিসীমার বাইরের page/page_size এ 400 দেয়; HousingApi আগের মতোই সীমিত করে (Supabase অ্যাডাপ্টারের মতো),
+ * সার্ভার পরিসীমার বাইরের page/page_size এ 400 দেয়; অ্যাডাপ্টার আগেই সীমার ভেতরে আনে (মকের মতো),
  * তাই কোনো পেজ ভুল মানে ভাঙে না। ফাঁকা মান পাঠানো হয় না। কাস্টম ফিল্ডের ফিল্টার যায় `f.<key>` হিসেবে।
  */
 function listQuery(params: ListParams): URLSearchParams {
@@ -126,7 +126,7 @@ export function createRestHousingApi(baseUrl: string): HousingApi {
       return get<ProjectStats>(ENDPOINTS.records.stats(keyOf(projectType), query))
     },
     years: async (projectType) => get<number[]>(ENDPOINTS.records.years(keyOf(projectType))),
-    // সার্ভারে আলাদা রাউট নেই: সাল আর পরিসংখ্যানের কী থেকে (Supabase অ্যাডাপ্টারের মতো)
+    // সার্ভারে আলাদা রাউট নেই: সাল আর পরিসংখ্যানের কী থেকে বানানো
     async filterOptions(projectType) {
       const [years, stats] = await Promise.all([api.years(projectType), api.stats(projectType)])
       const keys = (o: Record<string, number>) => Object.keys(o).sort((a, b) => a.localeCompare(b, 'bn'))
@@ -157,7 +157,7 @@ export function createRestHousingApi(baseUrl: string): HousingApi {
       try {
         await restRequest(baseUrl, ENDPOINTS.activity(), { method: 'POST', body: { action, details, project_type: projectType } })
       } catch {
-        // চুক্তি অনুযায়ী নীরব ব্যর্থতা (Supabase অ্যাডাপ্টারের মতো): লগের ইভেন্ট না গেলে মূল কাজ (ইম্পোর্ট ইত্যাদি) থামে না
+        // চুক্তি অনুযায়ী নীরব ব্যর্থতা: লগের ইভেন্ট না গেলে মূল কাজ (ইম্পোর্ট ইত্যাদি) থামে না
       }
     },
   }

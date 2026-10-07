@@ -256,7 +256,7 @@ function Entry({ e }: { e: ActivityEntry }) {
         </time>
         <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${ACTION_CLASS[e.action] ?? 'bg-slate-100 text-slate-700'}`}>{ACTION_LABEL[e.action] ? t(ACTION_LABEL[e.action]) : e.action}</span>
         <span className="text-slate-700">
-          <span className="font-medium">{e.actor_email === 'service_role' ? t('স্ক্রিপ্ট (service_role)') : (e.actor_email ?? t('অজানা'))}</span>
+          <span className="font-medium">{e.actor_email ?? t('অজানা')}</span>
         </span>
         {e.record_id && e.serial_no !== null && (
           <span className="text-slate-700">

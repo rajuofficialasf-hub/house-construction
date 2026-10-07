@@ -3272,7 +3272,7 @@ git grep -nIE '(^|[^A-Za-z])RLS([^A-Za-z]|$)|(^|[^A-Za-z])SQL [0-9০-৯]+|প�
 - **Tests:** the AE4 searches print nothing.
 - **Done when:** the searches are empty. The full verification follows.
 - **Depends on:** U51–U63
-- **Status:** todo
+- **Status:** done
 
 ### P9 order and parallel lanes
 
@@ -3343,7 +3343,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** P9 `ae-work`: U64 (comment scrub and the AE4 searches); then simplify, review and the full verification.
+- **Next:** P9 `ae-work`: the one `ae-simplify` and one `ae-review` over the P9 commits (41b74ab..HEAD), then the full P9 verification.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
@@ -3795,4 +3795,12 @@ Run these at the end of P1:
     - **U57:** the old nginx body-limit rules named the `/housing` upload paths, so the hosting requirements name the v1 upload routes instead.
     - **U59:** a subagent mapped every deleted test to a v1 test and ported the gaps first; every ported test passed on v1 with no change to `src/` (no v1 behaviour gap). Also deleted `server/test/db/reads.test.ts` (it tested the old single-project read functions, now removed). The v1 records list's OpenAPI entry gained the `page` and `page_size` descriptions the old route had. `src/housing/schemas.ts` keeps nine old-route schemas used only by its own unit test (`listQuery`, `createBody` and the like); they test shared pieces, so the simplify pass decides. Server suite: 1007 passed, 7 skipped.
     - **AE4 pattern:** `SQL [0-9]` also matched "PostgreSQL 13", so it now needs a word boundary.
+    - **U61:** a subagent rewrote the contract; it found the code and the plan disagree in eight places, and the contract follows the code: `/healthz` and `/readyz` (not `/health`); guard messages may also hold admin-configured limits and a field type name; `details.field` is the zod path for a zod refusal; `next-serial` is `200 null` for an unknown key or a group too; `POST /activity` counts toward the write limit; the overview is a public read for other apps.
+      - **Private values (checked against `a8e2154`):** any admin may `PUT` a record's private set, which can drop keys; only deleting the row needed the main admin there, and here the row goes only with its record (main admin). Parity holds.
+      - **Left for later:** a project key `overview` or `order` would be shadowed by those routes. The reserved words guard slugs, not keys. It predates P9.
+    - **U64, the AE4 searches** (the two commands in the P9 decisions, run from the repo root): the second prints nothing. The first prints only allowed hits, which exist to prove the removal or to point at history:
+      - the bundle guard (`scripts/check-prod-bundle.mjs`) and the two lines that describe it (`README.md`, `docs/testing/README.md`)
+      - tests that assert the removal: `src/backend/factory.test.ts` (a `supabase` value falls back to REST), `e2e/mock/admin-users.spec.ts` (no Supabase text), `server/test/http/openapi.test.ts` and `security.test.ts` (`/api/v1/housing` is 404 and gets no CORS)
+      - pointers to the history: `README.md`, `docs/README.md` and `docs/architecture/migration-notes.md` (the `docs/history/` link and `git show pre-p9:deploy/nginx/`)
+      - Also removed in U64: the activity log's `service_role` label (only Supabase scripts wrote that actor; the server writes null). `CLAUDE.md`'s two stale lines now say the move is done.
 

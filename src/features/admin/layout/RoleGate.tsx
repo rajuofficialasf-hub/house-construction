@@ -6,7 +6,7 @@ import { useAdminUser } from '../adminUser'
 
 /**
  * ভূমিকা অনুযায়ী পাতা (পর্ব চ, M-ধাপ ১৯): প্রকল্পের সেটিংস ও ইউজার-ব্যবস্থাপনা প্রকল্পের ইউজার (editor) দেখেন না —
- * বদলে স্পষ্ট বার্তা। শুধু দেখানো/লুকানো; নিষেধ ডাটাবেসে (SQL ১৪)।
+ * বদলে স্পষ্ট বার্তা। শুধু দেখানো/লুকানো; নিষেধ সার্ভারে।
  */
 export function RoleGate({ allow, children }: { allow: readonly AdminRole[]; children: ReactNode }) {
   const me = useAdminUser()
