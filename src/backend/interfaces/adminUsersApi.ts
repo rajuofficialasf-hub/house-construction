@@ -1,7 +1,7 @@
 import type { AdminUserInput, AdminUserRow, AdminUserSaveResult } from './types'
 
 /**
- * ইউজার-ব্যবস্থাপনা (M-ধাপ ১৯; docs/api/PROJECTS_API_CONTRACT.md §৪.৬) — **শুধু মূল এডমিন**।
+ * ইউজার-ব্যবস্থাপনা (docs/history/MULTI_PROJECT_PLAN.md, M-ধাপ ১৯; docs/api/PROJECTS_API_CONTRACT.md §৪.৬) — **শুধু মূল এডমিন**।
  * অ্যাকাউন্ট (ইমেইল-পাসওয়ার্ড) এখানে তৈরি হয় না — আগে সার্ভারের এডমিন CLI দিয়ে (`npm --prefix server run admin -- create`);
  * এখানে শুধু সেই অ্যাকাউন্টকে প্রকল্প বরাদ্দ, "সব প্রকল্প", চালু/বন্ধ।
  * সার্ভার এখনো এই API দেয় না, তাই REST ও মক দুটোই NOT_IMPLEMENTED দেয়।

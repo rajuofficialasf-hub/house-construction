@@ -18,7 +18,7 @@ export function hashPassword(password: string): Promise<string> {
  * costs one argon2 verify, so response time doesn't tell which admins hold such a hash (AU-10).
  */
 export async function verifyPassword(hash: string, password: string): Promise<boolean> {
-  if (hash.startsWith('$argon2')) {
+  if (hash.startsWith('$argon2id$')) {
     try {
       return await argon2Verify(hash, password);
     } catch {

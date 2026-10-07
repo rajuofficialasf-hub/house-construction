@@ -9,7 +9,7 @@ export type ProjectKey = string
 /** পুরনো নাম (পর্ব ১) — নতুন কোডে ProjectKey। প্রকল্পের তালিকা আসে রেজিস্ট্রি থেকে (src/features/projects/registry) */
 export type ProjectType = ProjectKey
 
-// ---------------------------------------------------------------- প্রকল্প রেজিস্ট্রি (পর্ব ২)
+// ---------------------------------------------------------------- প্রকল্প রেজিস্ট্রি
 export type PhotoMode = 'before_after' | 'after_only' | 'none'
 export type GeoDepth = 'upazila' | 'union'
 export type GeoLevel = 'division' | 'district' | 'upazila' | 'union'

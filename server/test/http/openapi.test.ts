@@ -185,8 +185,15 @@ describe('the API contract', () => {
   // added without its contract section fails here (docs/architecture/migration-notes.md, "Working rules").
   const contract = readFileSync(new URL('../../../docs/api/PROJECTS_API_CONTRACT.md', import.meta.url), 'utf8');
 
+  // A whole path, not a prefix of a longer one: /records/{id} must not pass on /records/{id}/photos/{slot}.
+  const named = (path: string) => new RegExp(`${path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w/{}-])`).test(contract);
+
   it('names every documented path', () => {
-    expect(Object.keys(document.paths).filter((path) => !contract.includes(path))).toEqual([]);
+    expect(Object.keys(document.paths).filter((path) => !named(path))).toEqual([]);
+  });
+
+  it('does not count a path that only starts a longer one', () => {
+    expect(named('/records/{id}/photos')).toBe(false);
   });
 });
 

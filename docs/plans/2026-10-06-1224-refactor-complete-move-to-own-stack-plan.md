@@ -3808,4 +3808,13 @@ Run these at the end of P1:
       - their unit tests move onto the live `recordCreateBody`, `recordPatchBody` and `serialBody` in a new `server/src/records/schemas.test.ts` (defaults, trim and NFC, refusals); `housing/schemas.test.ts` keeps the id, serials and activity checks
       - three stale comments (`factory.ts`, `interfaces/housingApi.ts`, `interfaces/types.ts`)
       - It skipped 4: the users page's `CONFIG_ERROR` wrapper and `withProjects`'s old-contract fallback (P9b reworks both), shared HTTP test helpers (a pattern older than P9, across about seven files), and the e2e login path `/housing/admin/…` (a working redirect). Efficiency found nothing.
+    - **`ae-review`** ran correctness, standards, security, database, React and testing reviewers over 41b74ab..9cc1c43. There were no P0 or P1 findings; React and database found nothing.
+      - **P2, fixed:** the paths-in-contract test matched substrings, so `/records/{id}` passed on `/records/{id}/photos/{slot}`; it now matches whole paths, with a test that a prefix doesn't count.
+      - **P2, fixed (docs):** an admin row whose hash isn't argon2id can't log in and sees only the wrong-password message. None exists (the dev database has 0 of 2), and `docs/ADMIN_GUIDE.md` §১ক now says that `list` shows such a row as `none` and `set-password` restores it.
+      - **P3, fixed:**
+        - `verifyPassword` accepted any `$argon2` variant; it now takes only `$argon2id$`, and an argon2i hash costs one dummy verify like any other scheme
+        - the timing test asserts exactly one argon2 call against the dummy hash (two for a broken argon2id hash)
+        - plan step numbers in comments now carry `docs/history/MULTI_PROJECT_PLAN.md`, or are replaced by plain words
+      - **P3, left by decision:** the browser write guard and the CSP check went with the nginx edge. They guarded a deployed site, and `public-rest` runs only against the local API. The CSP lives on under "Hosting requirements" in `docs/architecture/migration-notes.md`.
+      - **P3, noted:** editing the comments of run migrations was the user's one-time exception, so it is not a precedent (P10 records it in `CLAUDE.md`).
 

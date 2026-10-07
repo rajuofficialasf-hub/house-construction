@@ -33,12 +33,23 @@ describe('password hashing', () => {
     expect(await verifyPassword(OTHER_SCHEME, PASSWORD)).toBe(false);
   });
 
-  it('spends one argon2 verify on a refused or broken hash, so its timing matches a real one', async () => {
-    for (const hash of [OTHER_SCHEME, 'not-a-hash', '$argon2id$v=19$broken']) {
+  it('spends exactly one argon2 verify, against the dummy hash, on a hash in another scheme', async () => {
+    const argon2i = await argon2Hash(PASSWORD, { algorithm: 1 });
+    for (const hash of [OTHER_SCHEME, 'not-a-hash', argon2i]) {
       vi.mocked(argon2Verify).mockClear();
-      expect(await verifyPassword(hash, PASSWORD)).toBe(false);
-      expect(vi.mocked(argon2Verify).mock.calls.length, hash).toBeGreaterThanOrEqual(1);
+      expect(await verifyPassword(hash, PASSWORD), hash).toBe(false);
+      expect(vi.mocked(argon2Verify).mock.calls, hash).toHaveLength(1);
+      expect(vi.mocked(argon2Verify).mock.calls[0]?.[0], hash).not.toBe(hash);
     }
+  });
+
+  it('spends the dummy verify too when an argon2id hash is broken', async () => {
+    const broken = '$argon2id$v=19$broken';
+    vi.mocked(argon2Verify).mockClear();
+    expect(await verifyPassword(broken, PASSWORD)).toBe(false);
+    // The library throws on the broken hash, then the dummy verify runs.
+    expect(vi.mocked(argon2Verify).mock.calls).toHaveLength(2);
+    expect(vi.mocked(argon2Verify).mock.calls[1]?.[0]).not.toBe(broken);
   });
 
   it('says a weaker argon2id hash needs an upgrade', async () => {
