@@ -3119,7 +3119,7 @@ git grep -nIE '(^|[^A-Za-z])RLS([^A-Za-z]|$)|SQL [0-9০-৯]+|পুরনো �
   - `projectRules.test.ts`: a 409 with `details.field` maps to its field. A message with no `details` maps to no field.
 - **Done when:** `npx tsc -b`, `npm run lint`, `npm test`, `npm run build` and `npm run check:prod-bundle` pass, and `npm ls @supabase/supabase-js` is empty.
 - **Depends on:** U53, U55
-- **Status:** todo
+- **Status:** done
 
 ### U57. Remove deploy, the edge service and the runbook
 - **Goal:** No deploy or edge tooling is left, and CI and local dev keep working.
@@ -3343,7 +3343,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** P9 `ae-work`: U56 (Supabase adapter, package and scripts; mock rename), then U54, U57, U58, U59, U61, U63, U62, U64; then simplify, review and the full verification.
+- **Next:** P9 `ae-work`: U54 (shrink the backend surface), then U57, U58, U59, U61, U63, U62, U64; then simplify, review and the full verification.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.

@@ -68,11 +68,14 @@ describe('adapter factory', () => {
     }
   })
 
-  test('supabase and rest remain selectable', async () => {
+  test('rest is selectable, and a "supabase" value warns in dev and uses REST', async () => {
     vi.stubEnv('VITE_HOUSING_BACKEND', 'rest')
     expect((await import('./factory')).getBackendKind()).toBe('rest')
     vi.resetModules()
     vi.stubEnv('VITE_HOUSING_BACKEND', 'supabase')
-    expect((await import('./factory')).getBackendKind()).toBe('supabase')
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    expect((await import('./factory')).getBackendKind()).toBe('rest')
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('"supabase"'))
+    warn.mockRestore()
   })
 })

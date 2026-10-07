@@ -41,8 +41,9 @@ describe('friendlyProjectError on the server\'s errors', () => {
     )
   })
 
-  it('still translates a Supabase constraint name', () => {
-    expect(friendlyProjectError(err('CONFLICT', 'duplicate key value violates unique constraint "projects_slug_key"'))).toBe('এই URL আগে থেকেই আছে — অন্যটি দিন')
+  it('maps a conflict by its details.field only, never by the message text', () => {
+    const msg = 'duplicate key value violates unique constraint "projects_slug_key"'
+    expect(friendlyProjectError(err('CONFLICT', msg))).toBe(msg)
   })
 })
 

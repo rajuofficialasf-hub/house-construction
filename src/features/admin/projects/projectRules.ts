@@ -1,6 +1,6 @@
 /**
  * প্রকল্পের key / slug / ফাইল-প্রিফিক্সের নিয়ম (পরিকল্পনা §৪.৪, §৫.২) — ফর্মে সাথে সাথে যাচাই।
- * ডাটাবেসের নিয়মের হুবহু প্রতিরূপ (supabase/sql/10_projects.sql CHECK, 10b › projects_guard সংরক্ষিত শব্দ);
+ * ডাটাবেসের নিয়মের হুবহু প্রতিরূপ (server/db/migrations/0011_projects_registry.sql CHECK, 0015 › সংরক্ষিত শব্দ);
  * চূড়ান্ত যাচাই ডাটাবেসেই হয় — এখানে শুধু আগেভাগে জানানো।
  */
 import type { Project } from '@/backend'
@@ -96,9 +96,7 @@ export function isStaleEdit(err: unknown): boolean {
 
 /**
  * সার্ভারের ত্রুটি → বাংলা বার্তা। নিজস্ব সার্ভার কোন ঘর (details.field) জানায়, আর ইনপুটের নিয়ম ভাঙলে কারণও
- * (details.reason); গার্ড ও ডুপ্লিকেট-key এর বার্তা আগে থেকেই বাংলা। Supabase এর ইংরেজি Postgres বার্তা চেনা
- * constraint নাম দিয়ে অনুবাদ হয় — Supabase অ্যাডাপ্টার সরানোর সময় সেগুলোও যাবে (P9,
- * docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md)।
+ * (details.reason); গার্ড ও ডুপ্লিকেট-key এর বার্তা আগে থেকেই বাংলা, তাই অন্য সব বার্তা যেমন আছে তেমনই দেখানো হয়।
  */
 export function friendlyProjectError(err: unknown): string {
   const e = HousingApiError.from(err)
@@ -112,14 +110,6 @@ export function friendlyProjectError(err: unknown): string {
     if (field === 'key') return t('key: ইংরেজি ছোট অক্ষর দিয়ে শুরু, তারপর অক্ষর/অঙ্ক/_ (২–৪০ অক্ষর)')
     if (field === 'name_bn' || field === 'name_en') return t('বাংলা ও ইংরেজি দুই নামই দিন (১–১২০ অক্ষর)')
   }
-  if (e.code === 'CONFLICT' && /projects_slug_key/.test(m)) return t('এই URL আগে থেকেই আছে — অন্যটি দিন')
-  if (e.code === 'CONFLICT' && /projects_pkey/.test(m)) return t('এই key আগে থেকেই আছে — URL অংশ একটু বদলান')
-  if (e.code === 'CONFLICT' && /projects_file_prefix_key/.test(m)) return t('এই প্রিফিক্স অন্য প্রকল্পে আছে — অন্যটি দিন')
-  if (e.code === 'CONFLICT' && /project_fields_project_key_key/.test(m)) return t('এই প্রকল্পে একই key এর ফিল্ড আগে থেকেই আছে')
-  if (/projects_slug_format/.test(m)) return t('শুধু ছোট ইংরেজি অক্ষর, অঙ্ক আর মাঝে হাইফেন (-), যেমন self-reliance')
-  if (/projects_key_format/.test(m)) return t('key: ইংরেজি ছোট অক্ষর দিয়ে শুরু, তারপর অক্ষর/অঙ্ক/_ (২–৪০ অক্ষর)')
-  if (/projects_names/.test(m)) return t('বাংলা ও ইংরেজি দুই নামই দিন (১–১২০ অক্ষর)')
-  if (/projects_text_lengths/.test(m)) return t('কোনো লেখা নির্ধারিত সীমার চেয়ে বড়')
   if (e.code === 'FORBIDDEN') return t('এই কাজের অনুমতি নেই')
   return m
 }

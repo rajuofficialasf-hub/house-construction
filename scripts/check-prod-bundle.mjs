@@ -1,4 +1,5 @@
-// প্রোডাকশন বিল্ডে মক ব্যাকএন্ড (হার্ড-কোডেড টেস্ট অ্যাডমিনসহ) থাকে না — VITE_HOUSING_BACKEND=mock সেট করেও।
+// প্রোডাকশন বিল্ডে মক ব্যাকএন্ড (হার্ড-কোডেড টেস্ট অ্যাডমিনসহ) থাকে না — VITE_HOUSING_BACKEND=mock সেট করেও;
+// আর কোনো Supabase কোডও থাকে না (ST-06)।
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -12,6 +13,8 @@ const r = spawnSync('npx', ['vite', 'build', '--outDir', out, '--emptyOutDir'], 
 if (r.status !== 0) process.exit(r.status ?? 1)
 
 const MARKERS = ['housing_mock_state', '__housingMock', 'admin@example.test', '__mock-photos']
+// কেস না মেনে: supabase-js, তার URL ও env নাম যে রূপেই থাকুক
+const FORBIDDEN = /supabase/i
 const hits = []
 const walk = (dir) => {
   for (const f of fs.readdirSync(dir)) {
@@ -20,13 +23,14 @@ const walk = (dir) => {
     else if (/\.(js|css|html|json)$/.test(f)) {
       const text = fs.readFileSync(p, 'utf8')
       for (const m of MARKERS) if (text.includes(m)) hits.push(`${m} in ${path.relative(out, p)}`)
+      if (FORBIDDEN.test(text)) hits.push(`supabase in ${path.relative(out, p)}`)
     }
   }
 }
 walk(out)
 fs.rmSync(out, { recursive: true, force: true })
 if (hits.length) {
-  console.error('✗ production bundle contains mock backend code:\n  ' + hits.join('\n  '))
+  console.error('✗ production bundle contains mock backend or Supabase code:\n  ' + hits.join('\n  '))
   process.exit(1)
 }
-console.log('✓ production bundle contains no mock backend code')
+console.log('✓ production bundle contains no mock backend or Supabase code')

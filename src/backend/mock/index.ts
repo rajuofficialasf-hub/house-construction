@@ -6,7 +6,7 @@ import type { AuthProvider } from '../interfaces/authProvider'
 import type { HousingApi } from '../interfaces/housingApi'
 import type { ImageStorage } from '../interfaces/imageStorage'
 import type { ProjectsApi } from '../interfaces/projectsApi'
-import { createLegacyProjectsApi } from './legacyProjectsApi'
+import { createMockProjectsApi } from './projectsApi'
 import { createMockAuthProvider } from './authProvider'
 import { createMockHousingApi } from './housingApi'
 import { createMockImageStorage } from './imageStorage'
@@ -25,7 +25,7 @@ export function createMockBackend(opts: MockStoreOptions = {}): MockBackend {
   const imageStorage = createMockImageStorage(store)
   const housingApi = createMockHousingApi(store, imageStorage)
   // প্রকল্প-রেজিস্ট্রি নেই: ফলব্যাকের ৩টি প্রকল্প (REST অ্যাডাপ্টারের মতো)
-  const projectsApi = createLegacyProjectsApi((key) => housingApi.stats(key))
+  const projectsApi = createMockProjectsApi((key) => housingApi.stats(key))
   return { housingApi, projectsApi, authProvider: createMockAuthProvider(store), imageStorage, store }
 }
 

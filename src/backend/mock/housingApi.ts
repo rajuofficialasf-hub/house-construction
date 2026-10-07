@@ -20,7 +20,7 @@ import {
 } from '../interfaces/types'
 import { nfc } from '@/features/geo/geo'
 import { photoPath } from '@/features/housing/utils/imagePath'
-import { fromLegacyStats, LEGACY_GROUP_KEY, legacyNotSupported, legacyProjectType } from './legacyProjectsApi'
+import { toProjectStats, GROUP_KEY, notInMock, recordProjectType } from './projectsApi'
 import type { MockStore } from './store'
 
 /** প্রকল্প-রেজিস্ট্রি ছাড়া মক: শুধু ঘর নির্মাণের দুই প্রকল্প (সার্ভারের মতো) */
@@ -188,7 +188,7 @@ export function createMockHousingApi(store: MockStore, storage: ImageStorage): H
       const page = Math.max(1, Math.floor(params.page ?? 1))
       const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, Math.floor(params.page_size ?? DEFAULT_PAGE_SIZE)))
       let rows = store.records.filter((r) => {
-        const projectType = legacyProjectType(params.project_type)
+        const projectType = recordProjectType(params.project_type)
         if (projectType && r.project_type !== projectType) return false
         if (params.serial_no !== undefined && r.serial_no !== params.serial_no) return false
         if (params.year !== undefined && r.year !== params.year) return false
@@ -323,8 +323,8 @@ export function createMockHousingApi(store: MockStore, storage: ImageStorage): H
     },
 
     async stats(projectType, opts = {}) {
-      const key = projectType ?? LEGACY_GROUP_KEY
-      const only = legacyProjectType(key)
+      const key = projectType ?? GROUP_KEY
+      const only = recordProjectType(key)
       const rows = only ? store.records.filter((r) => r.project_type === only) : store.records
       const count = (key: (r: HousingRecord) => string) => {
         const m = new Map<string, number>()
@@ -345,12 +345,12 @@ export function createMockHousingApi(store: MockStore, storage: ImageStorage): H
         by_location: count((r) => `${r.district}|${r.upazila}`),
       }
       // মক ফিল্টারে গোনে না (বাড়ে না): মোট ফেরত, সাথে বলে দেওয়া যে ফিল্টার হয়নি — পাতা মোট দেখায়, ব্যানার নয়
-      const totals = fromLegacyStats(stats, key)
+      const totals = toProjectStats(stats, key)
       return hasStatsFilters(opts.filters) ? { ...totals, filtered: false } : totals
     },
 
     async years(projectType) {
-      const only = legacyProjectType(projectType)
+      const only = recordProjectType(projectType)
       const rows = only ? store.records.filter((r) => r.project_type === only) : store.records
       return [...new Set(rows.map((r) => r.year))].sort((a, b) => b - a)
     },
@@ -437,7 +437,7 @@ export function createMockHousingApi(store: MockStore, storage: ImageStorage): H
 
     // গোপন ফিল্ড নেই — REST অ্যাডাপ্টারের মতো খালি
     getPrivate: async () => ({}),
-    setPrivate: async () => legacyNotSupported(),
+    setPrivate: async () => notInMock(),
     getPrivateMany: async () => ({}),
 
     async listActivity(params) {

@@ -1,6 +1,6 @@
 /**
  * অ্যাডাপ্টার ফ্যাক্টরি।
- * env ভ্যারিয়েবল VITE_HOUSING_BACKEND ('supabase' | 'rest' | 'mock' — mock শুধু dev/test) দেখে কোন অ্যাডাপ্টার চলবে তা ঠিক করে।
+ * env ভ্যারিয়েবল VITE_HOUSING_BACKEND ('rest' | 'mock' — mock শুধু dev/test) দেখে কোন অ্যাডাপ্টার চলবে তা ঠিক করে।
  * UI কোড শুধু getHousingApi / getProjectsApi / getAuthProvider / getImageStorage ব্যবহার করবে।
  */
 import type { AuthProvider } from './interfaces/authProvider'
@@ -9,23 +9,15 @@ import type { ImageStorage } from './interfaces/imageStorage'
 import type { ProjectsApi } from './interfaces/projectsApi'
 import type { AdminUsersApi } from './interfaces/adminUsersApi'
 import { HousingApiError } from './interfaces/types'
-import {
-  createSupabaseAdminUsersApi,
-  createSupabaseAuthProvider,
-  createSupabaseHousingApi,
-  createSupabaseImageStorage,
-  createSupabaseProjectsApi,
-} from './supabase'
-import { getSupabase } from './supabase/client'
 import { createRestAdminUsersApi, createRestAuthProvider, createRestHousingApi, createRestImageStorage, createRestProjectsApi } from './rest'
 
-export type BackendKind = 'supabase' | 'rest' | 'mock'
+export type BackendKind = 'rest' | 'mock'
 
 const DEFAULT_BACKEND: BackendKind = 'rest'
 
 export function getBackendKind(): BackendKind {
   const raw = (import.meta.env.VITE_HOUSING_BACKEND ?? '').trim().toLowerCase()
-  if (raw === 'supabase' || raw === 'rest') return raw
+  if (raw === 'rest') return raw
   // 'mock' (ইন-মেমরি, টেস্টের জন্য) শুধু dev/test এ; প্রোডাকশন বিল্ডে উপেক্ষিত হয়ে ডিফল্টে ফেরে
   if (raw === 'mock' && import.meta.env.DEV) return raw
   if (raw !== '' && import.meta.env.DEV) {
@@ -102,32 +94,18 @@ function buildMockBackend(): Backend {
 }
 
 function buildBackend(): Backend {
-  const kind = getBackendKind()
-  if (kind === 'mock' && import.meta.env.DEV) return buildMockBackend()
-  if (kind === 'rest') {
-    const base = restBaseUrl()
-    const projectsApi = createRestProjectsApi(base)
-    const authProvider = createRestAuthProvider(base)
-    // এক এডমিনের চলমান (খসড়াসহ) তালিকা যেন পরের এডমিনের সঙ্গে ভাগ না হয়; ব্যাকএন্ড ক্যাশ হয়, তাই সাবস্ক্রিপশন একবারই
-    authProvider.onAuthChange(() => projectsApi.clearInFlight())
-    return {
-      housingApi: createRestHousingApi(base),
-      projectsApi,
-      authProvider,
-      imageStorage: createRestImageStorage(base),
-      adminUsersApi: createRestAdminUsersApi(base),
-    }
-  }
-  // lazy: env না থাকলে মেথড কলে CONFIG_ERROR, ইমপোর্ট/রেন্ডারে ক্র্যাশ নয়
-  const imageStorage = createSupabaseImageStorage(getSupabase)
-  // একটিই ProjectsApi: রেকর্ডের adapter একই ক্যাশ ও পুরনো-ডাটাবেস অবস্থা ব্যবহার করে
-  const projectsApi = createSupabaseProjectsApi(getSupabase)
+  if (getBackendKind() === 'mock' && import.meta.env.DEV) return buildMockBackend()
+  const base = restBaseUrl()
+  const projectsApi = createRestProjectsApi(base)
+  const authProvider = createRestAuthProvider(base)
+  // এক এডমিনের চলমান (খসড়াসহ) তালিকা যেন পরের এডমিনের সঙ্গে ভাগ না হয়; ব্যাকএন্ড ক্যাশ হয়, তাই সাবস্ক্রিপশন একবারই
+  authProvider.onAuthChange(() => projectsApi.clearInFlight())
   return {
-    housingApi: createSupabaseHousingApi(getSupabase, imageStorage, { projects: projectsApi }),
+    housingApi: createRestHousingApi(base),
     projectsApi,
-    authProvider: createSupabaseAuthProvider(getSupabase),
-    imageStorage,
-    adminUsersApi: createSupabaseAdminUsersApi(getSupabase),
+    authProvider,
+    imageStorage: createRestImageStorage(base),
+    adminUsersApi: createRestAdminUsersApi(base),
   }
 }
 

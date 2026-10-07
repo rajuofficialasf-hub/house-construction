@@ -1,6 +1,6 @@
 /**
- * মক ব্যাকএন্ডের ProjectsApi: প্রকল্প-রেজিস্ট্রি ছাড়া, Supabase এর পুরনো-ডাটাবেস পথের মতোই ফলব্যাকের ৩টি প্রকল্প
- * (ঘর নির্মাণ গ্রুপ, সেমিপাকা, টিন) দেখায়; প্রকল্প/ফিল্ড বদল NOT_IMPLEMENTED। মক ইচ্ছা করেই বহু-প্রকল্পে বাড়ে না —
+ * মক ব্যাকএন্ডের ProjectsApi: প্রকল্প-রেজিস্ট্রি ছাড়া ফলব্যাকের ৩টি স্থির প্রকল্প (ঘর নির্মাণ গ্রুপ, সেমিপাকা, টিন)
+ * দেখায়; প্রকল্প/ফিল্ড বদল NOT_IMPLEMENTED। মক ইচ্ছা করেই বহু-প্রকল্পে বাড়ে না —
  * প্রকল্পের নিয়ম শুধু সার্ভারে থাকে (docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md,
  * "Deferred to Planning — settled")।
  */
@@ -15,14 +15,14 @@ import {
   type ProjectStats,
 } from '../interfaces/types'
 
-/** গ্রুপ-key যেটি এক-প্রকল্পের ব্যাকএন্ডে "সব রেকর্ড" (project_type ছাড়া) বোঝায় */
-export const LEGACY_GROUP_KEY = 'housing'
+/** গ্রুপ-key, যেটি মকে "সব রেকর্ড" (project_type ছাড়া) বোঝায় */
+export const GROUP_KEY = 'housing'
 
 /** গ্রুপ-key হলে project_type ফিল্টার নেই (দুই প্রকল্প মিলিয়ে) */
-export const legacyProjectType = (key?: ProjectKey) => (key === LEGACY_GROUP_KEY ? undefined : key)
+export const recordProjectType = (key?: ProjectKey) => (key === GROUP_KEY ? undefined : key)
 
-/** পুরনো `HousingStats` → নতুন শেপ (by_union {}, fields {}, distinct.unions 0) */
-export function fromLegacyStats(raw: Partial<HousingStats> | null | undefined, key: ProjectKey): ProjectStats {
+/** মকের `HousingStats` → প্রকল্পের শেপ (by_union {}, fields {}, distinct.unions 0) */
+export function toProjectStats(raw: Partial<HousingStats> | null | undefined, key: ProjectKey): ProjectStats {
   const r = raw ?? {}
   return {
     total: r.total ?? 0,
@@ -33,14 +33,14 @@ export function fromLegacyStats(raw: Partial<HousingStats> | null | undefined, k
     by_location: r.by_location ?? {},
     distinct: { divisions: 0, districts: 0, upazilas: 0, ...(r.distinct ?? {}), unions: 0 },
     // একক প্রকল্পে নিজের মোট জানা; গ্রুপের ভাগ আলাদা কল ছাড়া জানা যায় না
-    by_project: key === LEGACY_GROUP_KEY ? {} : { [key]: r.total ?? 0 },
+    by_project: key === GROUP_KEY ? {} : { [key]: r.total ?? 0 },
     by_union: {},
     fields: {},
   }
 }
 
-export function legacyNotSupported(): never {
-  throw new HousingApiError('NOT_IMPLEMENTED', 'সার্ভার এখনো প্রকল্প/ফিল্ড বদল সমর্থন করে না')
+export function notInMock(): never {
+  throw new HousingApiError('NOT_IMPLEMENTED', 'মক ব্যাকএন্ডে প্রকল্প/ফিল্ড বদল নেই')
 }
 
 function isPublic(p: Project): boolean {
@@ -48,7 +48,7 @@ function isPublic(p: Project): boolean {
   return !p.parent_key || (FALLBACK_PROJECTS.find((x) => x.key === p.parent_key)?.is_published ?? false)
 }
 
-export function createLegacyProjectsApi(stats: (key: ProjectKey) => Promise<ProjectStats>): ProjectsApi {
+export function createMockProjectsApi(stats: (key: ProjectKey) => Promise<ProjectStats>): ProjectsApi {
   const all = (includeDrafts?: boolean) =>
     FALLBACK_PROJECTS.filter((p) => includeDrafts || isPublic(p)).map((p) => structuredClone(p))
 
@@ -97,17 +97,17 @@ export function createLegacyProjectsApi(stats: (key: ProjectKey) => Promise<Proj
         },
       }
     },
-    create: async () => legacyNotSupported(),
-    update: async () => legacyNotSupported(),
-    uploadCover: async () => legacyNotSupported(),
-    deleteCover: async () => legacyNotSupported(),
-    delete: async () => legacyNotSupported(),
-    reorder: async () => legacyNotSupported(),
-    createField: async () => legacyNotSupported(),
-    updateField: async () => legacyNotSupported(),
-    deleteField: async () => legacyNotSupported(),
-    reorderFields: async () => legacyNotSupported(),
+    create: async () => notInMock(),
+    update: async () => notInMock(),
+    uploadCover: async () => notInMock(),
+    deleteCover: async () => notInMock(),
+    delete: async () => notInMock(),
+    reorder: async () => notInMock(),
+    createField: async () => notInMock(),
+    updateField: async () => notInMock(),
+    deleteField: async () => notInMock(),
+    reorderFields: async () => notInMock(),
     fieldUsage: async () => ({ count: 0, values: [] }),
-    renameFieldValue: async () => legacyNotSupported(),
+    renameFieldValue: async () => notInMock(),
   }
 }
