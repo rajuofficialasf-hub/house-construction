@@ -42,7 +42,7 @@ export const requireAdmin: RequestHandler = (req, _res, next) => {
  * A guard that refuses the request unless the session's admin is the main admin, with this 403
  * message; the refusal is logged with logText.
  */
-function mainAdminOnly(message: string, logText = 'delete refused: not the main admin'): RequestHandler {
+function mainAdminOnly(message: string, logText: string): RequestHandler {
   return (req, _res, next) => {
     if (!req.admin) throw new AppError('UNAUTHENTICATED', 'লগইন করুন');
     if (req.admin.role !== 'main_admin') {
@@ -54,13 +54,13 @@ function mainAdminOnly(message: string, logText = 'delete refused: not the main 
 }
 
 /** Refuses the request unless the session's admin is the main admin, the only one who may delete. */
-export const requireMainAdmin = mainAdminOnly('শুধু মূল এডমিন মুছতে পারেন');
+export const requireMainAdmin = mainAdminOnly('শুধু মূল এডমিন মুছতে পারেন', 'delete refused: not the main admin');
 
 /** requireMainAdmin for a photo delete, with the contract's own message (§4.4.11). */
-export const requireMainAdminForPhotos = mainAdminOnly('শুধু মূল এডমিন ছবি মুছতে পারেন');
+export const requireMainAdminForPhotos = mainAdminOnly('শুধু মূল এডমিন ছবি মুছতে পারেন', 'delete refused: not the main admin');
 
 /** requireMainAdmin for a project cover delete, with the message the admin screens show (§4.1.8). */
-export const requireMainAdminForCovers = mainAdminOnly('শুধু মূল এডমিন কভার ছবি মুছতে পারেন');
+export const requireMainAdminForCovers = mainAdminOnly('শুধু মূল এডমিন কভার ছবি মুছতে পারেন', 'delete refused: not the main admin');
 
 /** Only the main admin manages the logins on /admin/users. */
 export const requireMainAdminForUsers = mainAdminOnly('ব্যবহারকারী সামলাতে পারেন শুধু মূল এডমিন', 'users page refused: not the main admin');

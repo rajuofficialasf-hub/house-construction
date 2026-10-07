@@ -19,7 +19,7 @@ export interface Viewer {
   drafts: 'all' | string[];
 }
 
-/** The writes' own reads: every project, as the main admin sees it. Their scope check is requireProjectScope. */
+/** The writes' own reads: every project, as an admin sees it. Their scope check is requireProjectScope. */
 export const ADMIN_VIEW: Viewer = { admin: true, drafts: 'all' };
 
 /**

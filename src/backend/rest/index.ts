@@ -161,7 +161,6 @@ export function createRestHousingApi(baseUrl: string): HousingApi {
   return api
 }
 
-/** ইউজার-ব্যবস্থাপনা (চুক্তি v১.৫ §৪.৭) — নিজস্ব সার্ভারে পরে */
 /**
  * ইউজার-ব্যবস্থাপনা (§৪.৬)। ইমেইল আর "অন্তত একটি প্রকল্প" এখানেই যাচাই হয়, যাতে পাতা সার্ভারে না গিয়েই ঘরের ভুল দেখায়;
  * সার্ভার দুটোই আবার যাচাই করে। এডমিন বা "সব প্রকল্প" হলে প্রকল্পের তালিকা পাঠানো হয় না।
@@ -172,8 +171,9 @@ export function createRestAdminUsersApi(baseUrl: string): AdminUsersApi {
     async save(input) {
       const email = input.email.trim().toLowerCase()
       if (!/^\S+@\S+\.\S+$/.test(email)) throw new HousingApiError('VALIDATION_ERROR', 'সঠিক ইমেইল দিন', { field: 'email' })
-      const allProjects = input.role === 'editor' && input.all_projects
-      const scoped = input.role === 'editor' && !allProjects
+      const editor = input.role === 'editor'
+      const allProjects = editor && input.all_projects
+      const scoped = editor && !input.all_projects
       if (scoped && input.is_active && input.projects.length === 0) {
         throw new HousingApiError('VALIDATION_ERROR', 'অন্তত একটি প্রকল্প বাছুন, অথবা "সব প্রকল্প" দিন', { field: 'projects' })
       }

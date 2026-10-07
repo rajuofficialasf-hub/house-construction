@@ -15,7 +15,7 @@ export const MAX_ASSIGNED_PROJECTS = 200;
  */
 export const adminUserBody = z.strictObject({
   email: emailSchema,
-  role: z.enum(['admin', 'editor']),
+  role: z.enum(ADMIN_ROLES).exclude(['main_admin']),
   all_projects: z.boolean(),
   projects: z
     .array(projectKey)

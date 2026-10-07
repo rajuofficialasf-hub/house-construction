@@ -68,14 +68,13 @@ export async function savePhoto<R extends object>(
   let record: R;
   try {
     record = await withActor(sql, actor, async (tx) => {
-      if (!(await lockRecord(tx, recordId))) throw notFound();
-      // Checked under the lock, so two editors' uploads into one empty slot can't both land.
-      if (refuseReplace) {
-        const [slot] = await tx<{ filled: boolean }[]>`
-          select (${tx(columns.photo)} is not null or ${tx(columns.thumb)} is not null) as filled
-          from public.housing_beneficiaries where id = ${recordId}`;
-        if (slot?.filled) throw photoReplaceRefused(kind);
-      }
+      // Locks the record and reads the slot in one statement; checked under the lock, so two editors'
+      // uploads into one empty slot can't both land.
+      const [slot] = await tx<{ filled: boolean }[]>`
+        select (${tx(columns.photo)} is not null or ${tx(columns.thumb)} is not null) as filled
+        from public.housing_beneficiaries where id = ${recordId} for update`;
+      if (!slot) throw notFound();
+      if (refuseReplace && slot.filled) throw photoReplaceRefused(kind);
       replaced = await tombstoneKind(tx, recordId, kind);
       const rows = upload.files.map((file) => ({
         record_id: recordId,

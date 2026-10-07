@@ -554,7 +554,7 @@ export interface AdminUserRow {
 /** লগইনের ভূমিকা, প্রকল্প ও অবস্থা বদল (PUT /api/v1/admin/users); মূল এডমিন বানানো যায় শুধু CLI দিয়ে */
 export interface AdminUserInput {
   email: string
-  role: 'admin' | 'editor'
+  role: Exclude<AdminRole, 'main_admin'>
   all_projects: boolean
   projects: ProjectKey[]
   is_active: boolean

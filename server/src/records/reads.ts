@@ -39,17 +39,17 @@ export const ADMIN_RECORD_COLUMNS = [...RECORD_COLUMNS, 'union_name', 'extra'] a
  * so does a scoped editor's, outside its projects.
  */
 function recordColumns(sql: Sql, viewer: Viewer) {
+  return sql`${sql(RECORD_COLUMNS.map((column) => `b.${column}`))}, b.union_name, ${extraFor(sql, viewer)} as extra`;
+}
+
+/** extra as stored for the viewer's admin view, the public-field whitelist otherwise; decided per row for a scoped editor. */
+function extraFor(sql: Sql, viewer: Viewer) {
+  if (viewer.drafts === 'all') return sql`b.extra`;
   const publicExtra = sql`(select coalesce(jsonb_object_agg(e.key, e.value), '{}'::jsonb) from jsonb_each(b.extra) e
            where exists (select from public.housing_project_fields f
                          where f.project_key = b.project_type and f.key = e.key and f.visibility = 'public'))`;
-  // Decided per row: a scoped editor's own projects give extra as stored, other projects the whitelist.
-  const extra =
-    viewer.drafts === 'all'
-      ? sql`b.extra`
-      : viewer.drafts.length === 0
-        ? publicExtra
-        : sql`case when ${seesAsAdmin(sql, viewer, sql`b.project_type`)} then b.extra else ${publicExtra} end`;
-  return sql`${sql(RECORD_COLUMNS.map((column) => `b.${column}`))}, b.union_name, ${extra} as extra`;
+  if (viewer.drafts.length === 0) return publicExtra;
+  return sql`case when ${seesAsAdmin(sql, viewer, sql`b.project_type`)} then b.extra else ${publicExtra} end`;
 }
 
 /**
