@@ -3758,7 +3758,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** P9b's `ae-simplify` and `ae-review` over the P9b commits (U65–U77 done), then the P9b verification and the Chrome walkthrough. P10 (the handoff guide and the final `CLAUDE.md` profile, with the mock rule and the migration-comment exception) follows P9b.
+- **Next:** P10: `ae-plan` adds its units, then `ae-work`. P10 is the handoff guide (R19) and the final `CLAUDE.md` profile, including the three roles (`main_admin`, `admin`, `editor`), the mock "doesn't grow" rule and the one-time migration-comment exception.
 - **Uncommitted:** nothing.
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
@@ -4283,3 +4283,65 @@ Run these at the end of P1:
         - the contract and spec repeat a few server cases on purpose, one per layer
         - the save function trusts the route's guard, not a DB-side actor check
       - **A second pass on U77** (feasibility, security) made it concrete: `seesAsAdmin` takes an expression; `fieldsOf`, `listProjects` and `recordColumns` decide per row; a roll-up runs as the admin view only for `'all'` or an in-scope leaf, so a group is always the visitor's total for a scoped editor; the overview passes `drafts && viewer.drafts === 'all'`; writes keep `drafts: 'all'`; `viewerOf` fails closed; plus the tests for each.
+  - **P9b done (2026-10-07):** user management on the server, with the `editor` role.
+    - **Commits:** `c1e942b`..`0409f79` on `dev-forhad` (from `da6c478`).
+      - Units: U65 `c1e942b`, U66 `61527c3`, U67 `348c051`, U68 `f4397c8`, U69 `6034907`, U70 `623b4fa`, U71 `75b712f`, U77 `bf85eda`, U75 `cffb14a`, U72 `f0151a1`, U73 `212708d`, U74 `7608130`, U76 `d87a600`.
+      - Then simplify `72d6e2f`, review fixes `0409f79`, and this Progress note.
+      - The plan file went in with U65.
+    - **Built as planned, with these small choices:**
+      - `emptiedField` returns the first emptied key (the plan said `emptiedFields`).
+      - `requireProjectScope` takes the request (for its log line), not the principal.
+      - The `0019` tests live in `editor-role.test.ts`, not in `admin-roles.test.ts` and `privileges.test.ts`.
+      - The users page shows "শেষ সক্রিয়" (last activity) for `last_seen_at`.
+      - The contract is at v2.1.
+    - **Simplify** (reuse, quality, efficiency): 7 applied, about 12 skipped (low value or outside the diff).
+      - The photo upload locks and reads the slot in one statement.
+      - The editable roles are derived from `ADMIN_ROLES`.
+      - `mainAdminOnly` takes its log text explicitly.
+      - `recordColumns` picks `extra` with early returns.
+      - A stale comment on the REST adapter is gone.
+    - **Review** (correctness, standards, security, database, react, testing): no P0. Fixed in `0409f79`:
+      - **P1, security:** a bulk update's custom value that was blank after trimming (`"   "`) emptied a stored value without `_clear`, for an editor and, against the contract, for every admin. Blank-after-trim now means unchanged.
+      - **P1, database:** `0019`'s down section made editors full admins. It now makes them disabled admins with their sessions ended.
+      - **P2, security:** an editor with "all projects" read the whole log, including other logins' rows with no project (logins, user changes). It now sees every project's rows and its own only, as SQL 14 did on `main`.
+      - **P3s:** the edit buttons wait for a pending save; three more tests (every delete refused to an editor, a group's editor outside its group, the in-scope writes' effects); the `listActivity` doc comment; plan-path citations; the serial route on one line.
+      - **Not acted on:**
+        - The database reviewer's P2 on PUBLIC execute: `0006`'s default privileges already revoke it, and `privileges.test.ts` proves it. Every table in the function is schema-qualified, so `pg_temp` can't shadow one.
+        - P3: an editor can tell an out-of-scope draft key exists (403, not 404). The plan's order puts `recordProject` before `requireProjectScope`.
+        - P3: the editor checks sit in the routes, not in services (NE-REQ-04).
+        - P3: the race tests count every ungranted lock in the database; safe while `fileParallelism` is false.
+        - P3: `0020` without `NOT VALID`; no row holds either key.
+    - **Verification** (after the review fixes, HEAD `0409f79`):
+      - server typecheck clean; `npm --prefix server test` 56 files, 1171 passed, 7 skipped
+        - The first run printed one unhandled `ECONNRESET` from `test/photos/process.test.ts` (untouched by P9b). That file passed 3 times alone, and a full rerun exited 0 with no error.
+      - `npx tsc -b` and `npm run lint` clean; `npm test` 248 passed, 2 skipped
+      - `test:contract:rest` 67 passed, 2 skipped (64 + 3 for user management)
+      - `test:e2e:rest-admin`, twice:
+        - first run: 71 passed, 1 failed, 1 skipped
+        - second run: 72 passed, 1 skipped
+        - The failure was `e2e/admin/project-settings.spec.ts` "publishing waits for the checklist…". It passed in the second full run and 3 times alone; flaky, unchanged by P9b. Watch it in CI.
+      - `test:e2e:rest` 17 passed, 2 skipped (compose `db` and `api`, after `GET /api/v1/projects` answered)
+      - `test:e2e:mock` 55 passed, 2 skipped; `test:all` green; `build` and `check:prod-bundle` clean
+      - dev database `db:migrate`, `db:rollback` (0020), `db:rollback` (0019), `db:migrate`: 20 applied, 0 pending
+      - both AE4 searches as after P9: the first lists only the nine allowed files, the second prints nothing
+    - **Chrome walkthrough:** passed. It ran on the local stack (compose `api` on 3001, `npm run dev` on 5173) with three CLI logins: `p9b-main` (main admin), `p9b-admin` and `p9b-editor`. The old `p8-main` was demoted to admin with `set-role` so a new main admin could be made.
+      - **Main admin:**
+        - sees all five logins, with its own row read-only
+        - gave the editor টিনের ঘর নির্মাণ
+        - switched `p9b-admin` to project user (the project ticks appear) and back to admin (they hide)
+        - disabled and re-enabled `p9b-admin`
+      - **Plain admin:** `/admin/users` shows the role gate and the API answers 403; the menu has "প্রকল্পসমূহ" and no "ইউজার"; the project settings open.
+      - **Editor:**
+        - The menu has only its project, with no "প্রকল্পসমূহ" and no "ইউজার"; `/admin/users` and `/admin/projects` show the role gate.
+        - The dashboard shows the group with the visitor's total and its own leaf with its own count (5), no draft, and no "নতুন প্রকল্প".
+        - The records page has no delete button.
+        - In-page probes:
+          - a PATCH in `semi_pucca` → 403 "এই প্রকল্পে আপনার কাজের অনুমতি নেই"
+          - emptying a filled `father_or_husband_name` → 403
+          - a serial change → 403
+          - a settings PATCH → 403
+          - the draft `demo` → 404, and absent from `?drafts=1`
+      - No console errors. Every API call answered as expected.
+        - The extension's network log showed `POST /auth/logout` as 503 three times. The API logged 204 for each and no 503 at all, and the app logged out cleanly, so it is a misreport by the extension.
+      - The three test logins are disabled (`admin disable`); `p8-main` stays a disabled admin.
+    - **Seen, left for P10 or later:** the role gate's text ("এই অংশ শুধু মূল এডমিনের … মূল এডমিন করেন") is shown to an editor on settings, where an admin may also work. The plan kept other screens unchanged.
