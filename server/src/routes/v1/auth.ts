@@ -8,7 +8,7 @@ import { login, logout } from '../../auth/service.js';
 import type { AdminPrincipal, AuthDeps } from '../../auth/types.js';
 import { AppError } from '../../errors.js';
 
-// Admin login, logout and current-admin routes (docs/api/API_CONTRACT.md §2).
+// Admin login, logout and current-admin routes (docs/api/PROJECTS_API_CONTRACT.md §2).
 
 const loginBody = z.object({
   email: emailSchema,

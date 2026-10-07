@@ -21,7 +21,7 @@ test.describe('admin login and logout', () => {
   })
 
   test('an account outside the admin list is told so and gets no admin access', async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name === 'admin-rest', 'the server has only admin accounts (docs/api/API_CONTRACT.md §2)')
+    test.skip(testInfo.project.name === 'admin-rest', 'the server has only admin accounts (docs/api/PROJECTS_API_CONTRACT.md §2)')
     await page.goto('/housing/admin/login')
     await fillLogin(page, MOCK_NON_ADMIN.email, MOCK_NON_ADMIN.password)
     await expect(page.getByText('এই অ্যাকাউন্ট এডমিন তালিকায় নেই')).toBeVisible()

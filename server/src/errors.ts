@@ -2,7 +2,7 @@ import type { ErrorRequestHandler, RequestHandler } from 'express';
 import postgres from 'postgres';
 import { ZodError } from 'zod';
 
-// Error codes and statuses from docs/api/API_CONTRACT.md §1.2. The REST adapter in
+// Error codes and statuses from docs/api/PROJECTS_API_CONTRACT.md §1.2. The REST adapter in
 // src/backend/rest/http.ts relies on exactly these codes.
 export const ERROR_STATUS = {
   VALIDATION_ERROR: 400,
@@ -20,7 +20,7 @@ export type ErrorCode = keyof typeof ERROR_STATUS;
 export interface ErrorDetails {
   field?: string;
   reason?: string;
-  /** The failing row of a bulk body (contract §4.9); `field` is then the field inside that row. */
+  /** The failing row of a bulk body (docs/api/PROJECTS_API_CONTRACT.md §4.4.7); `field` is then the field inside that row. */
   row_index?: number;
 }
 

@@ -3216,7 +3216,7 @@ git grep -nIE '(^|[^A-Za-z])RLS([^A-Za-z]|$)|(^|[^A-Za-z])SQL [0-9০-৯]+|প�
   - A reading pass ticks every item in the P9 decisions' contract list.
   - `git grep -nE '(^|[^_])API_CONTRACT\.md'` hits only plans, learnings and history.
 - **Depends on:** U59
-- **Status:** todo
+- **Status:** done
 
 ### U62. Docs, diagrams and the history folder
 - **Goal:** Current docs describe only the new stack, and history sits in one labelled place (R18).
@@ -3343,7 +3343,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** P9 `ae-work`: U61 (contract rewrite in progress), then the rest of U62 (README, docs/README, testing README) and U64; then simplify, review and the full verification.
+- **Next:** P9 `ae-work`: finish U62 (README, docs/README, testing README; the rest is done but uncommitted), then U64; then simplify, review and the full verification.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.

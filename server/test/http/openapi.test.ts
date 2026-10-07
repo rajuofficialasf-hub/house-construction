@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import type { RequestHandler, Router } from 'express';
 import request from 'supertest';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -176,6 +177,16 @@ describe('the old single-project routes', () => {
   it('answer 404', async () => {
     expect((await request(app).get('/api/v1/housing')).status).toBe(404);
     expect((await request(app).post('/api/v1/housing/bulk').set('Origin', 'http://localhost:5173').send({ rows: [] })).status).toBe(404);
+  });
+});
+
+describe('the API contract', () => {
+  // The contract names each route the way this document does (`/projects/{key}/stats`), so a route
+  // added without its contract section fails here (docs/architecture/migration-notes.md, "Working rules").
+  const contract = readFileSync(new URL('../../../docs/api/PROJECTS_API_CONTRACT.md', import.meta.url), 'utf8');
+
+  it('names every documented path', () => {
+    expect(Object.keys(document.paths).filter((path) => !contract.includes(path))).toEqual([]);
   });
 });
 

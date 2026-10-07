@@ -152,7 +152,7 @@ describe('path and other query schemas', () => {
   });
 });
 
-// Write bodies (contract §3.3, §4.5খ–§4.9গ).
+// Write bodies (docs/api/PROJECTS_API_CONTRACT.md §5.1).
 
 const record = {
   project_type: 'tin',

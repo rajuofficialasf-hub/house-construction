@@ -25,7 +25,7 @@ export interface HousingRecord {
   updated_at: Date;
 }
 
-// Exactly the contract §3.2 fields. Named, never `*`, so a column added later stays private
+// Exactly the record fields of docs/api/PROJECTS_API_CONTRACT.md §3.4. Named, never `*`, so a column added later stays private
 // until someone decides to publish it (DB-Q-05).
 export const RECORD_COLUMNS = [
   'id', 'project_type', 'serial_no', 'year', 'name', 'father_or_husband_name', 'division', 'district', 'upazila',

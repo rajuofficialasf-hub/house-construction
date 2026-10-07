@@ -9,7 +9,7 @@ import { readRateLimiter, type ReadRateLimit } from './shared.js';
 import { viewerOf } from './projects.js';
 
 // GET /api/v1/photos/:id: every photo the site shows comes through here, whichever driver holds
-// it, so the browser never sees a bucket URL or storage key (NS-10, NS-41; contract §5).
+// it, so the browser never sees a bucket URL or storage key (NS-10, NS-41; docs/api/PROJECTS_API_CONTRACT.md §6).
 
 // A list page shows up to 50 thumbnails and the responses are cached for a day, so this sits well
 // above the 300 a minute of the housing reads. In memory, exact while the API runs as one process.

@@ -7,8 +7,8 @@ import type { StorageDriver } from '../storage/index.js';
 import { removeTombstoned, type TombstonedFile } from './files.js';
 import type { PhotoKind, PhotoUpload } from './process.js';
 
-// Attaching and clearing a record's photos (docs/api/API_CONTRACT.md §4.10, §4.11) and a project's
-// cover (docs/api/PROJECTS_API_CONTRACT.md §4.1.8). Files are
+// Attaching and clearing a record's photos (docs/api/PROJECTS_API_CONTRACT.md §4.4.10, §4.4.11) and a project's
+// cover (§4.1.8). Files are
 // written before the transaction and removed after it commits, never inside it (DB-TX-02, NS-06).
 // The record's *_url columns get the public photo URL; changing them is what makes the activity
 // trigger (0005_activity_log.sql) log a photo_update for the admin in withActor().
@@ -99,7 +99,7 @@ export async function savePhoto<R extends object>(
 
 /**
  * Clears the record's photo and thumb of one kind. With nothing to clear the record comes back
- * unchanged, so a repeated delete is a 200 and logs nothing (contract §4.11). Null for an unknown record.
+ * unchanged, so a repeated delete is a 200 and logs nothing (contract §4.4.11). Null for an unknown record.
  */
 export async function deletePhoto<R extends object>(
   deps: Omit<PhotoDeps, 'publicApiUrl'>,

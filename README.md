@@ -96,7 +96,7 @@ npm --prefix server test             # সার্ভার টেস্ট (ho
 - [docs/ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md) — **এডমিন ব্যবহার নির্দেশিকা**: প্রকল্প খোলা, ফিল্ড, ইম্পোর্ট, ছবি, প্রকাশ/অপ্রকাশ
 - [docs/progress/HOUSING_PROGRESS.md](docs/progress/HOUSING_PROGRESS.md) — স্ট্যাক, স্কিমা, রুট, প্রতিটি ধাপের সিদ্ধান্ত, **ব্যবহার নির্দেশিকা**, ডাটাবেস সেটআপ চেকলিস্ট
 - [docs/MULTI_PROJECT_PLAN.md](docs/MULTI_PROJECT_PLAN.md) — বহু-প্রকল্প পরিকল্পনা (M-ধাপ ১–১৬) ও প্রশ্নোত্তর
-- [docs/api/API_CONTRACT.md](docs/api/API_CONTRACT.md) — নিজস্ব REST ব্যাকএন্ডের চুক্তি
+- [docs/api/PROJECTS_API_CONTRACT.md](docs/api/PROJECTS_API_CONTRACT.md) — নিজস্ব REST সার্ভারের চুক্তি
 - [docs/testing/README.md](docs/testing/README.md) — টেস্ট চালানো, মক ব্যাকএন্ড, নতুন ব্যাকএন্ডে টেস্ট সরানোর ধাপ
 - [docs/operations/runbook.md](docs/operations/runbook.md) — সার্ভারে (PM2 + nginx) স্টেজিং ও প্রোডাকশন সেটআপ, ডিপ্লয়, রোলব্যাক, ব্যাকআপ ও রিস্টোর ড্রিল
 - [supabase/README.md](supabase/README.md) — SQL চালানোর ক্রম

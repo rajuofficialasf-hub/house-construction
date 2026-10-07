@@ -42,7 +42,7 @@ export const webp = (...extra: BlobPart[]) => new Blob([TINY_WEBP, ...extra], { 
 const sum = (o: Record<string, number>) => Object.values(o).reduce((a, b) => a + b, 0)
 
 /**
- * ব্যাকএন্ড-নিরপেক্ষ চুক্তি-স্যুট (docs/api/API_CONTRACT.md)। যেকোনো HousingApi/AuthProvider জোড়ায় চলে।
+ * ব্যাকএন্ড-নিরপেক্ষ চুক্তি-স্যুট (docs/api/PROJECTS_API_CONTRACT.md §৪.৩–৪.৫)। যেকোনো HousingApi/AuthProvider জোড়ায় চলে।
  * নিয়ম: নির্দিষ্ট রেকর্ডের নাম/সংখ্যা ধরে নয়, শুধু সম্পর্ক ধরে যাচাই (পড়ার অংশ লাইভ ডাটাতেও চলে)।
  */
 export function runHousingApiContract(label: string, makeHarness: () => Promise<ContractHarness> | ContractHarness, opts: ContractOptions): void {

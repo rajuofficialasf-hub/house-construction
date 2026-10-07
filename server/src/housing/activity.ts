@@ -6,7 +6,7 @@ import type { ActivityBody, ActivityQuery } from './schemas.js';
 type AnyActivityQuery = Omit<ActivityQuery, 'project_type'> & { project_type?: string | undefined };
 type AnyActivityBody = Omit<ActivityBody, 'action' | 'project_type'> & { action: string; project_type?: string | undefined };
 
-// The admin activity log (docs/api/API_CONTRACT.md §4.9গ, docs/api/PROJECTS_API_CONTRACT.md §4.5).
+// The admin activity log (docs/api/PROJECTS_API_CONTRACT.md §4.5).
 // Record and private-value writes are logged by the triggers (0014_record_functions_v2.sql); this
 // file reads the log and records the client's own events.
 

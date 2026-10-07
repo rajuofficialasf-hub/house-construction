@@ -63,7 +63,7 @@ The S3 driver is built but unused: dev and tests store photos with the NAS drive
 
 ## The mock backend
 
-`VITE_HOUSING_BACKEND=mock` selects an in-memory backend (`src/backend/mock/`). It implements the same three interfaces as Supabase and follows [../api/API_CONTRACT.md](../api/API_CONTRACT.md): per-project serial counters that never decrease, admin-only writes, activity log, photo paths by serial. It works only in dev and test; a production build contains none of its code. Photo bytes are not stored; the dev server answers `/__mock-photos/...` with a placeholder image.
+`VITE_HOUSING_BACKEND=mock` selects an in-memory backend (`src/backend/mock/`). It implements the same three interfaces as Supabase and follows [../api/PROJECTS_API_CONTRACT.md](../api/PROJECTS_API_CONTRACT.md): per-project serial counters that never decrease, admin-only writes, activity log, photo paths by serial. It works only in dev and test; a production build contains none of its code. Photo bytes are not stored; the dev server answers `/__mock-photos/...` with a placeholder image.
 
 The mock keeps its state across page reloads inside one browser context. `window.__housingMock.reset()` restores the seed and logs out.
 

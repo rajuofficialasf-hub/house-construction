@@ -3,7 +3,7 @@ import { projectKey, writeText } from '../projects/schemas.js';
 
 export { writeText };
 
-// The shared record, paging and activity shapes (docs/api/API_CONTRACT.md §3, §4) that the
+// The shared record, paging and activity shapes (docs/api/PROJECTS_API_CONTRACT.md §3.4, §4.4.1, §4.5) that the
 // project routes in src/records/ and src/routes/v1/ build on. The OpenAPI document is built from
 // them, so the spec can't describe a shape the server doesn't use.
 
@@ -30,7 +30,7 @@ function intParam(min: number, max: number) {
   return digits.transform(Number).pipe(z.number().int().min(min).max(max));
 }
 
-// Trimmed and NFC-normalized, because stored text is NFC and filters compare exactly (contract §3.3).
+// Trimmed and NFC-normalized, because stored text is NFC and filters compare exactly (docs/api/PROJECTS_API_CONTRACT.md §5.1).
 // A blank value counts as absent, so a form's empty field doesn't filter everything out.
 const textParam = z
   .string()
@@ -56,7 +56,7 @@ export const listQuery = z.object({
 
 export const idParams = z.object({ id: z.uuid() });
 
-// The before and after photo of a record (contract §4.10).
+// The before and after photo of a record (docs/api/PROJECTS_API_CONTRACT.md §4.4.10).
 export const PHOTO_KINDS = ['prev', 'current'] as const;
 export const photoKind = z.enum(PHOTO_KINDS);
 export type PhotoKind = z.infer<typeof photoKind>;
@@ -79,7 +79,7 @@ export const serialsQuery = z.object({
 export const projectTypeQuery = z.object({ project_type: projectType.optional() });
 export const nextSerialQuery = z.object({ project_type: projectType });
 
-// Write bodies (contract §3.3). Strict objects: an unknown key is a 400, which is what keeps
+// Write bodies (docs/api/PROJECTS_API_CONTRACT.md §5.1). Strict objects: an unknown key is a 400, which is what keeps
 // serial_no and project_type out of an update and the photo columns out of every write.
 
 export const MAX_BULK_ROWS = 500;
@@ -109,7 +109,7 @@ export const SERVER_LOGGED_ACTIONS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * The only events a client may post to /api/v1/activity (contract §4.5): summaries of work the
+ * The only events a client may post to /api/v1/activity (docs/api/PROJECTS_API_CONTRACT.md §4.5): summaries of work the
  * browser did. An allowlist, so a server action nobody remembered to list can't be forged; login
  * and logout are logged by the server itself (docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md,
  * "P3 decisions").

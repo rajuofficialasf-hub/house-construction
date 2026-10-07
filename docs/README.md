@@ -2,7 +2,7 @@
 
 | Folder | Contents |
 |---|---|
-| [api/](api/) | REST API contract the Express backend must implement |
+| [api/](api/) | The REST API contract: what the Express server in `server/` serves |
 | [progress/](progress/) | Project progress log, stack, schema, routes, decisions |
 | [architecture/](architecture/) | Migration notes: Supabase to Express and PostgreSQL |
 | [diagrams/](diagrams/) | Mermaid diagrams: backend architecture, test strategy, user flows |

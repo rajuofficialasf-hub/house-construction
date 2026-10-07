@@ -1,5 +1,5 @@
 /**
- * REST AuthProvider — docs/api/API_CONTRACT.md §২ অনুযায়ী (POST /api/v1/auth/login, POST /api/v1/auth/logout, GET /api/v1/auth/me)।
+ * REST AuthProvider — docs/api/PROJECTS_API_CONTRACT.md §২ অনুযায়ী (POST /api/v1/auth/login, POST /api/v1/auth/logout, GET /api/v1/auth/me)।
  * সেশন শুধু সার্ভারের HttpOnly কুকিতে; ব্রাউজার নিজে পাঠায় (credentials: 'include'), JS টোকেন দেখে না (RE-SEC-03)।
  * onAuthChange: এই অ্যাডাপ্টারের login/logout এ, আর অন্য ট্যাবের login/logout এ (BroadcastChannel) callback।
  */

@@ -1,4 +1,4 @@
-// GET /api/v1/photos/:id through the real app and test database (docs/api/API_CONTRACT.md §5;
+// GET /api/v1/photos/:id through the real app and test database (docs/api/PROJECTS_API_CONTRACT.md §6;
 // docs/plans/2026-10-05-1722-migrate-c5-photos-plan.md).
 import type { AddressInfo } from 'node:net';
 import { Readable, Writable } from 'node:stream';

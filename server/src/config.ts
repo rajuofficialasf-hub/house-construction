@@ -7,7 +7,7 @@ const origin = z
   .trim()
   .refine((value) => URL.canParse(value) && new URL(value).origin === value, 'must be an origin like https://example.org');
 
-// The API's own public base URL, which stored photo URLs are built from (docs/api/API_CONTRACT.md §3.2).
+// The API's own public base URL, which stored photo URLs are built from (docs/api/PROJECTS_API_CONTRACT.md §3.4).
 // Scheme, host, optional path; no trailing slash, query or fragment, so `${url}/api/v1/…` is always right.
 export const baseUrl = z
   .string()
@@ -35,7 +35,7 @@ const configSchema = z.object({
     .transform((value) => value.split(','))
     .pipe(z.array(origin).min(1)),
   // Comma-separated origins of other apps that may make uncredentialed GETs to the public reads
-  // (docs/api/API_CONTRACT.md §1). They never get the cookie or any write. Empty by default.
+  // (docs/api/PROJECTS_API_CONTRACT.md §1.3). They never get the cookie or any write. Empty by default.
   PUBLIC_READ_ORIGINS: z
     .string()
     .default('')

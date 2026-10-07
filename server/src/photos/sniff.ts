@@ -1,6 +1,6 @@
 import { Transform, type TransformCallback } from 'node:stream';
 
-/** The image formats a photo upload may be (contract §4.10), identified by their first bytes. */
+/** The image formats a photo upload may be (docs/api/PROJECTS_API_CONTRACT.md §4.4.10), identified by their first bytes. */
 export type SniffedFormat = 'jpeg' | 'png' | 'webp';
 
 export const SNIFF_BYTES = 12;

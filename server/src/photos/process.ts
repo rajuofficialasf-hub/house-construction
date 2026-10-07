@@ -10,7 +10,7 @@ import type { StorageDriver } from '../storage/index.js';
 import { imageGate, UnsupportedImageError } from './sniff.js';
 
 /**
- * Turns a photo upload (contract §4.10: multipart kind, photo, optional thumb) into two WebP files
+ * Turns a photo upload (docs/api/PROJECTS_API_CONTRACT.md §4.4.10: multipart photo and optional thumb, the slot from the path) into two WebP files
  * in storage: the full photo (≤1600 px wide) and a 400 px thumbnail, both decoded and re-encoded
  * by sharp, which writes no EXIF, GPS or other metadata (R12, docs/plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md). The client's own thumb is
  * read and discarded so its metadata never gets in. Bytes stream from the request through sharp to

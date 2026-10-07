@@ -1,5 +1,5 @@
 /**
- * REST অ্যাডাপ্টারের fetch helper — docs/api/API_CONTRACT.md এর নিয়মে:
+ * REST অ্যাডাপ্টারের fetch helper — docs/api/PROJECTS_API_CONTRACT.md §১.১–১.২ ও §২ এর নিয়মে:
  * - JSON body/উত্তর; সফল উত্তর { data, meta? }; এরর { error: { code, message, details } } → HousingApiError
  * - অথ: সার্ভারের HttpOnly সেশন কুকি, প্রতিটি অনুরোধে credentials: 'include'। JS কোনো টোকেন দেখে না বা রাখে না (RE-SEC-03)।
  */

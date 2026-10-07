@@ -1,7 +1,7 @@
 /**
  * A fetch for running the REST adapter from Node against the real server: Node's fetch keeps no
  * cookies and sends no Origin, while the server's session is a cookie and every write needs an
- * allowed Origin (docs/api/API_CONTRACT.md §1, §2). The adapter's code stays as it runs in a browser.
+ * allowed Origin (docs/api/PROJECTS_API_CONTRACT.md §1.3, §2). The adapter's code stays as it runs in a browser.
  */
 export interface CookieJarFetch {
   fetch: typeof fetch
