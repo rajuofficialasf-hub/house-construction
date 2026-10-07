@@ -11,9 +11,13 @@ How the housing site is built today, and the decisions behind it. The API contra
 
 ## Decisions
 
-1. **Sessions:** an opaque token in an HttpOnly cookie, not a JWT. Only its SHA-256 is stored. Sessions end after 8 hours idle or 7 days in all. Admins are rows in `housing_admins`, created and changed only by the admin CLI (`npm --prefix server run admin -- …`). Passwords are argon2id; no other hash scheme is accepted.
-2. **Roles:** `admin` and `main_admin`, at most one `main_admin` (`0012`). Every delete (records, photos, projects, fields, covers, private values) needs `main_admin`, and the API checks it (`requireMainAdmin`). A database guard keyed to a session setting could be switched off by the app role (`docs/learnings/security/postgres-session-setting-guards-are-spoofable.md`), so who may do what lives in the API.
-3. **Visibility:** a visitor sees only published projects whose group is also published (`housing_public_project_keys()`), and only their public fields. An admin session also sees drafts and private fields. A draft's records, stats, files and cover are 404 to a visitor. Any response whose body depends on the session sends `Cache-Control: private, no-store` (admins) or `Vary: Cookie` (visitors).
+1. **Sessions:** an opaque token in an HttpOnly cookie, not a JWT. Only its SHA-256 is stored. Sessions end after 8 hours idle or 7 days in all. Admins are rows in `housing_admins`, created only by the admin CLI (`npm --prefix server run admin -- …`); the main admin's users page (`/api/v1/admin/users`) changes an existing login's role, projects and status. Passwords are argon2id; no other hash scheme is accepted.
+2. **Roles:** `main_admin`, `admin` and `editor`, at most one `main_admin` (`0012`, `0019`).
+   - Every delete (records, photos, projects, fields, covers, private values) and the users page need `main_admin`, and the API checks it (`requireMainAdmin` and its variants).
+   - An `editor` (project user) works only in its assigned projects, or every project with `all_projects`: a group covers its children. It may add and fill in, but never empty a filled value, replace a photo, change a serial or touch a project or field setting (`server/src/auth/scope.ts`, `server/src/records/editorRules.ts`). Its draft reads are scoped the same way. The session carries the scope, so a change applies on the next request.
+   - `housing_app` can't change a role directly: `housing_admin_user_save`, a security definer function, is the only way, and it can't make a main admin.
+   - A database guard keyed to a session setting could be switched off by the app role (`docs/learnings/security/postgres-session-setting-guards-are-spoofable.md`), so who may do what lives in the API.
+3. **Visibility:** a visitor sees only published projects whose group is also published (`housing_public_project_keys()`), and only their public fields. An admin session also sees drafts and private fields; an editor without `all_projects` only in its own projects, and a visitor's view elsewhere, with the visitor's counts on group roll-ups and the overview. A draft's records, stats, files and cover are 404 to a visitor. Any response whose body depends on the session sends `Cache-Control: private, no-store` (admins) or `Vary: Cookie` (visitors).
 4. **Rules in the database:** field-value checks, record validation and the project and field guards are triggers (`0013`, `0015`). They raise our own SQLSTATE `HC400` or `HC409` with fixed Bangla text, and `server/src/errors.ts` passes only that class's message and field key (`details.field`) to the client. Every other database error keeps a fixed message.
 5. **Private values** (phone, NID and other admin-only fields) live in `housing_beneficiary_private`, apart from the public record. They are read and written only through the admin routes, never logged (the activity log records the changed key names only), and redacted from request logs.
 6. **CORS:** the site's own origins (`ALLOWED_ORIGINS`) get credentialed CORS. Other apps' origins (`PUBLIC_READ_ORIGINS`) get credential-less CORS on the public GET routes listed in `PUBLIC_READ_ROUTES` (`server/src/app.ts`), photos and `openapi.json` only, and never pass the write Origin check. An origin may be on only one list.
@@ -46,6 +50,8 @@ Each migration has a down section that undoes its up section; the server's test 
 | `0016_project_stats` | A project's stats and the home-page overview |
 | `0017_photo_mode_guard_count` | The photo-mode guard's record count |
 | `0018_drop_housing_stats_years` | Drops the unused `0003` functions |
+| `0019_editor_role` | The `editor` role, `all_projects`, project assignments, the scope function and the users-page save function |
+| `0020_reserved_project_keys` | No project may be keyed `overview` or `order`, which project routes already use |
 
 ## Working rules
 

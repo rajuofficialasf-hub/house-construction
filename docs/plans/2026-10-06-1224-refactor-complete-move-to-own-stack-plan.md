@@ -3684,7 +3684,7 @@ Run once, after U64:
 - **Tests:** none (docs). Checked by `openapi.test.ts`'s paths-in-contract case and by the two AE4 searches.
 - **Done when:** `npx vitest run test/http/openapi.test.ts` (from `server/`) passes and both AE4 searches print what they printed after P9.
 - **Depends on:** U68–U75, U77
-- **Status:** todo
+- **Status:** done
 
 ### P9b order and parallel lanes
 
@@ -3758,7 +3758,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** `ae-work` on P9b, U76 (U65–U75 and U77 done). P10 (the handoff guide and the final `CLAUDE.md` profile, with the mock rule and the migration-comment exception) follows P9b.
+- **Next:** P9b's `ae-simplify` and `ae-review` over the P9b commits (U65–U77 done), then the P9b verification and the Chrome walkthrough. P10 (the handoff guide and the final `CLAUDE.md` profile, with the mock rule and the migration-comment exception) follows P9b.
 - **Uncommitted:** nothing.
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.

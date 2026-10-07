@@ -6,7 +6,7 @@ import { AppError } from '../errors.js';
 
 type Values = Record<string, unknown>;
 
-/** Blank as SQL 14's guard saw it: null, missing, or text that is empty after trimming. */
+/** Blank: null, missing, or text that is empty after trimming. */
 const isBlank = (value: unknown) => value === null || value === undefined || (typeof value === 'string' && value.trim() === '');
 
 /**

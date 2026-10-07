@@ -10,8 +10,8 @@ One contract, checked at three layers (unit and server tests, the backend contra
 |---|---|---|
 | `npm test` | UI unit tests (`src/**/*.test.ts`) and the backend contract on the mock (`tests/contract/mock.contract.test.ts`, the `HousingApi` part) | nothing |
 | `npm --prefix server test` | Server tests (`server/src/**/*.test.ts`, `server/test/`): config, errors, every route through Supertest on the real app, photo storage, and the SQL rules (serials, guards, stats, bulk, activity log, role privileges) on a real PostgreSQL. Rebuilds the `housing_test` database from the migrations first, checking that each down section undoes its up section. Photos go to a NAS driver on a temp folder. The S3 driver's tests skip unless `TEST_S3_BUCKET` and `TEST_S3_REGION` (plus `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and, for R2, `TEST_S3_ENDPOINT`) point at a test bucket | `docker compose up -d db` and Node 22 |
-| `npm run test:contract:rest` | The whole backend contract, writes included, through the REST adapter against the Express app on `housing_test`: the `HousingApi` part and the `ProjectsApi` part (`tests/contract/projectsApiContract.ts`: registry, fields, covers, custom and private values, field stats, filtered stats, AE1–AE3) | `docker compose up -d db` and Node 22 |
-| `npm run test:e2e:rest-admin` | Playwright: the admin flows (`e2e/mock/`) and the project-registry flows (`e2e/admin/`: wizard, settings, field and stat-card builders, covers, import with custom and private fields, CSV export, category rename, delete rules, filtered stat cards), photos included, against an API it starts on `housing_test` (project `admin-rest`), storing photos in `.storage/e2e` | `docker compose up -d db` and Node 22 |
+| `npm run test:contract:rest` | The whole backend contract, writes included, through the REST adapter against the Express app on `housing_test`: the `HousingApi` part, the `ProjectsApi` part (`tests/contract/projectsApiContract.ts`: registry, fields, covers, custom and private values, field stats, filtered stats, AE1–AE3) and the `AdminUsersApi` part (`tests/contract/adminUsersContract.ts`: the users page and a project user's limits) | `docker compose up -d db` and Node 22 |
+| `npm run test:e2e:rest-admin` | Playwright: the admin flows (`e2e/mock/`) and the project-registry flows (`e2e/admin/`: wizard, settings, field and stat-card builders, covers, import with custom and private fields, CSV export, category rename, delete rules, filtered stat cards, the users page and a project user's view), photos included, against an API it starts on `housing_test` (project `admin-rest`), storing photos in `.storage/e2e` | `docker compose up -d db` and Node 22 |
 | `npm run test:e2e:rest` | Playwright: the public flows (`e2e/public/`) against the compose API (`VITE_HOUSING_BACKEND=rest`, project `public-rest`) | `docker compose up -d db api` with the dev seed, and the API answering `GET /api/v1/projects` (after `docker compose down -v` the `api` container reinstalls `node_modules` first) |
 | `npm run test:e2e:mock` | Playwright: the admin and write flows (`e2e/mock/`, project `mock`) and the public flows (`e2e/public/`, project `public-mock`) on the mock backend | Chromium (`npx playwright install chromium`) |
 | `npm run check:prod-bundle` | Builds with `VITE_HOUSING_BACKEND=mock` and fails if the production bundle holds any mock backend code or the word `supabase` | nothing |
@@ -62,21 +62,21 @@ The S3 driver is built but unused: dev and tests store photos with the NAS drive
 `VITE_HOUSING_BACKEND=mock` selects an in-memory backend (`src/backend/mock/`). It works only in dev and test; a production build contains none of its code. It follows the contract for records: per-project serial counters that never decrease, admin-only writes, deletes for the main admin only, the activity log, and photo paths by serial. Photo bytes are not stored; the dev server answers `/__mock-photos/...` with a placeholder image. It keeps its state across page reloads inside one browser context; `window.__housingMock.reset()` restores the seed and logs out.
 
 **The mock doesn't grow.** It keeps three fixed projects (the housing group, সেমিপাকা and টিন) and refuses project and field edits. The registry's rules (guards, stats, private fields, covers) live in the database, and a TypeScript copy would drift from them. So:
-- the contract's `ProjectsApi` part runs only on REST;
+- the contract's `ProjectsApi` and `AdminUsersApi` parts run only on REST: the mock has no `AdminUsersApi` (it answers `NOT_IMPLEMENTED`), and its auth gives every admin every project;
 - specs that need the registry go in `e2e/admin/` and run only on `admin-rest`;
 - `e2e/mock/` specs run on both `mock` and `admin-rest`, so keep them to what the three fixed projects can do.
 
 ## The suites on the server
 
 1. `npm run test:contract:rest` runs the whole contract (`writes: true`) through the REST adapter against the real Express app (`createApp`) on the local `housing_test` database.
-   - Before every test, the database is reset to `server/db/seed/dev.sql` plus one main admin and one plain admin.
+   - Before every test, the database is reset to `server/db/seed/dev.sql` plus one main admin, one plain admin and one project user assigned `tin`.
    - A cookie-jar fetch (`tests/contract/cookieJarFetch.ts`) keeps the session cookie and sends the site's `Origin`, as a browser does.
    - The REST runner passes `photoPaths: 'opaque'` (the server's photo URLs carry a file id, not the serial) and `unknownProjectCode: 'NOT_FOUND'` (the project key is in the path).
    - The two non-admin tests are skipped: the server has only admin accounts.
    - Plain `npm test` skips this file.
 2. `npm run test:e2e:rest-admin` runs `e2e/mock/` and `e2e/admin/` in the `admin-rest` Playwright project.
    - It starts the API on `housing_test` (port 3002) and the UI with `VITE_HOUSING_BACKEND=rest` (port 5186). The API gets `READ_RATE_LIMIT=100000`, because the whole run is one IP and would hit the 300-a-minute read limit.
-   - Before each test the database is reset (`e2e/support/rest-data.ts`): the mock seed, the dev seed's draft `demo` project with custom and private fields (`server/db/seed/demo-project.sql`), the mock admin as main admin, and a plain admin (`PLAIN_ADMIN`, may write but not delete).
+   - Before each test the database is reset (`e2e/support/rest-data.ts`): the mock seed, the dev seed's draft `demo` project with custom and private fields (`server/db/seed/demo-project.sql`), the mock admin as main admin, a plain admin (`PLAIN_ADMIN`, may write but not delete) and a project user (`PROJECT_EDITOR`, role `editor`, assigned `tin`).
    - The reset also stores small real WebP files for the seed records that have photos, in the folder the API uses (`E2E_STORAGE_ROOT`, `e2e/support/rest-env.ts`). `scripts/e2e-rest-admin.mjs` empties that folder before each run.
    - The non-admin login spec is skipped.
 3. `npm run test:e2e:rest` runs the public specs on the dev database through the compose API.
