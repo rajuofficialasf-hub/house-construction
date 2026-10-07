@@ -2610,7 +2610,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** P8's walkthrough, U41 onward. U41–U45 are planned and reviewed below. **It needs the user**, who confirms the dev database reset and runs the two admin `create` commands. P9 starts only once `docs/progress/P8_WALKTHROUGH_CHECKLIST.md` is fully checked.
+- **Next:** P9, the removal (Session chunks). Its gate, the P8 checklist fully checked, is met. Run `ae-plan` on this file first to add P9's units against the code as it is then. CI on the pushed branch is still to run, once the user pushes (Success Criteria).
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
@@ -2891,3 +2891,49 @@ Run these at the end of P1:
     - **FYI, not acted on:**
       - P6 already settled the "(মুছুন)" token as the server's accepted stance.
       - Hostile upload files (oversized, a renamed non-image, path-like names) are left to the server suite.
+  - **P8 done (2026-10-07):** U41–U45 are committed (7065432..354ed95).
+    - **Checklist:** `docs/progress/P8_WALKTHROUGH_CHECKLIST.md`, fully checked.
+      - It covers visitor passes before and after `demo` was published, every admin row as the main admin and as a plain admin, and AE1, AE2 and AE3 probed from the page.
+      - Fullscreen in V2.3 was checked by the user by hand, because Chrome refuses fullscreen from an automated click.
+      - GIFs are in Chrome's Downloads (not committed): `p8-v1-public-visitor.gif`, `p8-a-main-admin-settings-records.gif`, `p8-a-main-admin-import-photos-pass2.gif`, `p8-plain-admin-ae1.gif`.
+    - **Defects found and fixed:**
+      - **D1:** the photo-mode refusal had lost its record count against `a8e2154` (`10b`). The user chose to restore it, and line 184's rule now allows a count the database works out itself. Fixed in 541f53c (`0017_photo_mode_guard_count.sql`, a DB test that fails on `0015`).
+      - **Review fix:** a `/me` started by another tab's message could undo a later local logout, showing the tab as logged in. Fixed in 354ed95 with an epoch guard in `rest/authProvider.ts`, and its test fails without the fix.
+    - **Parity notes, not defects** (in the checklist):
+      - After creating a record, the form returns to the list (as at `a8e2154`).
+      - The category panel offers a merge only for near spellings.
+      - `main` removed the category chart after `a8e2154` (`378f6ac`).
+      - No page deletes a project.
+      - The serial dialog's link text says `/housing/…` for every project (same at `a8e2154`).
+      - The known plain-admin differences: serial change, photo replace and "(মুছুন)".
+    - **Setup notes:**
+      - `.env.local` must be copied from `.env.example` (README step). The walk had skipped it at first.
+      - The Chrome extension's network reader reports some 204s as 503. Each was checked against the API log.
+      - After `docker compose down -v`, the `api` container reinstalls `node_modules`, so `test:e2e:rest` must wait until the API answers. The first P8 run failed on this and passed once rerun after the API answered.
+    - **Before P8:** the duplicate requests were fixed in ba72a5a (one `/auth/me`, coalesced `list()` with no TTL) and simplified in 04ada11.
+    - **`ae-simplify`** applied 3 quality changes (`resolveUser`, one variable fewer in `sharedList`, a named `isWrite`) and skipped 2. Reuse and efficiency had nothing.
+    - **`ae-review`** ran correctness, standards, security, database and testing reviewers over 35bf13a..HEAD.
+      - Correctness, standards and database found nothing.
+      - Testing found three P2 gaps (a cross-tab message during an open `/me`, a `/me` after logout, a failed write clearing lists). All were fixed with tests.
+      - Security's P3 on the cross-tab handler was a real bug, which the logout test exposed. It was fixed (354ed95).
+    - **Final full run** (after the fixes):
+      - server 1070
+      - UI 222
+      - contract REST 62 plus 1 known gap
+      - contract local Supabase 57 plus 8 known gaps
+      - admin-rest 62
+      - public-rest 18 (2 skipped)
+      - `test:all` 53
+      - Typecheck, `tsc -b`, lint, build and `check:prod-bundle` are clean.
+    - **Dev environment after P8:**
+      - The dev database was reset with `docker compose down -v` and holds the walk's data.
+      - Both walk admins (`p8-main@example.test`, `p8-admin@example.test`) are disabled.
+      - Both dev servers are stopped.
+      - `READ_RATE_LIMIT` was not changed.
+    - **Left for later:**
+      - **Lists across a login (security P3):** `rest/projectsApi.ts`'s in-flight lists are not cleared on login or logout. A `drafts=1` list still in flight when admins switch in the same browser could be joined by the next admin, for the request's duration only.
+      - **Stale joined `/me` (security P3):** callers that joined a superseded `/me` still get its stale answer, even though the cache is protected.
+      - **Write wrappers (testing P3):** only `update` is tested for clearing in-flight lists. `delete`, `reorder` and `uploadCover` go through the same wrappers but have no test.
+      - **For P9 to decide:**
+        - `/admin/users` on REST says `NOT_IMPLEMENTED` but still shows the add form with Supabase instructions.
+        - The serial dialog's `/housing/…` link text is wrong for other projects.
