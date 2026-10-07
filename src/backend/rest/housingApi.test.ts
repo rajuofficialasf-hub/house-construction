@@ -153,6 +153,15 @@ describe('createRestHousingApi reads', () => {
     ])
   })
 
+  it('says it did not filter when stats are asked with filters', async () => {
+    const stats = { total: 7, by_union: {} }
+    const fetchMock = stubFetch(() => json(200, { data: stats }))
+    const api = createRestHousingApi(BASE)
+    expect(await api.stats('tin', { filters: { year: 2024 } })).toEqual({ ...stats, filtered: false })
+    expect(await api.stats('tin', { filters: { q: ' ' } })).toEqual(stats)
+    expect(fetchMock.mock.calls.map((c) => String(c[0]).replace(BASE, ''))).toEqual(['/api/v1/projects/tin/stats', '/api/v1/projects/tin/stats'])
+  })
+
   it('builds filter options from the years and the stats keys, sorted in Bangla order', async () => {
     stubFetch((url) =>
       url.pathname.endsWith('/years')

@@ -18,6 +18,7 @@ import {
   type ProjectStats,
   type ProjectType,
 } from '../interfaces/types'
+import { hasStatsFilters } from '../statsFilters'
 import { ENDPOINTS } from './endpoints'
 import { queryOf, restData, restRequest, type RestRequestOptions } from './http'
 import type { AdminUsersApi } from '../interfaces/adminUsersApi'
@@ -127,8 +128,11 @@ export function createRestHousingApi(baseUrl: string): HousingApi {
     // ইম্পোর্ট পেইজ নিজেই ২০০ করে পাঠায়।
     bulkInsert: (input) => send('POST', ENDPOINTS.records.bulk(input.project_type), withoutProject(input)),
     bulkUpdateBySerial: (input) => send('PUT', ENDPOINTS.records.bulk(input.project_type), withoutProject(input)),
-    stats: async (projectType, opts = {}) =>
-      get<ProjectStats>(ENDPOINTS.records.stats(keyOf(projectType), queryOf({ light: opts.light ? '1' : undefined }))),
+    async stats(projectType, opts = {}) {
+      const stats = await get<ProjectStats>(ENDPOINTS.records.stats(keyOf(projectType), queryOf({ light: opts.light ? '1' : undefined })))
+      // সার্ভার এখনো ফিল্টারে গোনে না: মোট ফেরত, সাথে বলে দেওয়া যে ফিল্টার হয়নি (main এর নিজের ফলব্যাক)
+      return hasStatsFilters(opts.filters) ? { ...stats, filtered: false } : stats
+    },
     years: async (projectType) => get<number[]>(ENDPOINTS.records.years(keyOf(projectType))),
     // সার্ভারে আলাদা রাউট নেই: সাল আর পরিসংখ্যানের কী থেকে (Supabase অ্যাডাপ্টারের মতো)
     async filterOptions(projectType) {

@@ -2673,7 +2673,7 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
   - empty strings, whitespace-only `q`, whitespace-only field values and an empty `fields` count as no filters
 - **Done when:** `npm test` passes, and a filtered list on REST shows totals with no banner.
 - **Depends on:** none
-- **Status:** todo
+- **Status:** done
 
 ### U47. One filter builder for records
 - **Goal:** The record list's WHERE conditions live in one exported builder that also accepts a set of project keys.

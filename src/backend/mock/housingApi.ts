@@ -1,3 +1,4 @@
+import { hasStatsFilters } from '../statsFilters'
 import type { HousingApi } from '../interfaces/housingApi'
 import type { ImageStorage } from '../interfaces/imageStorage'
 import {
@@ -321,7 +322,7 @@ export function createMockHousingApi(store: MockStore, storage: ImageStorage): H
       return result
     },
 
-    async stats(projectType) {
+    async stats(projectType, opts = {}) {
       const key = projectType ?? LEGACY_GROUP_KEY
       const only = legacyProjectType(key)
       const rows = only ? store.records.filter((r) => r.project_type === only) : store.records
@@ -343,7 +344,9 @@ export function createMockHousingApi(store: MockStore, storage: ImageStorage): H
         },
         by_location: count((r) => `${r.district}|${r.upazila}`),
       }
-      return fromLegacyStats(stats, key)
+      // মক ফিল্টারে গোনে না (বাড়ে না): মোট ফেরত, সাথে বলে দেওয়া যে ফিল্টার হয়নি — পাতা মোট দেখায়, ব্যানার নয়
+      const totals = fromLegacyStats(stats, key)
+      return hasStatsFilters(opts.filters) ? { ...totals, filtered: false } : totals
     },
 
     async years(projectType) {
