@@ -1,5 +1,7 @@
 # P8 walkthrough checklist (R13)
 
+> **Historical record.** This describes the work as it was done, against the Supabase version that has since been removed. The current API is `docs/api/PROJECTS_API_CONTRACT.md`; what was removed, and where to restore it from, is in [README.md](README.md).
+
 The Chrome walkthrough of the local stack on the REST backend, drawn from M-steps 1–15 in `docs/MULTI_PROJECT_PLAN.md` §৮. Plan: `docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md`, P8 (U41–U45). P9 starts only once every row here is checked.
 
 ## How to read this file

@@ -3242,7 +3242,7 @@ git grep -nIE '(^|[^A-Za-z])RLS([^A-Za-z]|$)|(^|[^A-Za-z])SQL [0-9০-৯]+|প�
 - **Tests:** none in code (docs only, `TS-20`). The check is the AE4 searches over `docs/` and `README.md`, and a by-hand run of each changed README command.
 - **Done when:** the AE4 searches show no hit under `docs/` or `README.md`.
 - **Depends on:** U51–U61
-- **Status:** todo
+- **Status:** done
 
 ### U63. Migration comment headers
 - **Goal:** Migrations `0001`–`0017` explain themselves in present terms (user-decided exception).
@@ -3343,7 +3343,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** P9 `ae-work`: finish U62 (README, docs/README, testing README; the rest is done but uncommitted), then U64; then simplify, review and the full verification.
+- **Next:** P9 `ae-work`: U64 (comment scrub and the AE4 searches); then simplify, review and the full verification.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.

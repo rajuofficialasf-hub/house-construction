@@ -1,89 +1,86 @@
-# Backend architecture: current and target
+# Backend architecture
 
-The UI only talks to three interfaces (`HousingApi`, `AuthProvider`, `ImageStorage`). A factory picks the adapter from `VITE_HOUSING_BACKEND`.
+The UI talks to the backend only through the interfaces in `src/backend/interfaces/` (`HousingApi`, `ProjectsApi`, `AuthProvider`, `AdminUsersApi`). `src/backend/factory.ts` picks the adapter from `VITE_HOUSING_BACKEND`: `rest` (the default) or `mock` (dev and tests only).
 
-## Current: Supabase
-
-```mermaid
-flowchart TB
-  UI[React UI pages and hooks] --> F[Adapter factory]
-  F -->|supabase| SA[Supabase adapter]
-  F -->|rest, stub today| RA[REST adapter]
-  SA --> PG[(Supabase Postgres<br/>tables, RLS, RPC functions)]
-  SA --> AU[Supabase Auth]
-  SA --> ST[Supabase Storage<br/>bucket housing-photos]
-```
-
-## Target: Express and PostgreSQL
+## Request path
 
 ```mermaid
 flowchart TB
   UI[React UI pages and hooks] --> F[Adapter factory]
-  F -->|rest| RA[REST adapter]
-  RA -->|HTTP /api/...| EX[Express server]
-  EX --> MW[Auth and admin middleware]
-  EX --> SV[Services: serial, bulk, stats, activity]
-  SV --> PG[(PostgreSQL)]
-  EX --> PH[Photo routes<br/>POST/DELETE /housing/:id/photo admin<br/>GET /photos/:id public]
+  F -->|rest, default| RA[REST adapter<br/>src/backend/rest]
+  F -->|mock, dev and tests| MK[In-memory mock<br/>three fixed projects]
+  RA -->|HTTP /api/v1, cookie session| EX[Express server<br/>server/src/app.ts]
+  EX --> MW[CORS lists, Origin check,<br/>session, rate limits]
+  MW --> RT[Routes: projects, fields, records,<br/>private values, stats, activity, auth]
+  RT --> PG[(PostgreSQL 17<br/>housing_app role)]
+  MW --> PH[Photo and cover routes<br/>PUT/DELETE admin, GET /photos/:id public]
   PH --> PG
-  PH --> STG[storage adapter<br/>STORAGE_DRIVER]
-  STG -->|nas| NAS[NAS folder at STORAGE_ROOT]
-  STG -->|s3, temporary| S3[Private AWS S3 bucket<br/>no local S3; tests need a real test bucket]
+  PH --> STG[Storage adapter<br/>STORAGE_DRIVER]
+  STG -->|nas, dev and tests| NAS[NAS folder at STORAGE_ROOT]
+  STG -->|s3, built, unused| S3[Private S3 bucket]
 ```
 
-Photos (C5, `docs/plans/2026-10-05-1722-migrate-c5-photos-plan.md`): each upload is re-encoded to WebP with EXIF removed and stored under a new UUID key, with a `housing_files` row tied to the record's slot. The record's `*_url` columns hold `PUBLIC_API_URL/api/v1/photos/<file id>`, so the browser only ever loads photos through the API. Files are written before the transaction and removed after commit; a serial change touches no file.
+Who may do what is decided in the API: visitors see only published projects and public fields, admins also see drafts and private fields, and only the `main_admin` may delete. The data rules (field values, record checks, project and field guards, serial counters, the activity log) are triggers and functions in the database, owned by `housing_owner`.
 
-## Deployment (C6)
+Photos: each upload is re-encoded to WebP with its metadata removed and stored under a new UUID key, with a `housing_files` row tied to the record's slot or the project's cover. A record's photo columns and a project's `cover_path` hold `PUBLIC_API_URL/api/v1/photos/<file id>`, so the browser only ever loads photos through the API. Files are written before the transaction and removed after commit; a serial change touches no file.
+
+## Registry tables
 
 ```mermaid
-flowchart TB
-  B[Browser] --> CF[Cloudflare<br/>TLS, WAF, login rate rule]
-  CF -->|Authenticated Origin Pulls<br/>client cert required| NG[nginx 1.20 vhost per env<br/>real IP from CF-Connecting-IP<br/>overwrites X-Forwarded-For]
-  NG -->|/ and /assets| UI[Static UI<br/>/srv/housing/env/current/dist<br/>CSP and security headers]
-  NG -->|/api/ on 127.0.0.1| API[PM2: housing-api-env<br/>one process, TRUST_PROXY=1]
-  API --> PG[(PostgreSQL 17 cluster per env<br/>localhost only, housing_app)]
-  API --> S3P[(S3 photos bucket per env<br/>private, versioned)]
-  SW[PM2 cron: files:sweep 03:30] --> PG
-  SW --> S3P
-  BK[PM2 cron: backup.sh 02:15<br/>pg_dump as housing_owner, age-encrypted] --> PG
-  BK -->|PutObject only| S3B[(S3 backups bucket<br/>Object Lock 30 days)]
-  OPS[Person on the box:<br/>deploy.sh env ref] -->|build, migrate as housing_owner,<br/>switch release, readyz, rollback| API
-  MON[Uptime monitor] -->|/api/v1/readyz| CF
+erDiagram
+  housing_projects ||--o{ housing_projects : "parent_key (groups)"
+  housing_projects ||--o{ housing_project_fields : "project_key"
+  housing_projects ||--o{ housing_beneficiaries : "project_type"
+  housing_beneficiaries ||--o| housing_beneficiary_private : "record_id, cascade"
+  housing_beneficiaries ||--o{ housing_files : "record_id (photos)"
+  housing_projects ||--o{ housing_files : "project_key (cover)"
+  housing_admins ||--o{ housing_files : "created_by"
+  housing_admins ||--o{ housing_admin_sessions : "admin_id, cascade"
+
+  housing_projects {
+    text key PK
+    text parent_key FK
+    boolean is_group
+    boolean is_published
+    text slug
+    text photo_mode
+    text cover_path
+  }
+  housing_project_fields {
+    uuid id PK
+    text project_key FK
+    text key
+    text type
+    text visibility
+    boolean is_active
+  }
+  housing_beneficiaries {
+    uuid id PK
+    text project_type FK
+    integer serial_no
+    text union_name
+    jsonb extra
+  }
+  housing_beneficiary_private {
+    uuid record_id PK
+    jsonb data
+  }
+  housing_files {
+    uuid id PK
+    uuid record_id FK
+    text project_key FK
+    text kind
+    timestamptz deleted_at
+  }
+  housing_admins {
+    uuid id PK
+    text email
+    text role
+  }
+  housing_admin_sessions {
+    bytea token_hash PK
+    uuid admin_id FK
+  }
 ```
 
-Staging and production each have their own Linux user, PM2 daemon, Postgres cluster, env files in `/etc/housing/<env>/` (`api.env`, `build.env`, `deploy.env`) and photo bucket. Before the cutover, production runs only the API on loopback and the backups while its public vhost serves the Supabase UI; the cutover (below) switches the vhost to this picture. Plan: `docs/plans/2026-10-06-0925-migrate-c6-deploy-plan.md`; steps for a person: `docs/operations/runbook.md`.
-
-## Import and cutover (C7)
-
-```mermaid
-flowchart LR
-  subgraph SB[Supabase, frozen: is_housing_admin returns false]
-    SPG[(Postgres<br/>housing_* tables, auth.users)]
-    SST[(Storage<br/>public housing-photos bucket)]
-  end
-  subgraph BOX[Organization box, as housing-prod]
-    CLI[import-supabase import / verify<br/>owner role, prompted source URL]
-    PG[(PostgreSQL 17<br/>production cluster)]
-    API[housing-api-production<br/>127.0.0.1:3201]
-  end
-  S3P[(S3 photos bucket<br/>production)]
-  CLI -->|read-only snapshot,<br/>verified TLS, export role| SPG
-  CLI -->|GET inside --photo-base,<br/>no redirects| SST
-  CLI -->|storage.put, new UUID keys| S3P
-  CLI -->|one transaction:<br/>records, counters, log, admins, housing_files| PG
-  CLI -->|verify --photos-via| API
-  NG[nginx vhost for the prod host] -.->|switched after verify<br/>from the Supabase UI block| API
-```
-
-The import copies everything in one transaction after the photos are stored, and `verify` must pass before nginx is switched. Until the switch nothing public changes; for 72 hours after it, rollback puts the Supabase UI block back and unfreezes Supabase. Plan: `docs/plans/2026-10-06-1035-migrate-c7-cutover-plan.md`; steps: `docs/operations/runbook.md` section 19.
-
-## Where each Supabase service goes
-
-```mermaid
-flowchart LR
-  A[Supabase PostgREST queries] --> A2[Express routes plus SQL]
-  B[Row Level Security] --> B2[requireAdmin middleware]
-  C[RPC functions<br/>stats, bulk, serial, activity] --> C2[Postgres functions or service code]
-  D[Supabase Auth] --> D2[Login endpoint, argon2, HttpOnly cookie session]
-  E[Supabase Storage] --> E2[Photo routes plus storage adapter<br/>served through GET /photos/:id]
-```
+`housing_serial_counters`, `housing_serial_changes` and `housing_activity_log` sit beside these with no foreign key, so a deleted record's serial history and log rows stay. The migrations that build each table are listed in `docs/architecture/migration-notes.md`.

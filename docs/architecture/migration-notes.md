@@ -1,104 +1,58 @@
-# Supabase to Express and PostgreSQL: migration notes
+# Architecture notes
 
-Source of truth for the target API: [../api/API_CONTRACT.md](../api/API_CONTRACT.md). Diagrams: [../diagrams/backend-architecture.md](../diagrams/backend-architecture.md).
+How the housing site is built today, and the decisions behind it. The API contract is [../api/PROJECTS_API_CONTRACT.md](../api/PROJECTS_API_CONTRACT.md); the pictures are in [../diagrams/backend-architecture.md](../diagrams/backend-architecture.md). The project started on Supabase and moved to this stack; that history, and where to restore anything removed, is in [../history/README.md](../history/README.md).
 
-## Supabase services in use
+## The stack
 
-| Service | Used by | Replacement |
-|---|---|---|
-| Database plus auto REST (PostgREST) | `src/backend/supabase/housingApi.ts` | Express routes plus SQL |
-| Auth (email and password) | `.../supabase/authProvider.ts` | Admin login endpoint, argon2 hashes, HttpOnly cookie session (no auth-core) |
-| Storage (`housing-photos`) | `.../supabase/imageStorage.ts` | Storage adapter in `server/`: S3 driver first, NAS driver later; photos served through the API |
-
-Not used: Realtime, Edge Functions.
-
-## What moves out of the database
-
-- Row Level Security (`supabase/sql/03_rls.sql`) becomes admin middleware: anyone reads, only admins write.
-- RPC functions (`02_serial`, `04_rpc_stats`, `07_rpc_bulk`, `09_activity_log`) stay as Postgres functions or become service code. Serial and bulk work are safer inside SQL transactions.
-- `auth.users` and `auth.uid()` do not exist in plain Postgres. The admin table needs its own credentials columns.
-- `05_storage.sql` is dropped.
-- `01_schema.sql` and `06_seed.sql` should port mostly as-is.
-
-## Known facts that affect the migration
-
-- The REST adapter covers login, reads, writes, photos and the activity log (C2–C5).
-- Serial counters never decrease and deleted serials are never reused (`02_serial.sql`).
-- Admin login and logout write activity-log rows.
-- `scripts/migrate-photos.mjs` uses the Supabase service key and needs a rewrite.
+- **UI:** React 19 and Vite (`src/`). Pages talk to the backend only through the adapters in `src/backend/`, which `src/backend/factory.ts` picks from `VITE_HOUSING_BACKEND`: `rest` (the default) calls the API, and `mock` (dev and tests only) keeps everything in memory.
+- **API:** Express 5 and TypeScript (`server/`), mounted at `/api/v1`. The OpenAPI document is served at `/api/v1/openapi.json`.
+- **Database:** PostgreSQL 17 through postgres.js tagged templates, with dbmate SQL migrations in `server/db/migrations/`. Migrations run as `housing_owner`; the API runs as `housing_app`, which may read everything but writes only what `0006` and later migrations grant.
+- **Photos:** the storage adapter in `server/src/storage/`. The NAS driver is used in dev and tests; the S3 driver is built but unused.
 
 ## Decisions
 
-Roadmap: [../plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md](../plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md).
+1. **Sessions:** an opaque token in an HttpOnly cookie, not a JWT. Only its SHA-256 is stored. Sessions end after 8 hours idle or 7 days in all. Admins are rows in `housing_admins`, created and changed only by the admin CLI (`npm --prefix server run admin -- …`). Passwords are argon2id; no other hash scheme is accepted.
+2. **Roles:** `admin` and `main_admin`, at most one `main_admin` (`0012`). Every delete (records, photos, projects, fields, covers, private values) needs `main_admin`, and the API checks it (`requireMainAdmin`). A database guard keyed to a session setting could be switched off by the app role (`docs/learnings/security/postgres-session-setting-guards-are-spoofable.md`), so who may do what lives in the API.
+3. **Visibility:** a visitor sees only published projects whose group is also published (`housing_public_project_keys()`), and only their public fields. An admin session also sees drafts and private fields. A draft's records, stats, files and cover are 404 to a visitor. Any response whose body depends on the session sends `Cache-Control: private, no-store` (admins) or `Vary: Cookie` (visitors).
+4. **Rules in the database:** field-value checks, record validation and the project and field guards are triggers (`0013`, `0015`). They raise our own SQLSTATE `HC400` or `HC409` with fixed Bangla text, and `server/src/errors.ts` passes only that class's message and field key (`details.field`) to the client. Every other database error keeps a fixed message.
+5. **Private values** (phone, NID and other admin-only fields) live in `housing_beneficiary_private`, apart from the public record. They are read and written only through the admin routes, never logged (the activity log records the changed key names only), and redacted from request logs.
+6. **CORS:** the site's own origins (`ALLOWED_ORIGINS`) get credentialed CORS. Other apps' origins (`PUBLIC_READ_ORIGINS`) get credential-less CORS on the public GET routes listed in `PUBLIC_READ_ROUTES` (`server/src/app.ts`), photos and `openapi.json` only, and never pass the write Origin check. An origin may be on only one list.
+7. **Rate limits**, counted in memory per process: login failures per IP, public reads 300 per IP per minute (`READ_RATE_LIMIT` raises it where one IP is many users), photos 1200 per IP per minute, and writes 120 per admin per minute (a bulk request counts as one).
+8. **Writes:** every write needs an admin session, checked before the body is read, and an allowed Origin. The acting admin for the activity log always comes from the session (`withActor()`), never from the request. Bodies are capped at 100 KB, except the bulk import (up to 500 rows in one transaction, 10 MB) and the photo uploads.
+9. **Serials:** each project has its own counter from 1. A serial is never reused, even after a delete, and a serial change moves no file.
+10. **Photos:** every upload gets server-made UUID keys and rows in `housing_files`; a record's photo columns hold `PUBLIC_API_URL/api/v1/photos/<file id>`, and a project's `cover_path` holds its cover's URL. The server re-encodes every upload as WebP with all metadata removed and makes the thumbnail. A replaced or deleted photo is marked in the transaction and removed from storage after commit; `npm --prefix server run files:sweep` retries any removal that failed. Visitors may cache a public photo for a day.
 
-1. Sessions: an opaque token in an HttpOnly cookie, not JWT. Only its SHA-256 is stored; timeouts are 8 hours idle and 7 days absolute. Settled in C2 ([../plans/2026-10-05-1246-migrate-c2-admin-login-plan.md](../plans/2026-10-05-1246-migrate-c2-admin-login-plan.md)).
-2. CORS and login rate limiting: the API answers only the origins in `ALLOWED_ORIGINS`, with credentials, and refuses state-changing requests from any other origin. Login is limited to 10 failures per IP per 15 minutes, counted in memory, which is exact only while the API runs as one process. Settled in C2. C3 split CORS into two lists: other apps' origins go in `PUBLIC_READ_ORIGINS`, which gets credential-less CORS on the housing GETs and `openapi.json` only, and never passes the write Origin check. An origin may be on only one list. The public reads are limited to 300 requests per IP per minute, also in memory.
-3. Photos: the storage adapter (`server/src/storage/`), S3 at cutover, NAS later. Settled in C5 ([../plans/2026-10-05-1722-migrate-c5-photos-plan.md](../plans/2026-10-05-1722-migrate-c5-photos-plan.md)):
-   - Every upload gets server-made UUID keys (`housing/<uuid>.webp`) and rows in `housing_files`; the record's `*_url` columns hold `PUBLIC_API_URL/api/v1/photos/<file id>`. Serial-based paths stay a Supabase-only rule.
-   - A serial change moves no file and changes no URL. A replaced photo, a photo delete and a record delete mark the old rows in the transaction and remove the files after commit; `npm --prefix server run files:sweep` retries any removal that failed.
-   - The server re-encodes every upload as WebP with all metadata removed and makes the thumbnail itself.
-   - `GET /api/v1/photos/:id` serves photos publicly with its own rate limit (1200 per IP per minute). It was cached a year as immutable; C6 changed that to one day (`public, max-age=86400`), so a deleted photo leaves browser and CDN caches within a day.
-4. Writes: every POST, PUT or DELETE under `/api/v1/housing` needs an admin session, checked before the body is read. The acting admin for the activity log always comes from the session (`withActor()`), never from the request. The bulk routes take up to 500 rows in one transaction, with a 10 MB body limit; every other route has 100 KB. Settled in C4 ([../plans/2026-10-05-1601-migrate-c4-write-endpoints-plan.md](../plans/2026-10-05-1601-migrate-c4-write-endpoints-plan.md)). C6 added a write rate limit: 120 writes per admin per minute, counted in memory. A bulk request counts as one, the activity-log POST isn't counted, and a write without a session is still 401.
-5. Deploy: settled in C6 ([../plans/2026-10-06-0925-migrate-c6-deploy-plan.md](../plans/2026-10-06-0925-migrate-c6-deploy-plan.md); steps for a person in [../operations/runbook.md](../operations/runbook.md)).
-   - GitHub Actions runs every suite against PostgreSQL 17.
-   - On the organization box, Cloudflare (with Authenticated Origin Pulls) → nginx 1.20 → one PM2 API process per environment. The API binds to loopback, and `TRUST_PROXY=1` because nginx overwrites `X-Forwarded-For` with the client IP.
-   - Each environment has its own Linux user, PostgreSQL 17 cluster, env files and S3 photo bucket.
-   - The UI and the API share one origin, so `PUBLIC_API_URL` is the site's origin.
-   - Nightly encrypted backups go to an Object Lock bucket for 30 days, and the restore drill runs quarterly.
-   - Production stays on Supabase until C7.
-6. Import and cutover: settled in C7 ([../plans/2026-10-06-1035-migrate-c7-cutover-plan.md](../plans/2026-10-06-1035-migrate-c7-cutover-plan.md); the steps in [../operations/runbook.md](../operations/runbook.md) sections 19 and 20).
-   - `import-supabase import` reads one read-only snapshot of the Supabase database over verified TLS, as a temporary read-only role, and writes it as `housing_owner` in one transaction: the same record ids and serials, the exact counters, serial changes and the activity log (same ids), with the log trigger off while loading.
-   - Admins keep their Supabase id and bcrypt hash and log in with their current password; the first login rehashes it to argon2id. Admins who couldn't log in arrive disabled.
-   - Photos are copied from the public bucket through the storage adapter (new UUID keys, `housing_files` rows, `PUBLIC_API_URL/api/v1/photos/<id>` URLs). A clean WebP is stored as is; anything else is re-encoded like an upload.
-   - `import-supabase verify` compares both databases and every photo URL; any difference fails.
-   - The write freeze is `is_housing_admin()` returning `false` on Supabase, which also keeps Supabase read-only for the 14-day rollback window. Rollback re-enters the new stack's writes by hand from its activity log, within 72 hours.
+## Migrations
 
-## Where each `supabase/sql` file went
+Each migration has a down section that undoes its up section; the server's test setup runs every down section to prove it. A new rule or table is always a new migration, never an edit of one that has run.
 
-The server's migrations are in `server/db/migrations/` and run with `npm --prefix server run db:migrate` ([C1 plan](../plans/2026-10-05-1215-migrate-c1-server-skeleton-db-port-plan.md)).
+| Migration | What it holds |
+|---|---|
+| `0001_housing_schema` | The records table, `housing_beneficiaries` |
+| `0002_serial` | Per-project serial counters and serial changes |
+| `0003_stats` | Single-project stats and years (dropped by `0018`) |
+| `0004_bulk_update` | Bulk update by serial (replaced by `0014`'s v2) |
+| `0005_activity_log` | The activity log and its triggers |
+| `0006_app_role_grants` | What `housing_app` may do; nothing is granted to `PUBLIC` |
+| `0007_admin_auth` | Admins and their login sessions |
+| `0008_read_indexes` | Indexes for the records list's sorts |
+| `0009_housing_files` | Stored photo files, one row per object in storage |
+| `0010_search_and_activity_indexes` | Trigram indexes for the list search and the activity log's filters |
+| `0011_projects_registry` | Projects, their fields, private values, and `union_name` and `extra` on records |
+| `0012_admin_roles` | The `admin` and `main_admin` roles |
+| `0013_record_rules` | Field-value and record checks |
+| `0014_record_functions_v2` | Leaf keys, bulk insert and update v2, the activity log v2 |
+| `0015_project_guards` | Project and field guards, project creation, reorders, field usage and value rename, covers |
+| `0016_project_stats` | A project's stats and the home-page overview |
+| `0017_photo_mode_guard_count` | The photo-mode guard's record count |
+| `0018_drop_housing_stats_years` | Drops the unused `0003` functions |
 
-| `supabase/sql/` | `server/db/` | Changes |
-|---|---|---|
-| `01_schema.sql` | `migrations/0001_housing_schema.sql` | No `pgcrypto` extension |
-| `02_serial.sql` | `migrations/0002_serial.sql` | No grants or row-level security; admin check moved to the server; `changed_by` comes from `housing_current_actor()`, which is now defined here |
-| `03_rls.sql` | `migrations/0007_admin_auth.sql` | `housing_admins` gets its own uuid id, email, name and password hash instead of pointing at `auth.users`; no row-level security, the server checks admin rights; sessions in `housing_admin_sessions` |
-| `04_rpc_stats.sql` | `migrations/0003_stats.sql` | No grants |
-| `05_storage.sql` | dropped | Photos move to the storage adapter (C5) |
-| `06_seed.sql` | `seed/dev.sql` | Dev only, through `npm --prefix server run db:seed`; safe to run again |
-| `07_rpc_bulk.sql` | `migrations/0004_bulk_update.sql` | No grants |
-| `08_reset_test_data.sql` | not ported | Tests reset with `resetTestData()` in `server/test/support/db.ts` |
-| `09_activity_log.sql` | `migrations/0005_activity_log.sql` | No row-level security or grants; admin check moved to the server; the actor comes from `app.actor_id` and `app.actor_email`, set per transaction by `withActor()` in `server/src/db.ts` |
-| none | `migrations/0006_app_role_grants.sql` | The runtime role `housing_app` writes only records and calls the functions; nothing is granted to `PUBLIC` |
-| none (Supabase Storage objects) | `migrations/0009_housing_files.sql` | One row per stored photo file: UUID key, driver, record slot; `deleted_at` marks a file still to be removed from storage. `housing_app` gets select, insert, update and delete |
-| none | `migrations/0010_search_and_activity_indexes.sql` | `pg_trgm` in its own `extensions` schema (a trusted extension's functions stay executable by PUBLIC, so they are kept out of `public`); trigram indexes for the list search and the activity log's actor filter, and `(project_type, at desc)` for its project filter (C7) |
+## Working rules
 
-## Working rules until cutover
-
-From the cutover on, production runs on the new stack and these rules end: nothing ships on Supabase any more, and C8 removes it after the rollback window.
-
-Another developer keeps shipping features on the Supabase version while the new stack is built. Both run side by side until the cutover day. New development rules for the new stack come after cutover.
-
-**For everyone working on the current (Supabase) version:**
-
-1. Call the backend only through the adapter. Only files in `src/backend/supabase/` may import `@supabase/supabase-js`. Components, pages and hooks use the backend from `backend/factory.ts`.
-2. Add database changes as new numbered files in `supabase/sql/` (`10_...sql`, `11_...sql`). Do not edit files that have already run on the live project.
-3. When you add or change a data operation, update `docs/api/API_CONTRACT.md` in the same commit.
-
-**For the migration work:**
-
-1. Add, never remove. The new server goes in `server/`, and the REST adapter goes in `backend/rest/`. Do not delete or rewrite the Supabase adapter, `supabase/sql/` or the existing UI before cutover. Removing Supabase is the last step (own-stack plan U7, "after cutover").
-2. Production stays on `VITE_HOUSING_BACKEND=supabase`. Only local and staging use `rest`.
-3. Merge `main` into the migration branch at least weekly, and whenever the other developer pushes.
-4. After each merge, check these paths:
-   - `supabase/sql/*`: port each new `supabase/sql/NN_*.sql` as the next `server/db/migrations/NNNN_*.sql`, add a row to the table above, and grant `housing_app` what it needs. Never edit a migration that has already run on staging or production; add a new one. From the first staging deploy on, migrations are add-only and must work with the previous release's code, because a rollback switches the code back but never the schema.
-   - `backend/supabase/*` and the shared backend types: add the matching endpoint and REST adapter method.
-   - `docs/api/API_CONTRACT.md`: implement whatever changed.
-5. Run the contract and e2e suites against `rest`. A failure means a feature exists on Supabase but not yet on the new server.
-6. Merge migration work to `main` in small pieces. It is safe because production does not use it, and it keeps the branches close.
-
-## Safety net
-
-Before migrating, run the test suite described in [../testing/README.md](../testing/README.md). It lists which behaviors are verified only on the mock backend and how to re-point the suite at the new server.
+1. The UI calls the backend only through `src/backend/` adapters.
+2. A new route lands with its contract section in `docs/api/PROJECTS_API_CONTRACT.md`, its OpenAPI entry, its REST adapter method and its tests, in the same change. A server test checks that every OpenAPI path appears in the contract.
+3. Database changes are new numbered migrations with a down section and explicit `housing_app` grants.
+4. The mock backend doesn't grow: it keeps three fixed projects for fast UI work and the `mock` specs. Features that need the project registry are tested against the server (`docs/testing/README.md`).
 
 ## Hosting requirements
 

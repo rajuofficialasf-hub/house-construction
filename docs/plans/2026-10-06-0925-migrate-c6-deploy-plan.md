@@ -9,6 +9,8 @@ doc_review: 2026-10-06
 
 # C6 CI, Staging and Production Deploy
 
+> The deploy tooling this plan built (`deploy/`, the edge service, its CI jobs and the runbook) was removed in P9 of `docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md`: nothing was deployed and no data moved. It can be restored from the `pre-p9` tag (`docs/history/README.md`).
+
 Chunk C6 of `docs/plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md` (the roadmap). Product decisions come from the roadmap and are not repeated here. Roadmap IDs are written "roadmap R2". It builds on C1–C5 (`docs/plans/2026-10-05-1215-…`, `-1246-…`, `-1352-…`, `-1601-…`, `-1722-migrate-c5-photos-plan.md`) and takes its deploy and security baseline from `docs/plans/2026-10-04-1357-housing-service-own-stack-plan.md` (the own-stack plan: Security Baseline, D8, U9), checked against the code that exists now.
 
 ## Goal

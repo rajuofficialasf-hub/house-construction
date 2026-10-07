@@ -9,6 +9,8 @@ doc_review: 2026-10-06
 
 # C7 Data Import and Cutover
 
+> The import and cutover tooling this plan describes was removed in P9 of `docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md`: nothing was deployed and no data moved. It can be restored from the `pre-p9` tag (`docs/history/README.md`).
+
 Chunk C7 of `docs/plans/2026-10-05-1147-migrate-supabase-to-org-stack-plan.md` (the roadmap). Product decisions come from the roadmap and are not repeated here. Roadmap IDs are written "roadmap R10". It builds on C1–C6 (`docs/plans/2026-10-05-1215-…`, `-1246-…`, `-1352-…`, `-1601-…`, `-1722-…`, `2026-10-06-0925-migrate-c6-deploy-plan.md`). Its cutover sequence comes from U10 of `docs/plans/2026-10-04-1357-housing-service-own-stack-plan.md` (the own-stack plan), checked against the code that exists now.
 
 ## Goal

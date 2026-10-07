@@ -1,11 +1,14 @@
 ---
 title: Migrate the Housing App from Supabase to the Org Stack (Roadmap)
 type: migrate
-status: requirements
+status: superseded
+superseded_by: docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md
 date: 2026-10-05
 ---
 
 # Migrate the Housing App from Supabase to the Org Stack (Roadmap)
+
+> **Superseded** by `docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md`, which dropped the deploy, import and rollback steps (C6–C8) and removed Supabase in its P9.
 
 ## Goal
 The housing site runs in production on our own Express + PostgreSQL service with no Supabase dependency. The public sees the same data, admins import and edit records exactly as before, serial numbers continue unbroken, and other apps can read the public data through a documented `/api/v1`.
