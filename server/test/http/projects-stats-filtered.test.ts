@@ -101,6 +101,10 @@ describe('filtered stats agree with the list', () => {
     expect(Object.keys(stats.fields).sort()).toEqual(['amount', 'trade']);
   });
 
+  it('ignores light when a filter is given', async () => {
+    expect(await statsOf(P, q({ year: '2024', light: '1' }))).toEqual(await statsOf(P, q({ year: '2024' })));
+  });
+
   it('answers the unfiltered stats exactly as before when no filter is given, or only blanks', async () => {
     const plain = await get(`/projects/${P}/stats`);
     const blanks = await get(`/projects/${P}/stats?${q({ q: '  ', division: '', 'f.trade': ' ' })}`);
@@ -167,6 +171,18 @@ describe('filtered stats never reveal what a visitor may not see', () => {
       expect((await statsOf('fgroup', q({ 'f.kind': 'গ' }))).total).toBe(0);
       const cookie = (await loginAdmin(app, owner)).cookie;
       expect((await statsOf('fgroup', q({ 'f.kind': 'গ' }), cookie)).total).toBe(1);
+      expect((await statsOf('fgroup', q({ year: '2024' }), cookie)).by_project).toEqual({ fg_a: 1, fg_b: 1, fg_draft: 1 });
+    });
+
+    it('answers zeros for a published group whose children are all drafts, to a visitor', async () => {
+      await insertProject(owner, { key: 'fempty', is_group: true, file_prefix: null });
+      await insertProject(owner, { key: 'fe_draft', parent_key: 'fempty', is_published: false, file_prefix: 'fed' });
+      await insertField(owner, { project_key: 'fe_draft', key: 'kind', type: 'category', filterable: true });
+      await insertRecord(sql, { project_type: 'fe_draft', year: 2024, extra: { kind: 'ক' } });
+      const visitor = await statsOf('fempty', q({ year: '2024' }));
+      expect(visitor).toMatchObject({ total: 0, by_project: {}, fields: {}, filtered: true });
+      const cookie = (await loginAdmin(app, owner)).cookie;
+      expect(await statsOf('fempty', q({ year: '2024' }), cookie)).toMatchObject({ total: 1, by_project: { fe_draft: 1 } });
     });
 
     it('uses a field only if every counted leaf has it public with the same type', async () => {

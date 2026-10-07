@@ -48,7 +48,7 @@ export function recordFilters(sql: Sql | Tx, fields: FilterFields, filters: Map<
   if (query.district) conditions.push(sql`b.district = ${query.district}`);
   if (query.upazila) conditions.push(sql`b.upazila = ${query.upazila}`);
   if (query.union_name) conditions.push(sql`b.union_name = ${query.union_name}`);
-  // Only fields the caller allows filter; any other f.<key> is ignored (§4.4.1). Keys and values
+  // Only fields the caller allows filter; any other f.<key> is ignored (docs/api/PROJECTS_API_CONTRACT.md §4.4.1). Keys and values
   // are bound, never spliced into the SQL.
   for (const [key, raw] of filters) {
     const type = fields.filterable.get(key);

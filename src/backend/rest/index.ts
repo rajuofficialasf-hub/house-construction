@@ -120,7 +120,7 @@ export function createRestHousingApi(baseUrl: string): HousingApi {
     // ইম্পোর্ট পেইজ নিজেই ২০০ করে পাঠায়।
     bulkInsert: (input) => send('POST', ENDPOINTS.records.bulk(input.project_type), withoutProject(input)),
     bulkUpdateBySerial: (input) => send('PUT', ENDPOINTS.records.bulk(input.project_type), withoutProject(input)),
-    // ফিল্টার থাকলে সার্ভার তালিকার একই শর্তে গোনে আর `filtered: true` দেয় (P8b)
+    // ফিল্টার থাকলে সার্ভার তালিকার একই শর্তে গোনে আর `filtered: true` দেয়
     async stats(projectType, opts = {}) {
       const query = queryOf({ light: opts.light ? '1' : undefined })
       for (const [name, value] of statsFilterEntries(opts.filters)) query.set(name, value)

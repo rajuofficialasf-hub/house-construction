@@ -67,10 +67,9 @@ test.describe('list filters (relationships only, no fixed data)', () => {
     await expect(page.getByRole('alert')).toHaveCount(0)
   })
 
-  // Cards that say they count the filtered records count what the list shows; a backend without
-  // filtered stats keeps the totals and says nothing (main 87c7241;
-  // docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md, P8b decisions).
-  test('filters live in the URL: reloading keeps them, and the cards count the filtered records only when they say so', async ({ page }) => {
+  // main 87c7241's filtered stat cards (docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md,
+  // P8b decisions).
+  test('filters live in the URL: reloading keeps them, and the cards follow them where the backend filters', async ({ page }, info) => {
     await page.goto('/housing/semi-pucca')
     await waitForList(page)
     test.skip((await dataRows(page).count()) === 0, 'no records to filter')
@@ -80,9 +79,16 @@ test.describe('list filters (relationships only, no fixed data)', () => {
     await expect(page).toHaveURL(/division=/)
     await page.reload()
     await expect(page.getByRole('combobox', { name: 'বিভাগ', exact: true })).toHaveValue(division)
-    const shown = await statTotal(page)
-    if (await filteredBanner(page).isVisible()) expect(shown).toBe(await listTotal(page))
-    else expect(shown).toBe(total)
+    if (info.project.name === 'public-mock') {
+      // The mock doesn't filter stats: the cards keep the totals and say nothing.
+      await expect(filteredBanner(page)).toHaveCount(0)
+      expect(await statTotal(page)).toBe(total)
+    } else {
+      // The server and live Supabase (SQL 15) filter: the cards say so and count the list's total.
+      await expect(filteredBanner(page)).toBeVisible()
+      expect(await statTotal(page)).toBe(await listTotal(page))
+    }
   })
+
 
 })

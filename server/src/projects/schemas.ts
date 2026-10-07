@@ -278,7 +278,7 @@ export const projectStats = z.strictObject({
   distinct: z.strictObject({ divisions: z.number().int(), districts: z.number().int(), upazilas: z.number().int(), unions: z.number().int() }),
   by_project: counts,
   by_union: counts,
-  // Present only on filtered stats (P8b): the by_ counts are then empty and categories carry no by_value.
+  // Present only on filtered stats (the list's filters were given): the by_ counts are then empty and categories carry no by_value.
   filtered: z.literal(true).optional(),
   fields: z.record(
     z.string(),

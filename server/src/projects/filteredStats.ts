@@ -70,7 +70,7 @@ export async function filteredProjectStats(
       (all, condition) => tx`${all} and ${condition}`,
     );
     // Field keys and types are bound as values, never spliced into the SQL. Sums take JSON numbers
-    // only, and category distinct compares bytes, as housing_project_stats does (0016).
+    // only, and category distinct compares bytes, as housing_project_stats does (0016_project_stats.sql).
     const fieldStats = counted.map(({ key: k, type }) =>
       type === 'category'
         ? tx`${k}::text, jsonb_build_object('type', 'category', 'distinct',
@@ -79,6 +79,7 @@ export async function filteredProjectStats(
         : tx`${k}::text, (select jsonb_build_object('type', ${type}::text, 'sum', coalesce(sum((extra ->> ${k}::text)::numeric), 0), 'count', count(*))
             from base where jsonb_typeof(extra -> ${k}::text) = 'number')`,
     );
+    // jsonb_build_object takes at most 100 arguments; the field guard caps a project at 40 fields (80).
     const fieldsObject = fieldStats.length
       ? tx`jsonb_build_object(${fieldStats.reduce((all, one) => tx`${all}, ${one}`)})`
       : tx`'{}'::jsonb`;
