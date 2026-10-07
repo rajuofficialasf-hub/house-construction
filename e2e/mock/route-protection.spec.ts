@@ -39,8 +39,11 @@ test.describe('admin route protection', () => {
     await expect(page.getByRole('button', { name: 'লগইন' })).toBeVisible()
 
     await page.goto('/housing/admin/activity')
+    // The session check runs after the page loads, so wait for its refusal before letting the next one through.
+    const retry = page.getByRole('button', { name: 'আবার চেষ্টা করুন' })
+    await expect(retry).toBeVisible()
     await page.unroute('**/api/v1/auth/me')
-    await page.getByRole('button', { name: 'আবার চেষ্টা করুন' }).click()
+    await retry.click()
     await expect(page.getByRole('button', { name: 'লগআউট' })).toBeVisible()
     await expect(page).toHaveURL(/\/admin\/activity$/)
   })

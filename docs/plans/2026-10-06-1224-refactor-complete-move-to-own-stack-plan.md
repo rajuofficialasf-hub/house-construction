@@ -3343,7 +3343,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** P9 `ae-work`: the one `ae-simplify` and one `ae-review` over the P9 commits (41b74ab..HEAD), then the full P9 verification.
+- **Next:** P9b, user management on the server (option A, Session chunks). Run `ae-plan` on this file first to add its units against the code as it is then (parity target `main` 87c7241: SQL 14, M-steps 18–19). P10 (the handoff guide and the final `CLAUDE.md` profile, with the mock rule and the migration-comment exception) follows P9b.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
@@ -3817,4 +3817,25 @@ Run these at the end of P1:
         - plan step numbers in comments now carry `docs/history/MULTI_PROJECT_PLAN.md`, or are replaced by plain words
       - **P3, left by decision:** the browser write guard and the CSP check went with the nginx edge. They guarded a deployed site, and `public-rest` runs only against the local API. The CSP lives on under "Hosting requirements" in `docs/architecture/migration-notes.md`.
       - **P3, noted:** editing the comments of run migrations was the user's one-time exception, so it is not a precedent (P10 records it in `CLAUDE.md`).
+  - **P9 done (2026-10-07):** U51–U64 (U60 dropped) are committed (41b74ab..HEAD), plus the simplify (9cc1c43), the review fixes (504e516) and one spec fix.
+    - **Removed:**
+      - the Supabase package, adapter, `supabase/` folder, scripts, contract runners, Playwright projects and env vars
+      - `deploy/`, the edge service, its CI jobs and the runbook
+      - the `/api/v1/housing` routes and `API_CONTRACT.md`
+      - bcrypt verification
+      - `housing_stats` and `housing_years` (`0018`)
+    - **Kept:** every page and feature. `/admin/users` stays and P9b serves it.
+    - **AE4** (the two searches in the P9 decisions): the second prints nothing; the first prints only the nine allowed files listed under the U64 notes (guards that prove the removal, and pointers to `docs/history/`).
+    - **Full verification, once at the end (user-decided):**
+      - server typecheck clean; server 968 passed, 7 skipped
+      - `tsc -b` and lint clean
+      - UI 237 passed, 2 skipped
+      - contract REST 64 passed, 2 skipped (no known gaps)
+      - `public-rest` 17 passed, 2 skipped, after `docker compose up -d db api` and waiting for `GET /api/v1/projects`
+      - mock 55 passed, 2 skipped; `test:all` green
+      - build and `check:prod-bundle` (now also "no supabase") clean
+      - dev database `db:migrate`, `db:rollback`, `db:migrate`: 18 applied, 0 pending
+      - **`admin-rest` failed one spec in both runs:** `e2e/mock/route-protection.spec.ts`, "a server error on the session check offers a retry". The spec removed its fake 503 right after `goto`, but the app asks for the session after the page loads, so the real `/me` won the race. This was a spec defect, not an app defect: the spec's own first half shows the retry on a 503. It now waits for the retry button before removing the route; it passed 3 times alone, then the full `admin-rest` passed twice in a row (66 passed, 1 skipped each).
+    - Counts against P8b: server 1095 → 968 (the old `/housing` and old-schema tests went; their rules have v1 tests); contract REST 63 + 1 gap → 64 with none; the local-Supabase contract run is gone; `public-rest` 18 → 17 and `admin-rest` 64 → 66 (write-guard spec gone; users-page and serial-dialog specs added).
+    - The `pre-p9` tag is pushed (the restore point in `docs/history/README.md`).
 
