@@ -23,16 +23,22 @@ export interface ActivityEntry {
   details: Record<string, unknown>;
 }
 
-/** One page of the log, newest first, with the filtered total. */
-/** An editor's view of the log: rows in its projects, and its own rows anywhere. */
+/**
+ * An editor's view of the log: rows of its projects ('all' for an editor with "all projects") and
+ * its own rows anywhere. Other logins' rows with no project (logins, user changes) stay hidden.
+ */
 export interface ActivityScope {
-  projects: string[];
+  projects: 'all' | string[];
   adminId: string;
 }
 
+/** One page of the log, newest first, with the filtered total; narrowed to `scope` for an editor. */
 export async function listActivity(sql: Sql, query: AnyActivityQuery, scope?: ActivityScope): Promise<Page<ActivityEntry>> {
   const conditions = [sql`true`];
-  if (scope) conditions.push(sql`(project_type = any(${scope.projects}) or actor_id = ${scope.adminId})`);
+  if (scope) {
+    const inScope = scope.projects === 'all' ? sql`project_type is not null` : sql`project_type = any(${scope.projects})`;
+    conditions.push(sql`(${inScope} or actor_id = ${scope.adminId})`);
+  }
   if (query.action) conditions.push(sql`action = ${query.action}`);
   if (query.project_type) conditions.push(sql`project_type = ${query.project_type}`);
   if (query.record_id) conditions.push(sql`record_id = ${query.record_id}`);

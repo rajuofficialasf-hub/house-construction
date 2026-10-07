@@ -173,7 +173,7 @@ export function AdminUsersPage() {
                       {t('শেষ সক্রিয়')}: {r.last_seen_at ? formatDateTime(r.last_seen_at) : '—'}
                     </p>
                     {r.role !== 'main_admin' && (
-                      <button type="button" onClick={() => edit(r)} className="inline-flex min-h-11 items-center px-2 text-sm font-medium text-brand-700 underline-offset-2 hover:underline">
+                      <button type="button" disabled={saving} onClick={() => edit(r)} className="inline-flex min-h-11 items-center px-2 text-sm font-medium text-brand-700 underline-offset-2 hover:underline">
                         {t('বদলান')}
                       </button>
                     )}
@@ -216,7 +216,7 @@ export function AdminUsersPage() {
                     <td className="px-3 py-2 whitespace-nowrap">{r.last_seen_at ? formatDateTime(r.last_seen_at) : '—'}</td>
                     <td className="px-3 py-2 pr-4 text-right">
                       {r.role !== 'main_admin' && (
-                        <button type="button" onClick={() => edit(r)} className="text-sm font-medium text-brand-700 underline-offset-2 hover:underline">
+                        <button type="button" disabled={saving} onClick={() => edit(r)} className="text-sm font-medium text-brand-700 underline-offset-2 hover:underline">
                           {t('বদলান')}
                         </button>
                       )}

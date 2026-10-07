@@ -102,17 +102,12 @@ export function recordsAdminRouter({
     res.json({ data: record });
   });
 
-  router.post(
-    '/records/:id/serial',
-    requireAdmin,
-    refuseEditor('সিরিয়াল নম্বর বদলাতে পারেন শুধু মূল এডমিন ও এডমিন'),
-    limitWrites,
-    async (req, res) => {
+  const refuseSerialChange = refuseEditor('সিরিয়াল নম্বর বদলাতে পারেন শুধু মূল এডমিন ও এডমিন');
+  router.post('/records/:id/serial', requireAdmin, refuseSerialChange, limitWrites, async (req, res) => {
     const { id } = idParams.parse(req.params);
     const { serial_no } = serialBody.parse(req.body);
     res.json({ data: await changeRecordSerial(sql, actorOf(req), id, serial_no) });
-  },
-  );
+  });
 
   router.delete('/records/:id', requireMainAdmin, limitWrites, async (req, res) => {
     if (!(await deleteRecord(sql, storage, actorOf(req), idParams.parse(req.params).id, req.log))) throw recordNotFound();

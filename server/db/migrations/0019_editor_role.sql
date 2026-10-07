@@ -108,12 +108,14 @@ grant execute on function public.housing_admin_project_keys(uuid) to housing_app
 grant execute on function public.housing_admin_user_save(text, text, boolean, text[], boolean) to housing_app;
 
 -- migrate:down
--- Editors become plain admins; their assignments and the all_projects flag are lost (DB-MIG-05),
--- acceptable before any deploy.
+-- Editors become disabled admins with their sessions ended, so a rollback never widens anyone's
+-- rights; the main admin re-enables whom they choose. Assignments and the all_projects flag are
+-- lost (DB-MIG-05), acceptable before any deploy.
 drop function public.housing_admin_user_save(text, text, boolean, text[], boolean);
 drop function public.housing_admin_project_keys(uuid);
 drop table public.housing_admin_projects;
-update public.housing_admins set role = 'admin' where role = 'editor';
+delete from public.housing_admin_sessions where admin_id in (select id from public.housing_admins where role = 'editor');
+update public.housing_admins set role = 'admin', disabled_at = coalesce(disabled_at, now()) where role = 'editor';
 alter table public.housing_admins drop constraint housing_admins_role_check;
 alter table public.housing_admins
   drop column all_projects,

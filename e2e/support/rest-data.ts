@@ -13,7 +13,7 @@ import { ADMIN_REST_API_URL, E2E_STORAGE_ROOT } from './rest-env'
  * with an empty activity log. On top of that come the dev seed's draft "demo" project, with custom
  * and private fields, for the e2e/admin specs, a plain admin, who may write but not delete
  * (AE1, docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md), and a project user
- * limited to tin (the plan's P9b decisions). The server/test/support helpers refuse any database that isn't local and named *_test.
+ * limited to tin (P9b decisions, same plan). The server/test/support helpers refuse any database that isn't local and named *_test.
  */
 
 /** A plain admin (role admin), only on admin-rest; the mock backend has none. */

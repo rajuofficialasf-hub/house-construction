@@ -209,8 +209,12 @@ const bulkUpdateRow = z.strictObject({
     .optional(),
 });
 
-/** Leaves only values that change something: null and '' mean "unchanged", so only _clear empties a value. */
-const filled = (value: unknown) => value !== null && value !== undefined && value !== '';
+/**
+ * Leaves only values that change something: null and text that is blank after trimming mean
+ * "unchanged", so only _clear empties a value. Custom values aren't trimmed by the schema, and the
+ * record trigger would turn "   " into an emptied value.
+ */
+const filled = (value: unknown) => value !== null && value !== undefined && !(typeof value === 'string' && value.trim() === '');
 
 export const bulkUpdateBody = z
   .strictObject({ rows: z.array(bulkUpdateRow).min(1).max(MAX_BULK_ROWS) })

@@ -1,8 +1,9 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import { requireAdmin } from '../../auth/middleware.js';
-import { requireProjectScope } from '../../auth/scope.js';
+import { isEditor, requireProjectScope } from '../../auth/scope.js';
 import type { Sql } from '../../db.js';
-import { listActivity, logEvent } from '../../housing/activity.js';
+import { AppError } from '../../errors.js';
+import { listActivity, logEvent, type ActivityScope } from '../../housing/activity.js';
 import { projectActivityBody, projectActivityQuery } from '../../housing/schemas.js';
 import {
   actorOf,
@@ -25,16 +26,24 @@ export interface ActivityDeps {
   writeRateLimit?: WriteRateLimit;
 }
 
+/**
+ * Only a main admin and an admin read the whole log. An editor is scoped, and so is any principal
+ * without an exact allProjects true (fails closed).
+ */
+function activityScopeOf(req: Request): ActivityScope | undefined {
+  const admin = req.admin;
+  if (!admin) throw new AppError('UNAUTHENTICATED', 'লগইন করুন');
+  if (admin.allProjects === true && !isEditor(admin)) return undefined;
+  return { projects: admin.allProjects === true ? 'all' : admin.projects, adminId: admin.id };
+}
+
 export function activityRouter({ sql, readRateLimit = DEFAULT_READ_RATE_LIMIT, writeRateLimit = DEFAULT_WRITE_RATE_LIMIT }: ActivityDeps): Router {
   const router = Router();
   const limitReads = readRateLimiter(readRateLimit, 'activity reads rate-limited');
   const limitWrites = writeRateLimiter(writeRateLimit);
 
   router.get('/activity', privateNoStore, requireAdmin, limitReads, async (req, res) => {
-    const admin = req.admin;
-    // An editor without "all projects" sees its projects' rows and its own (fails closed: anything but an exact true is scoped).
-    const scope = admin && admin.allProjects !== true ? { projects: admin.projects, adminId: admin.id } : undefined;
-    res.json(await listActivity(sql, projectActivityQuery.parse(req.query), scope));
+    res.json(await listActivity(sql, projectActivityQuery.parse(req.query), activityScopeOf(req)));
   });
 
   // A client event is the browser's own summary of work it did (an import, an export); its details

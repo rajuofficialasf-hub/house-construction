@@ -10,7 +10,7 @@ import type { RecordListQuery } from './schemas.js';
 // records of projects in housing_public_project_keys(), and sees only public fields' values in
 // extra; an admin session sees every project and extra as stored
 // (docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md, "P2 decisions"); a scoped
-// editor gets that admin view only in its own projects ("P9b decisions").
+// editor gets that admin view only in its own projects (same plan, "P9b decisions").
 
 // project_type is any registered project key here, not HousingRecord's two-value enum.
 export type ProjectRecord = Omit<HousingRecord, 'project_type'> & {

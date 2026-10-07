@@ -10,7 +10,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../src/app.js';
 import type { Tx } from '../../src/db.js';
 import { createLogger } from '../../src/logger.js';
-import { appDb, insertField, insertProject, insertRecord, ownerDb, resetTestData, type AdminInput } from '../support/db.js';
+import { appDb, insertAdmin, insertField, insertProject, insertRecord, ownerDb, resetTestData, type AdminInput } from '../support/db.js';
 import { loginAdmin, TEST_ORIGIN } from '../support/session.js';
 import { TEST_PUBLIC_API_URL, testStorage } from '../support/storage.js';
 
@@ -353,7 +353,7 @@ describe('the activity view of a scoped editor', () => {
     expect(res.body.data[0].actor_id).toBe(admin.id);
   });
 
-  it('shows everything to an editor with "all projects" and to an admin', async () => {
+  it('shows every project\'s rows to an editor with "all projects" and to an admin', async () => {
     await seedLog();
     for (const cookie of [await as({ role: 'editor', allProjects: true }), await as({ role: 'admin' })]) {
       const res = await send(cookie, 'get', '/activity?action=create');
@@ -366,3 +366,68 @@ describe('the activity view of a scoped editor', () => {
 async function withActorRow(adminId: string, projectType: string) {
   await owner`insert into public.housing_activity_log (actor_id, actor_email, action, project_type) values (${adminId}, 'ed@example.org', 'import_run', ${projectType})`;
 }
+
+describe('review fixes', () => {
+  it('refuses every delete to an editor with "all projects"', async () => {
+    const rec = await insertRecord(sql, { project_type: 'tin' });
+    await insertProject(owner, { key: 'empty_p' });
+    const fieldId = (await owner<{ id: string }[]>`select id from public.housing_project_fields where project_key = 'tin' and key = 'tribe'`)[0]!.id;
+    const editor = await as({ role: 'editor', allProjects: true });
+    const del = (url: string) => request(app).delete(`/api/v1${url}`).set('origin', TEST_ORIGIN).set('cookie', editor);
+    for (const url of [`/records/${rec.id}`, `/records/${rec.id}/photos/current`, '/projects/empty_p', `/fields/${fieldId}`, '/projects/tin/cover']) {
+      expect((await del(url)).status, url).toBe(403);
+    }
+    expect(await count('tin')).toBe(1);
+    expect(await owner`select key from public.housing_projects where key = 'empty_p'`).toHaveLength(1);
+  });
+
+  it("refuses a group's editor a project outside the group", async () => {
+    await insertProject(owner, { key: 'water' });
+    const cookie = await as({ role: 'editor', projects: ['housing'] });
+    expect((await send(cookie, 'post', '/projects/water/records', row())).status).toBe(403);
+    expect(await count('water')).toBe(0);
+  });
+
+  it('writes what the in-scope routes say they write', async () => {
+    const rec = await insertRecord(sql, { project_type: 'tin' });
+    const cookie = await tinEditor();
+    const before = await count('tin');
+    await send(cookie, 'post', '/projects/tin/records', row());
+    await send(cookie, 'post', '/projects/tin/records/bulk', { mode: 'assign_serial', rows: [row()] });
+    expect(await count('tin')).toBe(before + 2);
+    await send(cookie, 'put', '/projects/tin/records/bulk', { rows: [{ serial_no: rec.serial_no, address: 'বাল্কের ঠিকানা' }] });
+    expect((await recordRow(rec.id))?.address).toBe('বাল্কের ঠিকানা');
+    await photo(cookie, rec.id);
+    expect((await recordRow(rec.id))?.current_photo_url).toEqual(expect.stringContaining('/api/v1/photos/'));
+    await send(cookie, 'put', `/records/${rec.id}/private`, { data: { phone: PHONE } });
+    expect(await privateOf(rec.id)).toEqual({ phone: PHONE });
+    expect((await send(cookie, 'get', `/records/${rec.id}/private`)).body.data).toEqual({ phone: PHONE });
+    expect((await send(cookie, 'post', '/projects/tin/records/private', { ids: [rec.id] })).body.data).toEqual({ [rec.id]: { phone: PHONE } });
+    const logged = (await send(cookie, 'post', '/activity', { action: 'import_run', project_type: 'tin' })).body.data.id;
+    expect(await owner`select action, project_type from public.housing_activity_log where id = ${logged}`).toEqual([{ action: 'import_run', project_type: 'tin' }]);
+  });
+
+  it('shows an editor with "all projects" every project\'s rows, but no other login\'s rows without a project', async () => {
+    const { cookie: main } = await loginAdmin(app, owner, { email: 'main@example.org', role: 'main_admin' });
+    await insertAdmin(owner, { email: 'other@example.org', role: 'editor', projects: ['tin'] });
+    await send(main, 'put', '/admin/users', { email: 'other@example.org', role: 'editor', all_projects: false, projects: ['semi_pucca'], is_active: true });
+    await insertRecord(sql, { project_type: 'semi_pucca' });
+    const { admin, cookie } = await loginAdmin(app, owner, { email: 'all@example.org', role: 'editor', allProjects: true });
+    const rows = (await send(cookie, 'get', '/activity?page_size=100')).body.data as { action: string; actor_id: string | null; project_type: string | null }[];
+    expect(rows.map((r) => r.action)).toContain('create');
+    expect(rows.filter((r) => r.project_type === null && r.actor_id !== admin.id)).toEqual([]);
+    expect(rows.map((r) => r.action)).not.toContain('admin_user_update');
+    expect(rows.filter((r) => r.action === 'login').every((r) => r.actor_id === admin.id)).toBe(true);
+  });
+
+  it('treats a blank-after-trim custom value in a bulk update as unchanged, for an editor and an admin', async () => {
+    const rec = await insertRecord(sql, { project_type: 'tin', extra: { tribe: 'ক' } });
+    await send(await tinEditor(), 'put', `/records/${rec.id}/private`, { data: { phone: PHONE } });
+    for (const cookie of [await tinEditor(), await as({ role: 'admin' })]) {
+      const res = await send(cookie, 'put', '/projects/tin/records/bulk', { rows: [{ serial_no: rec.serial_no, extra: { tribe: '   ', phone: '  ' } }] });
+      expect(res.status, JSON.stringify(res.body)).toBe(200);
+      expect((await recordRow(rec.id))?.extra).toEqual({ tribe: 'ক' });
+      expect(await privateOf(rec.id)).toEqual({ phone: PHONE });
+    }
+  });
+});
