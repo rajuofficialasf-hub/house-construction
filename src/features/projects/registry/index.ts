@@ -18,7 +18,5 @@ export {
 } from './projectsStore'
 export { useProject, useProjects, useRegistry } from './useProjects'
 export { ACCENTS, accentOf, type Accent } from './accents'
-export { PROJECT_ICONS, type ProjectIconKey } from './icons'
-export { ProjectIcon } from './ProjectIcon'
 export { STAT_ICONS, type StatIconKey } from './statIcons'
 export { StatIcon } from './StatIcon'

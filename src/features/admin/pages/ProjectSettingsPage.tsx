@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { Link, useParams, useSearchParams } from 'react-router'
 import { getHousingApi, getProjectsApi, HousingApiError, type Project, type ProjectPatch, type ProjectStats } from '@/backend'
 import { useToast } from '@/components/useToast'
-import { ACCENTS, PROJECT_ICONS, ProjectIcon, projectPath, refreshProjects, type ProjectIconKey } from '@/features/projects/registry'
+import { ACCENTS, projectPath, refreshProjects } from '@/features/projects/registry'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { formatBanglaNumber } from '@/lib/banglaNumber'
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
@@ -360,23 +360,7 @@ export function ProjectSettingsPage() {
             </div>
 
             <div className={`${card} space-y-4`}>
-              <p className="text-sm font-medium text-slate-700">{t('আইকন ও রং')}</p>
-              <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t('আইকন')}>
-                {(Object.keys(PROJECT_ICONS) as ProjectIconKey[]).map((k) => (
-                  <button
-                    key={k}
-                    type="button"
-                    role="radio"
-                    aria-checked={form.icon === k}
-                    aria-label={pick(PROJECT_ICONS[k].label_bn, PROJECT_ICONS[k].label_en)}
-                    title={pick(PROJECT_ICONS[k].label_bn, PROJECT_ICONS[k].label_en)}
-                    onClick={() => set('icon', k)}
-                    className={`flex h-14 w-14 items-center justify-center rounded-xl border ${form.icon === k ? 'border-brand-600 bg-brand-50 text-brand-700 ring-1 ring-brand-600' : 'border-slate-200 text-slate-600 hover:border-brand-300'}`}
-                  >
-                    <ProjectIcon icon={k} className="h-9 w-9" />
-                  </button>
-                ))}
-              </div>
+              <p className="text-sm font-medium text-slate-700">{t('রং')}</p>
               <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t('রং')}>
                 {(Object.keys(ACCENTS) as (keyof typeof ACCENTS)[]).map((k) => (
                   <button
@@ -387,9 +371,7 @@ export function ProjectSettingsPage() {
                     onClick={() => set('accent', k)}
                     className={`inline-flex min-h-11 items-center gap-2 rounded-lg border px-3 text-sm ${form.accent === k ? 'border-brand-600 ring-1 ring-brand-600' : 'border-slate-200'}`}
                   >
-                    <span className={`flex h-7 w-7 items-center justify-center rounded-md ${ACCENTS[k].soft}`}>
-                      <ProjectIcon icon={form.icon} className="h-5 w-5" />
-                    </span>
+                    <span className={`h-7 w-7 rounded-md bg-gradient-to-br ${ACCENTS[k].gradient}`} aria-hidden="true" />
                     {pick(ACCENTS[k].label_bn, ACCENTS[k].label_en)}
                   </button>
                 ))}

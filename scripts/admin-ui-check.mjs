@@ -530,6 +530,7 @@ async function typeInto(p, labelText, value) {
   const s1 = await text(p)
   ok('ইংরেজি নাম থেকে slug "demo", key "demo", প্রিফিক্স "demo", URL প্রিভিউ "/demo"', (await slugVal()) === 'demo' && s1.includes('স্থায়ী key: demo') && s1.includes('পেইজের ঠিকানা: /demo'), s1.match(/স্থায়ী key: \S+/)?.[0])
   ok('ছবির ফাইলের উদাহরণ "demo_0012.jpg" (শুধু-পরে)', s1.includes('demo_0012.jpg'))
+  ok('উইজার্ডে আইকন-বাছাই নেই, শুধু "রং" (২০২৬-১০-০৭)', !(await p.$('[role="radiogroup"][aria-label="আইকন"]')) && !!(await p.$('[role="radiogroup"][aria-label="রং"]')) && !s1.includes('আইকন ও রং'))
   for (const [slug, want] of [['admin', 'সংরক্ষিত শব্দ'], ['src', 'সংরক্ষিত শব্দ'], ['housing', 'আগে থেকেই আছে'], ['123', 'শুধু সংখ্যা দিয়ে URL হয় না'], ['Bad Slug', 'শুধু ছোট ইংরেজি অক্ষর']]) {
     await typeInto(p, 'URL অংশ (slug)', slug)
     await sleep(150)
@@ -1511,12 +1512,12 @@ for (const [w, mobile] of [[1280, false], [390, true]]) {
   await p.goto(BASE + '/', { waitUntil: 'domcontentloaded' })
   await settle(p)
   await sleep(1500) // count-up
-  const cards = await p.evaluate(() => [...document.querySelectorAll('[data-project-card]')].map((c) => ({ key: c.getAttribute('data-project-card'), text: c.innerText.replace(/\s+/g, ' '), img: c.querySelector('img')?.getAttribute('src') ?? null, fallback: !!c.querySelector('[data-cover-fallback]'), chips: [...c.querySelectorAll(':scope ul a')].map((a) => a.textContent), href: [...c.querySelectorAll('a')].at(-1)?.getAttribute('href') })))
+  const cards = await p.evaluate(() => [...document.querySelectorAll('[data-project-card]')].map((c) => ({ key: c.getAttribute('data-project-card'), text: c.innerText.replace(/\s+/g, ' '), img: c.querySelector('img')?.getAttribute('src') ?? null, fallback: !!c.querySelector('[data-cover-fallback]'), fallbackText: c.querySelector('[data-cover-fallback]')?.textContent.trim() ?? '', svgs: c.querySelectorAll('[data-cover-fallback] svg, .ring-4 svg').length, chips: [...c.querySelectorAll(':scope ul a')].map((a) => a.textContent), href: [...c.querySelectorAll('a')].at(-1)?.getAttribute('href') })))
   ok('হোম: কার্ড শুধু শীর্ষ-স্তরের প্রকাশিত ও "হোমে" চালু প্রকল্প — ঘর নির্মাণ (গ্রুপ) ও স্বাবলম্বী; খসড়া/হোমে-বন্ধ নেই, উপ-প্রকল্প আলাদা কার্ড নয়', cards.map((c) => c.key).sort().join(',') === [...LIVE.projects.filter((x) => !x.parent_key && x.is_published && x.show_on_home).map((x) => x.key), 'sr_test'].sort().join(',') && !cards.some((c) => ['draft_test', 'nohome_test', 'semi_pucca', 'tin'].includes(c.key)), cards.map((c) => c.key).join(','))
   const h = cards.find((c) => c.key === 'housing')
   ok('গ্রুপ-কার্ড: উপ-প্রকল্পের চিপ (সেমিপাকা · টিন), "মোট ঘর নির্মাণ"/"মোট জেলা কভার"/"মোট উপজেলা কভার", সর্বশেষ রেকর্ডের থাম্ব (কভার নেই)', h && h.chips.join('|') === 'সেমিপাকা ঘর নির্মাণ|টিনের ঘর নির্মাণ' && h.text.includes('মোট ঘর নির্মাণ') && h.text.includes('মোট জেলা কভার') && h.text.includes('মোট উপজেলা কভার') && /current_thumb\.webp/.test(h.img ?? '') && h.href === '/housing', JSON.stringify(h)?.slice(0, 300))
   const s = cards.find((c) => c.key === 'sr_test')
-  ok('একক কার্ড: কভার/ছবি না থাকলে রঙের গ্রেডিয়েন্ট + আইকন; "মোট টাকা ৳ ১২,৫০,০০০", "মোট ক্যাটাগরি ৪"; home নয় এমন কার্ড (জেলা) নেই', s && s.fallback && !s.img && s.text.includes('৳ ১২,৫০,০০০ মোট টাকা') && s.text.includes('৪ মোট ক্যাটাগরি') && !s.text.includes('জেলা কভার') && s.text.includes('প্রকল্প দেখুন'), s?.text)
+  ok('একক কার্ড: কভার/ছবি না থাকলে রঙের গ্রেডিয়েন্টে প্রকল্পের নাম (আইকন নেই — ২০২৬-১০-০৭); "মোট টাকা ৳ ১২,৫০,০০০", "মোট ক্যাটাগরি ৪"; home নয় এমন কার্ড (জেলা) নেই', s && s.fallback && !s.img && s.fallbackText === 'স্বাবলম্বী (পরীক্ষা)' && s.svgs === 0 && s.text.includes('৳ ১২,৫০,০০০ মোট টাকা') && s.text.includes('৪ মোট ক্যাটাগরি') && !s.text.includes('জেলা কভার') && s.text.includes('প্রকল্প দেখুন'), s?.text)
   const hero = await p.evaluate(() => [...document.querySelectorAll('section dl dd')].slice(0, 3).map((d) => d.textContent))
   const bn = (n) => String(n).replace(/\d/g, (d) => '০১২৩৪৫৬৭৮৯'[d])
   ok('হিরো: আস-সুন্নাহ ফাউন্ডেশন — "আমাদের কার্যক্রমসমূহ"; মোট প্রকল্প/উপকারভোগী/জেলা = ওভারভিউর global', (await text(p)).includes('আমাদের কার্যক্রমসমূহ') && hero.join(',') === [live.global.projects, live.global.total, live.global.districts].map(bn).join(','), `${hero.join(',')} ↔ ${JSON.stringify(live.global)}`)

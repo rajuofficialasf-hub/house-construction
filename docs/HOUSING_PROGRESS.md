@@ -216,8 +216,7 @@ src/
   features/projects/registry/   # প্রকল্প রেজিস্ট্রি — সব প্রকল্পের জন্য (M-ধাপ ৫ক)
     projectsStore.ts            # মডিউল-স্তরের তালিকা: স্ন্যাপশট asf_projects_v1 → ফলব্যাক → নেটওয়ার্ক; findProject, childrenOf, housingProjects, projectPath, refreshProjects
     useProjects.ts              # useRegistry / useProjects / useProject (useSyncExternalStore)
-    icons.ts, iconShapes.tsx    # আইকন-রেজিস্ট্রি (projects.icon এর key → SVG): বাড়ি, টিনের ঘর, গরু, ছাগল, দোকান, সেলাই মেশিন, টুলস, কয়েন, হাত-হৃদয়, মানুষ + fallback
-    ProjectIcon.tsx             # <ProjectIcon icon={project.icon} />
+    (icons.ts, iconShapes.tsx, ProjectIcon.tsx — প্রকল্পের আইকন, ২০২৬-১০-০৭ এ বাদ; ডাটাবেসের projects.icon কলাম থাকে, দেখানো হয় না)
     statIcons.ts, statIconShapes.tsx, StatIcon.tsx  # স্ট্যাট কার্ডের আইকন (users, house, map, pin, grid, coins, tags, calendar, chart, heart) (M-ধাপ ৮)
     accents.ts                  # রঙের নির্দিষ্ট তালিকা (projects.accent): brand, teal, sky, indigo, amber, rose
     index.ts
@@ -2702,3 +2701,19 @@ M-ধাপ ২-এ এই মানগুলো `checks/10_verify.sql` এ ব�
 | `stats-filter-check` (লাইভ, শুধু পড়া): semi_pucca ৮টি + self_reliance_project ১৫টি ফিল্টার — মোট, কভার, টাকা, ক্যাটাগরি সব মিলেছে (প্রথমবার স্ক্রিপ্টের নিজের ভুলে সার্চ "MD " এর শেষ-ফাঁকা অ্যাপের মতো ছাঁটা হয়নি — স্ক্রিপ্ট ঠিক করা) | ✅ |
 | SQL ১৫-এর পরে `smoke` ১৪৩/১৪৩ (ফিল্টার-কল ৬২টি), `security-check` ৪৬/৪৬, `baseline-check` ৫/৫ | ✅ |
 | `checks/15_selftest.sql` (আপনি) | ⏳ |
+
+## পরিবর্তন: প্রকল্পের আইকন বাদ (২০২৬-১০-০৭) — ✅ (ডাটাবেসের কাজ নেই)
+
+### ১. কী তৈরি বা পরিবর্তন হয়েছে
+- **নতুন প্রকল্প খোলা (উইজার্ড) ও প্রকল্পের সেটিংস:** "আইকন ও রং" → শুধু **"রং"**; আইকন-বাছাই সরানো। রঙের বোতামে এখন শুধু রঙের ছোট নমুনা।
+- **যেখানে আইকন দেখাত, সেখান থেকে সরানো:** হোমের প্রকল্প-কার্ড (নামের ওপরের ছোট আইকন-ব্যাজ; কভার/ছবি না থাকলে বড় আইকন → এখন রঙের পটভূমিতে **প্রকল্পের নাম**), ঘর নির্মাণ পাতার প্রকল্প-কার্ড (ছবি না থাকলে একই), কভার-ছবির প্রিভিউ।
+- **মুছে ফেলা ফাইল:** `src/features/projects/registry/icons.ts`, `iconShapes.tsx`, `ProjectIcon.tsx` (আর কোথাও ব্যবহার নেই)। পরিসংখ্যান-কার্ডের আইকন (`statIcons`) আলাদা — অপরিবর্তিত।
+- ডাটাবেসের `projects.icon` কলাম থাকছে (নতুন প্রকল্পে টেমপ্লেটের মান যায়, কোথাও দেখানো হয় না) — তাই কোনো SQL লাগে না, পুরনো লগে "আইকন" বদলের ইতিহাস ঠিকই পড়া যায়।
+- `admin-ui-check`: উইজার্ডে আইকন-বাছাই নেই (+১); হোম-কার্ডের পরীক্ষা এখন "রঙের পটভূমিতে নাম, আইকন নেই" দেখে।
+
+### ২. কিভাবে টেস্ট করতে হবে
+| পরীক্ষা | ফল |
+|---|---|
+| `admin-ui-check` ২২৭/২২৭ (দুবার চালানো) | ✅ |
+| `smoke` ১৪৩/১৪৩ ও `--legacy` ১২৩/১২৩, `geo-check` ৫৪/৫৪ (মূল বান্ডল ছোট হয়েছে), গেট সব | ✅ |
+| স্ক্রিনশট: হোমে ছবি-ছাড়া কার্ডে রঙের পটভূমিতে নাম | ✅ |

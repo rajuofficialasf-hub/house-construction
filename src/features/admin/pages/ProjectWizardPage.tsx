@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { getProjectsApi, HousingApiError, type GeoDepth, type PhotoMode, type Project } from '@/backend'
 import { useToast } from '@/components/useToast'
-import { ACCENTS, PROJECT_ICONS, ProjectIcon, refreshProjects, type ProjectIconKey } from '@/features/projects/registry'
+import { ACCENTS, refreshProjects } from '@/features/projects/registry'
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import { keyError, keyFromSlug, photoNameExample, prefixError, slugError, slugify, suggestPrefix, friendlyProjectError } from '../projects/projectRules'
 import { PROJECT_TEMPLATES, buildProjectInput, templateOf, type TemplateKey } from '../projects/projectTemplates'
@@ -290,23 +290,8 @@ export function ProjectWizardPage() {
           </Step>
         )}
 
-        <Step n={isGroup ? 5 : 6} title={t('আইকন ও রং')}>
-          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t('আইকন')}>
-            {(Object.keys(PROJECT_ICONS) as ProjectIconKey[]).map((k) => (
-              <button
-                key={k}
-                type="button"
-                role="radio"
-                aria-checked={icon === k}
-                title={pick(PROJECT_ICONS[k].label_bn, PROJECT_ICONS[k].label_en)}
-                aria-label={pick(PROJECT_ICONS[k].label_bn, PROJECT_ICONS[k].label_en)}
-                onClick={() => setIcon(k)}
-                className={`flex h-14 w-14 items-center justify-center rounded-xl border ${icon === k ? 'border-brand-600 bg-brand-50 text-brand-700 ring-1 ring-brand-600' : 'border-slate-200 text-slate-600 hover:border-brand-300'}`}
-              >
-                <ProjectIcon icon={k} className="h-9 w-9" />
-              </button>
-            ))}
-          </div>
+        {/* আইকন বাছাই নেই (ব্যবহারকারীর সিদ্ধান্ত, ২০২৬-১০-০৭) — ডাটাবেসের icon কলামে টেমপ্লেটের মানই যায়, কোথাও দেখানো হয় না */}
+        <Step n={isGroup ? 5 : 6} title={t('রং')}>
           <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t('রং')}>
             {(Object.keys(ACCENTS) as (keyof typeof ACCENTS)[]).map((k) => (
               <button
@@ -317,9 +302,7 @@ export function ProjectWizardPage() {
                 onClick={() => setAccent(k)}
                 className={`inline-flex min-h-11 items-center gap-2 rounded-lg border px-3 text-sm ${accent === k ? 'border-brand-600 ring-1 ring-brand-600' : 'border-slate-200'}`}
               >
-                <span className={`flex h-7 w-7 items-center justify-center rounded-md ${ACCENTS[k].soft}`}>
-                  <ProjectIcon icon={icon} className="h-5 w-5" />
-                </span>
+                <span className={`h-7 w-7 rounded-md bg-gradient-to-br ${ACCENTS[k].gradient}`} aria-hidden="true" />
                 {pick(ACCENTS[k].label_bn, ACCENTS[k].label_en)}
               </button>
             ))}
