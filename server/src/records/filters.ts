@@ -22,6 +22,12 @@ export interface BaseFilters {
   q?: string | undefined;
 }
 
+/** True when any filter holds a value; blanks don't count, as recordFilters skips them too. */
+export function hasRecordFilters(query: BaseFilters, filters: Map<string, string>): boolean {
+  const base = query.year !== undefined || !!(query.division || query.district || query.upazila || query.union_name || query.q);
+  return base || [...filters.values()].some((value) => value.trim() !== '');
+}
+
 /** A filter value as the trigger stores it, so it matches exactly (0013_record_rules.sql). */
 function filterValue(key: string, type: string, raw: string): string | number {
   if (type === 'number' || type === 'money') {

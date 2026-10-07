@@ -1,8 +1,9 @@
 import { Router, type Request, type RequestHandler } from 'express';
 import type { Sql } from '../../db.js';
 import { getProject, listProjectFields, listProjects, projectStats, projectsOverview, type Viewer } from '../../projects/reads.js';
-import { filteredProjectStats, hasStatsFilters } from '../../projects/filteredStats.js';
+import { filteredProjectStats } from '../../projects/filteredStats.js';
 import { overviewQuery, projectKeyParams, projectListQuery } from '../../projects/schemas.js';
+import { hasRecordFilters } from '../../records/filters.js';
 import { fieldFilters, statsQuery } from '../../records/schemas.js';
 import { projectNotFound } from '../../records/reads.js';
 import { DEFAULT_READ_RATE_LIMIT, readRateLimiter, type ReadRateLimit } from './shared.js';
@@ -46,7 +47,7 @@ export function projectsReadRouter(sql: Sql, readRateLimit: ReadRateLimit = DEFA
     const query = statsQuery.parse(req.query);
     const filters = fieldFilters(req.query);
     const viewer = viewerOf(req);
-    const stats = hasStatsFilters(query, filters)
+    const stats = hasRecordFilters(query, filters)
       ? await filteredProjectStats(sql, key, viewer, query, filters)
       : await projectStats(sql, key, query.light !== undefined, viewer);
     if (stats === null) throw projectNotFound();

@@ -3,16 +3,9 @@ import { recordFilters, type BaseFilters, type FilterFields } from '../records/f
 import type { Viewer } from './reads.js';
 
 // A project's stats under the list's filters, for the list page's cards: one query over the counted
-// leaves with the list's own conditions (records/filters.ts), so the cards count exactly what the list
-// shows (docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md, P8b decisions).
-// The shape is main's SQL 15 project_stats_filtered: total, distinct, by_project and fields, with the
-// by_ counts empty and no category by_value.
-
-/** True when any filter holds a value; blanks don't count, so a blank query gets the plain stats. */
-export function hasStatsFilters(query: BaseFilters, filters: Map<string, string>): boolean {
-  const base = query.year !== undefined || !!(query.division || query.district || query.upazila || query.union_name || query.q);
-  return base || [...filters.values()].some((value) => value.trim() !== '');
-}
+// leaves with the list's own conditions (records/filters.ts), so the cards count what the list shows.
+// It answers total, distinct, by_project and fields with filtered: true; the by_ counts are empty and
+// categories carry no by_value.
 
 interface LeafField {
   project_key: string;
@@ -29,10 +22,12 @@ interface LeafField {
  */
 function sharedFields(leaves: string[], rows: LeafField[]) {
   const byKey = new Map<string, LeafField[]>();
-  for (const row of rows) byKey.set(row.key, [...(byKey.get(row.key) ?? []), row]);
-  const shared = [...byKey.values()].filter(
-    (defs) => leaves.length > 0 && defs.length === leaves.length && defs.every((d) => d.type === defs[0]!.type),
-  );
+  for (const row of rows) {
+    const defs = byKey.get(row.key);
+    if (defs) defs.push(row);
+    else byKey.set(row.key, [row]);
+  }
+  const shared = [...byKey.values()].filter((defs) => defs.length === leaves.length && defs.every((d) => d.type === defs[0]!.type));
   const fields: FilterFields = {
     filterable: new Map(shared.filter((defs) => defs.every((d) => d.filterable)).map((defs) => [defs[0]!.key, defs[0]!.type])),
     searchable: shared.filter((defs) => defs.every((d) => d.searchable)).map((defs) => defs[0]!.key),
@@ -55,7 +50,7 @@ export async function filteredProjectStats(
   viewer: Viewer,
   query: BaseFilters,
   filters: Map<string, string>,
-): Promise<unknown | null> {
+): Promise<object | null> {
   return (await sql.begin(async (tx) => {
     await tx`set local statement_timeout = '2s'`;
     const [project] = await tx<{ leaves: string[] }[]>`
@@ -64,9 +59,11 @@ export async function filteredProjectStats(
       where key = ${key} and (${viewer.admin} or key = any(public.housing_public_project_keys()))`;
     if (!project) return null;
     const { leaves } = project;
-    const rows = await tx<LeafField[]>`
+    const rows = leaves.length
+      ? await tx<LeafField[]>`
       select project_key, key, type, filterable, searchable from public.housing_project_fields
-      where project_key = any(${leaves}) and visibility = 'public' and is_active`;
+      where project_key = any(${leaves}) and visibility = 'public' and is_active`
+      : [];
     const { fields, counted } = sharedFields(leaves, rows);
 
     const where = [tx`b.project_type = any(${leaves})`, ...recordFilters(tx, fields, filters, query)].reduce(
@@ -79,15 +76,14 @@ export async function filteredProjectStats(
         ? tx`${k}::text, jsonb_build_object('type', 'category', 'distinct',
             (select count(distinct (extra ->> ${k}::text) collate "C") from base
               where jsonb_typeof(extra -> ${k}::text) = 'string' and extra ->> ${k}::text <> ''))`
-        : tx`${k}::text, jsonb_build_object('type', ${type}::text,
-            'sum', (select coalesce(sum((extra ->> ${k}::text)::numeric), 0) from base where jsonb_typeof(extra -> ${k}::text) = 'number'),
-            'count', (select count(*) from base where jsonb_typeof(extra -> ${k}::text) = 'number'))`,
+        : tx`${k}::text, (select jsonb_build_object('type', ${type}::text, 'sum', coalesce(sum((extra ->> ${k}::text)::numeric), 0), 'count', count(*))
+            from base where jsonb_typeof(extra -> ${k}::text) = 'number')`,
     );
     const fieldsObject = fieldStats.length
       ? tx`jsonb_build_object(${fieldStats.reduce((all, one) => tx`${all}, ${one}`)})`
       : tx`'{}'::jsonb`;
 
-    const [row] = await tx<{ s: unknown }[]>`
+    const [row] = await tx<{ s: object }[]>`
       with base as (
         select b.project_type, b.division, b.district, b.upazila, b.union_name, b.extra
         from public.housing_beneficiaries b where ${where}
@@ -111,5 +107,5 @@ export async function filteredProjectStats(
         'filtered', true
       ) as s`;
     return row?.s ?? null;
-  })) as unknown | null;
+  })) as object | null;
 }

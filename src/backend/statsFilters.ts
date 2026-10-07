@@ -21,6 +21,7 @@ export function statsFilterEntries(filters: StatsFilters | undefined): [string, 
   text('upazila', filters.upazila)
   text('union_name', filters.union_name)
   text('q', filters.q, MAX_SEARCH)
+  // A field value goes as typed (the server trims and normalises it the way the record stores it)
   for (const [key, value] of Object.entries(filters.fields ?? {})) {
     if (typeof value === 'string' && value.trim() !== '') entries.push([`f.${key}`, value])
   }
