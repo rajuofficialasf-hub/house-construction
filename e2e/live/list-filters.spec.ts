@@ -1,5 +1,5 @@
 import { expect, test } from '../support/test'
-import { columnTexts, dataRows, statTotal, waitForList } from '../support/public'
+import { columnTexts, dataRows, filteredBanner, listTotal, statTotal, waitForList } from '../support/public'
 
 // ক্রম | সাল | নাম | পিতা/স্বামী | বিভাগ | জেলা | উপজেলা | ঠিকানা | ছবি | ছবি | বিস্তারিত
 const COL = { year: 1, name: 2, division: 4, district: 5, upazila: 6 }
@@ -61,12 +61,16 @@ test.describe('list filters (relationships only, no fixed data)', () => {
     await page.goto('/housing/semi-pucca')
     await waitForList(page)
     await page.getByRole('searchbox', { name: 'উপকারভোগীর নাম' }).fill('zzzz-no-such-name-zzzz')
-    await expect(page.locator('main [role=status]')).toBeVisible()
+    // Only the empty-list notice; the stat cards' "filtered" note is a status too.
+    await expect(page.locator('main [role=status]').filter({ hasText: 'কোনো তথ্য পাওয়া যায়নি' })).toBeVisible()
     await expect(page.locator('table')).toHaveCount(0)
     await expect(page.getByRole('alert')).toHaveCount(0)
   })
 
-  test('filters live in the URL: reloading keeps them and the stat total is unaffected', async ({ page }) => {
+  // Cards that say they count the filtered records count what the list shows; a backend without
+  // filtered stats keeps the totals and says nothing (main 87c7241;
+  // docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md, P8b decisions).
+  test('filters live in the URL: reloading keeps them, and the cards count the filtered records only when they say so', async ({ page }) => {
     await page.goto('/housing/semi-pucca')
     await waitForList(page)
     test.skip((await dataRows(page).count()) === 0, 'no records to filter')
@@ -76,6 +80,9 @@ test.describe('list filters (relationships only, no fixed data)', () => {
     await expect(page).toHaveURL(/division=/)
     await page.reload()
     await expect(page.getByRole('combobox', { name: 'বিভাগ', exact: true })).toHaveValue(division)
-    expect(await statTotal(page)).toBe(total)
+    const shown = await statTotal(page)
+    if (await filteredBanner(page).isVisible()) expect(shown).toBe(await listTotal(page))
+    else expect(shown).toBe(total)
   })
+
 })

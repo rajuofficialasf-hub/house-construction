@@ -23,6 +23,16 @@ export async function statTotal(page: Page): Promise<number> {
   return prev
 }
 
+/** The list's own total, from its pagination line ("মোট X টির মধ্যে Y–Z দেখানো হচ্ছে"); the page is paged at 50. */
+export async function listTotal(page: Page): Promise<number> {
+  const line = page.getByRole('navigation', { name: 'পেজিনেশন' }).getByText(/টির মধ্যে/)
+  await expect(line).toBeVisible()
+  return bnInt(await line.textContent())
+}
+
+/** The note the stat cards show when they count the filtered records (ProjectStatCards.tsx). */
+export const filteredBanner = (page: Page) => page.getByRole('status').filter({ hasText: 'পরিসংখ্যান: বাছাই করা ফিল্টার অনুযায়ী' })
+
 /** তালিকা লোড হওয়া পর্যন্ত অপেক্ষা (ডাটা সারি সহ টেবিল, অথবা খালি অবস্থার বার্তা) */
 export async function waitForList(page: Page) {
   // the list page renders a table when there are records, or a status notice when there are none

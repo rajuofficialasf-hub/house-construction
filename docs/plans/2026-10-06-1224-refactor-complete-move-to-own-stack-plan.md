@@ -2790,7 +2790,7 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
 - **Tests:** the specs above. `admin-rest` passes twice in a row, and `public-rest` and `public-mock` pass.
 - **Done when:** `npm run test:e2e:rest-admin` (twice), `npm run test:e2e:rest` and `npm run test:e2e:mock` pass.
 - **Depends on:** U49
-- **Status:** todo
+- **Status:** done
 
 ### P8b order and parallel lanes
 
@@ -3221,3 +3221,10 @@ Run these at the end of P1:
       - REST `stats` sends `statsFilterEntries(filters)`, and `listQuery` takes its filter part from the same helper, so they can't drift. A blank geo value is now trimmed away before sending, which the server did anyway.
       - The contract block "stats with the list's filters count what the list shows" is in `projectsApiContract.ts`. It runs only on REST and local Supabase; the mock doesn't run the projects contract.
       - Results: REST 63 plus 1 known gap. Local Supabase 57 plus 9 known gaps (the new block among them, in `PROJECT_KNOWN_GAPS`).
+    - **U50:**
+      - `e2e/admin/stat-cards-filtered.spec.ts` has 2 cases:
+        - visitor: a year filter on `semi_pucca` makes the count card equal the list's total, and clearing restores it
+        - main admin: the `demo` preview with `trade=দর্জি` shows ৳ ৪৫,০০০, matching the listed amounts
+      - `e2e/support/public.ts` gains `listTotal` and `filteredBanner`.
+      - `list-filters.spec.ts`: the no-match locator is narrowed to the empty-list notice, and the "stat total unaffected" test became the banner-conditional relation.
+      - Results: admin-rest 64, public-rest 18, the `public-mock` `list-filters` 6.
