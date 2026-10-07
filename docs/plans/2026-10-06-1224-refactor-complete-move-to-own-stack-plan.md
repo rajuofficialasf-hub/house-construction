@@ -36,7 +36,7 @@ Meanwhile the other developer rebuilt the app as a multi-project platform on Sup
 
 ### Key Decisions
 
-- **The parity target is frozen at `main` commit `a8e2154`.** Anything added on Supabase after that is not ported. (session-settled: user-directed — chosen over porting the other developer's Supabase work until handoff: the old system is no longer supported.) Governs R1–R8.
+- **The parity target is frozen at `main` commit `a8e2154`.** Anything added on Supabase after that is not ported, with two user-decided exceptions that follow `main` 87c7241: the filtered stat cards (P8b) and user management with the `editor` role (P9b, 2026-10-07). (session-settled: user-directed — chosen over porting the other developer's Supabase work until handoff: the old system is no longer supported.) Governs R1–R8.
 - **Supabase is deleted as soon as parity is proven.** There is no rollback window and no read-only period. (session-settled: user-directed — chosen over a rollback window: early stage, move ASAP.) Governs R15.
 - **Deploy and cutover tooling is removed, not shelved.** (session-settled: user-directed — chosen over keeping the deploy scripts, keeping everything, or keeping the import script for dev data: there is no deployment yet.) Governs R16.
 - **No data moves from Supabase.** The new stack starts from seed data. (session-settled: user-approved — the trade-off of losing the current Supabase records and photos was shown and accepted.)
@@ -54,7 +54,7 @@ Meanwhile the other developer rebuilt the app as a multi-project platform on Sup
 - R3. Project fields work end to end: create, update, archive, delete, reorder, usage counts and category value rename, with the guards the contract lists (for example no key, type or visibility change once data exists).
 - R4. Records carry `union_name` and custom public values, and private values are stored apart and returned only to admins, singly and in bulk for CSV export.
 - R5. Stats match the Supabase `project_stats` behavior: group roll-ups, `by_union`, field sums and category breakdowns, and the light version for the home page.
-- R6. Two admin roles exist, `admin` and `main_admin`. Every delete (records, photos, projects, fields, private values, covers) is allowed only for `main_admin`, and the create-admin CLI sets the role.
+- R6. Two admin roles exist, `admin` and `main_admin` (P9b adds a third, `editor`, limited to assigned projects). Every delete (records, photos, projects, fields, private values, covers) is allowed only for `main_admin`, and the create-admin CLI sets the role.
 - R7. Public reads see only published projects (whose group is also published) and public fields. Admins also see drafts and private fields.
 - R8. Each project's photo mode (before and after, after only, none) is enforced by the server, as the Supabase adapter does today.
 - R9. The server rules already built stay true: serial numbers per project from 1, never reused; all-or-nothing bulk import; bulk update with `_clear`; an activity-log row for every write carrying the acting admin; cookie sessions; rate limits; photos through the storage adapter with metadata stripped; CORS lists and the OpenAPI document.
@@ -83,7 +83,7 @@ Meanwhile the other developer rebuilt the app as a multi-project platform on Sup
 - AE1. **Covers R6.** Given a plain `admin` is logged in, when they open a records list, then no delete control is shown, and a direct delete request is refused as forbidden. A `main_admin` sees and can use delete.
 - AE2. **Covers R7.** Given a draft project with one private field, when a visitor who isn't logged in lists projects, then the draft is absent. An admin listing with drafts sees it, including the private field.
 - AE3. **Covers R8.** Given an after-only project, when an admin uploads a before photo to one of its records, then the upload is refused as a validation error and nothing is stored.
-- AE4. **Covers R15, R16.** Given the removal is done, when anyone searches the repo outside `docs/plans/` and `docs/learnings/` for `supabase`, `deploy/` or `import-supabase`, then nothing live turns up, and `npm run test:all` plus the server suite pass.
+- AE4. **Covers R15, R16.** Given the removal is done, when anyone searches the repo outside `docs/plans/`, `docs/learnings/` and `docs/history/` for `supabase`, `deploy/`, `import-supabase` and the other old-system words listed in the P9 decisions, then nothing live turns up, and `npm run test:all` plus the server suite pass. (Exclusions widened to `docs/history/` by the user, 2026-10-07.)
 
 ### Success Criteria
 
@@ -96,11 +96,12 @@ Meanwhile the other developer rebuilt the app as a multi-project platform on Sup
 - Production hosting, backups, uptime checks and any deploy process. They get designed again when the app ships.
 - Switching photo storage to S3.
 - New features or UI changes beyond what `main` has at `a8e2154`.
-- Porting anything added on Supabase after `a8e2154`.
+- Porting anything added on Supabase after `a8e2154`, except the filtered stat cards (P8b) and user management (P9b).
 
 ### Dependencies / Assumptions
 
 - The other developer stops pushing Supabase work to `main` from now on and builds new work on the new stack once it is ready. Otherwise the frozen target goes stale.
+- From P9 on, `main` is frozen evidence: `dev-forhad` no longer merges it, and any later `main` change is ported by hand only on the user's say-so (user-decided 2026-10-07).
 - `supabase/sql/10_projects.sql` through `13_money_limit.sql` and `src/backend/supabase/` are the reference for every rule R1–R8 port. Where they disagree with `docs/api/PROJECTS_API_CONTRACT.md`, the contract is corrected to match the running Supabase behavior.
 
 ### Outstanding Questions
@@ -237,10 +238,11 @@ Each chunk is one session that ends with green tests and commits. Chunks run in 
 | **P7** | Playwright and import tests: `admin-rest` specs for the wizard and settings, field and stat-card builders, covers, import with custom and private fields, CSV export with private columns, category rename, delete hidden from a plain admin (AE1); unit tests for `importFields.ts` and `importAnalyze.ts`; CI runs all suites on REST | R12, R14 | P6 |
 | **P8** | Chrome walkthrough on the local stack against a checklist drawn from M-steps 1–15 (`docs/MULTI_PROJECT_PLAN.md`), saved in `docs/progress/`; fix whatever it finds | R13 | P7 green in CI |
 | **P8b** | Filtered stat cards on the server: the adapters report an unfiltered fallback, one shared record-filter builder, the list's filters on `GET /projects/:key/stats` with `main`'s filtered shape, the REST adapter, contract and specs (parity target `main` 87c7241 for this feature only) | R1, R5, R7, R9, R10, R11, R12 | P8 done (checklist fully checked) |
-| **P9** | Removal: Supabase package, adapter, `supabase/` folder, scripts, tests, Playwright projects, env vars; `deploy/`, the edge service and jobs, the runbook; `import:supabase` and its tests and fixtures; `/housing` routes and `API_CONTRACT.md`; `PROJECTS_API_CONTRACT.md` corrected to the server as built; docs rewritten, including the mermaid pages in `docs/diagrams/` (`backend-architecture.md` loses the Supabase, deploy and cutover pictures and gains the registry tables; `test-strategy.md` loses the live-Supabase lanes); bundle check; AE4 search | R15, R16, R17, R18 | P8 checklist fully checked and P8b done |
-| **P10** | Handoff guide: run, extend, test; `CLAUDE.md` profile final | R19 | P9 |
+| **P9** | Removal: Supabase package, adapter, `supabase/` folder, scripts, tests, Playwright projects, env vars; `deploy/`, the edge service and jobs, the runbook; `import:supabase` (already removed in P1); `/housing` routes and `API_CONTRACT.md`; `PROJECTS_API_CONTRACT.md` corrected to the server as built; docs rewritten, including the mermaid pages in `docs/diagrams/` (`backend-architecture.md` loses the Supabase, deploy and cutover pictures and gains the registry tables; `test-strategy.md` loses the live-Supabase lanes); bundle check; AE4 search | R15, R16, R17, R18 | P8 checklist fully checked and P8b done |
+| **P9b** | User management on the server (option A, user-decided 2026-10-07): `GET/PUT /api/v1/admin/users` (main admin only), the `editor` role with per-project assignment and "all projects", `/auth/me` sends them, an editor's project scope enforced on every write route and the activity view; REST adapter, contract and `admin-rest` spec (parity target `main` 87c7241, SQL 14) | R6, R7, R9, R11, R12 | P9 |
+| **P10** | Handoff guide: run, extend, test; `CLAUDE.md` profile final | R19 | P9b |
 
-P1 to P8 and P8b are planned in full below. P9 and P10 get their own units from `ae-plan` at their start, against the code as it is then.
+P1 to P9 are planned in full below. P9b and P10 get their own units from `ae-plan` at their start, against the code as it is then.
 
 **P5–P7 run as one batch** (user-directed, 2026-10-06):
 
@@ -2823,6 +2825,497 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
   - the server's differences from SQL 15 (`q` wildcard and escaping, invalid values 400), for P9's contract rewrite
 - **Next** is P9.
 
+## Implementation units — P9 (Removal and clean-up)
+
+**Why now:** P6–P8b proved parity on the server: the contract suite, the `admin-rest` and `public-rest` specs, and the fully checked R13 walkthrough. The Key Decisions say Supabase leaves as soon as parity is proven. This chunk removes it, along with the deploy and cutover tooling and the `/housing` routes (R15–R18).
+
+**The aim, widened by the user (2026-10-07):** remove every trace of the Supabase integration from `dev-forhad`, so the project reads as if it started on the new stack.
+- `main` keeps the old version as evidence.
+- The history docs stay, in `docs/history/`, so a regression can be traced quickly.
+
+**Where it happens:** only on `dev-forhad`. `main` is never changed, and no PR is opened, so the other developer's Supabase version keeps working (memory: parallel-migration-strategy).
+
+### P9 decisions
+
+**Policy.** Every Supabase-era item falls into one of four buckets:
+1. **Remove:** anything that exists only because Supabase existed, or because of Supabase work after the parity target. That covers:
+   - code paths, interface members and types, shims and env vars
+   - i18n strings, docs and test lanes
+   - comments that explain old-database behaviour
+2. **Rename or rewrite:** live code whose name or comment describes it by the old system ("legacy", "like the Supabase adapter", pointers to `supabase/sql/…`). The comment states the rule in present terms and points at the server migration, contract section or test that holds it (`ORG-CMT-01`, `ORG-CMT-02`, `ORG-CMT-05`).
+3. **History:** documents that record what happened. They move to `docs/history/`, with a one-line banner, and are excluded from AE4. `docs/plans/` and `docs/learnings/` stay where they are, also excluded.
+4. **Own naming, keep:** product names the new stack chose on purpose:
+   - the `housing_*` tables, functions and roles (`0011` named them deliberately)
+   - `HousingApi`, `HousingApiError` and `VITE_HOUSING_BACKEND`
+   - `src/features/housing` and the `/housing/…` public URLs (the housing group's slug)
+   - `LegacyAdminRedirect` (old `/housing/admin/*` bookmarks)
+   - `CONFIG_ERROR` and its `.env.local` hint (REST raises it when `VITE_API_BASE_URL` is missing)
+   - plain "M-ধাপ N" feature tags, which name product features, not the stack
+
+**`main` is frozen evidence from P9 on** (user-decided 2026-10-07).
+- `dev-forhad` no longer merges `main`. Any later `main` change is ported by hand as a new-stack feature, only on the user's say-so.
+- The parity reference for a rule is `git show a8e2154:supabase/sql/…` (and `87c7241` for the filtered stats).
+- How `main` is replaced at handoff is P10's decision.
+- **Restore point:** before U51, tag `dev-forhad` as `pre-p9` and push the tag (user-approved). `docs/history/README.md` names it.
+
+**No parity reference replaces local Supabase.**
+- The contract runs on REST, in full (`HousingApi` and `ProjectsApi`), and on the mock, `HousingApi` only.
+- The `KNOWN_GAPS` and `PROJECT_KNOWN_GAPS` lists go with the Supabase runners.
+- **The one REST known gap becomes a per-backend expectation.** "Create rejects an unknown project type" expects `NOT_FOUND` on REST, because the key is in the path (P2 decisions), and `VALIDATION_ERROR` on the mock.
+  - The harness gains `unknownProjectCode`.
+  - The `knownGaps` option is deleted, since no runner uses it.
+
+**The mock stays, renamed, and its "doesn't grow" rule is written down.**
+- `src/backend/mock/legacyProjectsApi.ts` becomes `mock/projectsApi.ts`, and with it:
+  - `createLegacyProjectsApi` becomes `createMockProjectsApi`
+  - `fromLegacyStats`, `LEGACY_GROUP_KEY` and `legacyNotSupported` get plain names
+- The behaviour is unchanged: three fixed projects, no project or field edits.
+- `FALLBACK_PROJECTS` keeps its name, because it is the first-paint fallback (`projectsStore.ts:74`). Its header points at `server/db/seed/dev.sql`.
+- The rule ("the mock doesn't grow; new admin specs run on `admin-rest`") goes into `docs/testing/README.md`. P10 adds it to `CLAUDE.md`.
+
+**No existing page or feature is removed** (user rule, 2026-10-07): everything the app does stays, on the new stack. P9 removes only plumbing (the adapter, scripts, test lanes, deploy, and the `/housing` API that v1 replaced).
+
+**`/admin/users` and the `editor` role stay, and P9b builds them on the server** (user-decided 2026-10-07, "option A"):
+- **P9 keeps:**
+  - the page, the route and the nav item
+  - `AdminUsersApi` and its types
+  - `AdminRole`'s `'editor'`, and `AuthUser`'s `allProjects` and `projects`
+  - `withProjects` and `canEditProject`
+- **P9 changes** only the page's Supabase instructions (U53). Logins are created with the server CLI, then managed on the page, just as `main` creates them in the Supabase dashboard first.
+- **Until P9b**, the REST and mock `AdminUsersApi` answer `NOT_IMPLEMENTED`, as today.
+- **P9b (its own chunk, planned with `ae-plan` after P9)** adds:
+  - `GET` and `PUT /api/v1/admin/users` (main admin only)
+  - a migration for the `editor` role, per-project assignment and "all projects"
+  - `/auth/me` sending `allProjects` and `projects`
+  - the editor's project scope enforced on every write route and on the activity view
+  - the REST adapter, contract blocks and an `admin-rest` spec
+- The parity target for this feature is `main` 87c7241 (SQL 14, M-steps 18–19).
+
+**The backend surface shrinks to what the app uses.**
+- `ImageStorage` moves out of `src/backend/interfaces/` into the mock. Only the mock uses `upload`, `delete`, `move` and `pathFromUrl`.
+- `getImageStorage`, `createRestImageStorage`, the factory's mock proxy for it, and REST's `notImplemented` go.
+- `cover.ts` returns the cover path when it is an absolute http(s) URL, otherwise `null`. That is today's behaviour on both backends.
+- `ProjectsApi.backendMode()` and `BackendMode` go. Its `'legacy'` meant the old database, and no UI calls it.
+- `HousingApiError` codes that only the Supabase adapter raised go, if nothing else raises or reads them (checked by `git grep`).
+
+**In-flight project lists are dropped on login and logout.**
+- `createRestProjectsApi` gains a `clearInFlight()`.
+- `buildBackend` subscribes it to `authProvider.onAuthChange`, so a list started under one admin is never shared with the next (P8 security P3).
+- U51 also adds the missing clearing tests for `delete`, `reorder` and `uploadCover` (P8 testing P3). A stale joined `/me` stays out of scope.
+
+**The serial dialog says what the server does.**
+- On the server, a serial change moves no file, and the link is the project's own path.
+- The text: shared links to the old serial (`projectPath(project)/<serial>`) stop working, and the old serial is never reused. The photo sentence goes.
+
+**Naming:**
+- `e2e/live/` becomes `e2e/public/`, matching `public-mock` and `public-rest`.
+- `e2e/live/write-guard.spec.ts` and the guards in `e2e/support/test.ts` (`liveWriteGuard`, `SITE_GUARDED_PROJECTS`) are deleted. They protected Supabase and a deployed site, and neither exists.
+
+**Supabase-only scripts all go:**
+- the plan's list: `smoke`, `photo-check`, `content-check`, `admin-ui-check`, `adapter-check`, `build-rehearsal`, `security-check`, `migrate-photos`, `contract-supabase-local` and `e2e-live`
+- two `main` added later: `baseline-check` and `stats-filter-check`
+
+**bcrypt support is removed.**
+- It existed only to verify hashes imported from Supabase, and no data is imported.
+- A non-argon2 hash is refused like a wrong password, after the same dummy verify an unknown email gets, so the timing doesn't differ.
+- `@node-rs/bcrypt` leaves `server/package.json`, and `admin list` loses its hash-kind column.
+- Tests say "a non-argon2 hash" with a `$2b$` literal.
+
+**`/housing` routes and the old stats functions:**
+- The routes and their tests go.
+- A new migration, `0018_drop_housing_stats_years`, drops `housing_stats(text)` and `housing_years(text)`. Its down section recreates both verbatim from `0003`, with the revoke and the `housing_app` grant (`docs/learnings/database/postgres-default-privileges-public-execute.md`).
+- `isPublicReadPath` loses its `/housing` prefix rule, and `PUBLIC_READ_ROUTES` alone decides. The method check in `isReadRequest` stays (`docs/learnings/security/cors-read-only-origin-list-needs-own-method-check.md`).
+
+**Run migrations: comment headers only** (user-decided 2026-10-07, a one-time exception to `CLAUDE.md`'s "never edit a migration that has run").
+- The comments in `0001`–`0017` that say "ported from `supabase/sql/…`", RLS or the old database become present-tense reasons.
+- The SQL and the down sections don't change. dbmate keeps versions, not checksums, and nothing is deployed, so no database needs a reset.
+- P10 records the exception in `CLAUDE.md`.
+- Squashing into one baseline was rejected: every database would need a reset, and the step-by-step down sections, which help trace regressions, would be lost.
+
+**Deploy, edge and the runbook go.**
+- The `edge` service and the `deploy/` folder go in one commit, because the service mounts `./deploy`.
+- The `deploy-config` job's shellcheck of `scripts/docker-dev-entry.sh` and `server/db/docker-init/01-init.sh` moves into `checks` before the job is deleted.
+- The runbook's section 11 (the manual S3 driver test) moves into `docs/testing/README.md`, because the S3 driver stays built.
+- `docs/learnings/tooling/streamed-backup-…md` gains one line saying the script was removed and the lesson applies to any future backup.
+
+**`PROJECTS_API_CONTRACT.md` describes the server as built** (R17), as version 2.0. It states the rules themselves, not differences from Supabase. It takes over the old contract's error, auth, CORS and photo sections, and collects every "for P9's contract rewrite" note in Progress:
+- **Transport:** `/api/v1`; the error shape and codes; cookie sessions and `/auth`; CORS (the public GET list, credential-less public origins); the rate limits; `Cache-Control` and `Vary: Cookie`; `/openapi.json` and `/health`.
+- **Files:** photo and cover URLs are `/api/v1/photos/<fileId>`. A serial change moves no file. `cover_path` is set only by the cover routes, and create and PATCH refuse it. A draft's files are 404 to visitors.
+- **Record bodies** refuse photo URL and thumb keys from every role.
+- **`details.field`** is present only when it matches the field-key pattern. Both duplicate-key 409s carry `details.field = 'key'`.
+- **Guard messages** carry fixed text, a label, a field key, or a count the database works out itself (`0017`).
+- **Projects:**
+  - publish is `PATCH { is_published }`
+  - `If-Match` is optional, compared to the millisecond, and a mismatch is 409
+  - a project delete also deletes its unused fields
+  - a field-with-values delete is 400
+- **Bulk insert** routes private keys to the private table.
+- **Visitors:** a draft's stats, records and cover are 404, and its next serial is `null`. A record create in an unknown project is 404.
+- **Overview:** an admin's overview without `drafts=1` is the visitor view.
+- **Filtered stats:** the parameters are the list's (`year`, `division`, `district`, `upazila`, `union_name`, `q`, `f.<key>`), with the filtered shape.
+  - `q` is literal (`%`, `_` and `\` escaped), with no wildcard.
+  - An invalid value is 400.
+  - A field counts only if it is public and active, with the same type, in every counted leaf.
+- **Routes:** every route in the OpenAPI document, including `/activity`, `POST /projects/:key/records/private`, field order, usage and rename-value, and `/projects/overview`.
+- **Admins:** two roles, managed by the server CLI. There is no user-management API.
+- **The UI keeps three things from a plain admin** that the server allows (P6 decisions): serial change, replacing a photo, and the "(মুছুন)" token.
+- `docs/api/API_CONTRACT.md` is deleted (restorable from the ledger). The 23 code comments citing its sections are repointed to the new contract's sections.
+- A new case in `server/test/http/openapi.test.ts` checks that every OpenAPI path appears in the contract, so a future route can't be added without a contract line.
+
+**History docs move to `docs/history/`** (user-decided 2026-10-07; this replaces the earlier "banner in place" choice):
+- `git mv` `docs/progress/HOUSING_PROGRESS.md`, `docs/MULTI_PROJECT_PLAN.md` and `docs/progress/P8_WALKTHROUGH_CHECKLIST.md` there, each with a one-line banner.
+- `docs/history/README.md` is a removal ledger: each removed area mapped to where it can be restored from (`main@87c7241` or the `pre-p9` tag). The areas are:
+  - `supabase/`
+  - `src/backend/supabase/`
+  - the scripts
+  - `deploy/`
+  - the runbook
+  - `API_CONTRACT.md`
+  - the Supabase implementation of `/admin/users` (the page stays, and P9b builds it on the server)
+  - the `/housing` routes
+- `docs/architecture/migration-notes.md` is rewritten in place as the current architecture notes (`CLAUDE.md` links it).
+- The plans' front matter gets correct statuses:
+  - `2026-10-05-1147` becomes `superseded` by this plan
+  - the C6 and C7 plans get a "tooling removed in P9" line
+  - `2026-10-04-1607` gets its real status
+- The plan bodies stay as written.
+
+**Diagrams** (`docs/diagrams/`, mermaid; the ae-flow diagram gate's "update an existing diagram"):
+- `backend-architecture.md` loses "Current: Supabase", "Deployment (C6)", "Import and cutover (C7)" and "Where each Supabase service goes". It gains a registry ER picture (`housing_projects`, `housing_project_fields`, `housing_beneficiaries`, `housing_beneficiary_private`, `housing_files`, `housing_activity_log`), with the FKs as built.
+- `test-strategy.md` loses the live-Supabase and edge lanes.
+
+**AE4, revised** (user-decided exclusions). Both searches run from the repo root and must print nothing:
+
+```
+X=(-- . ':!docs/plans' ':!docs/learnings' ':!docs/history' ':!CLAUDE.md')
+git grep -nIiE 'supabase|deploy/|import[-:]supabase|anon[ _]key|service_role|SIMULATE_LEGACY|api/v1/housing|(^|[^_])API_CONTRACT\.md|bcrypt|backendMode' "${X[@]}"
+git grep -nIE '(^|[^A-Za-z])RLS([^A-Za-z]|$)|SQL [0-9০-৯]+|পুরনো ডাটাবেস' "${X[@]}"
+```
+
+- The second search is case-sensitive, so `RLS` doesn't match "URLs".
+- `CLAUDE.md` is excluded, because it records the stack profile and its `ST-06` rule names Supabase. U64 still rewrites its stale lines ("the move off Supabase is planned…", "being removed") to say the move is done, and P10 writes the final profile.
+- `pathFromUrl` isn't searched: it stays as the mock's own helper.
+- `package-lock.json` is searched, so a leftover `@supabase/*` entry fails it.
+- AE4 in the Product Contract is updated to these exclusions.
+
+**`CLAUDE.md` is left to P10,** which writes the final profile and the migration-comment exception. P9 changes it only if a command it lists stops working.
+
+**Testing cadence** (user-decided 2026-10-07):
+- Each unit writes its tests first, runs a fast check of what it touched (typecheck, plus the unit's own test files or `npm test`), and commits.
+- The full P9 verification runs once, after the whole clean-up and `0018`. If it finds a break, the per-unit commits keep it cheap to trace.
+
+**Order:** behaviour fixes first, then each consumer goes before what it consumes (UI features, then test lanes, then the adapter and package, then deploy), then the server, then the docs and the scrub.
+
+### U51. Project lists are dropped on login and logout
+- **Goal:** A project list in flight under one admin is never shared with the next.
+- **Requirements:** R7, R9.
+- **Files:**
+  - `src/backend/rest/projectsApi.ts`, `src/backend/rest/index.ts` and `src/backend/factory.ts`
+  - `src/backend/rest/projectsApi.test.ts` and `src/backend/factory.test.ts`
+- **Approach:**
+  - `createRestProjectsApi` returns its `ProjectsApi` plus `clearInFlight()`.
+  - `buildBackend`'s REST branch calls `authProvider.onAuthChange(() => clearInFlight())` once, for the life of the cached backend.
+- **Tests** (each shown failing first):
+  - a drafts `list` in flight, then `clearInFlight()`: the next `list` sends a new request
+  - through `buildBackend` with a fake `fetch`: a login event between two `list` calls gives two requests
+  - `delete`, `reorder` and `uploadCover` each drop an in-flight list
+- **Done when:** `npm test` passes.
+- **Depends on:** none
+- **Status:** todo
+
+### U52. The serial dialog says what the server does
+- **Goal:** The serial-change warning names the record's real link and doesn't claim that photos move.
+- **Requirements:** R18.
+- **Files:**
+  - `src/features/admin/records/RecordForm.tsx` (around :612)
+  - `src/i18n/en.ts`
+  - a `RecordForm` test beside the existing admin component tests
+- **Approach:** as in the P9 decisions.
+- **Tests:**
+  - For a `tin` record, the dialog shows `/housing/tin/<n>`.
+  - For a single project, it shows `/<slug>/<n>`.
+  - No text mentions moving photos.
+- **Done when:** `npm test` and `npm run i18n-check` pass.
+- **Depends on:** none
+- **Status:** todo
+
+### U53. The users page stops pointing at Supabase
+- **Goal:** `/admin/users` stays, and it tells the main admin to create a login with the server CLI, not in Supabase. P9b makes it work on the server.
+- **Requirements:** R15, R18.
+- **Files:**
+  - `src/features/admin/users/AdminUsersPage.tsx` (:43, :240)
+  - `src/backend/interfaces/adminUsersApi.ts` (its header)
+  - `src/i18n/en.ts` (:890)
+  - a page test beside it
+- **Approach:**
+  - The add-form's first step reads: create the login with `npm --prefix server run admin -- create --email … --name …`, then enter that email here. Account creation stays outside the page, as on `main` (P9 decisions).
+  - Until P9b, `list()` on REST answers `NOT_IMPLEMENTED`, and the page shows its existing error notice.
+- **Tests** (first):
+  - The add form's instructions name the CLI command.
+  - No text on the page mentions Supabase.
+  - A `NOT_IMPLEMENTED` list shows the error notice without crashing.
+- **Done when:** `npm test` and `npm run i18n-check` pass, and `git grep -ni supabase src/features/admin/users src/i18n` finds nothing.
+- **Depends on:** none
+- **Status:** todo
+
+### U54. Shrink the backend surface
+- **Goal:** The adapter interfaces hold only what the app calls.
+- **Requirements:** R15.
+- **Files:**
+  - `src/backend/interfaces/imageStorage.ts`, which moves to `src/backend/mock/imageStorage.ts` as the mock's own type
+  - `src/backend/factory.ts` (`getImageStorage`, the mock proxy)
+  - `src/backend/rest/index.ts` (`createRestImageStorage`, `notImplemented`) and `rest/housingApi.test.ts` (its block)
+  - the cover helper (`cover.ts`) and its callers
+  - `src/backend/interfaces/projectsApi.ts` (`backendMode`, `BackendMode`), the REST and mock implementations
+  - `src/backend/interfaces/types.ts` (Supabase-only error codes, if unused)
+- **Tests:**
+  - A new `cover.ts` unit test, written first: an absolute http(s) path passes through, and a relative or empty path gives `null`.
+  - The mock's photo tests still pass.
+- **Done when:** `npx tsc -b`, `npm run lint` and `npm test` pass, and `git grep -nE 'getImageStorage|backendMode' src` finds nothing (`pathFromUrl` stays inside `src/backend/mock/`, which is why AE4 doesn't search for it).
+- **Depends on:** U56 (the Supabase adapter imports `ImageStorage` and `BackendMode` until it is deleted)
+- **Status:** todo
+
+### U55. Remove the Supabase test lanes and rename the public specs
+- **Goal:** No test, script or Playwright project needs Supabase, and the public specs live in `e2e/public/`.
+- **Requirements:** R15, R11.
+- **Files:**
+  - delete:
+    - `tests/contract/supabase.local.contract.test.ts` and `supabase.readonly.contract.test.ts`
+    - `scripts/contract-supabase-local.mjs` and `scripts/e2e-live.mjs`
+    - `e2e/live/write-guard.spec.ts`
+    - the whole `supabase/` folder
+  - `tests/contract/harness.ts`, `housingApiContract.ts`, `projectsApiContract.ts` (it reads `opts.knownGaps`), `rest.contract.test.ts` and `mock.contract.test.ts` (`unknownProjectCode`; `knownGaps` deleted)
+  - `git mv e2e/live e2e/public`; `playwright.config.ts` (the `live` project and its webServer, `LIVE_PORT`, `hasLiveEnv`, the `testDir` lines, the header)
+  - `e2e/support/test.ts`: delete the `liveWriteGuard` and `siteWriteGuard` fixtures (both `auto`, so also from the fixture type) and `SITE_GUARDED_PROJECTS`. No kept spec imports them. `cspGuard` goes in U57 with `edge-rest`
+  - `package.json` (`test:e2e:live`, `test:contract:supabase-local`) and `vitest.config.ts:6`
+- **Tests:**
+  - The contract is green on REST, with no known gaps, and on the mock.
+  - `E2E_REST_API_URL=http://localhost:3001 E2E_ADMIN_REST=1 npx playwright test --list` (plus `E2E_EDGE_URL=http://localhost:8080` until U57) shows `mock`, `public-mock`, `public-rest`, `admin-rest` and `edge-rest`, with the same spec counts as before, minus `write-guard`.
+- **Done when:** `npm test` passes, and the `--list` output matches. The full suites run in the P9 verification.
+- **Depends on:** none
+- **Status:** todo
+
+### U56. Remove the Supabase adapter, package and scripts, and rename the mock
+- **Goal:** The app can't run on Supabase, and the bundle check proves none of it ships.
+- **Requirements:** R15, R10.
+- **Files:**
+  - `scripts/check-prod-bundle.mjs` (first: a case-insensitive `supabase` marker over the built output)
+  - delete `src/backend/supabase/`
+  - `src/backend/factory.ts` (`BackendKind = 'rest' | 'mock'`, the Supabase branch, the header) and `factory.test.ts`
+  - `src/vite-env.d.ts` and `.env.example` (the Supabase keys, `service_role` and `VITE_SIMULATE_LEGACY_DB`)
+  - `package.json` and `package-lock.json` (`npm uninstall @supabase/supabase-js`)
+  - delete these `scripts/` files and their `package.json` scripts:
+    - `smoke`, `photo-check`, `content-check`, `admin-ui-check`
+    - `adapter-check.mts`, `build-rehearsal`, `security-check`, `migrate-photos`
+    - `baseline-check`, `stats-filter-check`
+  - `src/features/admin/projects/projectRules.ts` and its test: the constraint-name regexes go, so `details.field` is the only source (U33)
+  - `git mv src/backend/mock/legacyProjectsApi.ts src/backend/mock/projectsApi.ts`, the renames, and the `fallbackProjects.ts` header
+- **Approach:**
+  - Add the marker, and see `check:prod-bundle` fail on today's bundle. Then remove.
+  - In `buildBackend`, the mock comes first, and anything else is REST.
+- **Tests:**
+  - `check:prod-bundle` fails before the change and passes after.
+  - `factory.test.ts`: `rest`, `mock` in dev, and an unknown value (including `supabase`) falling back to REST with a dev warning.
+  - `projectRules.test.ts`: a 409 with `details.field` maps to its field. A message with no `details` maps to no field.
+- **Done when:** `npx tsc -b`, `npm run lint`, `npm test`, `npm run build` and `npm run check:prod-bundle` pass, and `npm ls @supabase/supabase-js` is empty.
+- **Depends on:** U53, U55
+- **Status:** todo
+
+### U57. Remove deploy, the edge service and the runbook
+- **Goal:** No deploy or edge tooling is left, and CI and local dev keep working.
+- **Requirements:** R16.
+- **Files:**
+  - first, `docs/architecture/migration-notes.md` gains a short **Hosting requirements** section (user-decided 2026-10-07, security review), taken from `deploy/` and the runbook before they go:
+    - the UI's security headers: CSP, HSTS, `nosniff`, `Referrer-Policy` and `Permissions-Policy` (`deploy/nginx/ui-headers.conf`)
+    - the body limits: 1 MB, and 11 MB on the upload routes (`locations.conf.template`)
+    - a proxy that overwrites `X-Forwarded-For`, with `TRUST_PROXY` matched to the proxy hops, so the login and write rate limits can't be bypassed (`api-proxy.conf.template`)
+    - `COOKIE_SECURE=true` behind HTTPS
+  - `docs/testing/README.md` first: the runbook's section 11
+  - `e2e/support/test.ts`: the `cspGuard` fixture, `SEED_PHOTO_ORIGIN` and its runbook pointer (it runs only on `edge-rest`)
+  - `.github/workflows/ci.yml`:
+    - a shellcheck step in `checks` first
+    - then delete the `deploy-config` job, the `db-suites` edge step and `docker logs edge`, and the header comments
+  - delete `deploy/` and `docs/operations/`
+  - `compose.yaml` (the `edge` service and `${EDGE_PORT}` in `ALLOWED_ORIGINS`) and `.gitignore` (`.edge/`)
+  - `package.json` (`build:edge`, `test:e2e:edge`) and `playwright.config.ts` (`edge-rest`, `edgeUrl`)
+  - `.github/dependabot.yml` (its comment)
+  - `tests/contract/rest.readonly.contract.test.ts:7`
+  - the backup learning's one line
+- **Tests:**
+  - `docker compose config` is valid.
+  - `docker compose up -d db api` starts, and `GET /api/v1/projects` answers.
+  - `E2E_REST_API_URL=http://localhost:3001 E2E_ADMIN_REST=1 npx playwright test --list` shows the four projects.
+  - `actionlint`, if installed, or else a YAML parse of `ci.yml`.
+- **Done when:** the tests above hold, the Hosting requirements section exists, and `git ls-files deploy docs/operations` is empty. The pushed CI run is the final proof.
+- **Depends on:** U55
+- **Status:** todo
+
+### U58. Remove bcrypt support
+- **Goal:** The server verifies only its own argon2 hashes.
+- **Requirements:** R16.
+- **Files:**
+  - `server/src/auth/password.ts`, `server/src/auth/admins.ts` (:149–158) and `server/src/cli/admin.ts` (:11)
+  - `server/src/auth/service.ts` (only if the dummy call can't live in `verifyPassword`)
+  - `server/package.json` and `server/package-lock.json`
+  - `server/src/auth/password.test.ts` and `server/test/auth/service.test.ts`
+- **Tests** (first):
+  - A `$2b$` hash fails to verify.
+  - Login for an admin row holding one is 401, with the wrong-password message.
+  - **Timing:** `verifyPassword` runs `verifyDummy` itself for any hash that isn't argon2, including a malformed one, so such a row costs the same as a real one. A spy test checks that `verifyDummy` runs for a `$2b$` row. Elapsed time is never asserted, because it flakes.
+  - The argon2 login and `needsRehash` tests still pass.
+- **Done when:** `npm --prefix server run typecheck` and the auth test files pass, and `npm --prefix server ls @node-rs/bcrypt` is empty.
+- **Depends on:** none
+- **Status:** todo
+
+### U59. Remove the `/housing` routes and the old stats functions
+- **Goal:** `/api/v1/housing` no longer exists, and nothing kept depends on it.
+- **Requirements:** R17, R9.
+- **Files:**
+  - delete `server/src/routes/v1/housing.ts` and `housing-admin.ts`
+  - `server/src/app.ts`: imports, mounts, `isPublicReadPath`, and only the `req.path === BULK_PATH` branch of `isBulkWrite`. The `PROJECT_BULK_PATH` exemption stays, and so does the test that every other path and method keeps the 100 kB parser limit (`NE-REQ-02`)
+  - `server/src/openapi.ts` (the `/housing…` paths, the two tags, the imports; a version bump)
+  - the exports in `server/src/housing/*` with no remaining user (`getStats`, `getYears`, and any other `git grep` shows unused)
+  - `server/db/migrations/0018_drop_housing_stats_years.sql` (new)
+  - delete `server/test/http/housing-{reads,writes,bulk,photos,activity}.test.ts` and `server/test/db/stats.test.ts`
+  - rewrite to v1 routes: `security.test.ts`, `photos.test.ts`, `records-writes.test.ts:94`, `main-admin.test.ts`, `activity.test.ts:110-113` and `openapi.test.ts`
+- **Approach:**
+  - **Characterization first (`TS-22`):** for each deleted `housing-*` test, name the v1 test that covers the same rule. Add a v1 test for any rule with none, and commit those before the delete. The mapping goes in the commit message, and must show a v1 test for each of these (`TS-13`):
+    - an anonymous caller gets 401 on admin routes, and a plain admin gets 403 on main-admin routes
+    - private values never appear in a visitor's response
+    - a draft's records, stats and files are 404 to a visitor
+    - the activity log isn't readable from a public-read origin
+  - **`0018`:** the up drops the two functions. The down recreates their bodies from `0003` without `0003`'s comments, then ends with `revoke all on function … from public` and `grant execute … to housing_app` (as `0006` does).
+- **Tests:**
+  - `GET /api/v1/housing` and `POST /api/v1/housing/bulk` are 404.
+  - A public-read origin's preflight to `/api/v1/housing/semi_pucca` gets no `Access-Control-Allow-Origin`.
+  - The OpenAPI document has no `/housing` path.
+  - `db:migrate`, `db:rollback` and `db:migrate` are clean on the dev database, and the global setup's down check covers `0018`.
+- **Done when:** `npm --prefix server run typecheck` and `npm --prefix server test` pass. This unit runs the server suite in full, because it deletes test files.
+- **Depends on:** none
+- **Status:** todo
+
+### U60. ~~Fold `server/src/housing/` into `records/` and `activity/`~~
+- **Dropped** (user-decided at doc review, 2026-10-07): `housing` is the project's own name (policy bucket 4), and U59 already deletes the module's dead exports.
+- **Status:** dropped
+
+### U61. Rewrite `PROJECTS_API_CONTRACT.md` to the server as built
+- **Goal:** One contract, true to the server.
+- **Requirements:** R17, R1.
+- **Files:**
+  - `docs/api/PROJECTS_API_CONTRACT.md`
+  - delete `docs/api/API_CONTRACT.md`
+  - every comment that cites the old file, found with `git grep -nE '(^|[^_])API_CONTRACT\.md' -- server src tests e2e scripts` (about 26 lines, for example `server/src/config.ts`, `errors.ts`, `routes/v1/auth.ts`, `photos/service.ts`, `src/backend/rest/endpoints.ts` and `e2e/mock/login.spec.ts`)
+  - `README.md` and `docs/README.md`
+  - `server/test/http/openapi.test.ts` (the paths-in-contract case)
+- **Approach:**
+  - Write the test first, and see it fail on today's contract. It reads `docs/api/PROJECTS_API_CONTRACT.md` and checks that each OpenAPI path string, written with the document's own `{param}` names (for example `/projects/{key}/stats`), appears in it. The new contract writes every route that way.
+  - **Section numbers:** the existing `PROJECTS_API_CONTRACT.md` sections keep their numbers, because about 39 code comments cite them. The old contract's error, auth, CORS and photo sections are appended as new sections. Only the old file's citations are repointed.
+  - Rewrite from the code, the OpenAPI document and the P9 decisions' list.
+- **Done when:**
+  - `npm --prefix server test` passes.
+  - A reading pass ticks every item in the P9 decisions' contract list.
+  - `git grep -nE '(^|[^_])API_CONTRACT\.md'` hits only plans, learnings and history.
+- **Depends on:** U59
+- **Status:** todo
+
+### U62. Docs, diagrams and the history folder
+- **Goal:** Current docs describe only the new stack, and history sits in one labelled place (R18).
+- **Requirements:** R18, R15, R16.
+- **Files:**
+  - `docs/history/README.md` (the ledger)
+  - `git mv` the three history docs, each with a banner, and fix the links to them:
+    - this plan
+    - `README.md`
+    - `0017`'s comment, which U63 rewrites
+  - `README.md`
+  - `docs/README.md` (the current plan, no `operations/`)
+  - `docs/testing/README.md`:
+    - drop the Supabase and edge lanes, the known-gap tables, `deploy-config` and the import rows
+    - add the parity rule, the mock rule and `e2e/public/`
+  - `docs/architecture/migration-notes.md` (rewritten in place)
+  - `docs/ADMIN_GUIDE.md` (§1, §1ক and §10ক: admins and roles through the CLI)
+  - `docs/diagrams/backend-architecture.md` and `test-strategy.md`
+  - the plans' front matter (P9 decisions)
+- **Approach:**
+  - Each current doc describes what exists now, and every command is checked against `package.json`.
+  - The ledger names the restore source for each removed area.
+- **Tests:** none in code (docs only, `TS-20`). The check is the AE4 searches over `docs/` and `README.md`, and a by-hand run of each changed README command.
+- **Done when:** the AE4 searches show no hit under `docs/` or `README.md`.
+- **Depends on:** U51–U61
+- **Status:** todo
+
+### U63. Migration comment headers
+- **Goal:** Migrations `0001`–`0017` explain themselves in present terms (user-decided exception).
+- **Requirements:** R15.
+- **Files:** `server/db/migrations/0001_*.sql` … `0017_*.sql`, comments only.
+- **Approach:**
+  - Rewrite each "ported from `supabase/sql/…`", RLS or old-database comment as the rule and its reason.
+  - Run `git diff --word-diff` and check that only lines starting with `--` changed. The `-- migrate:up` and `-- migrate:down` markers stay as they are.
+- **Tests:** the global setup still migrates up and down cleanly. `npm --prefix server test` runs in the final verification.
+- **Done when:** a script check of the diff shows every changed line is a comment, and the AE4 searches show no hit in `server/db/migrations/`.
+- **Depends on:** U59
+- **Status:** todo
+
+### U64. Comment scrub and the AE4 search
+- **Goal:** Nothing live mentions the old system. AE4 holds.
+- **Requirements:** R15, R16.
+- **Files:** everything the two AE4 searches still find outside the excluded paths, plus `CLAUDE.md`'s two stale Supabase lines (the move is done, history in `docs/history/`), for example:
+  - `src/backend/interfaces/*` (`types.ts` has 13 hits; the `AdminUser*` comments describe the feature P9b builds, without Supabase), `rest/index.ts:48,130,161`, `mock/*`
+  - `RoleGate.tsx`, `RequireAdmin.tsx`, `ProjectFrame.tsx`, `useHousingStats.ts`, `ProjectListPage.tsx`, `ProjectStatCards.tsx` and `activityLabels.ts`
+  - `src/lib/money.ts` and `fieldValues.ts`
+  - `tests/contract/*` and `e2e/**`
+  - `server/src/{auth,photos}/*` and `server/db/seed/dev.sql`
+  - the test titles, such as `projectRules.test.ts:44` and `rest/housingApi.test.ts`
+- **Approach:**
+  - Rewrite each comment as the present rule, or delete it if it only said where code came from.
+  - Pointers go to the server migration, contract section or test.
+- **Tests:** the AE4 searches print nothing.
+- **Done when:** the searches are empty. The full verification follows.
+- **Depends on:** U51–U63
+- **Status:** todo
+
+### P9 order and parallel lanes
+
+- **First:** tag and push `pre-p9`.
+- **Lane A (UI):** U51 → U52 → U53 → U55 → U56 → U54 → U57.
+- **Lane B (server):** U58 → U59 → U61 → U63 (U60 dropped). It is independent of lane A, but the `housing_test` suites never run in parallel, so it is built in the same session, one after the other.
+- **Then:** U62 → U64, then the full verification.
+
+### Verification (P9)
+
+Run once, after U64:
+- `npm --prefix server run typecheck` and `npm --prefix server test`
+- `npx tsc -b`, `npm run lint` and `npm test` at the root
+- `npm run test:contract:rest`
+- `npm run test:e2e:rest-admin`, twice
+- `npm run test:e2e:rest`, with `docker compose up -d db api`, once `GET /api/v1/projects` answers (after `down -v` the `api` container reinstalls `node_modules`)
+- `npm run test:e2e:mock`, `npm run test:all`, `npm run build` and `npm run check:prod-bundle`
+- `npm --prefix server run db:migrate`, `db:rollback` and `db:migrate` on the dev database
+- the two AE4 searches
+- The `housing_test` suites never run in parallel.
+
+### Risks and rollback (P9)
+
+- **One full run at the end (user-decided).** A break shows up late. The per-unit fast checks and commits keep it traceable, and `git bisect` across about 15 commits is cheap.
+- **A rule covered only by a deleted `housing-*` test.** U59's characterization map is the guard.
+- **`0018` drops functions.** The down section recreates them verbatim, and the global setup proves that down runs.
+- **Migration comment edits (U63).** Only comment lines change, checked by script. dbmate stores versions, not checksums, so no database is affected.
+- **bcrypt removal.** No `$2` hash exists outside tests. Every admin was created by the CLI with argon2, and the dev database was reset in P8.
+- **`/admin/users` stays `NOT_IMPLEMENTED` on REST until P9b.** That's the same state as since P6, and P9b closes it.
+- **`main` isn't merged any more.** Anything the other developer adds is not picked up automatically. That's intended (`main` is frozen evidence). The `pre-p9` tag and `main@87c7241` restore any removed piece.
+- **Rollback:** each unit is one or two commits, reverted on its own. Nothing is deployed.
+
+### Definition of done (P9)
+
+- U51–U64 are done (U60 dropped) and their tests pass.
+- The P9 verification passes, and both AE4 searches are empty.
+- One `ae-simplify` and one `ae-review` ran over the P9 commits. Every P0 and P1 is fixed, and the P2s too.
+- Progress records:
+  - the commit range and test counts
+  - the AE4 commands and their result
+  - the review results
+- **Next** is P9b: `ae-plan` adds its units (user management on the server, option A). P10 (the handoff guide and the final `CLAUDE.md` profile, including the mock rule and the migration-comment exception) follows P9b.
+
 ## Verification
 
 Run these at the end of P1:
@@ -2850,7 +3343,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** P9, the removal (Session chunks). Its gate is met: the P8 checklist is fully checked and P8b is done. Run `ae-plan` on this file first to add P9's units against the code as it is then. CI on the pushed branch is still to run, once the user pushes (Success Criteria).
+- **Next:** `ae-doc-review` on the P9 section, then (after the user's yes) `ae-work` on P9, starting with the `pre-p9` tag and U51.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
@@ -3267,3 +3760,31 @@ Run these at the end of P1:
       - an invalid filter value is a 400, not silently dropped
       - a field counts only if public and active with the same type in every counted leaf (SQL 15: in any leaf)
       - the parameters are the list's (`year`, `division`, `district`, `upazila`, `union_name`, `q`, `f.<key>`)
+  - **P9 planned (2026-10-07):** `ae-plan` added the P9 decisions and U51–U64. Before planning, every gate held: the P8 checklist fully checked, D1 fixed in 541f53c, P8b's commits (5555a81..0fbbd76, 898ea9f, 7bd205e), and CI green on 1bad410 (run 37575234392, all four jobs). `origin/main` was still at 87c7241, so there was nothing to sync.
+    - **The user widened P9:** remove every trace of the Supabase integration, so `dev-forhad` reads as if it started on the new stack. History docs move to `docs/history/`, with a removal ledger and a pushed `pre-p9` tag.
+    - **The user also decided:**
+      - stop merging `main` (frozen evidence)
+      - rewrite the comment headers only in migrations `0001`–`0017` (a one-time exception, recorded in `CLAUDE.md` in P10)
+      - one full test run after the whole clean-up, with a fast check per unit
+    - **No existing page or feature is removed** (user rule). `/admin/users` and the `editor` role stay, and a new chunk, P9b, builds them on the server (option A). P10's gate is now P9b.
+    - **A cleanup-policy analysis** (subagent) set the four buckets (remove, rewrite, history, own naming), the wider AE4 searches and the renames (`e2e/live` to `e2e/public`, the mock's `legacyProjectsApi` to `projectsApi`).
+    - **`ae-doc-review` ran on P9** (coherence, feasibility, scope, security). It fixed:
+      - the unit order: U54 runs after U56, because the Supabase adapter imports what U54 removes
+      - AE4: `CLAUDE.md` excluded (its stale lines are rewritten in U64), and `pathFromUrl` not searched
+      - U55's contract files (`projectsApiContract.ts`) and the named `e2e/support/test.ts` fixtures, with `cspGuard` moved to U57
+      - U59 removes only the `/housing` branch of `isBulkWrite`, lists the access cases the v1 tests must cover, and copies `0018`'s down without `0003`'s comments, with the revoke and grant
+      - U58's dummy verify runs in `verifyPassword` for any hash that isn't argon2, with a spy test
+      - U61 keeps the existing section numbers, works from a `git grep`, and fixes the test's `{param}` matching rule
+      - the `--list` env vars, the P9 row's `import:supabase`, and the ledger's `/admin/users` entry
+      - Key Decisions, Scope and R6 now record the P9b exception (87c7241)
+    - **The user chose:**
+      - write the hosting requirements (headers, body limits, `X-Forwarded-For` and `TRUST_PROXY`, `COOKIE_SECURE`) into `docs/architecture/migration-notes.md` before `deploy/` goes (U57)
+      - drop U60, the `server/src/housing/` fold
+      - keep U61's paths-in-contract test
+    - **FYI, not acted on (scope, 50):**
+      - U51 and U52 are behaviour fixes rather than removal
+      - U53 could fold into U64
+      - U54's `ImageStorage` move and `cover.ts` change are tidying
+      - U56 could split in two
+      - U62's ER diagram and the `ADMIN_GUIDE` rewrite could move to P10
+
