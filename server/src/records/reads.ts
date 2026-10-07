@@ -144,6 +144,13 @@ export async function checkPhotoSlot(sql: Sql, id: string, slot: PhotoKind): Pro
   }
 }
 
+/** A record's project key, or a 404. A record never changes project, so a later write can't race it. */
+export async function recordProjectKey(sql: Sql, id: string): Promise<string> {
+  const [record] = await sql<{ project_type: string }[]>`select project_type from public.housing_beneficiaries where id = ${id}`;
+  if (!record) throw recordNotFound();
+  return record.project_type;
+}
+
 /** Whether the project exists for this viewer, and if it is a group; null when unknown or hidden. */
 export async function visibleProject(sql: Sql, key: string, viewer: Viewer): Promise<{ is_group: boolean } | null> {
   const [project] = await sql<{ is_group: boolean }[]>`

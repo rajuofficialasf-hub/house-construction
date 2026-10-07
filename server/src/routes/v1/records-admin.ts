@@ -1,10 +1,12 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import { requireAdmin, requireMainAdmin, requireMainAdminForPhotos } from '../../auth/middleware.js';
+import { isEditor, refuseEditor, requireProjectScope } from '../../auth/scope.js';
+import { AppError } from '../../errors.js';
 import type { Sql } from '../../db.js';
 import { deleteRecord } from '../../housing/writes.js';
 import { deletePhoto, savePhoto } from '../../photos/service.js';
 import type { PhotoReceiver } from '../../photos/process.js';
-import { ADMIN_RECORD_COLUMNS, checkPhotoSlot, recordNotFound, recordProject, type ProjectRecord } from '../../records/reads.js';
+import { ADMIN_RECORD_COLUMNS, checkPhotoSlot, recordNotFound, recordProject, recordProjectKey, type ProjectRecord } from '../../records/reads.js';
 import { getPrivate, getPrivateMany, putPrivate } from '../../records/private.js';
 import {
   bulkCreateBody,
@@ -24,7 +26,9 @@ import { actorOf, bulkJson, checkRowCount, DEFAULT_WRITE_RATE_LIMIT, privateNoSt
 
 // The single-record admin routes (docs/api/PROJECTS_API_CONTRACT.md §4.4.4–§4.4.6). Mounted at
 // /api/v1 with full paths and no router.use(), so each route names its own guard: the admin check
-// first (deny by default, NE-SEC-03), then the per-admin write limit.
+// first (deny by default, NE-SEC-03), then the per-admin write limit. An editor writes only in its
+// projects (requireProjectScope, checked before the body is used) and never changes a serial or
+// empties a value with _clear.
 
 export interface RecordsAdminDeps {
   sql: Sql;
@@ -46,10 +50,17 @@ export function recordsAdminRouter({
   const router = Router();
   const limitWrites = writeRateLimiter(writeRateLimit);
 
+  /** Refuses an editor outside the record's project; a 404 first when the record doesn't exist. */
+  const requireRecordScope = async (req: Request, id: string) => {
+    if (req.admin?.allProjects === true) return;
+    requireProjectScope(req, await recordProjectKey(sql, id));
+  };
+
   router.post('/projects/:key/records', requireAdmin, limitWrites, async (req, res) => {
     const { key } = projectRecordsParams.parse(req.params);
-    const body = recordCreateBody.parse(req.body);
     const project = await recordProject(sql, key, { admin: true });
+    requireProjectScope(req, key);
+    const body = recordCreateBody.parse(req.body);
     res.status(201).json({ data: await createProjectRecord(sql, actorOf(req), project, body) });
   });
 
@@ -57,32 +68,47 @@ export function recordsAdminRouter({
   // the admin check, so only an admin can make the server read a large body.
   router.post('/projects/:key/records/bulk', requireAdmin, limitWrites, bulkJson, async (req, res) => {
     const { key } = projectRecordsParams.parse(req.params);
+    const project = await recordProject(sql, key, { admin: true });
+    requireProjectScope(req, key);
     checkRowCount(req.body);
     const body = bulkCreateBody.parse(req.body);
-    const project = await recordProject(sql, key, { admin: true });
     res.json({ data: await bulkInsertRecords(sql, actorOf(req), project, body) });
   });
 
   router.put('/projects/:key/records/bulk', requireAdmin, limitWrites, bulkJson, async (req, res) => {
     const { key } = projectRecordsParams.parse(req.params);
+    const project = await recordProject(sql, key, { admin: true });
+    requireProjectScope(req, key);
     checkRowCount(req.body);
     const body = bulkUpdateBody.parse(req.body);
-    const project = await recordProject(sql, key, { admin: true });
+    // Bulk "" and null already mean "unchanged", so _clear is the bulk update's only way to empty a value.
+    const cleared = req.admin && isEditor(req.admin) ? body.rows.find((row) => row._clear?.length)?._clear?.[0] : undefined;
+    if (cleared) {
+      req.log.warn({ adminId: req.admin?.id, project_key: key }, 'write refused: not allowed for an editor');
+      throw new AppError('FORBIDDEN', 'ভরা ঘর ফাঁকা করতে পারেন শুধু মূল এডমিন ও এডমিন', { field: cleared });
+    }
     res.json({ data: await bulkUpdateRecords(sql, actorOf(req), project, body) });
   });
 
   router.patch('/records/:id', requireAdmin, limitWrites, async (req, res) => {
     const { id } = idParams.parse(req.params);
+    await requireRecordScope(req, id);
     const record = await patchRecord(sql, actorOf(req), id, recordPatchBody.parse(req.body));
     if (!record) throw recordNotFound();
     res.json({ data: record });
   });
 
-  router.post('/records/:id/serial', requireAdmin, limitWrites, async (req, res) => {
+  router.post(
+    '/records/:id/serial',
+    requireAdmin,
+    refuseEditor('সিরিয়াল নম্বর বদলাতে পারেন শুধু মূল এডমিন ও এডমিন'),
+    limitWrites,
+    async (req, res) => {
     const { id } = idParams.parse(req.params);
     const { serial_no } = serialBody.parse(req.body);
     res.json({ data: await changeRecordSerial(sql, actorOf(req), id, serial_no) });
-  });
+  },
+  );
 
   router.delete('/records/:id', requireMainAdmin, limitWrites, async (req, res) => {
     if (!(await deleteRecord(sql, storage, actorOf(req), idParams.parse(req.params).id, req.log))) throw recordNotFound();
@@ -94,6 +120,7 @@ export function recordsAdminRouter({
   // replace; only the main admin removes.
   router.put('/records/:id/photos/:slot', requireAdmin, limitWrites, async (req, res) => {
     const { id, slot } = photoParams.parse(req.params);
+    await requireRecordScope(req, id);
     await checkPhotoSlot(sql, id, slot);
     const upload = await receivePhoto(req, { kind: slot });
     res.json({ data: await savePhoto<ProjectRecord>({ sql, storage, publicApiUrl }, actorOf(req), id, upload, req.log, ADMIN_RECORD_COLUMNS) });
@@ -112,6 +139,7 @@ export function recordsAdminRouter({
   // 0014_record_functions_v2.sql.
   router.get('/records/:id/private', privateNoStore, requireAdmin, async (req, res) => {
     const { id } = idParams.parse(req.params);
+    await requireRecordScope(req, id);
     const data = await getPrivate(sql, id);
     if (!data) throw recordNotFound();
     req.log.info({ event: 'private_read', actor: actorOf(req).id, record_id: id }, 'private values read');
@@ -120,6 +148,7 @@ export function recordsAdminRouter({
 
   router.put('/records/:id/private', privateNoStore, requireAdmin, limitWrites, async (req, res) => {
     const { id } = idParams.parse(req.params);
+    await requireRecordScope(req, id);
     const body = privateBody.parse(req.body);
     const actor = actorOf(req);
     const data = await putPrivate(sql, actor, id, body.data);
@@ -130,8 +159,9 @@ export function recordsAdminRouter({
 
   router.post('/projects/:key/records/private', privateNoStore, requireAdmin, limitWrites, async (req, res) => {
     const { key } = projectRecordsParams.parse(req.params);
-    const { ids } = privateManyBody.parse(req.body);
     const project = await recordProject(sql, key, { admin: true });
+    requireProjectScope(req, key);
+    const { ids } = privateManyBody.parse(req.body);
     const data = await getPrivateMany(sql, project, ids);
     req.log.info({ event: 'private_read_many', actor: actorOf(req).id, project_key: key, count: Object.keys(data).length }, 'private values read');
     res.json({ data });

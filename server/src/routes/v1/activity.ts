@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requireAdmin } from '../../auth/middleware.js';
+import { requireProjectScope } from '../../auth/scope.js';
 import type { Sql } from '../../db.js';
 import { listActivity, logEvent } from '../../housing/activity.js';
 import { projectActivityBody, projectActivityQuery } from '../../housing/schemas.js';
@@ -36,7 +37,10 @@ export function activityRouter({ sql, readRateLimit = DEFAULT_READ_RATE_LIMIT, w
   // A client event is the browser's own summary of work it did (an import, an export); its details
   // are what the client said, not proof of what happened.
   router.post('/activity', privateNoStore, requireAdmin, limitWrites, async (req, res) => {
-    res.status(201).json({ data: { id: await logEvent(sql, actorOf(req), projectActivityBody.parse(req.body)) } });
+    const body = projectActivityBody.parse(req.body);
+    // An editor reports work only in its own projects.
+    if (body.project_type) requireProjectScope(req, body.project_type);
+    res.status(201).json({ data: { id: await logEvent(sql, actorOf(req), body) } });
   });
 
   return router;

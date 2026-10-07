@@ -3545,7 +3545,7 @@ Run once, after U64:
   - "all projects" writes anywhere
 - **Done when:** `npx vitest run test/http/editor-scope.test.ts test/http/records-writes.test.ts test/http/records-bulk.test.ts test/http/records-photos.test.ts test/http/records-private.test.ts test/http/records-years-serial.test.ts test/http/activity.test.ts` (from `server/`) passes.
 - **Depends on:** U66
-- **Status:** todo
+- **Status:** done
 
 ### U70. An editor never empties a filled value or replaces a photo
 - **Goal:** A PATCH, a private save or a photo upload by an editor can fill and change but never empty or overwrite.
@@ -3758,7 +3758,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** `ae-work` on P9b, U69 (U65–U68 done). P10 (the handoff guide and the final `CLAUDE.md` profile, with the mock rule and the migration-comment exception) follows P9b.
+- **Next:** `ae-work` on P9b, U70 (U65–U69 done). P10 (the handoff guide and the final `CLAUDE.md` profile, with the mock rule and the migration-comment exception) follows P9b.
 - **Uncommitted:** nothing.
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
