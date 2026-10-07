@@ -8,6 +8,7 @@ import sharp from 'sharp';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../src/app.js';
+import type { Tx } from '../../src/db.js';
 import { createLogger } from '../../src/logger.js';
 import { appDb, insertField, insertProject, insertRecord, ownerDb, resetTestData, type AdminInput } from '../support/db.js';
 import { loginAdmin, TEST_ORIGIN } from '../support/session.js';
@@ -201,3 +202,91 @@ describe('a change of rights mid-session', () => {
     expect((await send(cookie, 'post', `/records/${rec.id}/serial`, { serial_no: 71 })).status).toBe(403);
   });
 });
+
+describe('an editor never empties a filled value or replaces a photo', () => {
+  it.each([
+    ['a text column sent as ""', { address: '' }, 'address'],
+    ['a text column sent as spaces', { union_name: '  ' }, 'union_name'],
+    ['a photo source sent as null', { current_photo_source: null }, 'current_photo_source'],
+    ['an extra key dropped', { extra: {} }, 'extra.tribe'],
+    ['an extra key set to null', { extra: { tribe: null } }, 'extra.tribe'],
+    ['an extra key set to ""', { extra: { tribe: '' } }, 'extra.tribe'],
+  ])('refuses a PATCH with %s, and the record is unchanged', async (_label, patch, field) => {
+    const rec = await insertRecord(sql, { project_type: 'tin', address: 'গ্রাম', union_name: 'ইউনিয়ন', extra: { tribe: 'ক' } });
+    await owner`update public.housing_beneficiaries set current_photo_source = 'ফোন' where id = ${rec.id}`;
+    const before = await recordRow(rec.id);
+    const res = await send(await tinEditor(), 'patch', `/records/${rec.id}`, patch);
+    expect(res.status).toBe(403);
+    expect(res.body.error).toEqual({ code: 'FORBIDDEN', message: 'ভরা ঘর ফাঁকা করতে পারেন শুধু মূল এডমিন ও এডমিন', details: { field } });
+    expect(await recordRow(rec.id)).toEqual(before);
+  });
+
+  it('lets an admin empty a filled value', async () => {
+    const rec = await insertRecord(sql, { project_type: 'tin', address: 'গ্রাম', extra: { tribe: 'ক' } });
+    expect((await send(await as({ role: 'admin' }), 'patch', `/records/${rec.id}`, { address: '', extra: {} })).status).toBe(200);
+    expect(await recordRow(rec.id)).toMatchObject({ address: '', extra: {} });
+  });
+
+  it('refuses a private save that empties a value, naming the key; filling and changing pass', async () => {
+    const rec = await insertRecord(sql, { project_type: 'tin' });
+    const editor = await tinEditor();
+    expect((await send(editor, 'put', `/records/${rec.id}/private`, { data: { phone: PHONE } })).status).toBe(200);
+    for (const data of [{}, { phone: null }, { phone: '' }]) {
+      const res = await send(editor, 'put', `/records/${rec.id}/private`, { data });
+      expect(res.status).toBe(403);
+      expect(res.body.error.details).toEqual({ field: 'extra.phone' });
+    }
+    expect(await privateOf(rec.id)).toEqual({ phone: PHONE });
+    expect((await send(editor, 'put', `/records/${rec.id}/private`, { data: { phone: '01711111111' } })).status).toBe(200);
+    expect((await send(await as({ role: 'admin' }), 'put', `/records/${rec.id}/private`, { data: {} })).status).toBe(200);
+    expect(await privateOf(rec.id)).toEqual({});
+  });
+
+  it('refuses an upload into a filled slot before reading the body; an admin still replaces it', async () => {
+    const rec = await insertRecord(sql, { project_type: 'tin' });
+    const admin = await as({ role: 'admin' });
+    expect((await photo(admin, rec.id)).status).toBe(200);
+    const first = (await recordRow(rec.id))?.current_photo_url;
+    const files = await storedFiles();
+    const res = await photo(await tinEditor(), rec.id);
+    expect(res.status).toBe(403);
+    expect(res.body.error).toEqual({
+      code: 'FORBIDDEN',
+      message: 'আগে থেকে থাকা ছবি বদলাতে পারেন শুধু মূল এডমিন ও এডমিন',
+      details: { field: 'current_photo_url' },
+    });
+    expect(await storedFiles()).toBe(files);
+    expect((await recordRow(rec.id))?.current_photo_url).toBe(first);
+    expect((await photo(admin, rec.id)).status).toBe(200);
+    expect((await recordRow(rec.id))?.current_photo_url).not.toBe(first);
+  });
+
+  it('refuses an upload whose empty slot was filled while it was stored, and removes its files', async () => {
+    const rec = await insertRecord(sql, { project_type: 'tin' });
+    const editor = await tinEditor();
+    const files = await storedFiles();
+    // The owner holds the record's row, as a racing upload's transaction would, and fills the slot.
+    let upload: Promise<request.Response> | undefined;
+    await owner.begin(async (tx) => {
+      await tx`select 1 from public.housing_beneficiaries where id = ${rec.id} for update`;
+      upload = photo(editor, rec.id).then((res) => res);
+      await waitForBlockedQuery(tx);
+      await tx`update public.housing_beneficiaries set current_photo_url = ${`${TEST_PUBLIC_API_URL}/api/v1/photos/00000000-0000-4000-8000-000000000001`} where id = ${rec.id}`;
+    });
+    const res = await upload!;
+    expect(res.status).toBe(403);
+    expect(res.body.error.details).toEqual({ field: 'current_photo_url' });
+    expect(await storedFiles()).toBe(files);
+    expect(await owner`select count(*)::int as n from public.housing_files where record_id = ${rec.id}`).toEqual([{ n: 0 }]);
+  });
+});
+
+/** Resolves once some query on the test database is waiting for a lock. */
+async function waitForBlockedQuery(tx: Tx) {
+  for (let i = 0; i < 300; i++) {
+    const [row] = await tx<{ n: number }[]>`select count(*)::int as n from pg_locks where not granted`;
+    if ((row?.n ?? 0) > 0) return;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error('no query blocked on a lock');
+}

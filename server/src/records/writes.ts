@@ -1,4 +1,5 @@
 import { withActor, type Actor, type Sql } from '../db.js';
+import { emptiedField, emptyingRefused } from './editorRules.js';
 import { ADMIN_RECORD_COLUMNS, type ProjectRecord, type RecordProject } from './reads.js';
 import type { BulkCreateBody, BulkUpdateBody, RecordCreateBody, RecordPatchBody } from './schemas.js';
 
@@ -18,9 +19,27 @@ export async function createProjectRecord(sql: Sql, actor: Actor, project: Recor
   });
 }
 
-/** Changes only the given fields; a sent extra replaces the whole column. Null when the record doesn't exist. */
-export async function patchRecord(sql: Sql, actor: Actor, id: string, patch: RecordPatchBody): Promise<ProjectRecord | null> {
+/**
+ * Changes only the given fields; a sent extra replaces the whole column. Null when the record
+ * doesn't exist. With refuseEmptying (an editor's patch), a patch that would empty a filled value
+ * throws 403 naming the field, and nothing changes.
+ */
+export async function patchRecord(
+  sql: Sql,
+  actor: Actor,
+  id: string,
+  patch: RecordPatchBody,
+  { refuseEmptying = false }: { refuseEmptying?: boolean } = {},
+): Promise<ProjectRecord | null> {
   return withActor(sql, actor, async (tx) => {
+    if (refuseEmptying) {
+      // Locked before the compare, so a concurrent write can't change what was compared.
+      const [before] = await tx<Record<string, unknown>[]>`
+        select ${tx(Object.keys(patch))} from public.housing_beneficiaries where id = ${id} for update`;
+      if (!before) return null;
+      const emptied = emptiedField(before, patch);
+      if (emptied) throw emptyingRefused(emptied);
+    }
     const changes = patch.extra === undefined ? patch : { ...patch, extra: tx.json(patch.extra as never) };
     const [updated] = await tx<ProjectRecord[]>`
       update public.housing_beneficiaries set ${tx(changes)} where id = ${id} returning ${tx(ADMIN_RECORD_COLUMNS)}`;

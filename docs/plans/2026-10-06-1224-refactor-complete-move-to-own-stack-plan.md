@@ -3564,7 +3564,7 @@ Run once, after U64:
   - an admin can still empty a value and replace a photo (no change for admins)
 - **Done when:** `npx vitest run src/records test/http/editor-scope.test.ts test/http/records-photos.test.ts test/http/records-private.test.ts test/http/records-writes.test.ts test/http/photos.test.ts` (from `server/`) passes.
 - **Depends on:** U69
-- **Status:** todo
+- **Status:** done
 
 ### U71. Settings refuse an editor, and the activity view shows its projects
 - **Goal:** No project or field setting is open to an editor, and the activity log shows an editor only its projects and its own rows.
@@ -3758,7 +3758,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** `ae-work` on P9b, U70 (U65–U69 done). P10 (the handoff guide and the final `CLAUDE.md` profile, with the mock rule and the migration-comment exception) follows P9b.
+- **Next:** `ae-work` on P9b, U71 (U65–U70 done). P10 (the handoff guide and the final `CLAUDE.md` profile, with the mock rule and the migration-comment exception) follows P9b.
 - **Uncommitted:** nothing.
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.

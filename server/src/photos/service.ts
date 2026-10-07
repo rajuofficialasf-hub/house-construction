@@ -2,6 +2,7 @@ import type { Logger } from 'pino';
 import { withActor, type Actor, type Sql, type Tx } from '../db.js';
 import { AppError } from '../errors.js';
 import type { HousingRecord } from '../housing/reads.js';
+import { photoReplaceRefused } from '../records/editorRules.js';
 import { projectNotFound } from '../records/reads.js';
 import type { StorageDriver } from '../storage/index.js';
 import { removeTombstoned, type TombstonedFile } from './files.js';
@@ -48,7 +49,7 @@ function tombstoneKind(tx: Tx, recordId: string, kind: PhotoKind) {
  * Attaches an upload's two stored files to the record's slot, replacing what was there, and
  * returns the updated record with the caller's columns (each route has its own record shape). An
  * unknown record is a 404, and the new files are removed whenever the transaction fails, so a
- * failed upload changes nothing.
+ * failed upload changes nothing. With refuseReplace (an editor's upload), a filled slot is a 403.
  */
 export async function savePhoto<R extends object>(
   deps: PhotoDeps,
@@ -57,6 +58,7 @@ export async function savePhoto<R extends object>(
   upload: PhotoUpload,
   log: Logger,
   returning: readonly string[],
+  { refuseReplace = false }: { refuseReplace?: boolean } = {},
 ): Promise<R> {
   const { sql, storage, publicApiUrl } = deps;
   const { kind } = upload;
@@ -67,6 +69,13 @@ export async function savePhoto<R extends object>(
   try {
     record = await withActor(sql, actor, async (tx) => {
       if (!(await lockRecord(tx, recordId))) throw notFound();
+      // Checked under the lock, so two editors' uploads into one empty slot can't both land.
+      if (refuseReplace) {
+        const [slot] = await tx<{ filled: boolean }[]>`
+          select (${tx(columns.photo)} is not null or ${tx(columns.thumb)} is not null) as filled
+          from public.housing_beneficiaries where id = ${recordId}`;
+        if (slot?.filled) throw photoReplaceRefused(kind);
+      }
       replaced = await tombstoneKind(tx, recordId, kind);
       const rows = upload.files.map((file) => ({
         record_id: recordId,

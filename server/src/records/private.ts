@@ -1,4 +1,5 @@
 import { withActor, type Actor, type Sql } from '../db.js';
+import { emptiedField, emptyingRefused } from './editorRules.js';
 import type { RecordProject } from './reads.js';
 import type { PrivateBody } from './schemas.js';
 
@@ -21,12 +22,24 @@ export async function getPrivate(sql: Sql, id: string): Promise<PrivateValues | 
  * Replaces the record's private values with `data` and returns them as stored; null when the record
  * doesn't exist. An existing row is updated, never upserted: Postgres runs the BEFORE INSERT
  * trigger of an upsert first, with no old row, which would refuse an unchanged value of a field
- * archived since. The record's row lock serialises two saves to the same record.
+ * archived since. The record's row lock serialises two saves to the same record. With refuseEmptying
+ * (an editor's save), emptying a stored value throws 403 naming `extra.<key>`.
  */
-export async function putPrivate(sql: Sql, actor: Actor, id: string, data: PrivateBody['data']): Promise<PrivateValues | null> {
+export async function putPrivate(
+  sql: Sql,
+  actor: Actor,
+  id: string,
+  data: PrivateBody['data'],
+  { refuseEmptying = false }: { refuseEmptying?: boolean } = {},
+): Promise<PrivateValues | null> {
   return withActor(sql, actor, async (tx) => {
     const locked = await tx`select id from public.housing_beneficiaries where id = ${id} for update`;
     if (locked.length === 0) return null;
+    if (refuseEmptying) {
+      const [stored] = await tx<{ data: PrivateValues }[]>`select data from public.housing_beneficiary_private where record_id = ${id}`;
+      const emptied = emptiedField({ extra: stored?.data ?? {} }, { extra: data });
+      if (emptied) throw emptyingRefused(emptied);
+    }
     const json = tx.json(data as never);
     const [updated] = await tx<{ data: PrivateValues }[]>`
       update public.housing_beneficiary_private set data = ${json} where record_id = ${id} returning data`;

@@ -1,12 +1,12 @@
 import { Router, type Request } from 'express';
 import { requireAdmin, requireMainAdmin, requireMainAdminForPhotos } from '../../auth/middleware.js';
 import { isEditor, refuseEditor, requireProjectScope } from '../../auth/scope.js';
-import { AppError } from '../../errors.js';
 import type { Sql } from '../../db.js';
 import { deleteRecord } from '../../housing/writes.js';
 import { deletePhoto, savePhoto } from '../../photos/service.js';
 import type { PhotoReceiver } from '../../photos/process.js';
 import { ADMIN_RECORD_COLUMNS, checkPhotoSlot, recordNotFound, recordProject, recordProjectKey, type ProjectRecord } from '../../records/reads.js';
+import { emptyingRefused, photoReplaceRefused } from '../../records/editorRules.js';
 import { getPrivate, getPrivateMany, putPrivate } from '../../records/private.js';
 import {
   bulkCreateBody,
@@ -50,6 +50,9 @@ export function recordsAdminRouter({
   const router = Router();
   const limitWrites = writeRateLimiter(writeRateLimit);
 
+  /** An editor may fill and change values but never empty one or replace a photo. */
+  const editing = (req: Request) => req.admin !== undefined && isEditor(req.admin);
+
   /** Refuses an editor outside the record's project; a 404 first when the record doesn't exist. */
   const requireRecordScope = async (req: Request, id: string) => {
     if (req.admin?.allProjects === true) return;
@@ -82,10 +85,10 @@ export function recordsAdminRouter({
     checkRowCount(req.body);
     const body = bulkUpdateBody.parse(req.body);
     // Bulk "" and null already mean "unchanged", so _clear is the bulk update's only way to empty a value.
-    const cleared = req.admin && isEditor(req.admin) ? body.rows.find((row) => row._clear?.length)?._clear?.[0] : undefined;
+    const cleared = editing(req) ? body.rows.find((row) => row._clear?.length)?._clear?.[0] : undefined;
     if (cleared) {
       req.log.warn({ adminId: req.admin?.id, project_key: key }, 'write refused: not allowed for an editor');
-      throw new AppError('FORBIDDEN', 'ভরা ঘর ফাঁকা করতে পারেন শুধু মূল এডমিন ও এডমিন', { field: cleared });
+      throw emptyingRefused(cleared);
     }
     res.json({ data: await bulkUpdateRecords(sql, actorOf(req), project, body) });
   });
@@ -93,7 +96,7 @@ export function recordsAdminRouter({
   router.patch('/records/:id', requireAdmin, limitWrites, async (req, res) => {
     const { id } = idParams.parse(req.params);
     await requireRecordScope(req, id);
-    const record = await patchRecord(sql, actorOf(req), id, recordPatchBody.parse(req.body));
+    const record = await patchRecord(sql, actorOf(req), id, recordPatchBody.parse(req.body), { refuseEmptying: editing(req) });
     if (!record) throw recordNotFound();
     res.json({ data: record });
   });
@@ -121,9 +124,16 @@ export function recordsAdminRouter({
   router.put('/records/:id/photos/:slot', requireAdmin, limitWrites, async (req, res) => {
     const { id, slot } = photoParams.parse(req.params);
     await requireRecordScope(req, id);
-    await checkPhotoSlot(sql, id, slot);
+    const { filled } = await checkPhotoSlot(sql, id, slot);
+    const refuseReplace = editing(req);
+    if (refuseReplace && filled) {
+      req.log.warn({ adminId: req.admin?.id, record_id: id }, 'write refused: not allowed for an editor');
+      throw photoReplaceRefused(slot);
+    }
     const upload = await receivePhoto(req, { kind: slot });
-    res.json({ data: await savePhoto<ProjectRecord>({ sql, storage, publicApiUrl }, actorOf(req), id, upload, req.log, ADMIN_RECORD_COLUMNS) });
+    res.json({
+      data: await savePhoto<ProjectRecord>({ sql, storage, publicApiUrl }, actorOf(req), id, upload, req.log, ADMIN_RECORD_COLUMNS, { refuseReplace }),
+    });
   });
 
   router.delete('/records/:id/photos/:slot', requireMainAdminForPhotos, limitWrites, async (req, res) => {
@@ -151,7 +161,7 @@ export function recordsAdminRouter({
     await requireRecordScope(req, id);
     const body = privateBody.parse(req.body);
     const actor = actorOf(req);
-    const data = await putPrivate(sql, actor, id, body.data);
+    const data = await putPrivate(sql, actor, id, body.data, { refuseEmptying: editing(req) });
     if (!data) throw recordNotFound();
     req.log.info({ event: 'private_update', actor: actor.id, record_id: id, keys: Object.keys(body.data) }, 'private values saved');
     res.json({ data });

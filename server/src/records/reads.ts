@@ -126,11 +126,13 @@ export async function getRecordsBySerials(sql: Sql, project: RecordProject, seri
  * Refuses a photo upload the record's project can't hold, before the body is read, so nothing is
  * stored (§4.4.10, AE3 in docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md).
  * An unknown record is 404. The record trigger (0013_record_rules.sql) checks the same rule again
- * when the URL is saved, in case the photo mode changes meanwhile.
+ * when the URL is saved, in case the photo mode changes meanwhile. Says whether the slot already
+ * holds a photo, which an editor may not replace.
  */
-export async function checkPhotoSlot(sql: Sql, id: string, slot: PhotoKind): Promise<void> {
-  const [record] = await sql<{ photo_mode: 'before_after' | 'after_only' | 'none' }[]>`
-    select p.photo_mode from public.housing_beneficiaries b join public.housing_projects p on p.key = b.project_type
+export async function checkPhotoSlot(sql: Sql, id: string, slot: PhotoKind): Promise<{ filled: boolean }> {
+  const [record] = await sql<{ photo_mode: 'before_after' | 'after_only' | 'none'; filled: boolean }[]>`
+    select p.photo_mode, (${sql(`${slot}_photo_url`)} is not null or ${sql(`${slot}_thumb_url`)} is not null) as filled
+    from public.housing_beneficiaries b join public.housing_projects p on p.key = b.project_type
     where b.id = ${id}`;
   if (!record) throw recordNotFound();
   if (record.photo_mode === 'none') {
@@ -142,6 +144,7 @@ export async function checkPhotoSlot(sql: Sql, id: string, slot: PhotoKind): Pro
       reason: 'photo_mode',
     });
   }
+  return { filled: record.filled };
 }
 
 /** A record's project key, or a 404. A record never changes project, so a later write can't race it. */
