@@ -7,7 +7,7 @@ import { SafeImage } from '@/features/housing/components/SafeImage'
 import { useAuth } from '@/features/housing/hooks/useAuth'
 import { processImage } from '@/features/housing/utils/imageProcessing'
 import { PHOTO_SPEC } from '@/features/housing/utils/photoSpec'
-import { accentOf, ProjectIcon } from '@/features/projects/registry'
+import { accentOf } from '@/features/projects/registry'
 import { coverSrc } from '@/features/projects/home/cover'
 import { card, secondaryButton, smallButton } from '../ui/styles'
 
@@ -74,7 +74,7 @@ export function CoverUpload({ project, blocked, onChanged }: Props) {
       <div>
         <p className="text-sm font-medium text-slate-700">{t('কভার ছবি (হোম পেইজের কার্ডে)')}</p>
         <p className="mt-0.5 text-xs text-slate-500">
-          {t('প্রকাশিত প্রকল্পে আসল ছবি দিন। না দিলে হোমে সর্বশেষ রেকর্ডের ছবি, তাও না থাকলে রঙের পটভূমি ও আইকন দেখাবে।')}
+          {t('প্রকাশিত প্রকল্পে আসল ছবি দিন। না দিলে হোমে সর্বশেষ রেকর্ডের ছবি, তাও না থাকলে রঙের পটভূমিতে প্রকল্পের নাম দেখাবে।')}
         </p>
       </div>
 
@@ -82,8 +82,8 @@ export function CoverUpload({ project, blocked, onChanged }: Props) {
         {src ? (
           <SafeImage src={src} alt={t('{name} — কভার ছবি', { name: lt(project, 'name') })} className="h-full w-full object-cover" placeholderClassName="h-full w-full" />
         ) : (
-          <div className={`flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br text-white/90 ${accent.gradient}`}>
-            <ProjectIcon icon={project.icon} className="h-16 w-16" />
+          <div className={`flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br px-6 text-center text-white ${accent.gradient}`}>
+            <span className="text-xl leading-snug font-bold">{lt(project, 'name')}</span>
             <span className="rounded-full bg-black/25 px-2.5 py-0.5 text-xs">{t('কভার নেই')}</span>
           </div>
         )}

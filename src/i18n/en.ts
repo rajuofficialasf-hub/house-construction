@@ -502,7 +502,6 @@ Object.assign(EN, {
   'অপ্রকাশ করুন': 'Unpublish',
   'অবস্থান': 'Location',
   'আইকন': 'Icon',
-  'আইকন ও রং': 'Icon and colour',
   'আগে গ্রুপ «{name}» প্রকাশ করুন': 'Publish the group «{name}» first',
   'আগে পরিবর্তন সংরক্ষণ করুন': 'Save your changes first',
   'আগে-পরে (দুটি ছবি, তুলনাসহ)': 'Before and after (two photos, with comparison)',
@@ -868,7 +867,7 @@ Object.assign(EN, {
 
   // ---------------------------------------------------------------- কভার ছবি (M-ধাপ ১৫)
   'কভার ছবি (হোম পেইজের কার্ডে)': 'Cover photo (on the home page card)',
-  'প্রকাশিত প্রকল্পে আসল ছবি দিন। না দিলে হোমে সর্বশেষ রেকর্ডের ছবি, তাও না থাকলে রঙের পটভূমি ও আইকন দেখাবে।': 'Use a real photo for published projects. Without one, the home page shows the latest record photo, or else the colour background with the icon.',
+  'প্রকাশিত প্রকল্পে আসল ছবি দিন। না দিলে হোমে সর্বশেষ রেকর্ডের ছবি, তাও না থাকলে রঙের পটভূমিতে প্রকল্পের নাম দেখাবে।': 'Use a real photo for published projects. Without one, the home page shows the latest record photo, or else the project name on the colour background.',
   '{name} — কভার ছবি': '{name} — cover photo',
   'কভার নেই': 'No cover',
   'প্রক্রিয়া চলছে…': 'Processing…',
@@ -916,4 +915,5 @@ Object.assign(EN, {
   'সংরক্ষণ': 'Save',
   'সংরক্ষণ হয়নি': 'Not saved',
   'সব প্রকল্প (পরে নতুন প্রকল্প হলে সেটিও)': 'All projects (including ones added later)',
+  'পরিসংখ্যান: বাছাই করা ফিল্টার অনুযায়ী': 'Statistics: for the selected filters',
 })

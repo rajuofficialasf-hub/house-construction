@@ -15,15 +15,17 @@ import {
   type PhotoKind,
   type Project,
   type ProjectField,
+  type ProjectStats,
   type ProjectType,
+  type StatsFilters,
 } from '../interfaces/types'
 import { photoPath } from '../../features/housing/utils/imagePath'
 import { TABLE, type GetClient } from './client'
 import { mapSupabaseError } from './errors'
-import { isKnownMissing, isMissingError, legacyWriteError, markMissing } from './legacy'
+import { isKnownMissing, isMissingError, legacyWriteError, markMissing, withFallback } from './legacy'
 import { createSupabaseProjectsApi } from './projectsApi'
 import { assertAdmin } from './session'
-import { LEGACY_GROUP_KEY, fetchProjectStats } from './stats'
+import { LEGACY_GROUP_KEY, fetchProjectStats, normalizeStats } from './stats'
 
 const BULK_CHUNK = 200
 const IN_CHUNK = 100
@@ -89,6 +91,36 @@ export function createSupabaseHousingApi(
   }
 
   /** প্রকল্পের সেটিং; না পেলে (গ্রুপ-key, অচেনা, খসড়া ও anon) null — তখন কোনো নিয়ম চাপানো হয় না */
+  /**
+   * পরিসংখ্যানের ফিল্টার → RPC এর p_filters, list() এর হুবহু নিয়মে (NFC, সার্চ-পরিষ্কার, কাস্টম ফিল্ডে whitelist,
+   * টাকা/সংখ্যায় JSON number)। কোনো ফিল্টার না থাকলে null (তখন সাধারণ stats)। সার্ভারও একই whitelist আবার মানে।
+   */
+  async function statsFilterArgs(projectType: ProjectType | undefined, sf: StatsFilters): Promise<Record<string, unknown> | null> {
+    const out: Record<string, unknown> = {}
+    if (sf.year !== undefined && Number.isInteger(sf.year)) out.year = sf.year
+    if (sf.division) out.division = nfc(sf.division)
+    if (sf.district) out.district = nfc(sf.district)
+    if (sf.upazila) out.upazila = nfc(sf.upazila)
+    if (sf.union_name) out.union_name = nfc(sf.union_name)
+    const q = sf.q ? sanitizeSearch(sf.q) : ''
+    if (q) out.q = q
+    const entries = Object.entries(sf.fields ?? {}).filter(([, v]) => typeof v === 'string' && v.trim() !== '')
+    if (entries.length) {
+      const pub = publicFields(await projectOf(projectType))
+      const fields: Record<string, string | number> = {}
+      for (const [k, raw] of entries) {
+        const def = pub.find((x) => x.key === k && x.filterable)
+        if (!def) continue
+        if (def.type === 'money' || def.type === 'number') {
+          const n = Number(raw)
+          if (Number.isFinite(n)) fields[k] = n
+        } else fields[k] = sanitizeValue(raw)
+      }
+      if (Object.keys(fields).length) out.fields = fields
+    }
+    return Object.keys(out).length ? out : null
+  }
+
   async function projectOf(key: ProjectType | undefined): Promise<Project | null> {
     if (!key) return null
     try {
@@ -341,8 +373,20 @@ export function createSupabaseHousingApi(
       return result
     },
 
-    stats(projectType, opts = {}) {
-      return fetchProjectStats(getClient, projectType ?? LEGACY_GROUP_KEY, !!opts.light)
+    async stats(projectType, opts = {}) {
+      const key = projectType ?? LEGACY_GROUP_KEY
+      const f = opts.filters ? await statsFilterArgs(projectType, opts.filters) : null
+      if (!f) return fetchProjectStats(getClient, key, !!opts.light)
+      // ফিল্টার অনুযায়ী (SQL ১৫); ফাংশন না থাকলে মনে রেখে মোট (filtered: false) — পাতা আগের মতো চলে
+      return withFallback<ProjectStats>(
+        'project_stats_filtered',
+        async () => {
+          const { data, error } = await getClient().rpc('project_stats_filtered', { p_key: key, p_filters: f })
+          if (error) throw mapSupabaseError(error)
+          return { ...normalizeStats(data), filtered: true }
+        },
+        async () => ({ ...(await fetchProjectStats(getClient, key, true)), filtered: false }),
+      )
     },
 
     async years(projectType?: ProjectType) {

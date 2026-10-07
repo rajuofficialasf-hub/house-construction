@@ -12,6 +12,7 @@ import type {
   ExtraValues,
   HousingRecordPatch,
   ListParams,
+  StatsFilters,
   Page,
   PhotoFiles,
   PhotoKind,
@@ -48,8 +49,10 @@ export interface HousingApi {
   /**
    * প্রকল্পের পরিসংখ্যান (গ্রুপ দিলে উপ-প্রকল্প মিলিয়ে)। projectType না দিলে 'housing' (পুরনো আচরণ: ঘর নির্মাণের সব)।
    * light = true: হোম কার্ডের হালকা সংস্করণ (by_union ও ক্যাটাগরির by_value বাদ)।
+   * filters (খালি নয়): তালিকার একই ফিল্টারে গোনা হালকা পরিসংখ্যান, `filtered: true` — কার্ডগুলো ফিল্টার অনুযায়ী বদলায়।
+   *   ডাটাবেসে সুবিধাটি না থাকলে (SQL ১৫ চালানো হয়নি) মোট ফেরত, `filtered: false` — পাতা ভাঙে না।
    */
-  stats(projectType?: ProjectType, opts?: { light?: boolean }): Promise<ProjectStats>
+  stats(projectType?: ProjectType, opts?: { light?: boolean; filters?: StatsFilters }): Promise<ProjectStats>
   years(projectType?: ProjectType): Promise<number[]>
   filterOptions(projectType?: ProjectType): Promise<FilterOptions>
   uploadPhoto(id: string, kind: PhotoKind, files: PhotoFiles): Promise<HousingRecord>

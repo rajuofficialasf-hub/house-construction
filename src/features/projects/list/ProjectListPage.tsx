@@ -1,7 +1,7 @@
 import { lt, t } from '@/i18n'
 import { useCallback, useMemo, useRef } from 'react'
 import { Outlet, useSearchParams } from 'react-router'
-import { DEFAULT_LIST_ORDER, DEFAULT_PAGE_SIZE, type ListParams, type Project } from '@/backend'
+import { DEFAULT_LIST_ORDER, DEFAULT_PAGE_SIZE, type ListParams, type StatsFilters, type Project } from '@/backend'
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import type { ListOutletContext } from '@/features/housing/pages/listContext'
 import { HousingSubnav } from '@/features/housing/components/HousingSubnav'
@@ -9,7 +9,7 @@ import { Lazy, LazyUpazilaMapPanel } from '@/features/housing/pages/lazyPages'
 import { Pagination } from '@/features/housing/components/Pagination'
 import { ErrorNotice } from '@/features/housing/components/ErrorNotice'
 import { useHousingList } from '@/features/housing/hooks/useHousingList'
-import { useHousingStats } from '@/features/housing/hooks/useHousingStats'
+import { useFilteredStats, useHousingStats } from '@/features/housing/hooks/useHousingStats'
 import type { HousingFilters } from '@/features/housing/utils/filters'
 import { listLayout } from './listColumns'
 import { applyListFilters, hasActiveListFilters, listFiltersEqual, listFiltersFromSearchParams, type ProjectListFilters as Filters } from './listFilters'
@@ -66,6 +66,19 @@ export function ProjectListPage({ project }: Props) {
     [projectType, page, filters],
   )
   const list = useHousingList(params)
+  // কার্ড ফিল্টার অনুযায়ী (SQL ১৫): ফিল্টার থাকলে আলাদা হালকা stats; ড্রপডাউন ও মানচিত্র মোট stats থেকেই
+  const statsFilters = useMemo<StatsFilters | null>(() => {
+    if (!hasActiveListFilters(filters)) return null
+    const { year, division, district, upazila, union_name, fields, q } = params
+    return { year, division, district, upazila, union_name, fields, q }
+  }, [filters, params])
+  const filteredStats = useFilteredStats(projectType, statsFilters)
+  // ডাটাবেসে সুবিধা না থাকলে (filtered = false) বা ত্রুটিতে মোটই দেখানো — আগের আচরণ
+  const cardStats =
+    filteredStats && !(filteredStats.status === 'ready' && filteredStats.data.filtered === false) && filteredStats.status !== 'error'
+      ? filteredStats
+      : stats
+  const cardsFiltered = cardStats === filteredStats && filteredStats !== null
 
   const goToPage = useCallback(
     (next: number) => {
@@ -121,7 +134,7 @@ export function ProjectListPage({ project }: Props) {
       {lt(project, 'description') && <p className="mt-2 text-slate-600">{lt(project, 'description')}</p>}
 
       <div className="mt-8">
-        <ProjectStatCards project={project} stats={stats} />
+        <ProjectStatCards project={project} stats={cardStats} filtered={cardsFiltered} />
       </div>
 
       <div ref={tableTop} className="mt-10 scroll-mt-20">

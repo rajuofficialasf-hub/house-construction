@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import type { ProjectOverviewItem, StatCardDef } from '@/backend'
 import { formatBanglaNumber } from '@/lib/banglaNumber'
 import { formatTaka } from '@/lib/money'
-import { accentOf, ProjectIcon, useProject } from '@/features/projects/registry'
+import { accentOf, useProject } from '@/features/projects/registry'
 import { cardValue, homeCards, homeLabel } from '@/features/projects/stats/statCards'
 import { useCountUp } from '@/features/housing/hooks/useCountUp'
 import { photoSrc } from '@/features/housing/utils/imagePath'
@@ -51,18 +51,15 @@ export function ProjectCard({ item, subProjects = [] }: Props) {
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/35 to-transparent" aria-hidden="true" />
           </>
         ) : (
-          <div data-cover-fallback="" className={`flex h-full w-full items-center justify-center bg-gradient-to-br text-white/90 ${accent.gradient}`} aria-hidden="true">
-            <ProjectIcon icon={item.icon} className="h-24 w-24 drop-shadow-sm" />
+          <div data-cover-fallback="" className={`flex h-full w-full items-center justify-center bg-gradient-to-br px-6 text-center text-white ${accent.gradient}`} aria-hidden="true">
+            <span className="text-2xl leading-snug font-bold drop-shadow-sm">{name}</span>
           </div>
         )}
       </div>
 
       {/* ---------- লেখা ---------- */}
-      <div className="flex flex-1 flex-col px-5 pb-5">
-        <span className={`relative -mt-7 flex h-14 w-14 items-center justify-center rounded-2xl shadow-md ring-4 ring-white ${accent.soft}`} aria-hidden="true">
-          <ProjectIcon icon={item.icon} className="h-8 w-8" />
-        </span>
-        <h3 className="mt-3 text-xl leading-snug font-bold text-slate-900">{name}</h3>
+      <div className="flex flex-1 flex-col px-5 pt-4 pb-5">
+        <h3 className="text-xl leading-snug font-bold text-slate-900">{name}</h3>
         {summary && <p className="mt-1.5 line-clamp-3 text-sm leading-relaxed text-slate-600">{summary}</p>}
 
         {subProjects.length > 0 && (

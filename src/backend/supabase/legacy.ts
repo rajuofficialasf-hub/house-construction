@@ -18,6 +18,8 @@ export type LegacyFeature =
   | 'project_stats'
   /** projects_overview RPC (SQL ১১) */
   | 'projects_overview'
+  /** project_stats_filtered RPC (SQL ১৫) — না থাকলে কার্ড ফিল্টারে বদলায় না (মোট) */
+  | 'project_stats_filtered'
 
 const MISSING_CODES = new Set(['PGRST205', '42P01', 'PGRST202', '42883', 'PGRST204', '42703'])
 

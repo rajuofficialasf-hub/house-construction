@@ -8,7 +8,7 @@ import { cardValue, homeCards, homeLabel } from '@/features/projects/stats/statC
 import { useFeaturedRecord } from '../hooks/useFeaturedRecord'
 import { useHousingStats } from '../hooks/useHousingStats'
 import { photoSrc } from '../utils/imagePath'
-import { ProjectIcon, accentOf } from '@/features/projects/registry'
+import { accentOf } from '@/features/projects/registry'
 import { projectPath } from '../utils/housingProjects'
 import { SafeImage } from './SafeImage'
 
@@ -47,8 +47,8 @@ export function FeaturedProjectCard({ project }: Props) {
               placeholderClassName="aspect-square w-full rounded-xl sm:w-44"
             />
           ) : (
-            <div className={`flex aspect-square w-full items-center justify-center rounded-xl sm:w-44 ${accentOf(project.accent).soft}`} aria-hidden="true">
-              <ProjectIcon icon={project.icon} className="h-20 w-20" />
+            <div className={`flex aspect-square w-full items-center justify-center rounded-xl bg-gradient-to-br px-4 text-center text-white sm:w-44 ${accentOf(project.accent).gradient}`} aria-hidden="true">
+              <span className="text-lg leading-snug font-bold">{title}</span>
             </div>
           )}
         </div>
