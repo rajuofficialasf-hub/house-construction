@@ -3777,7 +3777,7 @@ Run once, after the simplify and review pass:
    5. Server HTTP test through the real app, including 401, 403 and another user's or a visitor's access (example: `server/test/http/admin-users.test.ts`, helpers in `server/test/support/`).
    6. Backend interface in `src/backend/interfaces/`, REST method in `src/backend/rest/endpoints.ts` and `index.ts`, wiring in `src/backend/factory.ts`. The mock doesn't grow: a registry or user-management method answers `NOT_IMPLEMENTED` there.
    7. Contract block in `tests/contract/` run by `rest.contract.test.ts` (example: `adminUsersContract.ts`).
-   8. UI through TanStack Query hooks; Bangla text with its `src/i18n/en.ts` entry (`npm run i18n-check`).
+   8. UI: a page under `src/features/` calling the API only through `src/backend`, the project list from the registry store's hooks; Bangla text with its `src/i18n/en.ts` entry (`npm run i18n-check`).
    9. Playwright spec in `e2e/admin/` (runs on `admin-rest` only), using `e2e/support/backend.ts` and the logins in `e2e/support/auth.ts` and `rest-data.ts`.
    - Then the learnings to read for database work (`postgres-default-privileges-public-execute.md`, `raised-sqlstate-has-no-constraint-name.md`, `postgres-js-helper-breaks-after-table-alias.md`, `postgres-session-setting-guards-are-spoofable.md`).
 4. **Test it:**
@@ -3787,6 +3787,8 @@ Run once, after the simplify and review pass:
    - Playwright needs `npx playwright install chromium` once.
 
 **Replacing `main` is not done in P10** (this settles the P9 decisions' "How `main` is replaced at handoff is P10's decision"). The user's rule stands: no merge into `main`, no push to it and no PR. How and when `dev-forhad` becomes the main line is the user's call after P10, and the closing Progress note says so.
+
+**The frontend line is corrected: no TanStack Query** (user-decided 2026-10-07, found while writing U79). `CLAUDE.md` and U1's profile say React with TanStack Query (`ST-01`), but the repo has no `@tanstack` package: the project list is the registry store (`useSyncExternalStore`, `src/features/projects/registry/`) and pages call the `src/backend` adapters in effects. U80 records this as a deliberate deviation from `ST-01`, with adopting TanStack Query left as a later proposal; the guide describes the real pattern. No code changes in P10.
 
 **Out of P10:** the role gate's text shown to an editor on settings (seen in the P9b walkthrough). It is a UI wording change, not part of R19; Progress keeps it as a follow-up.
 
@@ -3832,7 +3834,7 @@ Run once, after the simplify and review pass:
 - **Tests:** none (docs). A path check: every backticked repo path in the guide exists (`git ls-files` or `test -e`), and every `npm run` / `npm --prefix server run` name is a script in the matching `package.json`.
 - **Done when:** the path and script checks pass, `npm run lint` is clean, and both AE4 searches print what they printed after P9b (the guide doesn't name the old system except the one `docs/history/README.md` link, which matches neither search).
 - **Depends on:** U78
-- **Status:** todo
+- **Status:** done
 
 ### U80. `CLAUDE.md` final profile
 - **Goal:** `CLAUDE.md` records the stack as finished, so plans and reviews read the rules instead of rediscovering them.
@@ -3919,7 +3921,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** P10: U79 (the developer guide), then U80 and U81. U78 is done. P10 is the handoff guide (R19) and the final `CLAUDE.md` profile, including the three roles (`main_admin`, `admin`, `editor`), the mock "doesn't grow" rule and the one-time migration-comment exception.
+- **Next:** P10: U80 (`CLAUDE.md`), then U81. U78 and U79 are done. P10 is the handoff guide (R19) and the final `CLAUDE.md` profile, including the three roles (`main_admin`, `admin`, `editor`), the mock "doesn't grow" rule and the one-time migration-comment exception.
 - **Uncommitted:** nothing.
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.

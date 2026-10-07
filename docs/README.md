@@ -1,5 +1,7 @@
 # Documentation index
 
+Start here: [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) (run, extend, test). The admin panel's own guide is [ADMIN_GUIDE.md](ADMIN_GUIDE.md) (Bangla).
+
 | Folder | Contents |
 |---|---|
 | [api/](api/) | The REST API contract: what the Express server in `server/` serves |
