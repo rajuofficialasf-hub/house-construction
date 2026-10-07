@@ -11,6 +11,14 @@ test.describe('change serial', () => {
     await expect(dialog).toHaveCount(0)
   })
 
+  test('the warning names the record\'s own public link and says nothing about moving photos', async ({ page }) => {
+    await loginAsAdmin(page, '/housing/admin/semi-pucca/1/edit')
+    await page.getByRole('button', { name: 'সিরিয়াল বদলান…' }).click()
+    const dialog = page.getByRole('dialog', { name: 'সিরিয়াল নম্বর বদলাবেন?' })
+    await expect(dialog.locator('code')).toHaveText('/housing/semi-pucca/1')
+    await expect(dialog).not.toContainText('ছবি')
+  })
+
   test('moving to a serial already in use is refused and neither record changes', async ({ page }) => {
     await loginAsAdmin(page, '/housing/admin/semi-pucca/1/edit')
     await page.getByRole('button', { name: 'সিরিয়াল বদলান…' }).click()
@@ -30,6 +38,7 @@ test.describe('change serial', () => {
     await dialog.getByRole('textbox', { name: 'নতুন সিরিয়াল' }).fill('40')
     await dialog.getByRole('button', { name: 'হ্যাঁ, সিরিয়াল বদলান' }).click()
     await expect(page).toHaveURL(/\/admin\/records\/semi_pucca\/40\/edit$/)
+    await expect(page.getByText('সিরিয়াল ১ → ৪০ বদলানো হয়েছে', { exact: true })).toBeVisible()
     await page.goto('/housing/admin/semi-pucca')
     const row = page.getByRole('row', { name: /রহিমা খাতুন 1/ })
     await expect(row.getByRole('cell', { name: '৪০', exact: true }).first()).toBeVisible()

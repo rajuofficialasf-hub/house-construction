@@ -3037,7 +3037,7 @@ git grep -nIE '(^|[^A-Za-z])RLS([^A-Za-z]|$)|SQL [0-9০-৯]+|পুরনো �
   - No text mentions moving photos.
 - **Done when:** `npm test` and `npm run i18n-check` pass.
 - **Depends on:** none
-- **Status:** todo
+- **Status:** done
 
 ### U53. The users page stops pointing at Supabase
 - **Goal:** `/admin/users` stays, and it tells the main admin to create a login with the server CLI, not in Supabase. P9b makes it work on the server.
@@ -3343,7 +3343,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** P9 `ae-work`: U52 (serial dialog text), then U53, U55, U56, U54, U57, U58, U59, U61, U63, U62, U64; then simplify, review and the full verification.
+- **Next:** P9 `ae-work`: U53 (users page text), then U55, U56, U54, U57, U58, U59, U61, U63, U62, U64; then simplify, review and the full verification.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.

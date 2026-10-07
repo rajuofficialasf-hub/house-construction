@@ -389,13 +389,12 @@ Object.assign(EN, {
   'রেকর্ড সংরক্ষিত (সিরিয়াল {n}), কিন্তু কিছু ছবি আপলোড হয়নি — ব্যর্থ ছবি আবার বেছে "সংরক্ষণ করুন" চাপুন':
     'Record saved (serial {n}), but some photos were not uploaded — choose the failed photos again and press "Save"',
   'সংরক্ষণ ব্যর্থ: {message}': 'Save failed: {message}',
-  'সিরিয়াল {from} → {to} বদলানো হয়েছে; ছবির পাথও সরানো হয়েছে': 'Serial changed {from} → {to}; photo paths were moved as well',
+  'সিরিয়াল {from} → {to} বদলানো হয়েছে': 'Serial changed {from} → {to}',
   'সিরিয়াল {n} আগে থেকেই আছে': 'Serial {n} already exists',
   'সিরিয়াল {n} সংরক্ষিত হয়েছে': 'Serial {n} saved',
   'সিরিয়াল {n} সম্পাদনা': 'Edit serial {n}',
   'সিরিয়াল বদল ব্যর্থ: {message}': 'Serial change failed: {message}',
-  'সিরিয়াল স্থায়ী পরিচয়। বদলালে ছবির ফাইল নতুন সিরিয়ালের পাথে সরে যাবে, শেয়ার করা পুরনো লিঙ্ক (':
-    'The serial is a permanent identifier. Changing it moves the photo files to the new serial path, old shared links (',
+  'সিরিয়াল এই রেকর্ডের স্থায়ী পরিচয়। বদলালে শেয়ার করা পুরনো লিঙ্ক (': "The serial is this record's permanent identifier. If you change it, old shared links (",
   ') আর কাজ করবে না, এবং পুরনো সিরিয়াল আর কাউকে দেওয়া হবে না।': ') will stop working, and the old serial will never be given to anyone else.',
   // ডিটেইল
   'সিরিয়াল {n}': 'Serial {n}',

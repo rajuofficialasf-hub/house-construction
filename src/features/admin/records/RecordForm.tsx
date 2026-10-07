@@ -18,6 +18,7 @@ import { processImage } from '@/features/housing/utils/imageProcessing'
 import { revokeUploadItems, type UploadItem } from '@/features/housing/utils/uploadItems'
 import { ConfirmDialog } from '@/features/housing/components/ConfirmDialog'
 import { PhotoField } from '@/features/housing/components/PhotoField'
+import { projectPath } from '@/features/projects/registry'
 import { photoKindsOf, photoSlotLabel } from './recordColumns'
 import { isMainAdmin, useAdminUser } from '../adminUser'
 
@@ -405,7 +406,7 @@ export function RecordForm({ project, record, onSaved, onCancel }: Props) {
       setValues((v) => ({ ...v, serial: String(updated.serial_no) }))
       setSerialDialog(false)
       setNewSerial('')
-      toast.success(t('সিরিয়াল {from} → {to} বদলানো হয়েছে; ছবির পাথও সরানো হয়েছে', { from: toBanglaNumber(current.serial_no), to: toBanglaNumber(updated.serial_no) }))
+      toast.success(t('সিরিয়াল {from} → {to} বদলানো হয়েছে', { from: toBanglaNumber(current.serial_no), to: toBanglaNumber(updated.serial_no) }))
       onSaved(updated)
     } catch (err) {
       const e2 = HousingApiError.from(err)
@@ -608,8 +609,8 @@ export function RecordForm({ project, record, onSaved, onCancel }: Props) {
         }}
       >
         <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-900">
-          <strong>{t('সতর্কতা:')}</strong> {t('সিরিয়াল স্থায়ী পরিচয়। বদলালে ছবির ফাইল নতুন সিরিয়ালের পাথে সরে যাবে, শেয়ার করা পুরনো লিঙ্ক (')}
-          <code>/housing/…/{toBanglaNumber(current?.serial_no ?? 0)}</code>{t(') আর কাজ করবে না, এবং পুরনো সিরিয়াল আর কাউকে দেওয়া হবে না।')}
+          <strong>{t('সতর্কতা:')}</strong> {t('সিরিয়াল এই রেকর্ডের স্থায়ী পরিচয়। বদলালে শেয়ার করা পুরনো লিঙ্ক (')}
+          <code>{`${projectPath(project)}/${current?.serial_no ?? 0}`}</code>{t(') আর কাজ করবে না, এবং পুরনো সিরিয়াল আর কাউকে দেওয়া হবে না।')}
         </p>
         <label htmlFor="f-new-serial" className="mt-3 block text-sm font-medium text-slate-700">
           {t('নতুন সিরিয়াল')}
