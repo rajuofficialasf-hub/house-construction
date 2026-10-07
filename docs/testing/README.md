@@ -9,7 +9,7 @@ One contract, checked at three layers (unit and server tests, the backend contra
 | Command | What runs | Needs |
 |---|---|---|
 | `npm test` | UI unit tests (`src/**/*.test.ts`) and the backend contract on the mock (`tests/contract/mock.contract.test.ts`, the `HousingApi` part) | nothing |
-| `npm --prefix server test` | Server tests (`server/src/**/*.test.ts`, `server/test/`): config, errors, every route through Supertest on the real app, photo storage, and the SQL rules (serials, guards, stats, bulk, activity log, role privileges) on a real PostgreSQL. Rebuilds the `housing_test` database from the migrations first, checking that each down section undoes its up section. Photos go to a NAS driver on a temp folder. The S3 driver's tests skip unless `TEST_S3_BUCKET` and `TEST_S3_REGION` (plus `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and, for R2, `TEST_S3_ENDPOINT`) point at a test bucket | `docker compose up -d db` and Node 22 |
+| `npm --prefix server test` | Server tests (`server/src/**/*.test.ts`, `server/test/`): config, errors, every route through Supertest on the real app, photo storage, and the SQL rules (serials, guards, stats, bulk, activity log, role privileges) on a real PostgreSQL. Rebuilds the `housing_test` database from the migrations first, checking that each down section undoes its up section. Photos go to a NAS driver on a temp folder. The S3 driver's tests skip unless `TEST_S3_*` names a bucket (below) | `docker compose up -d db` and Node 22 |
 | `npm run test:contract:rest` | The whole backend contract, writes included, through the REST adapter against the Express app on `housing_test`: the `HousingApi` part, the `ProjectsApi` part (`tests/contract/projectsApiContract.ts`: registry, fields, covers, custom and private values, field stats, filtered stats, AE1–AE3) and the `AdminUsersApi` part (`tests/contract/adminUsersContract.ts`: the users page and a project user's limits) | `docker compose up -d db` and Node 22 |
 | `npm run test:e2e:rest-admin` | Playwright: the admin flows (`e2e/mock/`) and the project-registry flows (`e2e/admin/`: wizard, settings, field and stat-card builders, covers, import with custom and private fields, CSV export, category rename, delete rules, filtered stat cards, the users page and a project user's view), photos included, against an API it starts on `housing_test` (project `admin-rest`), storing photos in `.storage/e2e` | `docker compose up -d db` and Node 22 |
 | `npm run test:e2e:rest` | Playwright: the public flows (`e2e/public/`) against the compose API (`VITE_HOUSING_BACKEND=rest`, project `public-rest`) | `docker compose up -d db api` with the dev seed, and the API answering `GET /api/v1/projects` (after `docker compose down -v` the `api` container reinstalls `node_modules` first) |
@@ -30,11 +30,23 @@ One contract, checked at three layers (unit and server tests, the backend contra
   - then, on the seeded `housing` database, `test:e2e:rest` against the built API.
 - `e2e-mock`: `test:e2e:mock`.
 
-The S3 storage tests don't run in CI, which holds no AWS keys. They run once by hand against a test bucket (below).
+The S3 storage tests run in `db-suites` against a local SeaweedFS started like compose's `s3` service, and the public flows' built API stores photos there on the S3 driver. No AWS keys are involved.
 
-## S3 storage tests, by hand
+## S3 storage tests
 
-The S3 driver is built but unused: dev and tests store photos with the NAS driver. Its contract and smoke tests skip without a bucket, and there is no local S3. Before the S3 driver is ever switched on, run them once against a test bucket, never a real one:
+S3 is the first production store. Locally it is compose's `s3` service, SeaweedFS's S3 gateway (MinIO no longer publishes a server image), with the buckets `housing-photos` (the API's) and `housing-photos-test`. The S3 contract and smoke tests skip unless `TEST_S3_*` is set; to run them on a developer machine:
+
+```sh
+docker compose up -d db s3
+TEST_S3_BUCKET=housing-photos-test TEST_S3_REGION=us-east-1 \
+TEST_S3_ENDPOINT=http://127.0.0.1:8333 TEST_S3_FORCE_PATH_STYLE=true \
+AWS_ACCESS_KEY_ID=housing_s3_local AWS_SECRET_ACCESS_KEY=housing_s3_local_secret \
+npm --prefix server test
+```
+
+### Against a real bucket, by hand
+
+SeaweedFS is not AWS. Before production first stores photos in a real bucket, run the same tests once against a test bucket there, never the production one:
 
 1. Create a test bucket (for example `<org>-housing-photos-test`) with all four public-access blocks on and default encryption.
 2. Create a temporary IAM user whose policy allows only `s3:GetObject`, `s3:PutObject` and `s3:DeleteObject` on the bucket's objects and `s3:ListBucket` on the bucket. `ListBucket` makes S3 answer a missing key with 404; without it S3 answers 403, which the photo route turns into a 500.

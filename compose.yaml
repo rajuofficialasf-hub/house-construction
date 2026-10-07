@@ -1,7 +1,8 @@
 # Local development only.
-#   docker compose up        database + migrations + seed + API (http://localhost:3001) + UI (http://localhost:5173)
-#                            (the seed runs only on a database that has never had records, so a fresh volume)
-#   docker compose up -d db  database only, for running the API or UI on the host
+#   docker compose up           database + S3 + migrations + seed + API (http://localhost:3001) + UI (http://localhost:5173)
+#                               (the seed runs only on a database that has never had records, so a fresh volume)
+#   docker compose up -d db     database only, for running the server tests
+#   docker compose up -d db s3  database and S3, for running the API or UI on the host
 # Every port is bound to 127.0.0.1 so nothing is reachable from the network (DB-ROLE-03).
 # The UI uses the local API (the REST backend) by default; VITE_HOUSING_BACKEND=mock runs it without one.
 # api and web run the host's source with their own node_modules volumes; see scripts/docker-dev-entry.sh.
@@ -32,6 +33,26 @@ services:
       timeout: 3s
       retries: 30
 
+  # The local stand-in for the private S3 bucket that holds the photos. MinIO no longer publishes a
+  # server image, so this is SeaweedFS's S3 gateway (Apache-2.0). It checks signatures like AWS, answers
+  # a missing key with 404 and refuses anonymous reads. weed mini creates both buckets at start and
+  # creates no others, so a wrong S3_BUCKET fails as it would on AWS. The keys are local-only.
+  s3:
+    image: chrislusf/seaweedfs:4.48@sha256:4e61d15fd35994cb1e43e1e553dff106794841fd9a99ade2fc8c8bfce4d7872d
+    command: ["mini", "-dir=/data", "-bucket=housing-photos,housing-photos-test", "-s3.autoCreateBucket=false", "-admin.ui=false"]
+    environment:
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-housing_s3_local}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-housing_s3_local_secret}
+    ports:
+      - "127.0.0.1:${S3_PORT:-8333}:8333"
+    volumes:
+      - housing-s3:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://127.0.0.1:8333/healthz"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
   api:
     <<: *node-dev
     working_dir: /app/server
@@ -49,10 +70,15 @@ services:
       ALLOWED_ORIGINS: http://localhost:${WEB_PORT:-5173},http://localhost:5185
       PUBLIC_READ_ORIGINS: ${PUBLIC_READ_ORIGINS:-}
       COOKIE_SECURE: "false"
-      # Photos go to the NAS driver on a local volume (NS-20); stored URLs start with PUBLIC_API_URL.
+      # Photos go to the S3 driver on the s3 service; stored URLs start with PUBLIC_API_URL.
       PUBLIC_API_URL: http://localhost:${API_PORT:-3001}
-      STORAGE_DRIVER: nas
-      STORAGE_ROOT: /data/storage
+      STORAGE_DRIVER: s3
+      S3_BUCKET: housing-photos
+      S3_REGION: us-east-1
+      S3_ENDPOINT: http://s3:8333
+      S3_FORCE_PATH_STYLE: "true"
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-housing_s3_local}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-housing_s3_local_secret}
       DATABASE_URL: postgres://housing_app:${HOUSING_APP_PASSWORD:-housing_app_local}@db:5432/housing?sslmode=disable
       DATABASE_MIGRATION_URL: postgres://housing_owner:${HOUSING_OWNER_PASSWORD:-housing_owner_local}@db:5432/housing?sslmode=disable
     ports:
@@ -66,10 +92,10 @@ services:
       - ./server/db:/app/server/db:ro
       - ./server/scripts:/app/server/scripts:ro
       - api-node-modules:/app/server/node_modules
-      # The only writable mount: the uploaded photos.
-      - housing-storage:/data/storage
     depends_on:
       db:
+        condition: service_healthy
+      s3:
         condition: service_healthy
 
   web:
@@ -96,6 +122,6 @@ services:
 
 volumes:
   housing-db:
-  housing-storage:
+  housing-s3:
   api-node-modules:
   web-node-modules:

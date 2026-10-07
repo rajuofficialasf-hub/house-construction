@@ -16,8 +16,8 @@ flowchart TB
   MW --> PH[Photo and cover routes<br/>PUT/DELETE admin, GET /photos/:id public]
   PH --> PG
   PH --> STG[Storage adapter<br/>STORAGE_DRIVER]
-  STG -->|nas, dev and tests| NAS[NAS folder at STORAGE_ROOT]
-  STG -->|s3, built, unused| S3[Private S3 bucket]
+  STG -->|s3, first production store| S3[Private S3 bucket<br/>locally SeaweedFS, compose s3]
+  STG -->|nas, next step; server and e2e tests| NAS[NAS folder at STORAGE_ROOT]
 ```
 
 Who may do what is decided in the API: visitors see only published projects and public fields, admins also see drafts and private fields, and only the `main_admin` may delete. The data rules (field values, record checks, project and field guards, serial counters, the activity log) are triggers and functions in the database, owned by `housing_owner`.

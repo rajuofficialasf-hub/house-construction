@@ -7,7 +7,7 @@ How the housing site is built today, and the decisions behind it. The API contra
 - **UI:** React 19 and Vite (`src/`). Pages talk to the backend only through the adapters in `src/backend/`, which `src/backend/factory.ts` picks from `VITE_HOUSING_BACKEND`: `rest` (the default) calls the API, and `mock` (dev and tests only) keeps everything in memory.
 - **API:** Express 5 and TypeScript (`server/`), mounted at `/api/v1`. The OpenAPI document is served at `/api/v1/openapi.json`.
 - **Database:** PostgreSQL 17 through postgres.js tagged templates, with dbmate SQL migrations in `server/db/migrations/`. Migrations run as `housing_owner`; the API runs as `housing_app`, which may read everything but writes only what `0006` and later migrations grant.
-- **Photos:** the storage adapter in `server/src/storage/`. The NAS driver is used in dev and tests; the S3 driver is built but unused.
+- **Photos:** the storage adapter in `server/src/storage/`: one `StorageDriver` interface, a driver per store, picked by `STORAGE_DRIVER`. S3 is the first production store (a private bucket; locally the `s3` compose service, SeaweedFS's S3 gateway, since MinIO no longer publishes a server image). The NAS driver comes next and is a config change; the server and Playwright tests already use it on a temp folder.
 
 ## Decisions
 

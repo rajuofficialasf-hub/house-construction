@@ -64,7 +64,6 @@ const configSchema = z.object({
 // AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY or the host's IAM role (NS-43).
 export const storageSchema = z.discriminatedUnion('STORAGE_DRIVER', [
   z.object({ STORAGE_DRIVER: z.literal('nas'), STORAGE_ROOT: z.string().trim().min(1) }),
-  // TEMP: S3 is a stopgap until the NAS is ready; remove this branch with drivers/s3.ts.
   z.object({
     STORAGE_DRIVER: z.literal('s3'),
     S3_BUCKET: z.string().trim().min(1),

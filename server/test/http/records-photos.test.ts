@@ -269,7 +269,7 @@ describe('DELETE /api/v1/records/:id with photos', () => {
   });
 });
 
-// TEMP: S3 smoke test; runs only with a real test bucket (server/test/support/env.ts).
+// S3 smoke test; runs when TEST_S3_* names a bucket, the local SeaweedFS or a real test bucket (server/test/support/env.ts).
 describe.skipIf(!testS3)('photos on the s3 driver', () => {
   it('uploads and deletes a photo', async () => {
     const s3 = createS3Driver(testS3!);

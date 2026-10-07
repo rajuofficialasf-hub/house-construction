@@ -15,7 +15,7 @@ How to run, extend and test the stack: `docs/DEVELOPER_GUIDE.md`.
   - index every FK
   - separate `housing_owner` (migrations) and `housing_app` (runtime) roles
 - **Auth:** the server's own admin table and opaque cookie sessions (`server/src/auth/`), not auth-core. This is a deliberate deviation from ST-04: a few admins, no signup, public reads (`docs/architecture/migration-notes.md`).
-- **File storage:** the storage adapter in `server/src/storage/`. The NAS driver is used in dev and tests. The S3 driver is built but unused (ST-05).
+- **File storage:** the storage adapter in `server/src/storage/`, one `StorageDriver` interface with a driver per store, picked by `STORAGE_DRIVER` (ST-05). S3 is the first production store; locally it is the `s3` compose service, SeaweedFS's S3 gateway, because MinIO no longer publishes a server image. The NAS driver is the next step, and the server and Playwright tests use it on a temp folder.
 - **Supabase:** removed (ST-06). Don't add any use; `npm run check:prod-bundle` fails on it.
 
 ## Roles
@@ -34,7 +34,7 @@ How to run, extend and test the stack: `docs/DEVELOPER_GUIDE.md`.
 
 - `docker compose up`: database, migrations, seed (a fresh database only), API on port 3001 and UI on port 5173. `docker compose down -v` starts over.
 - `docker compose exec api npm run admin -- create --email <e> --name <n> [--role admin|editor|main_admin]`: create a login (prompts for the password); `set-role`, `set-password`, `disable`, `enable` and `list` manage them. On the host: `npm --prefix server run admin -- …`.
-- `docker compose up -d db`: Postgres alone, which the server tests need.
+- `docker compose up -d db`: Postgres alone, which the server tests need. `docker compose up -d db s3` adds the local S3, which the API on the host and the S3 storage tests need.
 - `npm --prefix server run db:migrate`, `db:rollback`, `db:seed`, `dev`: the API on the host.
 - `npm --prefix server run typecheck` and `npm --prefix server test`: server checks.
 - `npm run dev`, `npm run build`, `npm run lint`, `npm test`: the UI.

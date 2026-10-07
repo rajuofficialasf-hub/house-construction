@@ -18,11 +18,12 @@ From the repo root:
 docker compose up
 ```
 
-This starts three containers. They are reachable only from this machine:
+This starts four containers. They are reachable only from this machine:
 
 | Container | What it does | Address |
 |---|---|---|
 | `db` | PostgreSQL 17. A fresh volume gets the roles and two databases: `housing` (dev) and `housing_test` (tests) | `127.0.0.1:5432` |
+| `s3` | The local S3 that holds the photos: SeaweedFS's S3 gateway (MinIO no longer publishes a server image), with the buckets `housing-photos` (the API's) and `housing-photos-test` (tests). Production uses a private S3 bucket; the NAS driver is the next step | `127.0.0.1:8333` |
 | `api` | Runs the migrations, then seeds a database that has never had records (20 sample records and a draft `demo` project), then starts the API and reloads it when you save | http://localhost:3001 |
 | `web` | The UI on the REST backend, reloading when you save | http://localhost:5173 |
 
@@ -73,7 +74,7 @@ Use this when you want your editor's debugger, or faster restarts. The database 
 npm ci && npm --prefix server ci
 cp server/.env.example server/.env    # matches compose.yaml's local values
 cp .env.example .env.local            # the UI: REST backend, API at http://localhost:3001
-docker compose up -d db
+docker compose up -d db s3              # Postgres and the local S3 for photos
 npm --prefix server run db:migrate
 npm --prefix server run db:seed       # safe to run again
 npm --prefix server run dev           # API on http://localhost:3001
@@ -139,6 +140,7 @@ Install once: `npm ci`, `npm --prefix server ci`, and the Playwright browser wit
 |---|---|
 | Anything | `npm run lint`, `npx tsc -b`, `npm test` |
 | Server code or a migration | `npm --prefix server run typecheck`, `npm --prefix server test` (db) |
+| Photo storage (`server/src/storage/`) | `npm --prefix server test` with `docker compose up -d db s3` and the `TEST_S3_*` settings in [testing/README.md](testing/README.md#s3-storage-tests), so the S3 tests run instead of skipping |
 | A route or an adapter method | `npm run test:contract:rest` (db) |
 | An admin page or flow | `npm run test:e2e:rest-admin` (db); also `npm run test:e2e:mock` if you touched `e2e/mock/` or the mock |
 | A public page | `npm run test:e2e:rest`, with `docker compose up -d db api` running and `GET http://localhost:3001/api/v1/projects` answering |
@@ -165,7 +167,7 @@ Every push and pull request runs `.github/workflows/ci.yml`. It has three jobs:
 - **`db-suites`:** on a PostgreSQL 17 service, the server tests, `test:contract:rest` and `test:e2e:rest-admin`. Then it migrates and seeds the dev database, starts the built API and runs `test:e2e:rest`.
 - **`e2e-mock`:** `npm run test:e2e:mock`.
 
-Test details and rules, including how each suite resets its data and the S3 check you run by hand, are in [testing/README.md](testing/README.md).
+Test details and rules, including how each suite resets its data and the S3 storage tests and the real-bucket check you run by hand, are in [testing/README.md](testing/README.md).
 
 ---
 

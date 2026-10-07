@@ -1,5 +1,5 @@
 # Every push and pull request runs the whole suite.
-# No secrets: the S3 storage tests skip without TEST_S3_* and are run once by hand (docs/testing/README.md).
+# No secrets: the S3 storage tests run against a local SeaweedFS, started like compose.yaml's s3 service.
 # Third-party actions are pinned to commit SHAs; Dependabot updates them.
 name: CI
 
@@ -60,6 +60,13 @@ jobs:
       # The local defaults that server/test/support/env.ts and scripts/lib/migrate-test-db.mjs use.
       HOUSING_OWNER_PASSWORD: housing_owner_local
       HOUSING_APP_PASSWORD: housing_app_local
+      # The S3 tests' bucket on the local SeaweedFS below (local-only keys, as in compose.yaml).
+      AWS_ACCESS_KEY_ID: housing_s3_local
+      AWS_SECRET_ACCESS_KEY: housing_s3_local_secret
+      TEST_S3_BUCKET: housing-photos-test
+      TEST_S3_REGION: us-east-1
+      TEST_S3_ENDPOINT: http://127.0.0.1:8333
+      TEST_S3_FORCE_PATH_STYLE: 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -72,6 +79,19 @@ jobs:
       # Install scripts stay off (ST-32).
       - run: npm ci --ignore-scripts
       - run: npm ci --ignore-scripts --prefix server
+      # Service containers can't take a command, so SeaweedFS starts here, the same way as in compose.yaml.
+      - name: Start the local S3 (SeaweedFS)
+        run: |
+          docker run -d --name s3 -p 127.0.0.1:8333:8333 \
+            -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY \
+            chrislusf/seaweedfs:4.48@sha256:4e61d15fd35994cb1e43e1e553dff106794841fd9a99ade2fc8c8bfce4d7872d \
+            mini -dir=/data -bucket=housing-photos,housing-photos-test -s3.autoCreateBucket=false -admin.ui=false
+          for _ in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8333/healthz && exit 0
+            sleep 1
+          done
+          docker logs s3
+          exit 1
       - name: Create roles and databases
         run: sh server/db/docker-init/01-init.sh
         env:
@@ -108,8 +128,12 @@ jobs:
           ALLOWED_ORIGINS: http://localhost:5185
           COOKIE_SECURE: 'false'
           PUBLIC_API_URL: http://localhost:3001
-          STORAGE_DRIVER: nas
-          STORAGE_ROOT: ${{ runner.temp }}/storage
+          # As in production: the S3 driver, here on the local SeaweedFS (keys from the job env).
+          STORAGE_DRIVER: s3
+          S3_BUCKET: housing-photos
+          S3_REGION: us-east-1
+          S3_ENDPOINT: http://127.0.0.1:8333
+          S3_FORCE_PATH_STYLE: 'true'
           LOG_LEVEL: warn
         run: |
           npm --prefix server run build

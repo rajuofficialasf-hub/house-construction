@@ -1,4 +1,3 @@
-// TEMP: S3 driver tests; remove with drivers/s3.ts (NS-35).
 import net from 'node:net';
 import { Readable } from 'node:stream';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -7,8 +6,8 @@ import { createStorage } from '../../src/storage/index.js';
 import { testS3 } from '../support/env.js';
 import { runStorageContract } from './storageContract.js';
 
-// There is no local S3 stand-in (MinIO's images are no longer published), so the contract runs only
-// against a real test bucket named in TEST_S3_* (docs/plans/2026-10-05-1722-migrate-c5-photos-plan.md, R7).
+// The contract runs against the bucket TEST_S3_* names: the local SeaweedFS (compose.yaml's s3 service)
+// in CI and on a developer machine, or once by hand against a real test bucket (docs/testing/README.md).
 describe.skipIf(!testS3)('s3 driver against TEST_S3_BUCKET (set TEST_S3_BUCKET and TEST_S3_REGION to run)', () => {
   runStorageContract('s3', async () => ({ driver: createS3Driver(testS3!) }));
 });

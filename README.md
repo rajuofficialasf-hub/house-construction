@@ -73,7 +73,7 @@ On a new database, make yourself `main_admin`. If someone already is, use `--rol
 ## If something goes wrong
 
 - **"Cannot connect to the Docker daemon"**: start Docker Desktop.
-- **"port is already allocated"**: something else is using port 5173, 3001 or 5432. Stop it and try again.
+- **"port is already allocated"**: something else is using port 5173, 3001, 5432 or 8333. Stop it and try again.
 - **Start over from scratch**: `docker compose down -v`. This deletes the database and uploaded photos. The next `docker compose up` loads the sample data again, and you create your login again.
 - If you're stuck, show the error message to Claude and ask.
 
