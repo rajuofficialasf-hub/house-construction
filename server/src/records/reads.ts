@@ -1,8 +1,9 @@
 import type { Sql } from '../db.js';
 import { AppError } from '../errors.js';
-import { likePattern, RECORD_COLUMNS, toPage, type HousingRecord, type Page } from '../housing/reads.js';
+import { RECORD_COLUMNS, toPage, type HousingRecord, type Page } from '../housing/reads.js';
 import type { PhotoKind } from '../photos/process.js';
 import type { Viewer } from '../projects/reads.js';
+import { recordFilters } from './filters.js';
 import type { RecordListQuery } from './schemas.js';
 
 // The single-record reads (docs/api/PROJECTS_API_CONTRACT.md §4.4.1–§4.4.3). A visitor reaches only
@@ -71,18 +72,6 @@ export async function recordProject(sql: Sql, key: string, viewer: Viewer): Prom
   };
 }
 
-/** A filter value as the trigger stores it, so it matches exactly (0013_record_rules.sql). */
-function filterValue(key: string, type: string, raw: string): string | number {
-  if (type === 'number' || type === 'money') {
-    if (!/^-?[0-9]{1,15}(\.[0-9]{1,2})?$/.test(raw.trim())) {
-      throw new AppError('VALIDATION_ERROR', 'শুধু সংখ্যা দিন', { field: `f.${key}`, reason: 'invalid_type' });
-    }
-    return Number(raw);
-  }
-  const text = raw.trim().normalize('NFC');
-  return type === 'category' ? text.replace(/\s+/g, ' ') : text;
-}
-
 /** One page of a project's records after filters, search and sort, with the filtered total. */
 export async function listProjectRecords(
   sql: Sql,
@@ -93,26 +82,7 @@ export async function listProjectRecords(
 ): Promise<Page<ProjectRecord>> {
   const conditions = [sql`b.project_type = ${project.key}`];
   if (query.serial_no !== undefined) conditions.push(sql`b.serial_no = ${query.serial_no}`);
-  if (query.year !== undefined) conditions.push(sql`b.year = ${query.year}`);
-  if (query.division) conditions.push(sql`b.division = ${query.division}`);
-  if (query.district) conditions.push(sql`b.district = ${query.district}`);
-  if (query.upazila) conditions.push(sql`b.upazila = ${query.upazila}`);
-  if (query.union_name) conditions.push(sql`b.union_name = ${query.union_name}`);
-  // Only public, active, filterable fields filter; any other f.<key> is ignored (§4.4.1). Keys and
-  // values are bound, never spliced into the SQL.
-  for (const [key, raw] of filters) {
-    const type = project.filterable.get(key);
-    if (type === undefined || raw.trim() === '') continue;
-    conditions.push(sql`b.extra @> ${sql.json({ [key]: filterValue(key, type, raw) })}`);
-  }
-  if (query.q) {
-    const pattern = likePattern(query.q);
-    const custom = project.searchable.map((key) => sql`or b.extra ->> ${key}::text ilike ${pattern} escape '\\'`);
-    conditions.push(sql`(b.name ilike ${pattern} escape '\\'
-      or b.father_or_husband_name ilike ${pattern} escape '\\'
-      or b.address ilike ${pattern} escape '\\'
-      ${custom.reduce((all, one) => sql`${all} ${one}`, sql``)})`);
-  }
+  conditions.push(...recordFilters(sql, project, filters, query));
   const where = conditions.reduce((all, condition) => sql`${all} and ${condition}`);
 
   // A column sort comes from the zod enum; extra.<key> sorts only by a public active field, by its

@@ -2698,7 +2698,7 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
     - `q` with `%` and `_` is literal
 - **Done when:** `npm --prefix server test` passes with no edits to existing tests.
 - **Depends on:** none
-- **Status:** todo
+- **Status:** done
 
 ### U48. Filtered stats on `GET /projects/:key/stats`
 - **Goal:** The stats route accepts the list's filters and answers with `main`'s filtered shape.
@@ -3194,3 +3194,12 @@ Run these at the end of P1:
       - the requirement and gate wording
       - U47's test file
       - the index-migration fallback
+  - **P8b build notes:**
+    - **U46** (5555a81): the REST and mock adapters return `filtered: false` with filters. `src/backend/statsFilters.ts` holds `statsFilterEntries` and `hasStatsFilters`. The post-merge `public-rest` and `public-mock` failures are gone.
+    - **U47:**
+      - `server/src/records/filters.ts` holds `recordFilters(sql, fields, filters, query)`, and `filterValue` moved with it.
+      - It returns only the filter conditions, and each caller adds its own project condition. So the list keeps `b.project_type = ${key}` exactly (zero SQL change for the list), and the stats use `= any(leaves)`.
+      - Every existing `records-reads` test passes untouched. The server suite is at 1074.
+    - **Plan change, the zod pieces:**
+      - The planned leaf module `records/filterParams.ts` can't avoid the cycle: `fieldFilters` needs `FIELD_KEY` from `projects/schemas`, and `year` needs `housing/schemas`, which imports `projects/schemas`.
+      - So the pieces stay in `records/schemas.ts`. U48 defines `statsQuery` there, and the projects route and OpenAPI import it from `records/schemas.ts`. No cycle.
