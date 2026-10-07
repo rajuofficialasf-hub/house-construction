@@ -1,4 +1,5 @@
--- Dev-only example data: 20 fictional records (12 semi_pucca, 8 tin). Load with `npm run db:seed`, which refuses non-local databases.
+-- Dev-only example data: 20 fictional records (12 semi_pucca, 8 tin). Loaded by `npm run db:seed` (and by
+-- `docker compose up` on a fresh database), which refuses non-local databases.
 -- Safe to run again: existing serials are skipped. Never part of the migrations.
 
 insert into public.housing_beneficiaries

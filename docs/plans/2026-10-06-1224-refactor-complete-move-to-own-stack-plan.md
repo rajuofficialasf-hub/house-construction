@@ -242,7 +242,7 @@ Each chunk is one session that ends with green tests and commits. Chunks run in 
 | **P9b** | User management on the server (option A, user-decided 2026-10-07): `GET/PUT /api/v1/admin/users` (main admin only), the `editor` role with per-project assignment and "all projects", `/auth/me` sends them, an editor's project scope enforced on every write route and the activity view; REST adapter, contract and `admin-rest` spec (parity target `main` 87c7241, SQL 14) | R2, R3, R6, R8, R9, R10, R11, R12, R17, R18 | P9 |
 | **P10** | Handoff guide: run, extend, test; `CLAUDE.md` profile final | R19 | P9b |
 
-P1 to P9b are planned in full below. P10 gets its own units from `ae-plan` at its start, against the code as it is then.
+P1 to P10 are planned in full below. P10's units were added by `ae-plan` at its start (2026-10-07), against the code as it was then.
 
 **P5–P7 run as one batch** (user-directed, 2026-10-06):
 
@@ -3731,6 +3731,167 @@ Run once, after the simplify and review pass:
 - Progress records the commit range, the test counts, the review results and the walkthrough result.
 - **Next** is P10: the handoff guide (R19) and the final `CLAUDE.md` profile, including the three roles, the mock "doesn't grow" rule and the one-time migration-comment exception.
 
+## Implementation units — P10 (Handoff guide and the final profile)
+
+**Why now:** P9b was the last code chunk. What is left is R19 (a new developer runs, extends and tests the stack with no help) and the final `CLAUDE.md` profile, which P9 left to this chunk ("`CLAUDE.md` is left to P10").
+
+**Where it happens:** only on `dev-forhad`. `main` is frozen evidence: no merge, no push, no PR (memory: parallel-migration-strategy).
+
+### P10 decisions
+
+**What the code does today** (research at `14b6960`):
+- `docker compose up` starts `db` (roles and the `housing` and `housing_test` databases on a fresh volume, `server/db/docker-init/01-init.sh`), `api` (`db:migrate`, then `tsx watch`) and `web` (Vite on the REST backend). No `.env` file is needed.
+- **It doesn't seed.** After `docker compose up` the site has no records and no `demo` project. The seed runs only from the host (`npm --prefix server run db:seed`), because `assertLocalDatabaseUrl` (`server/scripts/local-db.ts`) accepts only `localhost`, `127.0.0.1` and `[::1]`, and the container reaches the database at host `db`.
+- **No admin exists** until someone runs the CLI. `docker compose exec api npm run admin -- create …` works without Node on the host: the container has `DATABASE_MIGRATION_URL`, and `exec` gives a TTY, so the CLI prompts for the password.
+- `README.md`'s `/admin/users` row is stale ("এখনো সার্ভার থেকে তালিকা আনে না"); P9b built the page on the server.
+- `CLAUDE.md` names two roles, lacks the mock rule and the migration-comment exception, and doesn't list `docker compose up`.
+
+**The one command is `docker compose up`, and it seeds an empty dev database** (R19, user's P10 brief: "database, migrations, seed, API, UI").
+- The `api` command becomes `npm run db:migrate && npm run db:seed -- --if-empty && exec npm run dev`.
+- `--if-empty` skips the seed when any row of `housing_serial_counters` has `last_serial > 0`. Counters never go down, so this means "this database has ever had records": only a fresh volume seeds, and a restart never brings back records a developer deleted, even all of them, which would look like a reused serial (R9). (User-decided at doc review, 2026-10-07.)
+- Both seed files run in one transaction (`sql.begin`), with or without the flag, so a failed seed leaves nothing behind and the next start tries again.
+- `npm run db:seed` without the flag keeps today's behavior (CI's dev-database step, the host flow).
+- The host check stays strict. `assertLocalDatabaseUrl(name, url, extraHosts = [])` gains an optional list of extra host names. `db-seed.ts` passes `['db']` only when `HOUSING_DEV_COMPOSE=1`, which only the compose `api` service sets. The test env (`server/test/support/env.ts`) keeps calling it with no extra hosts, so a test run still can't reach anything but this machine (`TS-03`).
+- No admin is seeded. Creating your own login with the CLI is part of the guide, and seeding a known password would put a shared credential in the repo.
+
+**The guide is `docs/DEVELOPER_GUIDE.md`, in English** (user-decided 2026-10-07).
+- English matches `CLAUDE.md`, `docs/testing/README.md` and the architecture notes; the guide is mostly commands, paths and code terms.
+- It covers running, extending and testing only (Key Decisions). There is no Supabase-to-new-stack map; it links `docs/history/README.md` once, for "where did X go".
+- It is short and links out instead of repeating: the contract (`docs/api/PROJECTS_API_CONTRACT.md`), the test details (`docs/testing/README.md`), the architecture notes, the admin guide and the learnings.
+- `README.md` (Bangla) keeps its run and test lists, gains one Bangla pointer line to the guide, says that `docker compose up` seeds, and its `/admin/users` row says what P9b built. `docs/README.md` lists the guide. Bangla through `ae-bangla-copy`.
+
+**What the guide says** (each command checked against `package.json`, `server/package.json`, `compose.yaml`, `server/.env.example` and `scripts/` while writing, and run in U81):
+1. **Before you start:** Docker Desktop, Node 22 (`.nvmrc`), git. Docker alone runs the app; Node is for tests and the host flow.
+2. **Run it:**
+   - `docker compose up` (first start is slow: each container runs `npm ci`); ready when the API logs that it listens and `http://localhost:3001/api/v1/readyz` answers.
+   - Create your login: `docker compose exec api npm run admin -- create --email <e> --name <n> --role main_admin` (prompts twice for the password; use a dev-only password, typed at the prompt, never on the command line; only one `main_admin` may exist, so the second developer uses `--role admin` or asks the main admin to change roles with `set-role`).
+   - Log in at `http://localhost:5173/admin/login`.
+   - The three roles in one table: `main_admin` (one, set only by the CLI; the only one who deletes and manages users on `/admin/users`), `admin` (every project, writes, no deletes), `editor` (a project user: adds and fills in records only in its assigned projects or "all projects", given on `/admin/users`).
+   - Start over: `docker compose down -v` (drops the database, photos and the containers' `node_modules`; the next `up` seeds again).
+   - Running the API or UI on the host: the short command list, pointing to `README.md` for the rest.
+3. **Add a feature end to end:** a numbered checklist that uses P9b's user management as the worked example, with its real files:
+   1. Migration: a new `server/db/migrations/00NN_<name>.sql` with the next free number, `-- migrate:up` and `-- migrate:down` (the down undoes everything; the test global setup rolls every migration back), `revoke all … from public` plus explicit `housing_app` grants (and `grant execute` for a function, because `0006` revokes PUBLIC EXECUTE by default), an index on every FK, tagged templates only. Never edit a migration that has run. Check with `db:migrate`, `db:rollback`, `db:migrate`. Example: `0019_editor_role.sql`.
+   2. Database tests in `server/test/db/` (example: `editor-role.test.ts`).
+   3. Route in `server/src/routes/v1/` with the guards (`requireAdmin`; the main-admin guards such as `requireMainAdminForUsers`, the worked example's, all built by `mainAdminOnly` in `server/src/auth/middleware.ts`; `requireProjectScope` from `server/src/auth/scope.ts`), a zod schema for every input, `AppError` for refusals, `privateNoStore` for admin bodies, mounted in `server/src/app.ts`; a public GET also goes in `PUBLIC_READ_ROUTES`. Example: `admin-users.ts`, `userSchemas.ts`, `users.ts`.
+   4. OpenAPI entry in `server/src/openapi.ts` and a line in `docs/api/PROJECTS_API_CONTRACT.md`. `server/test/http/openapi.test.ts` fails if a path is missing from the contract or a guarded route lists no 403.
+   5. Server HTTP test through the real app, including 401, 403 and another user's or a visitor's access (example: `server/test/http/admin-users.test.ts`, helpers in `server/test/support/`).
+   6. Backend interface in `src/backend/interfaces/`, REST method in `src/backend/rest/endpoints.ts` and `index.ts`, wiring in `src/backend/factory.ts`. The mock doesn't grow: a registry or user-management method answers `NOT_IMPLEMENTED` there.
+   7. Contract block in `tests/contract/` run by `rest.contract.test.ts` (example: `adminUsersContract.ts`).
+   8. UI through TanStack Query hooks; Bangla text with its `src/i18n/en.ts` entry (`npm run i18n-check`).
+   9. Playwright spec in `e2e/admin/` (runs on `admin-rest` only), using `e2e/support/backend.ts` and the logins in `e2e/support/auth.ts` and `rest-data.ts`.
+   - Then the learnings to read for database work (`postgres-default-privileges-public-execute.md`, `raised-sqlstate-has-no-constraint-name.md`, `postgres-js-helper-breaks-after-table-alias.md`, `postgres-session-setting-guards-are-spoofable.md`).
+4. **Test it:**
+   - A "what to run when" table: any change (`npm run lint`, `npx tsc -b`, `npm test`); server change (`npm --prefix server run typecheck`, `npm --prefix server test`, needs `docker compose up -d db`); a route or adapter change (`npm run test:contract:rest`); a UI flow (`npm run test:e2e:rest-admin`, and `test:e2e:mock` for `e2e/mock/`); public pages (`npm run test:e2e:rest` with `docker compose up -d db api`); before a push (`npm run test:all`, `npm run build`).
+   - The three `housing_test` suites never run at the same time.
+   - What CI checks: the three jobs in `.github/workflows/ci.yml` (`checks`, `db-suites`, `e2e-mock`) and what each runs.
+   - Playwright needs `npx playwright install chromium` once.
+
+**Replacing `main` is not done in P10** (this settles the P9 decisions' "How `main` is replaced at handoff is P10's decision"). The user's rule stands: no merge into `main`, no push to it and no PR. How and when `dev-forhad` becomes the main line is the user's call after P10, and the closing Progress note says so.
+
+**Out of P10:** the role gate's text shown to an editor on settings (seen in the P9b walkthrough). It is a UI wording change, not part of R19; Progress keeps it as a follow-up.
+
+**`CLAUDE.md` gets the final profile** (user-decided, P10 brief). It keeps every stack line and both deviations as written (postgres.js + dbmate, not Prisma; own admin table and cookie sessions, not auth-core) and:
+- the three roles: `main_admin` (one, set only by the CLI), `admin`, and `editor`, a project user limited to its assigned projects or "all projects"; only a `main_admin` deletes or manages users
+- the mock rule: it doesn't grow; no `AdminUsersApi` or registry in the mock, and new admin specs go in `e2e/admin/` and run on `admin-rest`
+- the migration-comment exception: in P9 the comment headers of the already-run migrations `0001`–`0017` were rewritten once, with the SQL unchanged (user-decided 2026-10-07). It is not a precedent: "never edit a migration that has run" still holds
+- `docker compose up` as the one command, `docker compose exec api npm run admin -- …` beside the host form, the `housing_test` serial rule, and a link to `docs/DEVELOPER_GUIDE.md`
+- It stays short: rules and commands, with the details in the guide.
+
+### U78. `docker compose up` seeds an empty dev database
+- **Goal:** One command brings up the database, migrations, seed, API and UI.
+- **Requirements:** R19.
+- **Files:**
+  - `server/scripts/local-db.ts` (optional `extraHosts`)
+  - `server/scripts/db-seed.ts` (`--if-empty`; passes `['db']` when `HOUSING_DEV_COMPOSE=1`)
+  - `compose.yaml` (`api` command and `HOUSING_DEV_COMPOSE: "1"`; the header comment says `up` seeds a fresh database)
+  - `server/test/db/seed.test.ts`
+  - the header comments of `server/scripts/db-seed.ts` and `server/db/seed/dev.sql` (line 1), which describe the host check and usage
+- **Approach:** as in the P10 decisions. Parse the flag with `node:util` `parseArgs` (strict), as `src/cli/admin.ts` does. The skip prints one line (`seed skipped: this database already has had records`) and exits 0. The host check runs before any connection.
+- **Tests (first):**
+  - `--if-empty` on a fresh database seeds the same counts as today's first case
+  - `--if-empty` when a record exists changes nothing (counts before and after equal) and prints the skip line
+  - `--if-empty` after every record was deleted (counters still past 0) changes nothing
+  - a seed that fails partway leaves no rows (for example, a broken second file through a test-only override, or the transaction checked by asserting `dev.sql`'s records are absent after a forced failure)
+  - an unknown flag exits non-zero
+  - host `db` is refused without `HOUSING_DEV_COMPOSE=1`, and a non-local host (`example.com`) is refused even with it; neither connects (the error names the host)
+  - the existing cases still pass (plain `db:seed` twice is still idempotent)
+  - the test helper sets `HOUSING_DEV_COMPOSE` explicitly on every run (`''` unless a case sets `'1'`), so a developer's shell or the compose container can't change a case's result
+- **Done when:** `npx vitest run test/db/seed.test.ts` (from `server/`) and `npm --prefix server run typecheck` pass; `docker compose down -v && docker compose up` (checked in U81) ends with the seed's `seeded:` line and records on the public site; a second `up` prints the skip line.
+- **Depends on:** none
+- **Status:** done
+
+### U79. The developer guide
+- **Goal:** `docs/DEVELOPER_GUIDE.md` lets a new developer run, extend and test the stack without asking anyone.
+- **Requirements:** R19.
+- **Files:**
+  - a new `docs/DEVELOPER_GUIDE.md`
+  - `README.md` (a Bangla pointer line to the guide; `docker compose up` seeds; the admin command's compose form; the `/admin/users` row)
+  - `docs/README.md` (lists the guide)
+  - `docs/testing/README.md` (only if a line contradicts the guide)
+- **Approach:** the outline in the P10 decisions. Every command is copied from the file that defines it, not paraphrased. Every path the guide names must exist. Bangla in `README.md` through `ae-bangla-copy`.
+- **Tests:** none (docs). A path check: every backticked repo path in the guide exists (`git ls-files` or `test -e`), and every `npm run` / `npm --prefix server run` name is a script in the matching `package.json`.
+- **Done when:** the path and script checks pass, `npm run lint` is clean, and both AE4 searches print what they printed after P9b (the guide doesn't name the old system except the one `docs/history/README.md` link, which matches neither search).
+- **Depends on:** U78
+- **Status:** todo
+
+### U80. `CLAUDE.md` final profile
+- **Goal:** `CLAUDE.md` records the stack as finished, so plans and reviews read the rules instead of rediscovering them.
+- **Requirements:** R19.
+- **Files:** `CLAUDE.md`.
+- **Approach:** the list in the P10 decisions. Keep the existing sections and wording where still true; replace the two-role line; add the mock rule, the migration-comment exception, the compose commands and the guide link.
+- **Tests:** none (docs). Every command it names exists (same script check as U79).
+- **Done when:** the script check passes and the file names the three roles, the mock rule and the exception.
+- **Depends on:** U79
+- **Status:** todo
+
+### U81. Follow the guide from scratch
+- **Goal:** Prove the success criterion: the guide alone gets a developer from a clean checkout state to the full stack running and an admin logged in.
+- **Requirements:** R19 (success criterion).
+- **Files:** fixes for whatever the run finds, in the files U78–U80 own (`docs/DEVELOPER_GUIDE.md`, `README.md`, `docs/README.md`, `docs/testing/README.md`, `CLAUDE.md`, `compose.yaml`, `server/scripts/db-seed.ts`, `server/scripts/local-db.ts`); a defect anywhere else is reported, not fixed here.
+- **Approach:**
+  - `docker compose down -v`, then every "Run it" step in order, exactly as written.
+  - The CLI prompts for a password only on a TTY, so the user runs the `admin create` command the guide gives (a throwaway login), then the agent logs in with it in Chrome at `/admin/login` and checks the dashboard, the seeded projects and records, and no console errors.
+  - Every "Test it" command runs once, as written, one `housing_test` suite at a time.
+  - "Add a feature" is checked by its paths and commands (U79's checks plus a `db:migrate`, `db:rollback`, `db:migrate` round trip on the dev database), not by building a throwaway feature.
+  - At the end the throwaway login is disabled (`admin disable`).
+- **Tests:** the commands themselves.
+- **Done when:** every step worked as written (or the guide was fixed and the step rerun), the login reached the dashboard, and Progress records the result.
+- **Depends on:** U78, U79, U80
+- **Status:** todo
+
+### P10 order and parallel lanes
+
+- U78 → U79 → U80 → U81, one after another in one session. The `housing_test` suites never run in parallel.
+
+### Verification (P10)
+
+Run once, after the simplify and review pass:
+- `npm --prefix server run typecheck` and `npm --prefix server test`
+- `npx tsc -b`, `npm run lint` and `npm test` at the root
+- `npm run test:contract:rest`
+- `npm run test:e2e:rest-admin`, twice (watch `e2e/admin/project-settings.spec.ts`, which flaked once in P9b)
+- `npm run test:e2e:rest`, with `docker compose up -d db api`, once `GET /api/v1/projects` answers (after `down -v` the `api` container reinstalls `node_modules`)
+- `npm run test:e2e:mock`, `npm run test:all`, `npm run build` and `npm run check:prod-bundle`
+- `npm --prefix server run db:migrate`, `db:rollback` and `db:migrate` on the dev database
+- the two AE4 searches: the first prints only the nine allowed files (the guard and pointer files listed in the P9 Progress notes, U64), the second nothing
+- The `housing_test` suites never run in parallel.
+
+### Risks and rollback (P10)
+
+- **The compose seed widens the local-host check.** Only `db-seed.ts` passes the extra host, only with `HOUSING_DEV_COMPOSE=1`, and only the name `db`; the test env and every other caller stay strict, and tests cover both refusals.
+- **`--if-empty` keys on the serial counters.** Only a fresh volume seeds; to get the seed back a developer runs `docker compose down -v` (the documented reset) or `npm --prefix server run db:seed` from the host. Both files run in one transaction, so a failed seed can't leave a half-seeded database that later starts are skipped over.
+- **Guide drift.** A command renamed later would make the guide wrong silently. U79's script and path checks are the guard for now; the guide names few commands and links the rest.
+- **`compose.yaml` changes the `api` start.** If the seed fails, the API doesn't start, which is louder than an empty site. CI doesn't use compose, so CI is unaffected.
+- **Rollback:** each unit is one commit, reverted on its own.
+
+### Definition of done (P10)
+
+- U78–U81 are done and their checks pass.
+- One `ae-simplify` and one `ae-review` ran over the P10 commits. Every P0 and P1 is fixed, and the P2s too.
+- The P10 verification passes, and both AE4 searches are as after P9b.
+- Progress records P10 done, the commit range, the test counts, the review results, the result of following the guide from scratch, and that replacing `main` is the user's call.
+- If R1–R19 all hold, the plan is closed as `ae-work`'s Finish step says; otherwise the open requirement is listed.
+
 ## Verification
 
 Run these at the end of P1:
@@ -3758,7 +3919,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** P10: `ae-plan` adds its units, then `ae-work`. P10 is the handoff guide (R19) and the final `CLAUDE.md` profile, including the three roles (`main_admin`, `admin`, `editor`), the mock "doesn't grow" rule and the one-time migration-comment exception.
+- **Next:** P10: U79 (the developer guide), then U80 and U81. U78 is done. P10 is the handoff guide (R19) and the final `CLAUDE.md` profile, including the three roles (`main_admin`, `admin`, `editor`), the mock "doesn't grow" rule and the one-time migration-comment exception.
 - **Uncommitted:** nothing.
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
@@ -4344,4 +4505,5 @@ Run these at the end of P1:
       - No console errors. Every API call answered as expected.
         - The extension's network log showed `POST /auth/logout` as 503 three times. The API logged 204 for each and no 503 at all, and the app logged out cleanly, so it is a misreport by the extension.
       - The three test logins are disabled (`admin disable`); `p8-main` stays a disabled admin.
-    - **Seen, left for P10 or later:** the role gate's text ("এই অংশ শুধু মূল এডমিনের … মূল এডমিন করেন") is shown to an editor on settings, where an admin may also work. The plan kept other screens unchanged.
+    - **Seen, left for after P10 (a follow-up for the user to schedule):** the role gate's text ("এই অংশ শুধু মূল এডমিনের … মূল এডমিন করেন") is shown to an editor on settings, where an admin may also work. The plan kept other screens unchanged.
+  - **P10 planned (2026-10-07):** `ae-plan` added the P10 decisions and U78–U81. Gates held: HEAD and origin at `14b6960`, nothing uncommitted but `.claude/`. Research found that `docker compose up` doesn't seed (the seed's local-host check refuses the compose host `db`), so U78 adds a first-start seed. The user chose an English guide at `docs/DEVELOPER_GUIDE.md`.

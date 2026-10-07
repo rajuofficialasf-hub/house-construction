@@ -1,5 +1,6 @@
 # Local development only.
-#   docker compose up        database + API (http://localhost:3001) + UI (http://localhost:5173)
+#   docker compose up        database + migrations + seed + API (http://localhost:3001) + UI (http://localhost:5173)
+#                            (the seed runs only on a database that has never had records, so a fresh volume)
 #   docker compose up -d db  database only, for running the API or UI on the host
 # Every port is bound to 127.0.0.1 so nothing is reachable from the network (DB-ROLE-03).
 # The UI uses the local API (the REST backend) by default; VITE_HOUSING_BACKEND=mock runs it without one.
@@ -34,9 +35,11 @@ services:
   api:
     <<: *node-dev
     working_dir: /app/server
-    command: ["sh", "-c", "npm run db:migrate && exec npm run dev"]
+    command: ["sh", "-c", "npm run db:migrate && npm run db:seed -- --if-empty && exec npm run dev"]
     environment:
       NODE_ENV: development
+      # Lets db:seed accept this network's database host, db (server/scripts/db-seed.ts).
+      HOUSING_DEV_COMPOSE: "1"
       # The API defaults to loopback; inside the container it must listen on all interfaces.
       HOST: 0.0.0.0
       PORT: 3001

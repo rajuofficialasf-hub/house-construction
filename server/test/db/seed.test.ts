@@ -10,8 +10,12 @@ const serverDir = fileURLToPath(new URL('../..', import.meta.url));
 const tsx = fileURLToPath(new URL('../../node_modules/.bin/tsx', import.meta.url));
 const owner = ownerDb();
 
-function seed(url: string) {
-  return run(tsx, ['scripts/db-seed.ts'], { cwd: serverDir, env: { ...process.env, DATABASE_MIGRATION_URL: url } });
+// HOUSING_DEV_COMPOSE is always set, so a developer's shell or the compose container can't change a case.
+function seed(url: string, args: string[] = [], env: Record<string, string> = {}) {
+  return run(tsx, ['scripts/db-seed.ts', ...args], {
+    cwd: serverDir,
+    env: { ...process.env, DATABASE_MIGRATION_URL: url, HOUSING_DEV_COMPOSE: '', ...env },
+  });
 }
 
 async function counts() {
@@ -72,6 +76,69 @@ describe('db:seed', () => {
       stderr: expect.stringContaining('must point at a local database'),
     });
     expect((await counts()).map((r) => r.records)).toEqual([0, 0]);
+  });
+
+  it('refuses the compose host db without HOUSING_DEV_COMPOSE=1', async () => {
+    await expect(seed('postgres://housing_owner:x@db:5432/housing')).rejects.toMatchObject({
+      code: 1,
+      stderr: expect.stringContaining('got host "db"'),
+    });
+  });
+
+  it('accepts the compose host db with HOUSING_DEV_COMPOSE=1, and nothing else', async () => {
+    // The host doesn't resolve here, so the run fails, but past the host check.
+    const viaCompose = seed('postgres://housing_owner:x@db:5432/housing', [], { HOUSING_DEV_COMPOSE: '1' });
+    await expect(viaCompose).rejects.toMatchObject({ code: 1 });
+    await expect(viaCompose).rejects.not.toMatchObject({ stderr: expect.stringContaining('must point at a local database') });
+    await expect(seed('postgres://housing_owner:x@example.com:5432/housing', [], { HOUSING_DEV_COMPOSE: '1' })).rejects.toMatchObject({
+      code: 1,
+      stderr: expect.stringContaining('got host "example.com"'),
+    });
+  });
+
+  it('refuses an unknown flag', async () => {
+    await expect(seed(testOwnerUrl, ['--if-emtpy'])).rejects.toMatchObject({ code: 1 });
+    expect((await counts()).map((r) => r.records)).toEqual([0, 0]);
+  });
+
+  it('rolls back both files when the seed fails partway', async () => {
+    // The last statement of demo-project.sql writes private values; make it fail.
+    await owner`create function public.seed_test_fail() returns trigger language plpgsql as $$ begin raise exception 'seed_test_fail'; end $$`;
+    await owner`create trigger seed_test_fail before insert on public.housing_beneficiary_private for each row execute function public.seed_test_fail()`;
+    try {
+      await expect(seed(testOwnerUrl)).rejects.toMatchObject({ code: 1, stderr: expect.stringContaining('seed_test_fail') });
+    } finally {
+      await owner`drop trigger seed_test_fail on public.housing_beneficiary_private`;
+      await owner`drop function public.seed_test_fail()`;
+    }
+    expect((await counts()).map((r) => r.records)).toEqual([0, 0]);
+    const [demo] = await owner`select count(*)::int as n from public.housing_projects where key = 'demo'`;
+    expect(demo?.n).toBe(0);
+  });
+});
+
+describe('db:seed --if-empty', () => {
+  it('seeds a fresh database', async () => {
+    const { stdout } = await seed(testOwnerUrl, ['--if-empty']);
+    expect(stdout).toContain('seeded:');
+    expect((await counts()).map((r) => r.records)).toEqual([6, 12, 8]);
+  });
+
+  it('skips a database that has records', async () => {
+    await seed(testOwnerUrl);
+    await owner`delete from public.housing_beneficiaries where project_type = 'tin' and serial_no = 3`;
+    const before = await counts();
+    const { stdout } = await seed(testOwnerUrl, ['--if-empty']);
+    expect(stdout).toContain('seed skipped');
+    expect(await counts()).toEqual(before);
+  });
+
+  it('skips a database whose records were all deleted, because serials are never reused', async () => {
+    await seed(testOwnerUrl);
+    await owner`delete from public.housing_beneficiaries`;
+    const { stdout } = await seed(testOwnerUrl, ['--if-empty']);
+    expect(stdout).toContain('seed skipped');
+    expect((await counts()).map((r) => r.records)).toEqual([0, 0, 0]);
   });
 });
 
