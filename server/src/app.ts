@@ -14,8 +14,6 @@ import { activityRouter } from './routes/v1/activity.js';
 import { projectsAdminRouter } from './routes/v1/projects-admin.js';
 import { authRouter } from './routes/v1/auth.js';
 import { healthRouter } from './routes/v1/health.js';
-import { BULK_PATH, housingAdminRouter } from './routes/v1/housing-admin.js';
-import { housingReadRouter } from './routes/v1/housing.js';
 import type { ReadRateLimit, WriteRateLimit } from './routes/v1/shared.js';
 import { openapiRouter } from './routes/v1/openapi.js';
 import { photosRouter } from './routes/v1/photos.js';
@@ -73,14 +71,9 @@ const PUBLIC_READ_ROUTES = [
   /^\/api\/v1\/records\/[^/]+\/?$/i,
 ];
 
-/** Paths other apps may read: the housing reads (not the admin-only activity log), the project registry, photos and the API description. */
+/** Paths other apps may read: the public project and record reads, photos and the API description. */
 const isPublicReadPath = (path: string) =>
-  path === '/api/v1/openapi.json' ||
-  path.startsWith('/api/v1/photos/') ||
-  PUBLIC_READ_ROUTES.some((route) => route.test(path)) ||
-  ((path === '/api/v1/housing' || path.startsWith('/api/v1/housing/')) &&
-    // Express matches routes case-insensitively, so compare the same way.
-    !path.toLowerCase().startsWith('/api/v1/housing/activity'));
+  path === '/api/v1/openapi.json' || path.startsWith('/api/v1/photos/') || PUBLIC_READ_ROUTES.some((route) => route.test(path));
 
 /** A GET or HEAD, or the preflight of one. The cors package never checks the requested method itself. */
 const isReadRequest = (req: Request) =>
@@ -110,7 +103,7 @@ const PROJECT_BULK_PATH = /^\/api\/v1\/projects\/[a-z][a-z0-9_]*\/records\/bulk\
 
 /** The bulk writes, which skip the 100kb parser; any other path or method keeps it. */
 function isBulkWrite(req: Request): boolean {
-  return req.path === BULK_PATH || ((req.method === 'POST' || req.method === 'PUT') && PROJECT_BULK_PATH.test(req.path));
+  return (req.method === 'POST' || req.method === 'PUT') && PROJECT_BULK_PATH.test(req.path);
 }
 
 /** Builds the Express app without listening, so tests run the real middleware chain. */
@@ -156,7 +149,7 @@ export function createApp({
   // Before body parsing, so a refused request costs nothing more.
   app.use(originCheck(allowedOrigins));
   // 100kb for every body (NE-REQ-02) except the bulk imports, which parse their own larger body
-  // after the admin check (routes/v1/housing-admin.ts, routes/v1/records-admin.ts).
+  // after the admin check (routes/v1/records-admin.ts).
   const json = express.json({ limit: '100kb' });
   app.use((req, res, next) => (isBulkWrite(req) ? next() : json(req, res, next)));
   app.use('/api/v1', sessionMiddleware({ sql, now }, cookie.name));
@@ -164,10 +157,7 @@ export function createApp({
   app.use('/api/v1', healthRouter(sql));
   app.use('/api/v1', openapiRouter(buildOpenApiDocument()));
   app.use('/api/v1/auth', authRouter({ sql, now }, cookie));
-  // The admin router first: its literal paths (/activity, /bulk) must win over the reads' /:id.
   const receivePhoto = createPhotoReceiver({ ...photoUpload, storage });
-  app.use('/api/v1/housing', housingAdminRouter({ sql, storage, publicApiUrl, receivePhoto, writeRateLimit }));
-  app.use('/api/v1/housing', housingReadRouter(sql, readRateLimit));
   // Full paths at the root, before the projects router, whose router-wide limiter would otherwise
   // also count /projects/:key/records.
   app.use('/api/v1', recordsAdminRouter({ sql, storage, publicApiUrl, receivePhoto, writeRateLimit }));

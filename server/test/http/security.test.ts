@@ -62,8 +62,8 @@ describe('public-read CORS', () => {
   const preflight = (path: string, method: string, origin = PARTNER) =>
     request(withPartner).options(path).set('origin', origin).set('access-control-request-method', method);
 
-  it('lets a public-read origin GET the housing reads without credentials', async () => {
-    const res = await request(withPartner).get('/api/v1/housing/years').set('origin', PARTNER);
+  it('lets a public-read origin GET the project reads without credentials', async () => {
+    const res = await request(withPartner).get('/api/v1/projects/semi_pucca/years').set('origin', PARTNER);
     expect(res.status).toBe(200);
     expect(res.headers['access-control-allow-origin']).toBe(PARTNER);
     expect(res.headers['access-control-allow-credentials']).toBeUndefined();
@@ -77,17 +77,19 @@ describe('public-read CORS', () => {
   });
 
   it('answers its preflight for a GET', async () => {
-    const res = await preflight('/api/v1/housing', 'GET');
+    const res = await preflight('/api/v1/projects/semi_pucca/records', 'GET');
     expect(res.status).toBe(204);
     expect(res.headers['access-control-allow-origin']).toBe(PARTNER);
     expect(res.headers['access-control-allow-methods']).toBe('GET,HEAD');
   });
 
   it.each([
-    ['a write preflight on housing', () => preflight('/api/v1/housing', 'POST')],
-    ['a delete preflight on a record', () => preflight('/api/v1/housing/00000000-0000-4000-8000-ffffffffffff', 'DELETE')],
-    ['an update preflight on a record', () => preflight('/api/v1/housing/00000000-0000-4000-8000-ffffffffffff', 'PUT')],
+    ['a write preflight on a project\'s records', () => preflight('/api/v1/projects/semi_pucca/records', 'POST')],
+    ['a delete preflight on a record', () => preflight('/api/v1/records/00000000-0000-4000-8000-ffffffffffff', 'DELETE')],
+    ['an update preflight on a record', () => preflight('/api/v1/records/00000000-0000-4000-8000-ffffffffffff', 'PATCH')],
+    ['a preflight on the removed /housing routes', () => preflight('/api/v1/housing/semi_pucca', 'GET')],
     ['a GET of the current admin', () => request(withPartner).get('/api/v1/auth/me').set('origin', PARTNER)],
+    ['a GET of the activity log in another letter case', () => request(withPartner).get('/api/v1/ACTIVITY').set('origin', PARTNER)],
     ['a login preflight', () => preflight('/api/v1/auth/login', 'POST')],
     ['a GET of the health check', () => request(withPartner).get('/api/v1/healthz').set('origin', PARTNER)],
   ])('gives it no CORS grant for %s', async (_case, send) => {
@@ -102,7 +104,7 @@ describe('public-read CORS', () => {
   });
 
   it('keeps the credentialed grant for the site on reads and auth', async () => {
-    for (const path of ['/api/v1/housing/years', '/api/v1/auth/me']) {
+    for (const path of ['/api/v1/projects/semi_pucca/years', '/api/v1/auth/me']) {
       const res = await request(withPartner).get(path).set('origin', SITE);
       expect(res.headers['access-control-allow-origin']).toBe(SITE);
       expect(res.headers['access-control-allow-credentials']).toBe('true');
@@ -110,7 +112,7 @@ describe('public-read CORS', () => {
   });
 
   it('gives an unknown origin nothing, with Vary set', async () => {
-    const res = await request(withPartner).get('/api/v1/housing/years').set('origin', OTHER);
+    const res = await request(withPartner).get('/api/v1/projects/semi_pucca/years').set('origin', OTHER);
     expect(res.headers['access-control-allow-origin']).toBeUndefined();
     expect(res.headers.vary).toMatch(/Origin/);
   });

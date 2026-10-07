@@ -1,8 +1,9 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { withActor } from '../../src/db.js';
 import { listActivity } from '../../src/housing/activity.js';
-import { listRecords } from '../../src/housing/reads.js';
-import { activityQuery, listQuery } from '../../src/housing/schemas.js';
+import { activityQuery } from '../../src/housing/schemas.js';
+import { listProjectRecords, recordProject } from '../../src/records/reads.js';
+import { recordListQuery } from '../../src/records/schemas.js';
 import { appDb, insertRecord, ownerDb, resetTestData } from '../support/db.js';
 
 // The trigram and activity indexes from server/db/migrations/0010_search_and_activity_indexes.sql,
@@ -28,7 +29,9 @@ describe('search and activity indexes', () => {
     await insertRecord(owner, { name: 'সালমা', father_or_husband_name: 'জব্বার', address: 'রহিমপুর' });
     await insertRecord(owner, { name: 'অন্য কেউ', father_or_husband_name: 'কেউ না', address: 'দূরে' });
 
-    const found = await listRecords(app, listQuery.parse({ q: 'রহিম' }));
+    const visitor = { admin: false };
+    const project = await recordProject(app, 'semi_pucca', visitor);
+    const found = await listProjectRecords(app, project, recordListQuery.parse({ q: 'রহিম' }), new Map(), visitor);
     expect(found.data.map((r) => r.name).sort()).toEqual(['আবুল', 'রহিমা খাতুন', 'সালমা'].sort());
   });
 

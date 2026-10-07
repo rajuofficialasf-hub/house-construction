@@ -7,10 +7,12 @@ import request from 'supertest';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { createApp } from '../../src/app.js';
+import { createDb, type Sql } from '../../src/db.js';
 import { createLogger } from '../../src/logger.js';
 import { pageMeta } from '../../src/housing/schemas.js';
 import { projectRecord } from '../../src/records/schemas.js';
-import { appDb, insertField, insertProject, insertRecord, ownerDb, resetTestData } from '../support/db.js';
+import { appDb, insertField, insertProject, insertRecord, ownerDb, resetTestData, type RecordInput } from '../support/db.js';
+import { testAppUrl } from '../support/env.js';
 import { loginAdmin, TEST_ORIGIN } from '../support/session.js';
 import { testPhotoDeps } from '../support/storage.js';
 
@@ -290,5 +292,149 @@ describe('public-read CORS', () => {
   it('gives it no grant on a record\'s private values', async () => {
     const res = await request(app).get(`/api/v1/records/${ids.a}/private`).set('origin', PARTNER);
     expect(res.headers['access-control-allow-origin']).toBeUndefined();
+  });
+});
+
+// The base filters, search and query rules on a seeded project's list, as the old /housing list had them.
+describe('the base filters and search', () => {
+  const S = '/projects/semi_pucca/records';
+  const serials = async (query: string) => page.parse((await get(`${S}?${query}`)).body).data.map((r) => r.serial_no);
+  const insertMany = async (...inputs: RecordInput[]) => {
+    for (const input of inputs) await insertRecord(sql, input);
+  };
+
+  it('filters by each place field and by several at once', async () => {
+    await insertMany(
+      { year: 2023, division: 'রংপুর', district: 'কুড়িগ্রাম', upazila: 'উলিপুর' },
+      { year: 2024, division: 'রংপুর', district: 'লালমনিরহাট', upazila: 'সদর' },
+      { year: 2024, division: 'ঢাকা', district: 'গাজীপুর', upazila: 'সদর' },
+    );
+    const enc = encodeURIComponent;
+    expect(await serials('serial_no=2')).toEqual([2]);
+    expect(await serials('year=2024')).toEqual([2, 3]);
+    expect(await serials(`division=${enc('রংপুর')}`)).toEqual([1, 2]);
+    expect(await serials(`district=${enc('গাজীপুর')}`)).toEqual([3]);
+    expect(await serials(`upazila=${enc('সদর')}&year=2024&division=${enc('রংপুর')}`)).toEqual([2]);
+    expect(page.parse((await get(`${S}?upazila=${enc('সদর')}`)).body).meta.total).toBe(2);
+  });
+
+  it('matches a filter typed in either Unicode form', async () => {
+    // NFC keeps ড় as ড plus nukta; U+09DC is the single code point a keyboard may send instead.
+    const stored = 'কুড়িগ্রাম'.normalize('NFC');
+    const typed = stored.replace('\u09a1\u09bc', '\u09dc');
+    expect(typed).not.toBe(stored);
+    await insertRecord(sql, { district: stored });
+    expect(await serials(`district=${encodeURIComponent(typed)}`)).toEqual([1]);
+  });
+
+  it('searches name, parent name and address, case-insensitively', async () => {
+    await insertMany(
+      { name: 'Rahima Khatun' },
+      { name: 'অন্য', father_or_husband_name: 'Abdul RAHIM' },
+      { name: 'অন্য', address: 'গ্রাম: rahimpur' },
+      { name: 'কেউ না' },
+    );
+    expect(await serials('q=rahim')).toEqual([1, 2, 3]);
+    expect(await serials(`q=${encodeURIComponent('রহিম')}`)).toEqual([]);
+  });
+
+  it('applies serial_no and q together', async () => {
+    await insertMany({ name: 'করিম' }, { name: 'করিম' });
+    expect(await serials(`q=${encodeURIComponent('করিম')}&serial_no=2`)).toEqual([2]);
+  });
+
+  it('matches a backslash in q literally', async () => {
+    await insertMany({ name: 'a_b' }, { name: 'a\\b' }, { name: 'aXb' });
+    expect(await serials(`q=${encodeURIComponent('a\\b')}`)).toEqual([2]);
+  });
+
+  it('sorts by year and created_at in both orders', async () => {
+    await insertMany(
+      { year: 2025, name: 'খ', created_at: new Date('2026-01-03T00:00:00Z') },
+      { year: 2023, name: 'গ', created_at: new Date('2026-01-01T00:00:00Z') },
+      { year: 2024, name: 'ক', created_at: new Date('2026-01-02T00:00:00Z') },
+    );
+    expect(await serials('order=desc')).toEqual([3, 2, 1]);
+    expect(await serials('sort=year')).toEqual([2, 3, 1]);
+    expect(await serials('sort=year&order=desc')).toEqual([1, 3, 2]);
+    expect(await serials('sort=created_at')).toEqual([2, 3, 1]);
+    expect(await serials('sort=created_at&order=desc')).toEqual([1, 3, 2]);
+  });
+
+  it('returns no rows past the end, with the real total', async () => {
+    await insertMany({}, {}, {});
+    expect(page.parse((await get(`${S}?page_size=2&page=9`)).body)).toEqual({ data: [], meta: { page: 9, page_size: 2, total: 3, total_pages: 2 } });
+  });
+
+  it.each([
+    ['page_size=0', 'page_size'],
+    ['page=1e3', 'page'],
+    ['order=up', 'order'],
+    ['year=2024&year=2025', 'year'],
+  ])('refuses %s with a 400 naming the field', async (query, field) => {
+    const res = await get(`${S}?${query}`);
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ error: { code: 'VALIDATION_ERROR', details: { field } } });
+  });
+
+  it('ignores unknown query params', async () => {
+    expect((await get(`${S}?_=12345`)).status).toBe(200);
+  });
+});
+
+describe('not found and bad serials', () => {
+  it('answers 404 with the record message for an unknown id or serial', async () => {
+    await insertRecord(sql, { project_type: 'tin' });
+    for (const path of ['/records/00000000-0000-4000-8000-ffffffffffff', '/projects/tin/records/serial/2']) {
+      const res = await get(path);
+      expect(res.status).toBe(404);
+      expect(res.body).toEqual({ error: { code: 'NOT_FOUND', message: 'রেকর্ড পাওয়া যায়নি' } });
+    }
+  });
+
+  it.each(['/projects/tin/records/serials', '/projects/tin/records/serials?nos=1,a'])('refuses %s with a 400 naming nos', async (path) => {
+    const res = await get(path);
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ error: { code: 'VALIDATION_ERROR', details: { field: 'nos' } } });
+  });
+});
+
+describe('database failures', () => {
+  const appWith = (db: Sql) =>
+    createApp({ ...testPhotoDeps(), sql: db, logger: createLogger('info', silent), trustProxy: 0, allowedOrigins: [TEST_ORIGIN], cookieSecure: false });
+
+  it('answer a generic 500 when the database is gone', async () => {
+    const closed = createDb(testAppUrl);
+    await closed.end();
+    const res = await request(appWith(closed)).get('/api/v1/projects/semi_pucca/records');
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({ error: { code: 'INTERNAL_ERROR', message: 'সার্ভারে সমস্যা হয়েছে' } });
+  });
+
+  it('cancel a query that passes the statement timeout instead of hanging', async () => {
+    const quick = createDb(testAppUrl, { statementTimeoutMs: 100 });
+    try {
+      await expect(
+        owner.begin(async (tx) => {
+          // Holding this lock makes the list query wait, so the timeout fires without relying on timing.
+          await tx`lock table public.housing_beneficiaries in access exclusive mode`;
+          const res = await request(appWith(quick)).get('/api/v1/projects/semi_pucca/records');
+          expect(res.status).toBe(500);
+          expect(res.body).toMatchObject({ error: { code: 'INTERNAL_ERROR' } });
+          throw new Error('rollback');
+        }),
+      ).rejects.toThrow('rollback');
+    } finally {
+      await quick.end();
+    }
+  });
+
+  it('use a 5 second statement timeout by default', async () => {
+    const db = createDb(testAppUrl);
+    try {
+      expect(await db`show statement_timeout`).toEqual([{ statement_timeout: '5s' }]);
+    } finally {
+      await db.end();
+    }
   });
 });

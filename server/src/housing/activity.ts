@@ -2,7 +2,7 @@ import { withActor, type Actor, type Sql } from '../db.js';
 import { likePattern, toPage, type Page } from './reads.js';
 import type { ActivityBody, ActivityQuery } from './schemas.js';
 
-/** Either route's query: /api/v1/activity takes any registry key, /housing/activity only its two. */
+/** The /api/v1/activity query and body: project_type is any registry key, not activityQuery's two-value enum. */
 type AnyActivityQuery = Omit<ActivityQuery, 'project_type'> & { project_type?: string | undefined };
 type AnyActivityBody = Omit<ActivityBody, 'action' | 'project_type'> & { action: string; project_type?: string | undefined };
 

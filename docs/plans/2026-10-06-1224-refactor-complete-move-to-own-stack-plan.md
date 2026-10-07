@@ -64,7 +64,7 @@ Meanwhile the other developer rebuilt the app as a multi-project platform on Sup
 - R10. REST is the default backend in the UI build, `.env.example` and `docker compose up`. The mock backend stays available for dev and tests only.
 - R11. The backend-contract suite covers every `ProjectsApi` method and every new `HousingApi` method, and passes against the server.
 - R12. Playwright covers the admin features `main` added: the project wizard and settings, field and stat-card builders, covers, the import wizard with custom and private fields, CSV export with private columns, category rename, and delete hidden from plain admins. All suites pass with the REST backend, locally and in CI.
-- R13. A Chrome-driven walkthrough on the local stack covers every public page and admin flow. It is checked off against a feature list drawn from M-steps 1–15 in `docs/MULTI_PROJECT_PLAN.md`, with no console errors and no unexpected failed requests.
+- R13. A Chrome-driven walkthrough on the local stack covers every public page and admin flow. It is checked off against a feature list drawn from M-steps 1–15 in `docs/history/MULTI_PROJECT_PLAN.md`, with no console errors and no unexpected failed requests.
 - R14. The import modules `main` replaced (`src/features/admin/import/importFields.ts`, `importAnalyze.ts`) get unit tests, restoring the coverage the merge removed.
 
 **Removal**
@@ -116,7 +116,7 @@ Meanwhile the other developer rebuilt the app as a multi-project platform on Sup
 ### Sources / Research
 
 - `docs/api/PROJECTS_API_CONTRACT.md`: the target contract (v1.4).
-- `docs/MULTI_PROJECT_PLAN.md` and `docs/progress/HOUSING_PROGRESS.md` (M-steps 1–15): what `main` built and why.
+- `docs/history/MULTI_PROJECT_PLAN.md` and `docs/history/HOUSING_PROGRESS.md` (M-steps 1–15): what `main` built and why.
 - `supabase/sql/10_projects.sql`, `10b_project_guards.sql`, `11_project_rpcs.sql`, `12_activity_log_v2.sql`, `13_money_limit.sql`: the rules to port.
 - `src/backend/supabase/projectsApi.ts`, `housingApi.ts`, `stats.ts`: the reference adapter behavior.
 - `src/backend/legacyProjectsApi.ts`: the temporary legacy mode that R1 removes.
@@ -236,7 +236,7 @@ Each chunk is one session that ends with green tests and commits. Chunks run in 
 | **P5** | Stats and overview: `0016`, `GET /projects/:key/stats?light=1` (`by_union`, `by_project`, field sums, category `by_value`), `GET /projects/overview` (`featured`, `without_photo`); OpenAPI complete for every route; dev seed gains a draft project with custom and private fields | R5, R1, R9 | P3, P4 |
 | **P6** | REST adapter and default: rewrite `src/backend/rest/endpoints.ts` and `index.ts` to the new routes with no legacy fallback; real `ProjectsApi`; REST default in `factory.ts`, `.env.example`, `compose.yaml`; move legacy into the mock; contract suite gains a `ProjectsApi` part and every new `HousingApi` method, run against REST and, while it still exists, local Supabase as the parity reference | R1, R10, R11 | P5 |
 | **P7** | Playwright and import tests: `admin-rest` specs for the wizard and settings, field and stat-card builders, covers, import with custom and private fields, CSV export with private columns, category rename, delete hidden from a plain admin (AE1); unit tests for `importFields.ts` and `importAnalyze.ts`; CI runs all suites on REST | R12, R14 | P6 |
-| **P8** | Chrome walkthrough on the local stack against a checklist drawn from M-steps 1–15 (`docs/MULTI_PROJECT_PLAN.md`), saved in `docs/progress/`; fix whatever it finds | R13 | P7 green in CI |
+| **P8** | Chrome walkthrough on the local stack against a checklist drawn from M-steps 1–15 (`docs/history/MULTI_PROJECT_PLAN.md`), saved in `docs/progress/`; fix whatever it finds | R13 | P7 green in CI |
 | **P8b** | Filtered stat cards on the server: the adapters report an unfiltered fallback, one shared record-filter builder, the list's filters on `GET /projects/:key/stats` with `main`'s filtered shape, the REST adapter, contract and specs (parity target `main` 87c7241 for this feature only) | R1, R5, R7, R9, R10, R11, R12 | P8 done (checklist fully checked) |
 | **P9** | Removal: Supabase package, adapter, `supabase/` folder, scripts, tests, Playwright projects, env vars; `deploy/`, the edge service and jobs, the runbook; `import:supabase` (already removed in P1); `/housing` routes and `API_CONTRACT.md`; `PROJECTS_API_CONTRACT.md` corrected to the server as built; docs rewritten, including the mermaid pages in `docs/diagrams/` (`backend-architecture.md` loses the Supabase, deploy and cutover pictures and gains the registry tables; `test-strategy.md` loses the live-Supabase lanes); bundle check; AE4 search | R15, R16, R17, R18 | P8 checklist fully checked and P8b done |
 | **P9b** | User management on the server (option A, user-decided 2026-10-07): `GET/PUT /api/v1/admin/users` (main admin only), the `editor` role with per-project assignment and "all projects", `/auth/me` sends them, an editor's project scope enforced on every write route and the activity view; REST adapter, contract and `admin-rest` spec (parity target `main` 87c7241, SQL 14) | R6, R7, R9, R11, R12 | P9 |
@@ -2354,12 +2354,12 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
 
 ### P8 decisions
 
-- **The checklist is one file, `docs/progress/P8_WALKTHROUGH_CHECKLIST.md`,** in English with the UI's Bangla text quoted as it appears.
-  - Its upper-case name follows `docs/progress/HOUSING_PROGRESS.md`.
+- **The checklist is one file, `docs/history/P8_WALKTHROUGH_CHECKLIST.md`,** in English with the UI's Bangla text quoted as it appears.
+  - Its upper-case name follows `docs/history/HOUSING_PROGRESS.md`.
   - Its rows are a table, `| # | Where | Steps | Expected | Main | Plain |`, as in `HOUSING_PROGRESS.md` §৫ক and `docs/ADMIN_GUIDE.md` §১০ক.
   - The Main and Plain cells hold `✅`, `❌ D<n>` (a defect, see below), or `—` when the row doesn't apply to that role. Visitor rows use the Main column only and say so.
   - Below the table, a **Defects** table lists `| D<n> | Row | What happened | Fix commit | Test |`. A **Run** header records the date, the commit walked, and the GIF names.
-- **The rows are drawn from M-steps 1–15** (`docs/MULTI_PROJECT_PLAN.md` §৮), grouped by page, not by M-step. Each row names its M-step.
+- **The rows are drawn from M-steps 1–15** (`docs/history/MULTI_PROJECT_PLAN.md` §৮), grouped by page, not by M-step. Each row names its M-step.
   - M-steps 1–5 are infrastructure, already proven by the suites. They contribute only what a person can see: Bangla and English money formatting (M-5খ) and the registry-driven header menu.
   - M-step 6 contributes the routes, the `/housing/admin/*` redirects, deep links without a 404 flash, and the header at 360 and 768 px.
   - M-steps 7–15 contribute the admin and public flows the brief lists.
@@ -2436,7 +2436,7 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
 ### U41. Write the walkthrough checklist
 - **Goal:** A checklist that covers every public page and admin flow in R13, with an expected result per row.
 - **Requirements:** R13.
-- **Files:** `docs/progress/P8_WALKTHROUGH_CHECKLIST.md` (new)
+- **Files:** `docs/history/P8_WALKTHROUGH_CHECKLIST.md` (new)
 - **Approach:** As in the P8 decisions. The rows go in this order:
   1. **Setup:** the stack, the reset, the admins, and the expected failures.
   2. **Public, as a visitor, pass 1** (before any admin row, with the seed as it is):
@@ -2517,7 +2517,7 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
 ### U43. Walk the public site and the admin flows as the main admin
 - **Goal:** Every Main cell is filled.
 - **Requirements:** R13, AE2.
-- **Files:** `docs/progress/P8_WALKTHROUGH_CHECKLIST.md`
+- **Files:** `docs/history/P8_WALKTHROUGH_CHECKLIST.md`
 - **Approach:**
   - Follow the `claude-in-chrome` skill: open new tabs on `localhost` only, and record the GIFs.
   - Walk visitor pass 1 logged out. Then walk the admin rows as the main admin, which import into `demo`, upload its photos and cover, and publish it. Walk visitor pass 2 in a logged-out tab, then unpublish `demo` and finish pass 2.
@@ -2531,7 +2531,7 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
 ### U44. Walk the admin flows as the plain admin
 - **Goal:** Every Plain cell is filled, with AE1 and the known difference checked.
 - **Requirements:** R13, AE1.
-- **Files:** `docs/progress/P8_WALKTHROUGH_CHECKLIST.md`
+- **Files:** `docs/history/P8_WALKTHROUGH_CHECKLIST.md`
 - **Approach:** As in U43, in a fresh tab after logging out the main admin.
   - Write rows (add, edit, import, photos, rename) use `demo` and records this walk creates, so the main admin's results stay as they were.
   - The plain admin creates its own wizard leaf with a different slug, and runs the settings, publish, unpublish and cover rows on it. Its cover-delete row checks only that the control is absent.
@@ -2963,7 +2963,7 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
 - A new case in `server/test/http/openapi.test.ts` checks that every OpenAPI path appears in the contract, so a future route can't be added without a contract line.
 
 **History docs move to `docs/history/`** (user-decided 2026-10-07; this replaces the earlier "banner in place" choice):
-- `git mv` `docs/progress/HOUSING_PROGRESS.md`, `docs/MULTI_PROJECT_PLAN.md` and `docs/progress/P8_WALKTHROUGH_CHECKLIST.md` there, each with a one-line banner.
+- `git mv` `docs/progress/HOUSING_PROGRESS.md`, `docs/MULTI_PROJECT_PLAN.md` and `docs/progress/P8_WALKTHROUGH_CHECKLIST.md` there (now `docs/history/…`), each with a one-line banner.
 - `docs/history/README.md` is a removal ledger: each removed area mapped to where it can be restored from (`main@87c7241` or the `pre-p9` tag). The areas are:
   - `supabase/`
   - `src/backend/supabase/`
@@ -3192,7 +3192,7 @@ git grep -nIE '(^|[^A-Za-z])RLS([^A-Za-z]|$)|(^|[^A-Za-z])SQL [0-9০-৯]+|প�
   - `db:migrate`, `db:rollback` and `db:migrate` are clean on the dev database, and the global setup's down check covers `0018`.
 - **Done when:** `npm --prefix server run typecheck` and `npm --prefix server test` pass. This unit runs the server suite in full, because it deletes test files.
 - **Depends on:** none
-- **Status:** todo
+- **Status:** done
 
 ### U60. ~~Fold `server/src/housing/` into `records/` and `activity/`~~
 - **Dropped** (user-decided at doc review, 2026-10-07): `housing` is the project's own name (policy bucket 4), and U59 already deletes the module's dead exports.
@@ -3343,7 +3343,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** P9 `ae-work`: finish U59 (test port in progress) and U61 (contract rewrite in progress), then U62, U64; then simplify, review and the full verification.
+- **Next:** P9 `ae-work`: U61 (contract rewrite in progress), then the rest of U62 (README, docs/README, testing README) and U64; then simplify, review and the full verification.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
@@ -3604,7 +3604,7 @@ Run these at the end of P1:
       - `rest/projectsApi.ts` coalesces concurrent identical `list()` calls, with no TTL. Each caller gets its own `structuredClone`, and any write drops in-flight lists.
       - 7 new unit tests, each shown to fail without its fix.
     - **Full run:** server 1069, UI 219, contract REST 62 plus 1 known gap, contract local Supabase 57 plus 8 known gaps, admin-rest 62, public-rest 18 (2 skipped), `test:all` 53. Typecheck, lint, build and `check:prod-bundle` are clean.
-  - **P8 planned (2026-10-07):** `ae-plan` added the P8 decisions and U41–U45. The checklist is `docs/progress/P8_WALKTHROUGH_CHECKLIST.md`.
+  - **P8 planned (2026-10-07):** `ae-plan` added the P8 decisions and U41–U45. The checklist is `docs/history/P8_WALKTHROUGH_CHECKLIST.md`.
     - **`ae-doc-review` ran on P8** with coherence, feasibility and security reviewers. It fixed:
       - the visitor walk split into two passes, because the `demo` rows need the admin walk's data
       - the `/me` role check moved to an in-page `fetch`, because the session cookie is HttpOnly
@@ -3625,7 +3625,7 @@ Run these at the end of P1:
       - P6 already settled the "(মুছুন)" token as the server's accepted stance.
       - Hostile upload files (oversized, a renamed non-image, path-like names) are left to the server suite.
   - **P8 done (2026-10-07):** U41–U45 are committed (7065432..354ed95).
-    - **Checklist:** `docs/progress/P8_WALKTHROUGH_CHECKLIST.md`, fully checked.
+    - **Checklist:** `docs/history/P8_WALKTHROUGH_CHECKLIST.md`, fully checked.
       - It covers visitor passes before and after `demo` was published, every admin row as the main admin and as a plain admin, and AE1, AE2 and AE3 probed from the page.
       - Fullscreen in V2.3 was checked by the user by hand, because Chrome refuses fullscreen from an automated click.
       - GIFs are in Chrome's Downloads (not committed): `p8-v1-public-visitor.gif`, `p8-a-main-admin-settings-records.gif`, `p8-a-main-admin-import-photos-pass2.gif`, `p8-plain-admin-ae1.gif`.
@@ -3787,4 +3787,12 @@ Run these at the end of P1:
       - U54's `ImageStorage` move and `cover.ts` change are tidying
       - U56 could split in two
       - U62's ER diagram and the `ADMIN_GUIDE` rewrite could move to P10
+  - **P9 build notes:**
+    - **U51:** the three write-clearing tests passed before the change (they pinned untested behaviour); the `clearInFlight` and factory login tests failed first.
+    - **U52:** there are no component tests (Vitest runs in `node`), so the dialog is checked in `e2e/mock/serial-change.spec.ts`, and `projectPath` gained a unit test. The success toast also claimed that photo paths move, and was fixed too. The link shows ASCII digits, as the real URL does.
+    - **U54** ran after U56, as the doc review ordered. `ImageStorage` is now `src/backend/mock/storage.ts`. No `HousingApiError` code was Supabase-only.
+    - **U55:** `e2e/support/test.ts` went entirely in U57 (only `cspGuard` was left, and it ran only on `edge-rest`); the public specs import from `@playwright/test`. The leftover untracked Supabase CLI cache (`supabase/.branches`, `supabase/.temp`, two small files) was deleted with the folder.
+    - **U57:** the old nginx body-limit rules named the `/housing` upload paths, so the hosting requirements name the v1 upload routes instead.
+    - **U59:** a subagent mapped every deleted test to a v1 test and ported the gaps first; every ported test passed on v1 with no change to `src/` (no v1 behaviour gap). Also deleted `server/test/db/reads.test.ts` (it tested the old single-project read functions, now removed). The v1 records list's OpenAPI entry gained the `page` and `page_size` descriptions the old route had. `src/housing/schemas.ts` keeps nine old-route schemas used only by its own unit test (`listQuery`, `createBody` and the like); they test shared pieces, so the simplify pass decides. Server suite: 1007 passed, 7 skipped.
+    - **AE4 pattern:** `SQL [0-9]` also matched "PostgreSQL 13", so it now needs a word boundary.
 

@@ -83,6 +83,27 @@ describe('POST /api/v1/projects/:key/records/bulk', () => {
     expect(creates.every((e) => e.actor_id === adminId)).toBe(true);
   });
 
+  it('assign_serial numbers the rows in order after the existing ones, ignoring a given serial_no', async () => {
+    await insertRecord(sql, { project_type: P });
+    const res = await bulk('post', { mode: 'assign_serial', rows: [row({ name: 'ক' }), row({ name: 'খ', serial_no: 99 }), row({ name: 'গ' })] });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ data: { inserted: 3, failed: [] } });
+    const rows = await owner<{ serial_no: number; name: string }[]>`
+      select serial_no, name from public.housing_beneficiaries where project_type = ${P} order by serial_no`;
+    expect(rows.slice(1)).toEqual([
+      { serial_no: 2, name: 'ক' },
+      { serial_no: 3, name: 'খ' },
+      { serial_no: 4, name: 'গ' },
+    ]);
+  });
+
+  it('refuses no rows with 400', async () => {
+    const res = await bulk('post', { mode: 'assign_serial', rows: [] });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(await total()).toBe(0);
+  });
+
   it('refuses a serial already in the database with 409 naming the row', async () => {
     await insertRecord(sql, { project_type: P, serial_no: 7 });
     const res = await bulk('post', { mode: 'use_given_serial', rows: [row({ serial_no: 6 }), row({ serial_no: 7 })] });
@@ -97,6 +118,13 @@ describe('POST /api/v1/projects/:key/records/bulk', () => {
     expect(dup.body.error.details).toEqual({ row_index: 1, field: 'serial_no', reason: 'duplicate' });
     const missing = await bulk('post', { mode: 'use_given_serial', rows: [row({ serial_no: 3 }), row()] });
     expect(missing.body.error.details).toEqual({ row_index: 1, field: 'serial_no', reason: 'required' });
+    expect(await total()).toBe(0);
+  });
+
+  it('refuses the whole batch for one invalid row', async () => {
+    const res = await bulk('post', { mode: 'assign_serial', rows: [row(), row({ year: 1999 }), row()] });
+    expect(res.status).toBe(400);
+    expect(res.body.error.details).toMatchObject({ row_index: 1, field: 'year' });
     expect(await total()).toBe(0);
   });
 
@@ -134,6 +162,12 @@ describe('PUT /api/v1/projects/:key/records/bulk', () => {
     expect(JSON.stringify(res.body)).not.toContain('Bad Key');
   });
 
+  it('refuses a row without serial_no with 400 naming it', async () => {
+    const res = await bulk('put', { rows: [{ serial_no: 1 }, { name: 'x' }] });
+    expect(res.status).toBe(400);
+    expect(res.body.error.details).toMatchObject({ row_index: 1, field: 'serial_no' });
+  });
+
   it('treats an empty string as unchanged, so only _clear empties a value', async () => {
     await insertRecord(sql, { project_type: P, address: 'ঠিকানা', union_name: 'ধামশ্রেণী' });
     await bulk('put', { rows: [{ serial_no: 1, address: '', union_name: '', extra: { amount: '' } }] });
@@ -155,6 +189,26 @@ describe('both bulk routes', () => {
 
   it('takes 500 rows with custom values within the statement timeout', async () => {
     const rows = Array.from({ length: 500 }, (_, i) => row({ address: 'ক'.repeat(1000), extra: { amount: i, phone: '01711222333' } }));
+    const res = await bulk('post', { mode: 'assign_serial', rows });
+    expect(res.status).toBe(200);
+    expect(res.body.data.inserted).toBe(500);
+  }, 30_000);
+
+  it('takes 500 rows with every field at its cap in Bangla (about 8.5 MB) within the statement timeout', async () => {
+    const full = (n: number) => 'ক'.repeat(n);
+    const rows = Array.from({ length: 500 }, () =>
+      row({
+        name: full(200),
+        father_or_husband_name: full(200),
+        division: full(100),
+        district: full(100),
+        upazila: full(100),
+        address: full(1000),
+        prev_photo_source: full(2000),
+        current_photo_source: full(2000),
+      }),
+    );
+    expect(Buffer.byteLength(JSON.stringify({ rows }))).toBeGreaterThan(8_000_000);
     const res = await bulk('post', { mode: 'assign_serial', rows });
     expect(res.status).toBe(200);
     expect(res.body.data.inserted).toBe(500);

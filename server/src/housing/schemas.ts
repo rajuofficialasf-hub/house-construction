@@ -3,9 +3,9 @@ import { projectKey, writeText } from '../projects/schemas.js';
 
 export { writeText };
 
-// Request and response shapes of the public housing reads (docs/api/API_CONTRACT.md §3, §4).
-// The routes parse with the request schemas, and the OpenAPI document is built from all of them,
-// so the spec can't describe a shape the server doesn't use.
+// The shared record, paging and activity shapes (docs/api/API_CONTRACT.md §3, §4) that the
+// project routes in src/records/ and src/routes/v1/ build on. The OpenAPI document is built from
+// them, so the spec can't describe a shape the server doesn't use.
 
 /** The largest value Postgres int4 holds. Bigger ids or serials would make the query fail with a 500. */
 export const INT4_MAX = 2147483647;
@@ -53,7 +53,6 @@ export const listQuery = z.object({
   sort: z.enum(SORT_FIELDS).default('serial_no'),
   order: z.enum(['asc', 'desc']).default('asc'),
 });
-export type ListQuery = z.infer<typeof listQuery>;
 
 export const idParams = z.object({ id: z.uuid() });
 
@@ -62,15 +61,10 @@ export const PHOTO_KINDS = ['prev', 'current'] as const;
 export const photoKind = z.enum(PHOTO_KINDS);
 export type PhotoKind = z.infer<typeof photoKind>;
 
-// A repeated ?kind= arrives as an array, which the enum refuses (contract §1).
-export const deletePhotoQuery = z.object({ kind: photoKind });
-
 export const serialParams = z.object({
   project_type: projectType,
   serial_no: intParam(1, INT4_MAX),
 });
-
-export const serialsParams = serialParams.pick({ project_type: true });
 
 // "1,2,3": one to 100 whole numbers. Returned deduped and ascending, the order the response uses.
 export const serialsQuery = z.object({
@@ -159,13 +153,11 @@ const createRow = z.strictObject({
 });
 
 export const createBody = createRow.extend({ project_type: projectType });
-export type CreateBody = z.infer<typeof createBody>;
 
 export const updateBody = z
   .strictObject(recordFields)
   .partial()
   .refine((patch) => Object.keys(patch).length > 0, { message: 'কোনো ফিল্ড দেওয়া হয়নি', params: { reason: 'empty' } });
-export type UpdateBody = z.infer<typeof updateBody>;
 
 export const changeSerialBody = z.strictObject({ serial_no: serialNo });
 
@@ -195,7 +187,6 @@ export const bulkInsertBody = z
   })
   .superRefine(checkGivenSerials)
   .transform(dropSerialsWhenAssigned);
-export type BulkInsertBody = z.infer<typeof bulkInsertBody>;
 
 // Bulk update leaves absent or null fields unchanged, and also blank required text. The function
 // (0014_record_functions_v2.sql) also leaves '' unchanged in every field.
@@ -225,7 +216,6 @@ export const bulkUpdateBody = z
     // Absent and null mean the same to the SQL function; dropping them keeps the jsonb small.
     rows: body.rows.map((row) => Object.fromEntries(Object.entries(row).filter(([, value]) => value != null)) as typeof row),
   }));
-export type BulkUpdateBody = z.infer<typeof bulkUpdateBody>;
 
 const actionName = z.string().regex(ACTION, 'action: a-z and _ only, at most 40');
 
@@ -308,27 +298,6 @@ export const pageMeta = z.strictObject({
   total: z.number().int(),
   total_pages: z.number().int(),
 });
-
-const counts = z.record(z.string(), z.number().int());
-
-export const housingStats = z.strictObject({
-  total: z.number().int(),
-  by_year: counts,
-  by_division: counts,
-  by_district: counts,
-  by_upazila: counts,
-  distinct: z.strictObject({ divisions: z.number().int(), districts: z.number().int(), upazilas: z.number().int() }),
-  by_location: counts,
-});
-
-export const filterOptions = z.strictObject({
-  years: z.array(z.number().int()),
-  divisions: z.array(z.string()),
-  districts: z.array(z.string()),
-  upazilas: z.array(z.string()),
-});
-
-export const nextSerial = z.strictObject({ project_type: projectType, next_serial: z.number().int() });
 
 export const errorBody = z.strictObject({
   error: z.strictObject({

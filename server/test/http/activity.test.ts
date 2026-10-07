@@ -11,7 +11,7 @@ import { activityEntry, pageMeta } from '../../src/housing/schemas.js';
 import { createLogger } from '../../src/logger.js';
 import { activityRouter } from '../../src/routes/v1/activity.js';
 import { privateNoStore } from '../../src/routes/v1/shared.js';
-import { appDb, insertField, insertPrivate, insertProject, insertRecord, ownerDb, resetTestData } from '../support/db.js';
+import { appDb, insertAdmin, insertField, insertPrivate, insertProject, insertRecord, ownerDb, resetTestData } from '../support/db.js';
 import { loginAdmin, TEST_ORIGIN } from '../support/session.js';
 import { testPhotoDeps } from '../support/storage.js';
 
@@ -78,6 +78,41 @@ describe('GET /api/v1/activity', () => {
     expect(JSON.stringify(res.body)).not.toContain('01799999999');
   });
 
+  it('shows an API write with the admin who made it, newest first, after their login', async () => {
+    const { cookie: as, admin } = await loginAdmin(app, owner, { email: 'main@example.org', role: 'main_admin' });
+    const write = (method: 'post' | 'patch' | 'delete', path: string, body?: object) =>
+      request(app)[method](`/api/v1${path}`).set('origin', TEST_ORIGIN).set('cookie', as).send(body);
+    const created = await write('post', '/projects/tin/records', { year: 2025, name: 'ক', division: 'ঢাকা', district: 'ঢাকা', upazila: 'সাভার' });
+    expect(created.status).toBe(201);
+    const id = created.body.data.id as string;
+    expect((await write('patch', `/records/${id}`, { address: 'নতুন ঠিকানা' })).status).toBe(200);
+    expect((await write('delete', `/records/${id}`)).status).toBe(204);
+    const body = page.parse((await list('?actor_email=main@example.org')).body);
+    expect(body.data.map((e) => e.action)).toEqual(['delete', 'update', 'create', 'login']);
+    expect(body.data.every((e) => e.actor_id === admin.id && e.actor_email === 'main@example.org')).toBe(true);
+    expect(body.data[1]!.details).toMatchObject({ changes: { address: { old: '', new: 'নতুন ঠিকানা' } } });
+    expect(body.data.slice(0, 3).every((e) => e.record_id === id)).toBe(true);
+  });
+
+  it('matches part of the actor email in any case, with _ matched literally', async () => {
+    await owner`delete from public.housing_activity_log`;
+    await logRow({ action: 'import_run', actor_email: 'rahim@example.org' });
+    await logRow({ action: 'import_run', actor_email: 'ra_im@example.org' });
+    expect(page.parse((await list('?actor_email=RAHIM')).body).data.map((e) => e.actor_email)).toEqual(['rahim@example.org']);
+    expect(page.parse((await list('?actor_email=a_i')).body).data.map((e) => e.actor_email)).toEqual(['ra_im@example.org']);
+  });
+
+  it('keeps entries between from and to, inclusive, with offsets', async () => {
+    await owner`delete from public.housing_activity_log`;
+    for (const day of ['01', '02', '03']) await logRow({ action: 'import_run', at: `2026-10-${day}T10:00:00Z` });
+    const res = await list(`?from=${encodeURIComponent('2026-10-02T16:00:00+06:00')}&to=${encodeURIComponent('2026-10-03T10:00:00Z')}`);
+    expect(page.parse(res.body).data.map((e) => e.at)).toEqual(['2026-10-03T10:00:00.000Z', '2026-10-02T10:00:00.000Z']);
+  });
+
+  it.each(['?from=2026-10-01T00:00:00', '?record_id=abc', '?action=Login'])('refuses %s', async (bad) => {
+    expect((await list(bad)).status).toBe(400);
+  });
+
   it('is never cached', async () => {
     expect((await list()).headers['cache-control']).toBe('private, no-store');
     expect((await request(app).get('/api/v1/activity')).headers['cache-control']).toBe('private, no-store');
@@ -101,20 +136,16 @@ describe('POST /api/v1/activity', () => {
     },
   );
 
+  it('refuses an actor in the body and logs nothing', async () => {
+    const other = await insertAdmin(owner, { email: 'other@example.org' });
+    expect((await post({ action: 'import_run', actor_id: other.id })).status).toBe(400);
+    expect((await post({ action: 'import_run', actor_email: 'other@example.org' })).status).toBe(400);
+    expect(page.parse((await list('?action=import_run')).body).meta.total).toBe(0);
+  });
+
   it('refuses a bad project key and oversized details', async () => {
     expect((await post({ action: 'import_run', project_type: 'Bad-Key' })).status).toBe(400);
     expect((await post({ action: 'import_run', details: { pad: 'x'.repeat(9000) } })).status).toBe(400);
-  });
-});
-
-describe('the old /api/v1/housing/activity', () => {
-  it('now refuses a forged private_update too', async () => {
-    const res = await request(app)
-      .post('/api/v1/housing/activity')
-      .set('origin', TEST_ORIGIN)
-      .set('cookie', cookie)
-      .send({ action: 'private_update' });
-    expect(res.status).toBe(400);
   });
 });
 

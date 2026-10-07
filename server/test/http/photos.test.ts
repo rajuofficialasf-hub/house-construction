@@ -60,10 +60,9 @@ afterAll(async () => {
 async function uploaded(kind = 'prev') {
   const { id } = await insertRecord(sql);
   const res = await request(app)
-    .post(`/api/v1/housing/${id}/photo`)
+    .put(`/api/v1/records/${id}/photos/${kind}`)
     .set('origin', TEST_ORIGIN)
     .set('cookie', cookie)
-    .field('kind', kind)
     .attach('photo', jpeg, 'x.jpg');
   expect(res.status).toBe(200);
   const strip = (url: string) => url.slice(TEST_PUBLIC_API_URL.length);
@@ -113,7 +112,7 @@ describe('GET /api/v1/photos/:id', () => {
 
   it('stops serving a replaced photo, to anyone and to an admin alike', async () => {
     const { id, photo } = await uploaded();
-    await request(app).post(`/api/v1/housing/${id}/photo`).set('origin', TEST_ORIGIN).set('cookie', cookie).field('kind', 'prev').attach('photo', jpeg, 'y.jpg');
+    await request(app).put(`/api/v1/records/${id}/photos/prev`).set('origin', TEST_ORIGIN).set('cookie', cookie).attach('photo', jpeg, 'y.jpg');
     expect((await request(app).get(photo)).status).toBe(404);
     expect((await request(app).get(photo).set('cookie', cookie)).status).toBe(404);
   });
@@ -122,7 +121,7 @@ describe('GET /api/v1/photos/:id', () => {
     const failingRemove: StorageDriver = { ...local.storage, name: 'nas', remove: () => Promise.reject(new Error('offline')) };
     const flaky = appWith({ storage: failingRemove });
     const { id, photo } = await uploaded();
-    expect((await request(flaky).delete(`/api/v1/housing/${id}`).set('origin', TEST_ORIGIN).set('cookie', cookie)).status).toBe(204);
+    expect((await request(flaky).delete(`/api/v1/records/${id}`).set('origin', TEST_ORIGIN).set('cookie', cookie)).status).toBe(204);
     expect((await request(app).get(photo)).status).toBe(404);
   });
 

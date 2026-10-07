@@ -11,7 +11,7 @@ import type { RecordListQuery } from './schemas.js';
 // extra; an admin session sees every project and extra as stored
 // (docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md, "P2 decisions").
 
-// project_type is any registered project key here, not the old routes' two-value enum.
+// project_type is any registered project key here, not HousingRecord's two-value enum.
 export type ProjectRecord = Omit<HousingRecord, 'project_type'> & {
   project_type: string;
   union_name: string;

@@ -8,6 +8,7 @@ import sharp from 'sharp';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
+import type { Express } from 'express';
 import { createApp } from '../../src/app.js';
 import { requireAdmin, requireMainAdmin, requireMainAdminForPhotos } from '../../src/auth/middleware.js';
 import { createLogger } from '../../src/logger.js';
@@ -73,6 +74,7 @@ const send = (method: 'post' | 'patch' | 'delete', path: string, body?: object, 
 const stored = async (id: string) =>
   (await owner<{ name: string; union_name: string; extra: Record<string, unknown>; current_photo_url: string | null }[]>`
     select name, union_name, extra, current_photo_url from public.housing_beneficiaries where id = ${id}`)[0];
+const total = async () => (await owner<{ n: number }[]>`select count(*)::int as n from public.housing_beneficiaries`)[0]!.n;
 const recordLog = (id: string) =>
   owner<{ action: string; actor_id: string }[]>`
     select action, actor_id from public.housing_activity_log where record_id = ${id} order by id`;
@@ -91,10 +93,9 @@ const inStorage = (key: string) =>
 async function recordWithPhoto(): Promise<string> {
   const { id } = await insertRecord(sql, { project_type: 'tin' });
   const res = await request(app)
-    .post(`/api/v1/housing/${id}/photo`)
+    .put(`/api/v1/records/${id}/photos/current`)
     .set('origin', TEST_ORIGIN)
     .set('cookie', main)
-    .field('kind', 'current')
     .attach('photo', png, 'photo.png');
   expect(res.status).toBe(200);
   return id;
@@ -124,6 +125,20 @@ describe('POST /api/v1/projects/:key/records', () => {
   it('refuses a group with 400 and an unknown project with 404', async () => {
     expect((await send('post', '/projects/housing/records', input)).status).toBe(400);
     expect((await send('post', '/projects/wr_nothing/records', input)).status).toBe(404);
+  });
+
+  it.each([
+    ['year', { year: 1999 }],
+    ['name', { name: '   ' }],
+    ['division', { division: '' }],
+    ['serial_no', { serial_no: 0 }],
+    ['', { actor_email: 'someone@example.org' }],
+  ])('refuses invalid %s with 400 and writes nothing', async (field, over) => {
+    const res = await send('post', `/projects/${P}/records`, { ...input, ...over });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    if (field) expect(res.body.error.details.field).toBe(field);
+    expect(await total()).toBe(0);
   });
 
   it('refuses project_type and every photo column in the body', async () => {
@@ -180,6 +195,12 @@ describe('PATCH /api/v1/records/:id', () => {
     expect((await recordLog(id)).map((r) => r.action)).toEqual(['create', 'update']);
   });
 
+  it('logs nothing for an update that changes no field', async () => {
+    const name = (await stored(id))?.name;
+    expect((await send('patch', `/records/${id}`, { name })).status).toBe(200);
+    expect((await recordLog(id)).map((r) => r.action)).toEqual(['create']);
+  });
+
   it('replaces the whole extra when extra is sent', async () => {
     expect((await send('patch', `/records/${id}`, { extra: { amount: 7 } })).status).toBe(200);
     expect((await stored(id))?.extra).toEqual({ amount: 7 });
@@ -202,6 +223,10 @@ describe('PATCH /api/v1/records/:id', () => {
 
   it('gives 404 for a missing record', async () => {
     expect((await send('patch', `/records/${MISSING_ID}`, { name: 'ক' })).status).toBe(404);
+  });
+
+  it('gives 400 for an id that is not a uuid', async () => {
+    expect((await send('patch', '/records/abc', { name: 'ক' })).status).toBe(400);
   });
 
   it('refuses a null photo URL from a plain admin and from the main admin, leaving the photo', async () => {
@@ -276,6 +301,63 @@ describe('write limit', () => {
   });
 });
 
+describe('write limit, per admin', () => {
+  // A fresh app per test, so each starts with an empty in-memory counter.
+  const limitedApp = () =>
+    createApp({
+      sql,
+      storage: local.storage,
+      publicApiUrl: TEST_PUBLIC_API_URL,
+      logger: createLogger('info', silent),
+      trustProxy: 0,
+      allowedOrigins: [TEST_ORIGIN],
+      cookieSecure: false,
+      writeRateLimit: { windowMs: 60_000, limit: 3 },
+    });
+  const write = (target: Express, method: 'post' | 'patch' | 'delete', path: string, as: string, body?: object) => {
+    const req = request(target)[method](`/api/v1${path}`).set('origin', TEST_ORIGIN).set('cookie', as);
+    return body ? req.send(body) : req;
+  };
+
+  it('counts per admin, not per IP', async () => {
+    const target = limitedApp();
+    const { cookie: first } = await loginAdmin(target, owner, { email: 'first@example.org' });
+    const { cookie: second } = await loginAdmin(target, owner, { email: 'second@example.org' });
+    for (let i = 0; i < 3; i++) await write(target, 'post', `/projects/${P}/records`, first, input);
+    expect((await write(target, 'post', `/projects/${P}/records`, first, input)).status).toBe(429);
+    expect((await write(target, 'post', `/projects/${P}/records`, second, input)).status).toBe(201);
+  });
+
+  it('counts a bulk request as one write and covers the photo routes', async () => {
+    const target = limitedApp();
+    // The main admin from beforeEach, who may delete, with no writes yet on this app.
+    const bulk = { mode: 'assign_serial', rows: [input, input, input, input] };
+    expect((await write(target, 'post', '/projects/semi_pucca/records/bulk', main, bulk)).status).toBe(200);
+    const { id } = await insertRecord(sql);
+    expect((await write(target, 'delete', `/records/${id}/photos/prev`, main)).status).toBe(200);
+    expect((await write(target, 'patch', `/records/${id}`, main, { name: 'নতুন নাম' })).status).toBe(200);
+    expect((await write(target, 'delete', `/records/${id}/photos/prev`, main)).status).toBe(429);
+  });
+
+  it('never counts reads', async () => {
+    const target = limitedApp();
+    const { cookie: as } = await loginAdmin(target, owner, { email: 'reader@example.org' });
+    const { id } = await insertRecord(sql, { project_type: P });
+    for (let i = 0; i < 5; i++) {
+      expect((await request(target).get(`/api/v1/projects/${P}/records`).set('cookie', as)).status).toBe(200);
+      expect((await request(target).get(`/api/v1/records/${id}`).set('cookie', as)).status).toBe(200);
+    }
+    expect((await write(target, 'post', `/projects/${P}/records`, as, input)).status).toBe(201);
+  });
+
+  it('still answers 401 without a session, whatever the count', async () => {
+    const target = limitedApp();
+    for (let i = 0; i < 5; i++) {
+      expect((await request(target).post(`/api/v1/projects/${P}/records`).set('origin', TEST_ORIGIN).send(input)).status).toBe(401);
+    }
+  });
+});
+
 describe('auth and origin', () => {
   // The router has no router-wide guard (it is mounted at /api/v1), so each route must carry its own.
   it('puts an admin guard before any work on every route of the admin router', () => {
@@ -299,6 +381,17 @@ describe('auth and origin', () => {
     expect((await send('post', `/projects/${P}/records`, input, null)).status).toBe(401);
     expect((await send('patch', `/records/${id}`, { name: 'ক' }, null)).status).toBe(401);
     expect((await send('delete', `/records/${id}`, undefined, null)).status).toBe(401);
+  });
+
+  it('writes nothing for a create without a session', async () => {
+    expect((await send('post', `/projects/${P}/records`, input, null)).status).toBe(401);
+    expect(await total()).toBe(0);
+  });
+
+  it('refuses an expired session', async () => {
+    await owner`update public.housing_admin_sessions set expires_at = now() - interval '1 second'`;
+    expect((await send('post', `/projects/${P}/records`, input)).status).toBe(401);
+    expect(await total()).toBe(0);
   });
 
   it('refuses a disabled admin\'s cookie', async () => {

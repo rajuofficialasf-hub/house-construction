@@ -1,40 +1,19 @@
 import { z } from 'zod';
 import {
-  activityBody,
   activityEntry,
-  activityQuery,
-  bulkInsertBody,
   bulkInsertResult,
-  bulkUpdateBody,
   bulkUpdateResult,
-  changeSerialBody,
   CLIENT_EVENT_ACTIONS,
-  createBody,
-  deletePhotoQuery,
   errorBody,
-  filterOptions,
-  housingRecord,
   DEFAULT_PAGE_SIZE,
-  housingStats,
   idParams,
-  INT4_MAX,
-  listQuery,
   MAX_ACTIVITY_PAGE,
   MAX_BULK_ROWS,
   MAX_PAGE_SIZE,
-  MAX_SERIALS,
-  nextSerial,
-  nextSerialQuery,
   pageMeta,
   projectActivityBody,
   projectActivityQuery,
-  projectTypeQuery,
-  serialParams,
-  serialsParams,
   serialsQuery,
-  updateBody,
-  YEAR_MAX,
-  YEAR_MIN,
 } from './housing/schemas.js';
 import {
   project,
@@ -170,36 +149,18 @@ function errors(...statuses: (keyof typeof ERROR_DESCRIPTIONS)[]) {
   return Object.fromEntries(statuses.map((status) => [status, { description: ERROR_DESCRIPTIONS[status], content: jsonContent(ref('Error')) }]));
 }
 
-const PROJECT_TYPE_DOC = 'semi_pucca or tin; both when left out';
-
-const LIST_DOCS: Record<string, string> = {
-  project_type: PROJECT_TYPE_DOC,
-  serial_no: `Exact serial, 1-${INT4_MAX}`,
-  year: `Exact year, ${YEAR_MIN}-${YEAR_MAX}`,
-  division: 'Exact match after trimming and NFC; blank means no filter',
-  district: 'Exact match after trimming and NFC; blank means no filter',
-  upazila: 'Exact match after trimming and NFC; blank means no filter',
-  q: 'Case-insensitive substring of name, father_or_husband_name or address; %, _ and \\ match literally',
+const RECORD_LIST_DOCS: Record<string, string> = {
   page: 'Page number from 1; default 1',
   page_size: `Rows per page, 1-${MAX_PAGE_SIZE}; default ${DEFAULT_PAGE_SIZE}`,
-  sort: 'Sort field; default serial_no. Ties always break by serial_no, project_type, id',
-  order: 'asc or desc; default asc',
-};
-
-/** Builds the document. Call once at startup; it never changes while the process runs. */
-const RECORD_LIST_DOCS: Record<string, string> = {
   union_name: 'Exact match after trim and NFC',
   q: 'Partial, case-insensitive match over name, father_or_husband_name, address and the searchable public fields',
   sort: 'serial_no, year, name, created_at, union_name, or extra.<key> for a public field (otherwise serial_no); ties by serial_no',
 };
 
+/** Builds the document. Call once at startup; it never changes while the process runs. */
 export function buildOpenApiDocument(): OpenApiDocument {
-  const reads = (summary: string, operation: Omit<Operation, 'summary' | 'tags'>): { get: Operation } => ({
-    get: { summary, tags: ['housing'], ...operation },
-  });
-  const projectFilter = parameters(projectTypeQuery, 'query', { project_type: PROJECT_TYPE_DOC });
   // Admin-only: the site's session cookie and an allowed Origin, so other apps can't call these.
-  const admin = (summary: string, operation: Omit<Operation, 'summary' | 'tags' | 'security'>, tag = 'housing-admin'): Operation => ({
+  const admin = (summary: string, operation: Omit<Operation, 'summary' | 'tags' | 'security'>, tag: string): Operation => ({
     summary,
     tags: [tag],
     security: [{ adminSession: [] }],
@@ -212,9 +173,9 @@ export function buildOpenApiDocument(): OpenApiDocument {
     openapi: '3.1.0',
     info: {
       title: 'Housing project API',
-      version: '0.16',
+      version: '0.17',
       description:
-        'Public, read-only access to the housing project records: no login is needed, and browser apps must be listed in PUBLIC_READ_ORIGINS and call without credentials. The housing-admin operations are for this site\'s admins only.',
+        'Public, read-only access to the published projects and their records: no login is needed, and browser apps must be listed in PUBLIC_READ_ORIGINS and call without credentials. The operations that need an admin session are for this site\'s admins only.',
     },
     servers: [{ url: '/api/v1' }],
     paths: {
@@ -230,116 +191,6 @@ export function buildOpenApiDocument(): OpenApiDocument {
       },
       '/openapi.json': {
         get: { summary: 'This document', tags: ['meta'], responses: { 200: { description: 'OpenAPI 3.1 document', content: jsonContent({ type: 'object' }) } } },
-      },
-      '/housing': {
-        ...reads('List records with filters, search, sort and paging', {
-          parameters: parameters(listQuery, 'query', LIST_DOCS),
-          responses: { 200: ok('One page and its totals', { type: 'array', items: ref('HousingRecord') }, ref('PageMeta')), ...errors(400, 429, 500) },
-        }),
-        post: admin('Create a record; without serial_no the next serial is assigned', {
-          requestBody: body(createBody),
-          responses: { 201: ok('The new record', ref('HousingRecord')), ...errors(400, 401, 403, 409, 429, 500) },
-        }),
-      },
-      '/housing/stats': reads('Counts by year and place', {
-        parameters: projectFilter,
-        responses: { 200: ok('Counts', ref('HousingStats')), ...errors(400, 429, 500) },
-      }),
-      '/housing/years': reads('Years that have records, newest first', {
-        parameters: projectFilter,
-        responses: { 200: ok('Years', { type: 'array', items: { type: 'integer' } }), ...errors(400, 429, 500) },
-      }),
-      '/housing/filter-options': reads('Years, divisions, districts and upazilas present, for filter lists', {
-        parameters: projectFilter,
-        responses: { 200: ok('Options in Bengali alphabetical order; years newest first', ref('FilterOptions')), ...errors(400, 429, 500) },
-      }),
-      '/housing/next-serial': reads('The serial the next new record of a project will probably get', {
-        parameters: parameters(nextSerialQuery, 'query', { project_type: 'semi_pucca or tin' }),
-        responses: { 200: ok('Prediction only; the real serial is assigned on create', ref('NextSerial')), ...errors(400, 429, 500) },
-      }),
-      '/housing/{project_type}/serial/{serial_no}': reads('One record by project and serial', {
-        parameters: parameters(serialParams, 'path'),
-        responses: { 200: ok('The record', ref('HousingRecord')), ...errors(400, 404, 429, 500) },
-      }),
-      '/housing/{project_type}/serials': reads('Several records of one project by serial', {
-        parameters: [
-          ...parameters(serialsParams, 'path'),
-          ...parameters(serialsQuery, 'query', { nos: `1-${MAX_SERIALS} comma-separated serials, e.g. 1,2,3; duplicates are ignored` }),
-        ],
-        responses: { 200: ok('The records found, in serial order; missing serials are left out', { type: 'array', items: ref('HousingRecord') }), ...errors(400, 429, 500) },
-      }),
-      '/housing/{id}': {
-        ...reads('One record by id', {
-          parameters: idParam,
-          responses: { 200: ok('The record', ref('HousingRecord')), ...errors(400, 404, 429, 500) },
-        }),
-        put: admin('Change some fields of a record; serial_no and project_type cannot change here', {
-          parameters: idParam,
-          requestBody: body(updateBody),
-          responses: { 200: ok('The updated record', ref('HousingRecord')), ...errors(400, 401, 403, 404, 429, 500) },
-        }),
-        delete: admin('Delete a record; its serial is never reused. Main admin only', {
-          parameters: idParam,
-          responses: { 204: { description: 'Deleted' }, ...errors(400, 401, 403, 404, 429, 500) },
-        }),
-      },
-      '/housing/activity': {
-        get: admin('The activity log, newest first', {
-          parameters: parameters(activityQuery, 'query', {
-            action: 'Exact action, e.g. update or import_run',
-            project_type: 'semi_pucca or tin',
-            record_id: 'Entries about one record',
-            actor_email: 'Case-insensitive part of the acting admin\'s email; %, _ and \\ match literally',
-            from: 'Entries at or after this time (ISO 8601 with an offset)',
-            to: 'Entries at or before this time (ISO 8601 with an offset)',
-            page: 'Page number from 1; default 1',
-            page_size: `Rows per page, 1-${MAX_PAGE_SIZE}; default ${DEFAULT_PAGE_SIZE}`,
-          }),
-          responses: { 200: ok('One page of entries and its totals', { type: 'array', items: ref('ActivityEntry') }, ref('PageMeta')), ...errors(400, 401, 500) },
-        }),
-        post: admin('Record a client event such as import_run; actions the server logs itself are refused', {
-          requestBody: body(activityBody),
-          responses: {
-            201: ok('The new entry\'s id', { type: 'object', required: ['id'], properties: { id: { type: 'integer' } } }),
-            ...errors(400, 401, 403, 500),
-          },
-        }),
-      },
-      '/housing/bulk': {
-        post: admin(`Import 1-${MAX_BULK_ROWS} rows in one transaction: all or nothing`, {
-          requestBody: body(bulkInsertBody),
-          responses: { 200: ok('How many rows were inserted', ref('BulkInsertResult')), ...errors(400, 401, 403, 409, 413, 429, 500) },
-        }),
-        put: admin(`Update 1-${MAX_BULK_ROWS} rows by serial; absent, null or blank fields stay as they are`, {
-          requestBody: body(bulkUpdateBody),
-          responses: { 200: ok('How many rows changed, and the serials not found', ref('BulkUpdateResult')), ...errors(400, 401, 403, 413, 429, 500) },
-        }),
-      },
-      '/housing/{id}/photo': {
-        post: admin('Upload or replace the record\'s before (prev) or after (current) photo; the server re-encodes it as WebP and makes the thumbnail', {
-          parameters: idParam,
-          requestBody: {
-            required: true,
-            content: {
-              'multipart/form-data': {
-                schema: {
-                  type: 'object',
-                  required: ['kind', 'photo'],
-                  properties: {
-                    kind: { type: 'string', enum: ['prev', 'current'] },
-                    photo: { type: 'string', format: 'binary', description: 'A JPEG, PNG or WebP image, at most 5 MB' },
-                    thumb: { type: 'string', format: 'binary', description: 'Optional, at most 500 KB; ignored, the server makes its own' },
-                  },
-                },
-              },
-            },
-          },
-          responses: { 200: ok('The record with its new photo URLs and photo_updated_at', ref('HousingRecord')), ...errors(400, 401, 403, 404, 413, 429, 500) },
-        }),
-        delete: admin('Remove the record\'s photo and thumbnail of one kind; succeeds when there is none. Main admin only', {
-          parameters: [...idParam, ...parameters(deletePhotoQuery, 'query', { kind: 'prev or current' })],
-          responses: { 200: ok('The record', ref('HousingRecord')), ...errors(400, 401, 403, 404, 429, 500) },
-        }),
       },
       '/projects': {
         get: {
@@ -661,27 +512,16 @@ export function buildOpenApiDocument(): OpenApiDocument {
           },
         },
       },
-      '/housing/{id}/serial': {
-        post: admin('Move a record to another serial; the old serial is never reused', {
-          parameters: idParam,
-          requestBody: body(changeSerialBody),
-          responses: { 200: ok('The record with its new serial', ref('HousingRecord')), ...errors(400, 401, 403, 404, 409, 429, 500) },
-        }),
-      },
     },
     components: {
       schemas: {
-        HousingRecord: jsonSchema(housingRecord, 'output'),
         ProjectRecord: jsonSchema(projectRecord, 'output'),
         PrivateValues: jsonSchema(privateValues, 'output'),
         Project: jsonSchema(project, 'output'),
         ProjectField: jsonSchema(projectField, 'output'),
         PageMeta: jsonSchema(pageMeta, 'output'),
-        HousingStats: jsonSchema(housingStats, 'output'),
         ProjectStats: jsonSchema(projectStats, 'output'),
         ProjectOverview: jsonSchema(projectOverview, 'output'),
-        FilterOptions: jsonSchema(filterOptions, 'output'),
-        NextSerial: jsonSchema(nextSerial, 'output'),
         ActivityEntry: jsonSchema(activityEntry, 'output'),
         BulkInsertResult: jsonSchema(bulkInsertResult, 'output'),
         BulkUpdateResult: jsonSchema(bulkUpdateResult, 'output'),

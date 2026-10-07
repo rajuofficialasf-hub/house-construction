@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 // Request and response shapes of the project registry (docs/api/PROJECTS_API_CONTRACT.md §3.1,
 // §3.2, §4.1, §4.2). The routes parse with the request schemas and the OpenAPI document is built
-// from all of them, as for the housing routes. The write bodies mirror the CHECKs in
+// from all of them. The write bodies mirror the CHECKs in
 // 0011_projects_registry.sql, so a bad value is a 400 naming its field before the database sees
 // it; the guards in 0015_project_guards.sql stay as the backstop. Every object is strict: an
 // unknown key is refused without being echoed, and none reaches an insert or update.

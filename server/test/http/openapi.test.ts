@@ -6,8 +6,6 @@ import { requireMainAdmin, requireMainAdminForCovers, requireMainAdminForPhotos 
 import { createLogger } from '../../src/logger.js';
 import { buildOpenApiDocument } from '../../src/openapi.js';
 import { healthRouter } from '../../src/routes/v1/health.js';
-import { housingAdminRouter } from '../../src/routes/v1/housing-admin.js';
-import { housingReadRouter } from '../../src/routes/v1/housing.js';
 import { openapiRouter } from '../../src/routes/v1/openapi.js';
 import { photosRouter } from '../../src/routes/v1/photos.js';
 import { projectsAdminRouter } from '../../src/routes/v1/projects-admin.js';
@@ -73,8 +71,6 @@ describe('GET /api/v1/openapi.json', () => {
     const mounted = [
       ...routesOf('', healthRouter(sql)),
       ...routesOf('', openapiRouter(document)),
-      ...routesOf('/housing', housingAdminRouter({ sql, ...testPhotoDeps(), receivePhoto: () => Promise.reject(new Error('unused')) })),
-      ...routesOf('/housing', housingReadRouter(sql)),
       ...routesOf('/projects', projectsReadRouter(sql)),
       ...routesOf('', recordsReadRouter(sql)),
       ...routesOf('', recordsAdminRouter({ sql, ...testPhotoDeps(), receivePhoto: () => Promise.reject(new Error('unused')) })),
@@ -119,14 +115,11 @@ describe('GET /api/v1/openapi.json', () => {
   it('says which operations only the main admin may use, and lists their 403', () => {
     const deps = { sql, ...testPhotoDeps(), receivePhoto: () => Promise.reject(new Error('unused')) };
     const guarded = [
-      ...mainAdminRoutesOf('/housing', housingAdminRouter(deps)),
       ...mainAdminRoutesOf('', recordsAdminRouter(deps)),
       ...mainAdminRoutesOf('', projectsAdminRouter(deps)),
     ];
     expect(guarded.sort()).toEqual([
       'DELETE /fields/{id}',
-      'DELETE /housing/{id}',
-      'DELETE /housing/{id}/photo',
       'DELETE /projects/{key}',
       'DELETE /projects/{key}/cover',
       'DELETE /records/{id}',
@@ -163,14 +156,26 @@ describe('GET /api/v1/openapi.json', () => {
   });
 
   it('describes the list parameters with the patterns the server enforces', () => {
-    const params = document.paths['/housing']?.get?.parameters ?? [];
+    const params = document.paths['/projects/{key}/records']?.get?.parameters ?? [];
     const pageSize = params.find((p) => p.name === 'page_size');
     expect(pageSize).toMatchObject({ in: 'query', required: false, schema: { type: 'string', pattern: '^[0-9]{1,10}$' } });
     expect(pageSize?.description).toMatch(/100/);
-    const nos = document.paths['/housing/{project_type}/serials']?.get?.parameters?.find((p) => p.name === 'nos');
+    const nos = document.paths['/projects/{key}/records/serials']?.get?.parameters?.find((p) => p.name === 'nos');
     expect(nos).toMatchObject({ in: 'query', required: true });
     expect(nos?.description).toMatch(/100/);
-    const id = document.paths['/housing/{id}']?.get?.parameters?.find((p) => p.name === 'id');
+    const id = document.paths['/records/{id}']?.get?.parameters?.find((p) => p.name === 'id');
     expect(id).toMatchObject({ in: 'path', required: true, schema: { format: 'uuid' } });
   });
 });
+
+describe('the old single-project routes', () => {
+  it('are gone: no /housing path is documented', () => {
+    expect(Object.keys(document.paths).filter((path) => path.startsWith('/housing'))).toEqual([]);
+  });
+
+  it('answer 404', async () => {
+    expect((await request(app).get('/api/v1/housing')).status).toBe(404);
+    expect((await request(app).post('/api/v1/housing/bulk').set('Origin', 'http://localhost:5173').send({ rows: [] })).status).toBe(404);
+  });
+});
+

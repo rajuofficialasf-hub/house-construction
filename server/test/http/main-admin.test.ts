@@ -25,7 +25,7 @@ afterAll(() => Promise.all([sql.end(), owner.end()]));
 const plain = () => loginAdmin(app, owner, { email: 'plain@example.org', role: 'admin' });
 const main = () => loginAdmin(app, owner, { email: 'main@example.org', role: 'main_admin' });
 const del = (path: string, cookie?: string) => {
-  const req = request(app).delete(`/api/v1/housing/${path}`).set('origin', TEST_ORIGIN);
+  const req = request(app).delete(`/api/v1/records/${path}`).set('origin', TEST_ORIGIN);
   return cookie ? req.set('cookie', cookie) : req;
 };
 const recordExists = async (id: string) => (await owner`select 1 from public.housing_beneficiaries where id = ${id}`).length === 1;
@@ -33,10 +33,9 @@ const recordExists = async (id: string) => (await owner`select 1 from public.hou
 async function withPhoto(cookie: string): Promise<string> {
   const { id } = await insertRecord(sql);
   const res = await request(app)
-    .post(`/api/v1/housing/${id}/photo`)
+    .put(`/api/v1/records/${id}/photos/current`)
     .set('origin', TEST_ORIGIN)
     .set('cookie', cookie)
-    .field('kind', 'current')
     .attach('photo', png, 'photo.png');
   expect(res.status).toBe(200);
   return id;
@@ -91,13 +90,13 @@ describe('photo delete', () => {
   it('refuses a plain admin and keeps the photo, but lets a main_admin delete it', async () => {
     const { cookie: plainCookie } = await plain();
     const id = await withPhoto(plainCookie);
-    const refused = await del(`${id}/photo?kind=current`, plainCookie);
+    const refused = await del(`${id}/photos/current`, plainCookie);
     expect(refused.status).toBe(403);
     const [kept] = await owner`select current_photo_url from public.housing_beneficiaries where id = ${id}`;
     expect(kept?.current_photo_url).not.toBeNull();
 
     const { cookie: mainCookie } = await main();
-    const res = await del(`${id}/photo?kind=current`, mainCookie);
+    const res = await del(`${id}/photos/current`, mainCookie);
     expect(res.status).toBe(200);
     expect(res.body.data.current_photo_url).toBeNull();
   });
