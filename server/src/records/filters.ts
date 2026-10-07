@@ -1,4 +1,4 @@
-import type { Sql } from '../db.js';
+import type { Sql, Tx } from '../db.js';
 import { AppError } from '../errors.js';
 import { likePattern } from '../housing/reads.js';
 
@@ -35,7 +35,7 @@ function filterValue(key: string, type: string, raw: string): string | number {
 }
 
 /** The where conditions for the base filters, the f.<key> filters and the search, to be joined with and. */
-export function recordFilters(sql: Sql, fields: FilterFields, filters: Map<string, string>, query: BaseFilters) {
+export function recordFilters(sql: Sql | Tx, fields: FilterFields, filters: Map<string, string>, query: BaseFilters) {
   const conditions = [];
   if (query.year !== undefined) conditions.push(sql`b.year = ${query.year}`);
   if (query.division) conditions.push(sql`b.division = ${query.division}`);

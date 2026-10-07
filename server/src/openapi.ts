@@ -53,7 +53,6 @@ import {
   projectPatchBody,
   projectStats,
   renameValueBody,
-  statsQuery,
 } from './projects/schemas.js';
 import {
   bulkCreateBody,
@@ -71,6 +70,7 @@ import {
   recordListQuery,
   recordPatchBody,
   serialBody,
+  statsQuery,
 } from './records/schemas.js';
 
 // The OpenAPI 3.1 description of every /api/v1 route apart from /auth, served at
@@ -491,11 +491,15 @@ export function buildOpenApiDocument(): OpenApiDocument {
       },
       '/projects/{key}/stats': {
         get: {
-          summary: "Counts by year, place, union and child project, with sums of the public money and number fields and category breakdowns; a group's cover its children (only published ones without an admin session). A draft only for an admin session",
+          summary:
+            "Counts by year, place, union and child project, with sums of the public money and number fields and category breakdowns; a group's cover its children (only published ones without an admin session). A draft only for an admin session. With any of the list's filters (year, division, district, upazila, union_name, q, f.<key>=<value>; same rules and 400s as the records list), the counts are of the filtered records and the answer carries filtered: true, with the by_ counts empty and no category by_value; a field filters, searches or counts only if every counted project has it public and active with the same type",
           tags: ['records'],
           parameters: [
             ...parameters(projectKeyParams, 'path'),
-            ...parameters(statsQuery, 'query', { light: '1 or true: by_union is empty and categories carry no by_value (the home-page cards)' }),
+            ...parameters(statsQuery, 'query', {
+              ...RECORD_LIST_DOCS,
+              light: '1 or true: by_union is empty and categories carry no by_value (the home-page cards); ignored when a filter is given',
+            }),
           ],
           responses: { 200: ok('The stats', ref('ProjectStats')), ...errors(400, 404, 429, 500) },
         },

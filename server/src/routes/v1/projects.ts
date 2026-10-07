@@ -1,7 +1,9 @@
 import { Router, type Request, type RequestHandler } from 'express';
 import type { Sql } from '../../db.js';
 import { getProject, listProjectFields, listProjects, projectStats, projectsOverview, type Viewer } from '../../projects/reads.js';
-import { overviewQuery, projectKeyParams, projectListQuery, statsQuery } from '../../projects/schemas.js';
+import { filteredProjectStats, hasStatsFilters } from '../../projects/filteredStats.js';
+import { overviewQuery, projectKeyParams, projectListQuery } from '../../projects/schemas.js';
+import { fieldFilters, statsQuery } from '../../records/schemas.js';
 import { projectNotFound } from '../../records/reads.js';
 import { DEFAULT_READ_RATE_LIMIT, readRateLimiter, type ReadRateLimit } from './shared.js';
 
@@ -41,7 +43,12 @@ export function projectsReadRouter(sql: Sql, readRateLimit: ReadRateLimit = DEFA
 
   router.get('/:key/stats', async (req, res) => {
     const { key } = projectKeyParams.parse(req.params);
-    const stats = await projectStats(sql, key, statsQuery.parse(req.query).light !== undefined, viewerOf(req));
+    const query = statsQuery.parse(req.query);
+    const filters = fieldFilters(req.query);
+    const viewer = viewerOf(req);
+    const stats = hasStatsFilters(query, filters)
+      ? await filteredProjectStats(sql, key, viewer, query, filters)
+      : await projectStats(sql, key, query.light !== undefined, viewer);
     if (stats === null) throw projectNotFound();
     res.json({ data: stats });
   });

@@ -59,6 +59,22 @@ export const recordListQuery = z.object({
 export type RecordListQuery = z.infer<typeof recordListQuery>;
 
 /**
+ * GET /projects/:key/stats: light, and the list's filters under the list's names and rules, so the
+ * cards count what the list shows (docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md,
+ * P8b decisions). The f.<key> filters come from fieldFilters(), since zod drops those keys.
+ */
+export const statsQuery = z.object({
+  light: z.enum(['1', 'true']).optional(),
+  year: intParam(YEAR_MIN, YEAR_MAX).optional(),
+  division: textParam,
+  district: textParam,
+  upazila: textParam,
+  union_name: textParam,
+  q: textParam,
+});
+export type StatsQuery = z.infer<typeof statsQuery>;
+
+/**
  * The f.<key>=<value> filters of a list query, before the project's fields are known. A key that
  * isn't a field-key shape can't name a field, so it's ignored like any other unknown key (§4.4.1).
  */

@@ -2742,7 +2742,7 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
   - **Timing, once:** 50k records in one project of the dev database, with a year plus district plus category filter, under 300 ms. Record the result in Progress, then reset with a re-seed.
 - **Done when:** `npm --prefix server run typecheck` and `npm --prefix server test` pass, and the timing is recorded.
 - **Depends on:** U47
-- **Status:** todo
+- **Status:** done
 
 ### U49. REST adapter passes the filters
 - **Goal:** On REST, the list page's cards follow the filters.
@@ -3203,3 +3203,17 @@ Run these at the end of P1:
     - **Plan change, the zod pieces:**
       - The planned leaf module `records/filterParams.ts` can't avoid the cycle: `fieldFilters` needs `FIELD_KEY` from `projects/schemas`, and `year` needs `housing/schemas`, which imports `projects/schemas`.
       - So the pieces stay in `records/schemas.ts`. U48 defines `statsQuery` there, and the projects route and OpenAPI import it from `records/schemas.ts`. No cycle.
+    - **U48:**
+      - `server/src/projects/filteredStats.ts` holds `hasStatsFilters` and `filteredProjectStats`: one query in a transaction with `statement_timeout` 2s.
+      - `statsQuery` now lives in `records/schemas.ts`, and the route calls `fieldFilters(req.query)`.
+      - `projectStats` (zod) gains an optional `filtered: true`, and the OpenAPI summary and parameters describe the filters.
+      - Tests are in a new `server/test/http/projects-stats-filtered.test.ts` (19), not `projects-stats.test.ts`, to keep the filtered setup in one place.
+      - The database already refuses a private field that is filterable (`housing_project_fields_private_hidden`) and a private field's value in `extra`. So a visitor can never match a private value through `extra`, and the per-leaf rule covers the public-in-one, private-in-another case.
+      - **50k timing**, in `housing_test` (the dev data is left alone), median of 5:
+        - year 14 ms
+        - year plus district plus category 5 ms
+        - `q` on a name 44 ms
+        - a wide `q` (one digit) 64 ms
+
+        All are under 300 ms, so no index or migration is needed.
+      - The server suite is at 1093.

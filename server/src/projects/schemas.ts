@@ -32,8 +32,6 @@ export const projectListQuery = z.object({
 export type ProjectListQuery = z.infer<typeof projectListQuery>;
 
 /** `?light=1` leaves out by_union's entries and the category breakdowns (the home page's cards). */
-export const statsQuery = z.object({ light: z.enum(['1', 'true']).optional() });
-
 /** `?drafts=1` adds drafts and the photo-less counts; honoured only for an admin session. */
 export const overviewQuery = z.object({ drafts: z.literal('1').optional() });
 
@@ -280,6 +278,8 @@ export const projectStats = z.strictObject({
   distinct: z.strictObject({ divisions: z.number().int(), districts: z.number().int(), upazilas: z.number().int(), unions: z.number().int() }),
   by_project: counts,
   by_union: counts,
+  // Present only on filtered stats (P8b): the by_ counts are then empty and categories carry no by_value.
+  filtered: z.literal(true).optional(),
   fields: z.record(
     z.string(),
     z.union([
