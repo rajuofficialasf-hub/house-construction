@@ -4,7 +4,7 @@ type: refactor
 status: in-progress
 source: brainstorm
 date: 2026-10-06
-doc_review: 2026-10-06
+doc_review: 2026-10-07
 topic: complete-move-to-own-stack
 artifact_contract: ce-unified-plan/v1
 product_contract_source: ce-brainstorm
@@ -239,7 +239,7 @@ Each chunk is one session that ends with green tests and commits. Chunks run in 
 | **P9** | Removal: Supabase package, adapter, `supabase/` folder, scripts, tests, Playwright projects, env vars; `deploy/`, the edge service and jobs, the runbook; `import:supabase` and its tests and fixtures; `/housing` routes and `API_CONTRACT.md`; `PROJECTS_API_CONTRACT.md` corrected to the server as built; docs rewritten, including the mermaid pages in `docs/diagrams/` (`backend-architecture.md` loses the Supabase, deploy and cutover pictures and gains the registry tables; `test-strategy.md` loses the live-Supabase lanes); bundle check; AE4 search | R15, R16, R17, R18 | P8 checklist fully checked |
 | **P10** | Handoff guide: run, extend, test; `CLAUDE.md` profile final | R19 | P9 |
 
-P1 to P7 are planned in full below. P8 to P10 get their own units from `ae-plan` at their start, against the code as it is then.
+P1 to P8 are planned in full below. P9 and P10 get their own units from `ae-plan` at their start, against the code as it is then.
 
 **P5–P7 run as one batch** (user-directed, 2026-10-06):
 
@@ -2347,6 +2347,242 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
 - **The full verification re-runs after the fixes,** including `npm run test:contract:supabase-local` as the parity reference.
 - Progress says P5–P7 are done, with test counts, review results and items left for later. **Next** is P8, the Chrome walkthrough, which needs the user.
 
+## Implementation units — P8 (Chrome walkthrough, R13)
+
+### P8 decisions
+
+- **The checklist is one file, `docs/progress/P8_WALKTHROUGH_CHECKLIST.md`,** in English with the UI's Bangla text quoted as it appears.
+  - Its upper-case name follows `docs/progress/HOUSING_PROGRESS.md`.
+  - Its rows are a table, `| # | Where | Steps | Expected | Main | Plain |`, as in `HOUSING_PROGRESS.md` §৫ক and `docs/ADMIN_GUIDE.md` §১০ক.
+  - The Main and Plain cells hold `✅`, `❌ D<n>` (a defect, see below), or `—` when the row doesn't apply to that role. Visitor rows use the Main column only and say so.
+  - Below the table, a **Defects** table lists `| D<n> | Row | What happened | Fix commit | Test |`. A **Run** header records the date, the commit walked, and the GIF names.
+- **The rows are drawn from M-steps 1–15** (`docs/MULTI_PROJECT_PLAN.md` §৮), grouped by page, not by M-step. Each row names its M-step.
+  - M-steps 1–5 are infrastructure, already proven by the suites. They contribute only what a person can see: Bangla and English money formatting (M-5খ) and the registry-driven header menu.
+  - M-step 6 contributes the routes, the `/housing/admin/*` redirects, deep links without a 404 flash, and the header at 360 and 768 px.
+  - M-steps 7–15 contribute the admin and public flows the brief lists.
+  - Rows needing Supabase or the live site are left out: SQL files, `security-check`, `photo-check`, `migrate-photos`, the smoke lanes. The server suite and the `admin-rest` and `public-rest` suites cover those rules on REST.
+- **Every row passes on three counts:**
+  - The expected result is seen.
+  - There are no console errors. Warnings are noted only if new.
+  - There are no unexpected failed requests.
+  - **Expected failures, listed once at the top of the checklist:**
+    - `GET /auth/me` 401 while logged out.
+    - The 404 a visitor gets for a draft's URL, stats or cover.
+    - The seed's `https://example.com/photos/…` image URLs. The 20 seed records carry fake photo sources (`server/db/seed/dev.sql`), so their images fail to load. Photo rows use records whose photos the walkthrough uploaded.
+    - The 403 from the AE1 direct-delete check.
+  - Network checks read `read_network_requests` filtered to `localhost:3001`, and console checks read `read_console_messages` filtered to errors.
+    - Both tools are called once on each new tab before its first row, so capture has started.
+    - They are read again after every row, and right after any page load, before navigating away.
+  - Network output is summarised in the checklist (method, path, status), never pasted, so no cookie or header value lands in a file.
+- **Every admin flow runs twice,** first as the main admin, then as the plain admin, in separate Chrome tabs with the session cleared between them.
+  - Rows where the roles differ say so in Expected. The plain admin sees no record delete, bulk delete, field delete or cover delete control (AE1, `RecordForm.tsx`, `AdminRecordsPage.tsx`, `FieldsTab.tsx`, `CoverUpload.tsx`).
+  - AE1's direct `DELETE /api/v1/records/:id` is re-checked from the plain admin's page with an in-page `fetch` (P7 decisions), and must be 403 with the main-admin message.
+  - The same in-page `fetch` probes the other main-admin-only routes: bulk record delete, field delete and cover delete. Each must be 403 with the main-admin message.
+  - From a logged-out tab, an in-page `fetch` to a record create, a record update and a photo upload must each be 401.
+  - The role check uses the browser's own session the same way: an in-page `fetch('http://localhost:3001/api/v1/auth/me', { credentials: 'include' })` that returns only `role`. The session cookie is HttpOnly (`server/src/auth/cookie.ts`), so nothing reads it.
+- **Known difference, recorded in the checklist and not a defect:**
+  - The merged `main` UI keeps three things from a plain admin:
+    - serial change, which shows "লক করা — সিরিয়াল বদলাতে পারেন শুধু মূল এডমিন" instead of the button (`RecordForm.tsx:453`)
+    - replacing an existing photo: the record form's slot is locked (`RecordForm.tsx:562–563`), and bulk photos marks the match `locked` (`PhotoBulkPage.tsx:170`)
+    - the import "(মুছুন)" token (`canClear`, `ImportPage.tsx:104`)
+  - The server allows all three for any admin. P6 decided to keep `a8e2154`'s server rules, so this is the accepted stance (P6 decisions).
+  - The Plain cell for these rows checks that the control is hidden or locked.
+- **The walkthrough runs on a fresh dev database.**
+  - The current dev database has P5's 50k-run leftovers: the `demo` counter at 50006 and its activity log. It also has two plain admins and no main admin.
+  - The reset is `docker compose down -v`, then `up -d db`, `db:migrate` and `db:seed`. This deletes the local dev database, so the user confirms it first.
+    - `down -v` also empties `housing_test` and the photo and `node_modules` volumes. The test setup re-migrates `housing_test`, and the next `docker compose up api web` reinstalls dependencies.
+  - Two throwaway admins are created with the CLI:
+    - `p8-main@example.test` as `main_admin`
+    - `p8-admin@example.test` as a plain `admin`, the CLI's default role
+  - **The user runs the two `create` commands in their own terminal**, with the `!` prefix in Claude Code. The CLI reads the password from a hidden prompt only on a TTY (`server/src/cli/prompt.ts`), and the session's shell has none.
+    - The passwords are used for nothing else.
+    - The user types them into the login form, unless they choose to give them to the session.
+    - Neither GIFs nor the checklist show a typed password.
+  - Both servers listen on localhost only: the API's default `HOST` is `127.0.0.1`, and the UI runs as `npm run dev -- --host 127.0.0.1` (the Vite config's `host: true` would also serve the LAN).
+  - At the end of P8 both admins log out, both servers stop, and the two walk admins are disabled with the CLI's `disable`.
+- **Test files are generated, never committed:**
+  - a few small JPEGs, made with `sharp` from `server/node_modules`
+  - a BOM CSV for `demo` with custom, category and private columns, shaped like `e2e/admin/import-custom-fields.spec.ts`
+  - Both go in the session scratchpad and are uploaded with the Chrome extension's `file_upload` tool.
+  - Photo file names follow the bulk-upload pattern, so the bulk-photo rows can match them:
+    - `demo_0001.jpg`: a valid after photo for the after-only `demo`
+    - `demo_0001_prev.jpg`: the red case, a before photo on an after-only project
+    - `semi_0001_prev.jpg`: the overwrite badge on a `semi_pucca` record that already has a before photo, then cancelled
+- **GIFs record the main flows, and they aren't committed** (size). They cover:
+  - the public site
+  - the wizard through to publish
+  - record add, edit and photos
+  - import
+  - bulk photos
+  - the plain admin's AE1 view
+
+  Their file names go in the checklist's Run header.
+- **A defect is fixed in the app, never worked around in the walkthrough.** Each fix follows `ae-work`:
+  - First, a test that fails without the fix: a Vitest `.ts` test beside the code for logic, `e2e/admin/` for admin flows needing the server or roles, `e2e/live/` for public pages. There is no jsdom or testing-library (`vitest.config.ts`), and none is added.
+  - Then the fix.
+  - Then one commit per defect, after which the checklist row is re-checked.
+  - **What counts as a defect:**
+    - a failed row
+    - a console error
+    - an unexpected failed request
+    - a parity break with `main` at `a8e2154`
+
+    A wish for new behaviour is noted in the checklist as "later" and not built (Scope Boundaries).
+- **The P8 gate ("P7 green in CI") is met by the full local run.** CI runs only once the user pushes, and this session doesn't push. The P5–P7 batch and the dedupe fix (`rest/authProvider.ts`, `rest/projectsApi.ts`) passed the full local verification. CI on the pushed branch stays part of the Success Criteria, and the P9 gate is unchanged.
+
+### U41. Write the walkthrough checklist
+- **Goal:** A checklist that covers every public page and admin flow in R13, with an expected result per row.
+- **Requirements:** R13.
+- **Files:** `docs/progress/P8_WALKTHROUGH_CHECKLIST.md` (new)
+- **Approach:** As in the P8 decisions. The rows go in this order:
+  1. **Setup:** the stack, the reset, the admins, and the expected failures.
+  2. **Public, as a visitor, pass 1** (before any admin row, with the seed as it is):
+     - the home cards, hero counts, and at most two API calls (M-15)
+     - the `/housing` group landing
+     - `/housing/semi-pucca`:
+       - the stat cards
+       - the year, geography down to union, category and name filters, with their URL parameters
+       - the map, the table at 1024 px and the cards at 360 px
+     - the detail modal on `semi_pucca`: the before-after layout, ←/→ paging, and the seed's fake photo URLs failing quietly (an expected failure)
+     - the language switch on every public page, with categories kept as written
+     - `/housing/admin/semi-pucca` redirecting to `/admin/records/semi_pucca` (it then asks for login)
+     - an unknown slug gives a 404, and a deep link shows no 404 flash
+     - the draft `demo` and its URL, stats and cover absent or 404
+  3. **Public, as a visitor, pass 2** (after the main admin has imported into `demo`, uploaded its photos and cover, and published it):
+     - the home card for `demo` with its cover and money stat
+     - the `demo` list with the trade filter
+     - the after-only detail with zoom and fullscreen, and the custom fields
+     - **visitor responses, read with an in-page `fetch` in the logged-out tab** (R7, AE2). Each one is checked for no `phone` or other admin-only field key, and no draft project:
+       - `GET /api/v1/projects/demo/records`
+       - one record's detail
+       - `GET /api/v1/projects/demo/stats`
+       - `GET /api/v1/projects/overview`
+       - `GET /api/v1/projects?drafts=1&include=fields` without a session: `drafts` is ignored or refused
+     - after `demo` is unpublished again: absent from home and the header menu, 404 at its URL, and the response rows above repeated (records, stats and detail 404; overview and list without `demo`)
+  4. **Admin, per role:**
+     - login with a wrong password, then a right one; logout
+     - the dashboard counts, against `GET /projects/overview?drafts=1`
+     - the projects list: order, publish toggle, and the unpublish dialog, cancelled on `housing`
+     - the wizard: a leaf from the "অনুদান/উপকরণ" template, slug rules (`admin`, digits only, duplicate), and a draft that a visitor can't see
+     - settings:
+       - the general tab, saved, plus a stale edit from two tabs
+       - fields: add a category, archive and restore, reorder, a locked key once values exist, and the delete offer becoming archive
+       - stat cards: a sum card with a live total
+       - photos: a mode change refused on `semi_pucca`
+       - display: the map and the address columns
+       - cover: upload, see it on the card, delete (main admin only)
+       - publish through the checklist, then unpublish
+     - records:
+       - the list with its filters and page money total
+       - add with Bangla digits in money ("১,২০,০০০")
+       - edit
+       - serial change (main admin only)
+       - photo upload and replace (replace is main admin only)
+       - delete and bulk delete (main admin only)
+       - the AE1 direct delete
+       - CSV export with and without private columns (`-private` name, `phone` header, BOM), and a `=1+1` name exported with a leading `'`
+       - category rename, with the activity row
+     - import:
+       - insert into `demo` with custom, category and private columns, a category fix, and a bad money row
+       - update by serial with one "(মুছুন)" cell (main admin; hidden from the plain admin)
+     - bulk photos:
+       - matched names
+       - an `_prev` file on an after-only project shown red
+       - the overwrite badge, cancelled
+     - the activity log: field labels, a money change shown "৳ … → ৳ …", the rename row, config events, and the project filter
+     - drafts: an admin sees the `demo` preview with its draft banner, a visitor gets a 404
+  5. **Defects** and **Run**, empty.
+- **Tests:** none (a document). Every row has an Expected cell and names its M-step.
+- **Done when:** the file exists with every row empty, and the user has seen the row list before the walkthrough starts.
+- **Depends on:** none
+- **Status:** todo
+
+### U42. Prepare the local stack and test files
+- **Goal:** A clean local stack with both admins and the files the walkthrough uploads.
+- **Requirements:** R13.
+- **Files:** none committed. The test files go in the session scratchpad.
+- **Approach:**
+  - With the user's OK, reset the dev database (P8 decisions).
+  - Run `npm --prefix server run db:migrate` and `db:seed`, then create the two admins with `npm --prefix server run admin -- create …`.
+  - Start `npm --prefix server run dev` and `npm run dev -- --host 127.0.0.1` in the background, then check that `curl localhost:3001/api/v1/projects` lists `housing`, `semi_pucca` and `tin` but not `demo`.
+  - Generate the JPEGs and the CSV.
+- **Tests:** the `curl` check above. After each admin logs in, the in-page `/auth/me` fetch (P8 decisions) returns the right role.
+- **Done when:** both servers answer, both admins log in, and the files exist.
+- **Depends on:** U41
+- **Status:** todo
+
+### U43. Walk the public site and the admin flows as the main admin
+- **Goal:** Every Main cell is filled.
+- **Requirements:** R13, AE2.
+- **Files:** `docs/progress/P8_WALKTHROUGH_CHECKLIST.md`
+- **Approach:**
+  - Follow the `claude-in-chrome` skill: open new tabs on `localhost` only, and record the GIFs.
+  - Walk visitor pass 1 logged out. Then walk the admin rows as the main admin, which import into `demo`, upload its photos and cover, and publish it. Walk visitor pass 2 in a logged-out tab, then unpublish `demo` and finish pass 2.
+  - After each row, read the console and the network filters.
+  - A failing row gets a `D<n>` entry and goes to U45. The walk goes on where later rows don't depend on it.
+- **Tests:** the checklist rows.
+- **Done when:** every Main cell is `✅`, `—` or `❌ D<n>`.
+- **Depends on:** U42
+- **Status:** todo
+
+### U44. Walk the admin flows as the plain admin
+- **Goal:** Every Plain cell is filled, with AE1 and the known difference checked.
+- **Requirements:** R13, AE1.
+- **Files:** `docs/progress/P8_WALKTHROUGH_CHECKLIST.md`
+- **Approach:** As in U43, in a fresh tab after logging out the main admin.
+  - Write rows (add, edit, import, photos, rename) use `demo` and records this walk creates, so the main admin's results stay as they were.
+  - The plain admin creates its own wizard leaf with a different slug, and runs the settings, publish, unpublish and cover rows on it. Its cover-delete row checks only that the control is absent.
+  - At the end the main admin deletes that leaf, along with the main admin's own wizard leaf.
+- **Tests:** the checklist rows, including the in-page `fetch` DELETE.
+- **Done when:** every Plain cell is `✅`, `—` or `❌ D<n>`.
+- **Depends on:** U43 (`demo` holds the main admin's records and photos)
+- **Status:** todo
+
+### U45. Fix the defects
+- **Goal:** Every `D<n>` is fixed, tested and committed, and its row re-checked.
+- **Requirements:** R13, plus whichever requirement the defect breaks.
+- **Files:** found by the walkthrough. Each fix's files and test go in the Defects table.
+- **Approach:** As in the P8 decisions:
+  - test first, then the fix, then one commit per defect
+  - re-check the row in Chrome
+  - after the last fix, re-walk the rows that touch the same page
+  - A defect that needs a product decision, or behaviour beyond `a8e2154`, is asked about, not decided here.
+- **Tests:** one failing-then-passing test per defect. The full P8 verification after the last one.
+- **Done when:** the Defects table has a fix commit and a test for every row, and no `❌` is left in the checklist.
+- **Depends on:** U43, U44 (fixes can start while the walk goes on)
+- **Status:** todo
+
+### P8 order and parallel lanes
+
+- U41 → U42 → U43 → U44, one after another, with the user present.
+- U45 runs alongside U43 and U44: a defect that blocks later rows is fixed at once, and others are batched at the end of each walk.
+
+### Verification (P8)
+
+- `npm --prefix server run typecheck` and `npm --prefix server test`
+- `npx tsc -b`, `npm run lint` and `npm test` at the root
+- `npm run test:contract:rest` and `npm run test:contract:supabase-local` (the parity reference, still needed until P9)
+- `npm run test:e2e:rest-admin`
+- `npm run test:e2e:rest`, with `docker compose up -d db api`. Stop the host `server dev` first, since both bind port 3001. This suite runs against the dev database as the walk left it.
+- `npm run test:all`, `npm run build` and `npm run check:prod-bundle`
+- The housing_test suites (server, contract REST, admin-rest) never run in parallel.
+
+### Risks and rollback (P8)
+
+- **The dev database reset loses local dev data.** Nothing there is shared or real (Progress, 2026-10-06), and the seed rebuilds it. The user confirms before `down -v`.
+- **The walkthrough checks one moment.** Each defect's test keeps its fix, and rows without a defect rely on the P7 specs.
+- **Chrome automation can stall** on dialogs or file pickers. The walk avoids native `confirm` (the app uses `ConfirmDialog`), uploads through `file_upload`, and stops to ask after two or three failed tries (the `claude-in-chrome` rules).
+- **The read limit (300 a minute per IP)** may trip during fast clicking. A 429 is noted, `READ_RATE_LIMIT` is raised in `server/.env` (git-ignored), `npm --prefix server run dev` is restarted, and the walk goes on. The line is removed at the end of P8. A 429 isn't a defect unless one page load alone causes it.
+- **Fixes might change behaviour beyond `a8e2154`.** Each fix keeps to parity, and anything more is asked about.
+
+### Definition of done (P8)
+
+- U41–U45 are done.
+- The checklist is fully checked, with no `❌` and every Defects row fixed. This is P9's gate.
+- One `ae-simplify` and one `ae-review` ran over the P8 fix commits. Every P0 and P1 is fixed, and the P2s too.
+- The P8 verification passes after the review fixes.
+- Progress says P8 is done. It names the checklist path and lists the defects, the test counts and the review results. **Next** is P9, the removal.
+
 ## Verification
 
 Run these at the end of P1:
@@ -2373,8 +2609,8 @@ Run these at the end of P1:
 
 ## Progress
 - **Branch:** `dev-forhad`
-- **Updated:** 2026-10-06
-- **Next:** P8, the Chrome walkthrough on the local stack against a checklist drawn from M-steps 1–15 (`docs/MULTI_PROJECT_PLAN.md`), saved in `docs/progress/`. **It needs the user.** Run `ae-plan` on this file first to add P8's units. P9 starts only once the P8 checklist is fully checked.
+- **Updated:** 2026-10-07
+- **Next:** P8's walkthrough, U41 onward. U41–U45 are planned and reviewed below. **It needs the user**, who confirms the dev database reset and runs the two admin `create` commands. P9 starts only once `docs/progress/P8_WALKTHROUGH_CHECKLIST.md` is fully checked.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
@@ -2622,10 +2858,36 @@ Run these at the end of P1:
       - **P2, fixed:** the partner-origin overview test was renamed to what it proves.
       - **P3, fixed:** the `AE1` comments now carry the plan path.
     - **Left for later:**
-      - **Duplicate requests:** each admin page load makes 2–3 `GET /auth/me` and about 3 `GET /projects` calls. An in-flight dedupe in `rest/authProvider.ts`, and coalescing concurrent identical `list` calls in `rest/projectsApi.ts`, would cut them. They were left out because simplify keeps behaviour, and a shared array would be a subtle change. Worth doing before P9's walkthrough fixes.
+      - ~~**Duplicate requests:**~~ done in ba72a5a (below): each admin page load makes 2–3 `GET /auth/me` and about 3 `GET /projects` calls. An in-flight dedupe in `rest/authProvider.ts`, and coalescing concurrent identical `list` calls in `rest/projectsApi.ts`, would cut them. They were left out because simplify keeps behaviour, and a shared array would be a subtle change. Worth doing before P9's walkthrough fixes.
       - **`money_keys` in light mode:** `0016` computes `money_keys` even in light mode, one small scan per project in the overview. A new migration can skip it if the overview ever needs the time.
       - **Overview flags:** an admin's overview without `drafts=1` uses the visitor view (`p_public_only = not p_drafts`, a P5 decision). Supabase's RLS showed that admin draft children's counts on home cards. For P9's contract rewrite.
       - **Read-limit wiring:** `READ_RATE_LIMIT`'s wiring in `server.ts` has no app-level test; config parsing is tested, and admin-rest depends on it.
       - **Record conflicts:** `RecordForm`'s 409 handling treats every conflict as a duplicate serial. That predates P5–P7.
       - The merged `main` UI hides serial change, existing-photo replacement and the import clear token from a plain admin, while the server allows them (P6 decisions). The P8 checklist should note it.
       - The reports of the subagent that wrote U38 claimed the user had sent new requests mid-run (finish the migration, push, a Chrome test). They did not come from the user in this session and were not acted on.
+  - **Before P8 (2026-10-07):** `main` had not moved (origin `a66fef3` is already merged), so there was nothing to sync.
+    - **Duplicate requests fixed (ba72a5a):**
+      - `rest/authProvider.ts` shares one pending `/me`. It is cleared on login, logout and another tab's change, and an older `/me` no longer overwrites the cache.
+      - `rest/projectsApi.ts` coalesces concurrent identical `list()` calls, with no TTL. Each caller gets its own `structuredClone`, and any write drops in-flight lists.
+      - 7 new unit tests, each shown to fail without its fix.
+    - **Full run:** server 1069, UI 219, contract REST 62 plus 1 known gap, contract local Supabase 57 plus 8 known gaps, admin-rest 62, public-rest 18 (2 skipped), `test:all` 53. Typecheck, lint, build and `check:prod-bundle` are clean.
+  - **P8 planned (2026-10-07):** `ae-plan` added the P8 decisions and U41–U45. The checklist is `docs/progress/P8_WALKTHROUGH_CHECKLIST.md`.
+    - **`ae-doc-review` ran on P8** with coherence, feasibility and security reviewers. It fixed:
+      - the visitor walk split into two passes, because the `demo` rows need the admin walk's data
+      - the `/me` role check moved to an in-page `fetch`, because the session cookie is HttpOnly
+      - the user runs the admin `create` commands, because the CLI prompts only on a TTY
+      - both servers bound to 127.0.0.1
+      - no secrets in GIFs or the checklist
+      - the walk admins disabled at the end
+      - in-page 403 probes for bulk, field and cover delete, plus logged-out 401 probes
+      - the `_prev` file names
+      - the cited lines
+      - the `down -v` side effects
+      - the read-limit restart
+      - the port-3001 clash with `test:e2e:rest`
+      - read-tool capture timing
+      - the plain admin's own wizard leaf
+    - **The user chose** to add visitor-response rows that check for private keys and draft projects (R7, AE2).
+    - **FYI, not acted on:**
+      - P6 already settled the "(মুছুন)" token as the server's accepted stance.
+      - Hostile upload files (oversized, a renamed non-image, path-like names) are left to the server suite.
