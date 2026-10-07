@@ -32,9 +32,21 @@ There is no sign-up page; logins are created with a command. While the app is ru
 docker compose exec api npm run admin -- create --email you@example.org --name "Your Name" --role main_admin
 ```
 
-It asks for a password twice. Nothing shows while you type; that's normal. Don't use a real password; pick one just for this.
+It asks for a password twice. Nothing shows while you type; that's normal. Don't use a real password; pick one just for this. A line saying `.env not found` is harmless.
 
 Then log in at http://localhost:5173/admin/login.
+
+### Roles
+
+Every login has one of three roles, set with `--role`:
+
+| Role | Can do |
+|---|---|
+| `main_admin` | Everything, including deleting and managing other logins on the Users page. Only one login can be the main admin. |
+| `admin` | Work on every project: add and edit records, import, change project settings. Can't delete. |
+| `editor` | Add and fill in records only in the projects the main admin gives it. Can't delete or change settings. |
+
+On a new database, make yourself `main_admin`. If someone already is, use `--role admin`, or ask the main admin to change your role. The main admin can change roles and give an editor its projects on the Users page (http://localhost:5173/admin/users).
 
 ## 3. Add features with Claude Code
 
