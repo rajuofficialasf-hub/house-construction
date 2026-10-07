@@ -2495,7 +2495,7 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
 - **Tests:** none (a document). Every row has an Expected cell and names its M-step.
 - **Done when:** the file exists with every row empty, and the user has seen the row list before the walkthrough starts.
 - **Depends on:** none
-- **Status:** todo
+- **Status:** done
 
 ### U42. Prepare the local stack and test files
 - **Goal:** A clean local stack with both admins and the files the walkthrough uploads.
@@ -2509,7 +2509,7 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
 - **Tests:** the `curl` check above. After each admin logs in, the in-page `/auth/me` fetch (P8 decisions) returns the right role.
 - **Done when:** both servers answer, both admins log in, and the files exist.
 - **Depends on:** U41
-- **Status:** todo
+- **Status:** done
 
 ### U43. Walk the public site and the admin flows as the main admin
 - **Goal:** Every Main cell is filled.
@@ -2523,7 +2523,7 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
 - **Tests:** the checklist rows.
 - **Done when:** every Main cell is `✅`, `—` or `❌ D<n>`.
 - **Depends on:** U42
-- **Status:** todo
+- **Status:** done
 
 ### U44. Walk the admin flows as the plain admin
 - **Goal:** Every Plain cell is filled, with AE1 and the known difference checked.
@@ -2536,7 +2536,7 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
 - **Tests:** the checklist rows, including the in-page `fetch` DELETE.
 - **Done when:** every Plain cell is `✅`, `—` or `❌ D<n>`.
 - **Depends on:** U43 (`demo` holds the main admin's records and photos)
-- **Status:** todo
+- **Status:** done
 
 ### U45. Fix the defects
 - **Goal:** Every `D<n>` is fixed, tested and committed, and its row re-checked.
@@ -2550,7 +2550,7 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
 - **Tests:** one failing-then-passing test per defect. The full P8 verification after the last one.
 - **Done when:** the Defects table has a fix commit and a test for every row, and no `❌` is left in the checklist.
 - **Depends on:** U43, U44 (fixes can start while the walk goes on)
-- **Status:** todo
+- **Status:** done
 
 ### P8 order and parallel lanes
 
