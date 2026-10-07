@@ -71,6 +71,8 @@ export function createRestAuthProvider(baseUrl: string): AuthProvider {
     return request
   }
 
+  const resolveUser = async () => (cached !== undefined ? cached : fetchMe())
+
   return {
     async login(email, password) {
       const res = await restRequest<LoginResponse>(baseUrl, ENDPOINTS.auth.login(), {
@@ -90,13 +92,10 @@ export function createRestAuthProvider(baseUrl: string): AuthProvider {
       announce()
     },
 
-    async currentUser() {
-      if (cached !== undefined) return cached
-      return fetchMe()
-    },
+    currentUser: resolveUser,
 
     async isAdmin() {
-      const u = cached !== undefined ? cached : await fetchMe()
+      const u = await resolveUser()
       return u?.role === 'admin' || u?.role === 'main_admin' || u?.role === 'editor'
     },
 

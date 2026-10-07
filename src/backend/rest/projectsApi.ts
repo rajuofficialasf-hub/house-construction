@@ -15,11 +15,10 @@ export function createRestProjectsApi(baseUrl: string): ProjectsApi {
   const sharedList = async (path: string) => {
     let request = inFlight.get(path)
     if (!request) {
-      const own = restData<Project[]>(baseUrl, path).finally(() => {
-        if (inFlight.get(path) === own) inFlight.delete(path)
+      request = restData<Project[]>(baseUrl, path).finally(() => {
+        if (inFlight.get(path) === request) inFlight.delete(path)
       })
-      inFlight.set(path, own)
-      request = own
+      inFlight.set(path, request)
     }
     // প্রত্যেকে নিজের কপি পায়: একজন বদলালে অন্যের ডেটা বদলায় না
     return structuredClone(await request)
@@ -31,8 +30,10 @@ export function createRestProjectsApi(baseUrl: string): ProjectsApi {
       inFlight.clear()
     }
   }
+  // এই ফাইলের প্রতিটি লেখা method দেয়; পড়াগুলো দেয় না (GET ডিফল্ট)
+  const isWrite = (opts?: RestRequestOptions) => opts?.method !== undefined
   const call = <T>(path: string, opts?: RestRequestOptions) =>
-    opts?.method ? write(restData<T>(baseUrl, path, opts)) : restData<T>(baseUrl, path, opts)
+    isWrite(opts) ? write(restData<T>(baseUrl, path, opts)) : restData<T>(baseUrl, path, opts)
   const none = (path: string, opts: RestRequestOptions) => write(restRequest<void>(baseUrl, path, opts)).then(() => {})
   const drafts = (includeDrafts?: boolean) => (includeDrafts ? '1' : undefined)
 
