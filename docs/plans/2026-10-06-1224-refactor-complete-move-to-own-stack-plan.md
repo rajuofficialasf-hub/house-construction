@@ -3501,7 +3501,7 @@ Run once, after U64:
   - the one-main-admin refusal still holds
 - **Done when:** `npx vitest run test/cli test/auth` (from `server/`) passes.
 - **Depends on:** U65
-- **Status:** todo
+- **Status:** done
 
 ### U68. `GET` and `PUT /api/v1/admin/users`
 - **Goal:** The main admin lists every login and saves an admin's role, projects and status.
@@ -3758,7 +3758,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** `ae-work` on P9b, U67 (U65–U66 done). P10 (the handoff guide and the final `CLAUDE.md` profile, with the mock rule and the migration-comment exception) follows P9b.
+- **Next:** `ae-work` on P9b, U68 (U65–U67 done). P10 (the handoff guide and the final `CLAUDE.md` profile, with the mock rule and the migration-comment exception) follows P9b.
 - **Uncommitted:** nothing.
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.

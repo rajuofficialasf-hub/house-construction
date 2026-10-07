@@ -131,7 +131,22 @@ describe('roles', () => {
 
   it('refuses an unknown email or role', async () => {
     await expect(setRole(owner, 'nobody@example.org', 'admin')).rejects.toThrow(AdminCliError);
-    expect(() => parseRole('root')).toThrow(AdminCliError);
+    expect(() => parseRole('root')).toThrow('the role must be admin, editor or main_admin, got root');
+  });
+
+  it('creates an editor and moves it to admin and back, still refusing a second main_admin', async () => {
+    await createAdmin(owner, { email: 'main@example.org', password: PASSWORD, role: 'main_admin' });
+    expect(await createAdmin(owner, { email: 'ed@example.org', password: PASSWORD, role: parseRole('editor') })).toMatchObject({ role: 'editor' });
+    await setRole(owner, 'ed@example.org', 'admin');
+    await setRole(owner, 'ed@example.org', 'editor');
+    await expect(setRole(owner, 'ed@example.org', 'main_admin')).rejects.toThrow(/main@example\.org/);
+    expect(await owner`select role from public.housing_admins where email = 'ed@example.org'`).toEqual([{ role: 'editor' }]);
+    const logged = await owner`select action, details from public.housing_activity_log where details->>'email' = 'ed@example.org' order by id`;
+    expect(logged).toEqual([
+      { action: 'admin_create', details: { email: 'ed@example.org' } },
+      { action: 'admin_role_set', details: { email: 'ed@example.org', role: 'admin' } },
+      { action: 'admin_role_set', details: { email: 'ed@example.org', role: 'editor' } },
+    ]);
   });
 });
 
@@ -202,8 +217,19 @@ describe('listAdmins', () => {
       { email: 'a@example.org', name: 'এ', disabled: false, role: 'admin' },
       { email: 'b@example.org', name: null, disabled: true, role: 'admin' },
     ]);
+    expect(admins.map((a) => a.projects)).toEqual(['all', 'all']);
     // The hash kind is listed; the hash itself never is.
     expect(admins.map((a) => a.hash)).toEqual(['argon2id', 'argon2id']);
     expect(JSON.stringify(admins)).not.toContain('$argon2');
+  });
+
+  it("shows an editor's assigned keys, all for all projects, and none for an editor without any", async () => {
+    await createAdmin(owner, { email: 'a@example.org', password: PASSWORD, role: 'editor' });
+    await createAdmin(owner, { email: 'b@example.org', password: PASSWORD, role: 'editor' });
+    await createAdmin(owner, { email: 'c@example.org', password: PASSWORD, role: 'editor' });
+    await owner`insert into public.housing_admin_projects (admin_id, project_key)
+      select id, k from public.housing_admins, unnest(array['tin', 'housing']) k where email = 'a@example.org'`;
+    await owner`update public.housing_admins set all_projects = true where email = 'b@example.org'`;
+    expect((await listAdmins(owner)).map((a) => a.projects)).toEqual(['housing,tin', 'all', 'none']);
   });
 });

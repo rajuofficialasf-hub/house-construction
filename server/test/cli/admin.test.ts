@@ -90,7 +90,7 @@ describe('admin CLI', () => {
     const res = await cli(['create', '--email', 'cli@example.org', '--role', 'root'], `${PASSWORD}\n`);
     expect(res.code).toBe(1);
     // The CLI's own message, not the database CHECK's, proves the CLI caught it first.
-    expect(res.stderr.trim()).toBe('the role must be admin or main_admin, got root');
+    expect(res.stderr.trim()).toBe('the role must be admin, editor or main_admin, got root');
     expect(await owner`select count(*)::int as n from public.housing_admins`).toEqual([{ n: 0 }]);
   });
 
@@ -103,6 +103,25 @@ describe('admin CLI', () => {
     expect(await owner`select email from public.housing_admins where role = 'main_admin'`).toEqual([{ email: 'b@example.org' }]);
     const unknown = await cli(['set-role', '--email', 'nobody@example.org', '--role', 'admin']);
     expect(unknown.code).toBe(1);
+  });
+
+  it('creates an editor, moves it to admin and back, and lists its projects', async () => {
+    expect((await cli(['create', '--email', 'ed@example.org', '--role', 'editor'], `${PASSWORD}\n`)).code).toBe(0);
+    expect((await cli(['create', '--email', 'plain@example.org'], `${PASSWORD}\n`)).code).toBe(0);
+    const [ed] = await owner<{ id: string }[]>`select id from public.housing_admins where email = 'ed@example.org'`;
+    await owner`insert into public.housing_admin_projects (admin_id, project_key) values (${ed?.id ?? ''}, 'tin'), (${ed?.id ?? ''}, 'housing')`;
+    const listed = await cli(['list']);
+    expect(listed.stdout).toMatch(/ed@example\.org  editor  active  argon2id  housing,tin  /);
+    expect(listed.stdout).toMatch(/plain@example\.org  admin  active  argon2id  all  /);
+
+    expect((await cli(['set-role', '--email', 'ed@example.org', '--role', 'admin'])).stdout.trim()).toBe('ed@example.org is now admin');
+    expect((await cli(['set-role', '--email', 'ed@example.org', '--role', 'editor'])).code).toBe(0);
+    expect(await owner`select action, details from public.housing_activity_log order by id`).toEqual([
+      { action: 'admin_create', details: { email: 'ed@example.org' } },
+      { action: 'admin_create', details: { email: 'plain@example.org' } },
+      { action: 'admin_role_set', details: { email: 'ed@example.org', role: 'admin' } },
+      { action: 'admin_role_set', details: { email: 'ed@example.org', role: 'editor' } },
+    ]);
   });
 
   it('disables and lists admins', async () => {

@@ -3,12 +3,13 @@
 // of piped stdin), never from arguments or the environment, so they don't land in shell history.
 // Connects as the schema owner through DATABASE_MIGRATION_URL.
 //
-//   admin create --email <email> [--name <name>] [--role admin|main_admin]
-//   admin set-role --email <email> --role admin|main_admin
+//   admin create --email <email> [--name <name>] [--role admin|editor|main_admin]
+//   admin set-role --email <email> --role admin|editor|main_admin
 //   admin set-password --email <email>
 //   admin disable --email <email>
 //   admin enable --email <email>
-//   admin list            (the hash column shows 'none' for a row that can't log in)
+//   admin list            (the hash column shows 'none' for a row that can't log in; the projects
+//                          column shows 'all', or an editor's assigned keys, given on /admin/users)
 import { parseArgs } from 'node:util';
 import postgres from 'postgres';
 import { z } from 'zod';
@@ -20,8 +21,8 @@ type Command = (typeof COMMANDS)[number];
 const isCommand = (value: string | undefined): value is Command => COMMANDS.some((c) => c === value);
 
 const USAGE = `usage:
-  admin create --email <email> [--name <name>] [--role admin|main_admin]
-  admin set-role --email <email> --role admin|main_admin
+  admin create --email <email> [--name <name>] [--role admin|editor|main_admin]
+  admin set-role --email <email> --role admin|editor|main_admin
   admin set-password --email <email>
   admin disable --email <email>
   admin enable --email <email>
@@ -82,7 +83,7 @@ async function run(args: string[]): Promise<void> {
       case 'list':
         for (const admin of await listAdmins(sql)) {
           const status = admin.disabled ? 'disabled' : 'active';
-          console.log(`${admin.id}  ${admin.email}  ${admin.role}  ${status}  ${admin.hash}  ${admin.name ?? '-'}  ${admin.created_at.toISOString()}`);
+          console.log(`${admin.id}  ${admin.email}  ${admin.role}  ${status}  ${admin.hash}  ${admin.projects}  ${admin.name ?? '-'}  ${admin.created_at.toISOString()}`);
         }
         break;
     }

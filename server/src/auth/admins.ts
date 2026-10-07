@@ -27,7 +27,7 @@ function checkPassword(password: string): void {
 
 export function parseRole(role: string): AdminRole {
   const found = ADMIN_ROLES.find((r) => r === role);
-  if (!found) throw new AdminCliError(`the role must be ${ADMIN_ROLES.join(' or ')}, got ${role}`);
+  if (!found) throw new AdminCliError(`the role must be ${ADMIN_ROLES.slice(0, -1).join(', ')} or ${ADMIN_ROLES.at(-1)}, got ${role}`);
   return found;
 }
 
@@ -85,17 +85,21 @@ async function changeAdmin(
   });
 }
 
+/** An admin as the CLI prints it. */
+type CliAdmin = Pick<AdminPrincipal, 'id' | 'email' | 'name' | 'role'>;
+
+/** Creates a login. A new editor has no projects until the main admin gives it some on /admin/users. */
 export async function createAdmin(
   sql: Sql,
   input: { email: string; name?: string | undefined; password: string; role?: AdminRole | undefined },
-): Promise<AdminPrincipal> {
+): Promise<CliAdmin> {
   const email = parseEmail(input.email);
   const role = input.role ?? 'admin';
   checkPassword(input.password);
   const passwordHash = await hashPassword(input.password);
   const created = sql.begin(async (tx) => {
     if (role === 'main_admin') await assertNoOtherMainAdmin(tx, null);
-    const [admin] = await tx<AdminPrincipal[]>`
+    const [admin] = await tx<CliAdmin[]>`
       insert into public.housing_admins (email, name, password_hash, role)
       values (${email}, ${input.name?.trim() || null}, ${passwordHash}, ${role})
       on conflict (email) do nothing
@@ -104,7 +108,7 @@ export async function createAdmin(
     await logChange(tx, 'admin_create', email);
     return admin;
   });
-  return (await refuseSecondMainAdmin(sql, created)) as AdminPrincipal;
+  return (await refuseSecondMainAdmin(sql, created)) as CliAdmin;
 }
 
 /** Sets a new password and ends the admin's sessions, so a leaked session dies with the old password. */
@@ -128,7 +132,8 @@ export async function setDisabled(sql: Sql, email: string, disabled: boolean): P
 
 /**
  * Gives the admin a role. The new role applies on their next request, since the session lookup
- * reads it each time. Only one admin may be main_admin.
+ * reads it each time. Only one admin may be main_admin. An editor's assignments stay when it
+ * becomes an admin; only an editor reads them.
  */
 export async function setRole(sql: Sql, email: string, role: AdminRole): Promise<void> {
   const changed = changeAdmin(
@@ -144,8 +149,10 @@ export async function setRole(sql: Sql, email: string, role: AdminRole): Promise
   await refuseSecondMainAdmin(sql, changed);
 }
 
-export interface AdminListing extends AdminPrincipal {
+export interface AdminListing extends CliAdmin {
   disabled: boolean;
+  /** 'all', an editor's assigned keys joined by commas, or 'none'. */
+  projects: string;
   /** 'none' marks a row whose hash isn't argon2id, which can never log in. */
   hash: 'argon2id' | 'none';
   created_at: Date;
@@ -153,8 +160,13 @@ export interface AdminListing extends AdminPrincipal {
 
 export async function listAdmins(sql: Sql): Promise<AdminListing[]> {
   return sql<AdminListing[]>`
-    select id, email, name, role, disabled_at is not null as disabled,
-      case when password_hash like '$argon2id$%' then 'argon2id' else 'none' end as hash,
-      created_at
-    from public.housing_admins order by email`;
+    select a.id, a.email, a.name, a.role, a.disabled_at is not null as disabled,
+      case when a.password_hash like '$argon2id$%' then 'argon2id' else 'none' end as hash,
+      case when a.role <> 'editor' or a.all_projects then 'all'
+           else coalesce(string_agg(ap.project_key, ',' order by ap.project_key), 'none') end as projects,
+      a.created_at
+    from public.housing_admins a
+    left join public.housing_admin_projects ap on ap.admin_id = a.id
+    group by a.id
+    order by a.email`;
 }
