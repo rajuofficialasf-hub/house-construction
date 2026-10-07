@@ -224,7 +224,7 @@ Meanwhile the other developer rebuilt the app as a multi-project platform on Sup
 
 ## Session chunks
 
-Each chunk is one session that ends with green tests and commits. Chunks run in this order. Removal (P9) starts only after P6–P8 pass, including the R13 walkthrough.
+Each chunk is one session that ends with green tests and commits. Chunks run in this order. Removal (P9) starts only after P6–P8 and P8b pass, including the R13 walkthrough.
 
 | Chunk | Scope | Requirements | Gate to start |
 |---|---|---|---|
@@ -236,10 +236,11 @@ Each chunk is one session that ends with green tests and commits. Chunks run in 
 | **P6** | REST adapter and default: rewrite `src/backend/rest/endpoints.ts` and `index.ts` to the new routes with no legacy fallback; real `ProjectsApi`; REST default in `factory.ts`, `.env.example`, `compose.yaml`; move legacy into the mock; contract suite gains a `ProjectsApi` part and every new `HousingApi` method, run against REST and, while it still exists, local Supabase as the parity reference | R1, R10, R11 | P5 |
 | **P7** | Playwright and import tests: `admin-rest` specs for the wizard and settings, field and stat-card builders, covers, import with custom and private fields, CSV export with private columns, category rename, delete hidden from a plain admin (AE1); unit tests for `importFields.ts` and `importAnalyze.ts`; CI runs all suites on REST | R12, R14 | P6 |
 | **P8** | Chrome walkthrough on the local stack against a checklist drawn from M-steps 1–15 (`docs/MULTI_PROJECT_PLAN.md`), saved in `docs/progress/`; fix whatever it finds | R13 | P7 green in CI |
-| **P9** | Removal: Supabase package, adapter, `supabase/` folder, scripts, tests, Playwright projects, env vars; `deploy/`, the edge service and jobs, the runbook; `import:supabase` and its tests and fixtures; `/housing` routes and `API_CONTRACT.md`; `PROJECTS_API_CONTRACT.md` corrected to the server as built; docs rewritten, including the mermaid pages in `docs/diagrams/` (`backend-architecture.md` loses the Supabase, deploy and cutover pictures and gains the registry tables; `test-strategy.md` loses the live-Supabase lanes); bundle check; AE4 search | R15, R16, R17, R18 | P8 checklist fully checked |
+| **P8b** | Filtered stat cards on the server: the adapters report an unfiltered fallback, one shared record-filter builder, the list's filters on `GET /projects/:key/stats` with `main`'s filtered shape, the REST adapter, contract and specs (parity target `main` 87c7241 for this feature only) | R1, R5, R7, R9, R10, R11, R12 | P8 done (checklist fully checked) |
+| **P9** | Removal: Supabase package, adapter, `supabase/` folder, scripts, tests, Playwright projects, env vars; `deploy/`, the edge service and jobs, the runbook; `import:supabase` and its tests and fixtures; `/housing` routes and `API_CONTRACT.md`; `PROJECTS_API_CONTRACT.md` corrected to the server as built; docs rewritten, including the mermaid pages in `docs/diagrams/` (`backend-architecture.md` loses the Supabase, deploy and cutover pictures and gains the registry tables; `test-strategy.md` loses the live-Supabase lanes); bundle check; AE4 search | R15, R16, R17, R18 | P8 checklist fully checked and P8b done |
 | **P10** | Handoff guide: run, extend, test; `CLAUDE.md` profile final | R19 | P9 |
 
-P1 to P8 are planned in full below. P9 and P10 get their own units from `ae-plan` at their start, against the code as it is then.
+P1 to P8 and P8b are planned in full below. P9 and P10 get their own units from `ae-plan` at their start, against the code as it is then.
 
 **P5–P7 run as one batch** (user-directed, 2026-10-06):
 
@@ -2583,6 +2584,245 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
 - The P8 verification passes after the review fixes.
 - Progress says P8 is done. It names the checklist path and lists the defects, the test counts and the review results. **Next** is P9, the removal.
 
+## Implementation units — P8b (Filtered stat cards on the server)
+
+**Why now:**
+- `main` 87c7241, merged in 6b96150, makes the list page's stat cards follow the list filters. It does this through `HousingApi.stats(key, { filters })`, backed by Supabase SQL 15 `project_stats_filtered`.
+- This chunk ports that feature to the server, with `main` 87c7241 as the parity target for this feature only. Everything else stays at `a8e2154`.
+- It runs before P9, while local Supabase still exists, and P9's gate now includes P8b being done (user-decided 2026-10-07: "do whatever is good").
+
+### P8b decisions
+
+- **The merge left a gap that U46 closes first.**
+  - The REST adapter ignores `filters` and returns no `filtered` field.
+  - `ProjectListPage.tsx` treats an unset `filtered` as filtered, so REST shows totals under the "ফিল্টার অনুযায়ী" banner.
+  - Both the REST adapter (until U49) and the mock adapter (for good) return `filtered: false` when filters are given. That is `main`'s own fallback, so the cards show totals with no banner.
+- **The server computes filtered stats in TypeScript with postgres.js tagged templates (`DB-Q-01`), in one query, with no migration** unless the 50k timing misses 300 ms (see Risks).
+  - The point of the feature is that the cards match the list. The list's WHERE is already postgres.js fragments (`server/src/records/reads.ts:94-116`).
+  - So the conditions move into one shared builder, `server/src/records/filters.ts`, and the list and the stats both use it. The list's behaviour is unchanged (`TS-22`: the `records-reads` tests pass untouched).
+  - A plpgsql port of SQL 15 would drift from our list:
+    - SQL 15 turns `*` into a wildcard and leaves `_` unescaped.
+    - Our list escapes `\ % _` (`likePattern`).
+    - SQL 15 silently drops invalid values, where our list answers 400.
+  - The server follows its own list, and these differences go in Progress for P9's contract rewrite.
+- **The wire format is the list's own filter parameters on `GET /projects/:key/stats`,** with exactly the list's names: `year`, `division`, `district`, `upazila`, `union_name`, `f.<key>`, `q`.
+  - The shared zod pieces move into a leaf module, `server/src/records/filterParams.ts`, which imports neither schema file. Both `records/schemas.ts` and `projects/schemas.ts` use it, so there is no import cycle. It holds:
+    - `intParam` and `textParam` (max 100, the list's existing bound for `q` and every text value)
+    - the five shared list filter fields
+    - `fieldFilters` and `MAX_FIELD_FILTERS`
+  - The route calls `fieldFilters(req.query)` itself, because zod strips the `f.*` keys, as the list route does.
+  - Validation and the 400s match the list.
+  - With any filter present, the response is `main`'s filtered shape:
+    - `filtered: true`
+    - `total`
+    - `distinct` (divisions, districts, upazilas, unions)
+    - `by_project`
+    - `fields` (money and number `{type, sum, count}`, category `{type, distinct}`)
+    - `by_year`, `by_division`, `by_district`, `by_upazila`, `by_location` and `by_union` as `{}`
+  - `light` is ignored when filters are present. With no filter, the route is unchanged, and `filtered` stays absent.
+- **Visibility is the same as stats today:**
+  - A visitor gets 404 for a draft or hidden project.
+  - A group counts only its published leaves (`housing_project_counted_leaves(key, public_only)`).
+  - **Per-leaf rule (security review):** a field key is used only if it is public and active in **every** counted leaf, with the same type in every leaf. Otherwise it is ignored, as the list ignores an unknown key. This applies to:
+    - an `f.<key>` filter, which must also be filterable in every leaf
+    - a `q` search field, which must also be searchable in every leaf
+    - a field counted in `fields`
+
+    So a key that is private in one leaf can never narrow or count that leaf's values through a sibling. List pages are per leaf, so this costs nothing in the UI. (SQL 15 accepts a key public in any leaf; this difference is for P9's contract rewrite.)
+  - Private fields are never in `fields`. Only public active money, number and category fields are counted, as in `0016`.
+  - **Nothing new is exposed:** `q` and the year, geo and `union_name` filters cover only columns the visitor list already returns. So narrowing the filters to one record shows nothing the list doesn't already show for that record.
+- **Parity is proven by the relation, not by the Supabase run.**
+  - The contract gains a "filtered stats agree with the list under the same filters" block (totals, money sums and category distinct).
+  - It runs on REST.
+  - On mock and on local Supabase it is a known gap:
+    - The mock answers `filtered: false`.
+    - Local Supabase loads SQL files only up to `a8e2154`, and SQL 15 needs SQL 14 (`asf_meta.data_fingerprint`), whose project-user RLS is past the parity target. So it is not loaded.
+  - SQL 15's own `15_selftest.sql` checks the same relation on Supabase.
+- **CORS and caching are unchanged:**
+  - `/api/v1/projects/:key/stats` is already in `PUBLIC_READ_ROUTES`, which matches on the path, so filtered calls are public reads.
+  - `sessionAwareCaching` stays as it is (visitors get `Vary: Cookie`, admins `private, no-store`).
+  - The router-wide read limiter applies, the same exposure as the list route, which already runs the same WHERE with a count.
+  - The filtered query runs in a transaction with `set local statement_timeout = '2s'`, so a slow combination fails as a 500 instead of holding a connection.
+  - Group size is bounded by the registry, which has a few leaves per group.
+- **Specs:**
+  - The new filtered-cards spec lives in `e2e/admin/`, run by `admin-rest` against the deterministic reset seed.
+  - `e2e/live/list-filters.spec.ts:69-80` today asserts the stat total is unchanged after a filter. It becomes a relation that holds on both its hosts:
+    - when the banner shows, the count card equals the list's own total (its "মোট N টির মধ্যে" pagination text), not the visible row count, because the list is paged at 50
+    - without the banner, the count card equals the unfiltered total
+    - The same banner-conditional relation holds on `public-rest`, `public-mock`, `live` and `edge-rest`, so no host is skipped.
+  - `list-filters.spec.ts:60-66` ("a search with no match") matches `main [role=status]`, which the filtered banner now also matches. Its locator is narrowed to the empty-list status by its text.
+- **The contract document is not edited here.** P9's `PROJECTS_API_CONTRACT.md` rewrite gains the stats filter parameters and the differences from SQL 15.
+
+### U46. Adapters say when they didn't filter
+- **Goal:** Until the server filters, a filtered list on REST or the mock shows totals with no "filtered" banner.
+- **Requirements:** R10 (mock stays a supported dev backend), R11.
+- **Files:**
+  - `src/backend/rest/index.ts`
+  - `src/backend/rest/housingApi.test.ts`
+  - `src/backend/statsFilters.ts` (new) and its test
+  - `src/backend/mock/` (its `stats`)
+  - a mock adapter test, beside the existing mock tests
+- **Approach:**
+  - When `opts.filters` holds any value, the result gets `filtered: false`.
+  - "Any value" is judged by a new `hasStatsFilters(StatsFilters)` in `src/backend/statsFilters.ts`, shared by REST and the mock, so `src/backend` doesn't import from `features/`.
+    - Undefined, `''`, whitespace-only `q` and whitespace-only field values count as empty.
+    - U49's REST query mapping uses the same rule, so "has filters" and "sends filter parameters" never disagree.
+- **Tests:**
+  - no filters: no `filtered` key, same as today
+  - with `{ year: 2024 }`: `filtered: false`, and the totals equal the unfiltered call
+  - empty strings, whitespace-only `q`, whitespace-only field values and an empty `fields` count as no filters
+- **Done when:** `npm test` passes, and a filtered list on REST shows totals with no banner.
+- **Depends on:** none
+- **Status:** todo
+
+### U47. One filter builder for records
+- **Goal:** The record list's WHERE conditions live in one exported builder that also accepts a set of project keys.
+- **Requirements:** R1, R9.
+- **Files:**
+  - `server/src/records/filters.ts` (new)
+  - `server/src/records/filterParams.ts` (new: the shared zod pieces, P8b decisions)
+  - `server/src/records/schemas.ts` (imports from `filterParams.ts`)
+  - `server/src/records/reads.ts`
+  - `server/test/db/records-filters.test.ts` (new)
+- **Approach:**
+  - Move the condition building from `listProjectRecords` (`reads.ts:94-116`) into `recordFilters(sql, { keys, filterable, searchable, query })`, which returns an array of fragments joined by `and`.
+  - `keys` is a list, and the list passes its one key, so the list's SQL is `b.project_type = any(...)` with one element.
+  - `filterable` (key to type) and `searchable` are passed in. The list takes them from `recordProject`, and the stats take the per-leaf intersection (P8b decisions).
+  - `likePattern` and `filterValue` are reused.
+  - Tagged templates only (`DB-Q-01`), with no `sql.unsafe`.
+- **Tests:**
+  - characterization (`TS-22`): every test in `server/test/http/records-reads.test.ts` passes unchanged
+  - unit tests for the builder through a real query on `housing_test`:
+    - two keys
+    - an `f.<key>` not in `filterable` is ignored
+    - `q` with `%` and `_` is literal
+- **Done when:** `npm --prefix server test` passes with no edits to existing tests.
+- **Depends on:** none
+- **Status:** todo
+
+### U48. Filtered stats on `GET /projects/:key/stats`
+- **Goal:** The stats route accepts the list's filters and answers with `main`'s filtered shape.
+- **Requirements:** R5, R7, R9.
+- **Files:**
+  - `server/src/projects/schemas.ts` (`statsQuery`, built from `records/filterParams.ts`)
+  - `server/src/projects/reads.ts` (`projectStats`)
+  - a new `server/src/projects/filteredStats.ts`
+  - `server/src/openapi.ts`
+  - `server/test/http/projects-stats.test.ts`
+- **Approach:**
+  - `statsQuery` gains the list's filter fields, reusing the zod pieces, so `f.*` and the 400 rules match the list.
+  - When any filter is present, `projectStats`:
+    - resolves the counted leaves with `housing_project_counted_leaves(key, !admin)`
+    - loads those leaves' public, active fields, and keeps a key only if every leaf has it public with the same type (filterable and searchable likewise)
+    - runs one query: a `base` CTE over `housing_beneficiaries` with `project_type = any(leaves)` plus the U47 conditions, then `count(*)`, `count(distinct …) collate "C"` for the four geo levels (as `0016`), `by_project` grouped, and one aggregate per counted field
+  - Category `distinct` is distinct bytes (`collate "C"`) over non-empty string values, as `0016` does with no text normalisation. Money and number fields count only `jsonb_typeof = 'number'` values, as in `0016`.
+  - The query runs in a transaction with `set local statement_timeout = '2s'` (P8b decisions).
+  - OpenAPI documents the new parameters from the zod schema (the drift test already reads it) and the response's `filtered` flag.
+- **Tests** (seed small projects as `projects-stats.test.ts` does):
+  - each filter alone (year, division, district, upazila, `union_name`, a category `f.<key>`, a money `f.<key>`, and `q` over name, father's name, address and a searchable custom field) gives the same `total` as `GET /projects/:key/records` with the same query
+  - money `sum` equals the sum over the listed rows, and category `distinct` equals the distinct listed values
+  - a combined filter (year plus district plus `q`)
+  - a group key with filters counts its published leaves only, as a visitor, and draft children too as an admin
+  - errors and refusals:
+    - a draft project's filtered stats are 404 for a visitor (`TS-13`)
+    - an `f.<key>` naming a private or non-filterable field is ignored
+    - an invalid money filter and an out-of-range year are 400 with the list's error
+    - more than `MAX_FIELD_FILTERS` field filters is 400
+    - a `q` over 100 characters is 400
+  - security (P8b decisions):
+    - a group whose two leaves disagree on a field's visibility: an `f.<key>` on it is ignored (counts equal the unfiltered ones), and it is absent from `fields`
+    - a group whose leaves disagree on a field's type: the key is ignored
+    - a `q` equal to a value held only in a private field gives total 0
+    - a private-field `f.<key>` returns the same counts as the unfiltered call
+    - `q` with `%`, `_` and `\` is literal on the stats route
+    - a visitor's filter that matches only a draft child leaf's rows counts 0 for the group (`TS-13`)
+  - no filter: the response is byte-for-byte as before (no `filtered` key)
+  - CORS: a public-read origin gets the filtered GET without credentials
+  - OpenAPI drift test passes
+  - **Timing, once:** 50k records in one project of the dev database, with a year plus district plus category filter, under 300 ms. Record the result in Progress, then reset with a re-seed.
+- **Done when:** `npm --prefix server run typecheck` and `npm --prefix server test` pass, and the timing is recorded.
+- **Depends on:** U47
+- **Status:** todo
+
+### U49. REST adapter passes the filters
+- **Goal:** On REST, the list page's cards follow the filters.
+- **Requirements:** R1, R11.
+- **Files:**
+  - `src/backend/rest/index.ts`
+  - `src/backend/rest/housingApi.test.ts`
+  - `src/backend/statsFilters.ts` (the shared query mapping)
+  - `tests/contract/projectsApiContract.ts` (where the P6 blocks build their own projects and fields)
+  - `tests/contract/supabase.local.contract.test.ts` (`PROJECT_KNOWN_GAPS`)
+- **Approach:**
+  - `stats(key, { filters })` builds its query with the same mapping as `listQuery` (`rest/index.ts:49-66`), moved into `src/backend/statsFilters.ts` and shared by both.
+  - The response's `filtered` flag comes straight from the server.
+  - The U46 `filtered: false` stays only on the mock.
+  - The contract's new block lives in `projectsApiContract.ts`.
+    - Local Supabase lists it in `PROJECT_KNOWN_GAPS` with the exact test names.
+    - If the mock contract runs the project blocks, the mock lists it the same way. If it doesn't, nothing is listed for the mock.
+- **Tests:**
+  - unit: filters become `year=`, `division=`, `district=`, `upazila=`, `union_name=`, `f.<key>=` and `q=`, exactly the list's names and mapping, and empty filters send none
+  - contract on REST, building its own project with a money and a category field (as the P6 blocks do):
+    - filtered total equals the listed count
+    - money sum equals the listed sum
+    - category distinct equals the listed distinct
+    - no filter: `filtered` is absent
+- **Done when:** `npm test` and `npm run test:contract:rest` pass. `npm run test:contract:supabase-local` passes with the new known gaps listed.
+- **Depends on:** U46, U48
+- **Status:** todo
+
+### U50. Specs: the cards follow the filters
+- **Goal:** Playwright proves the list page's cards follow the filters on the server.
+- **Requirements:** R12.
+- **Files:**
+  - `e2e/admin/stat-cards-filtered.spec.ts` (new)
+  - `e2e/live/list-filters.spec.ts` (lines 60-66 and 69-80)
+- **Approach:**
+  - On `admin-rest`, two explicit steps:
+    1. **As a visitor, on the seeded public `semi_pucca` list:**
+       - read the count card
+       - apply a year filter: the banner shows, and the count card equals the list's total ("মোট N টির মধ্যে")
+       - clear: the totals and no banner come back
+    2. **As the main admin, on the `demo` draft preview** (it has the custom money and category fields):
+       - apply a `trade` filter: the money sum card equals the sum of the listed `অনুদান` cells (all rows fit on one page)
+  - `list-filters.spec.ts:69-80` changes to the relation in the P8b decisions.
+  - Web-first waits only (`TS-31`).
+- **Tests:** the specs above. `admin-rest` passes twice in a row, and `public-rest` and `public-mock` pass.
+- **Done when:** `npm run test:e2e:rest-admin` (twice), `npm run test:e2e:rest` and `npm run test:e2e:mock` pass.
+- **Depends on:** U49
+- **Status:** todo
+
+### P8b order and parallel lanes
+
+- **Lane A:** U47 → U48 → U49 → U50.
+- **Lane B:** U46 is independent and goes first, so the merge's banner gap closes at once.
+
+### Verification (P8b)
+
+- `npm --prefix server run typecheck` and `npm --prefix server test`
+- `npx tsc -b`, `npm run lint` and `npm test` at the root
+- `npm run test:contract:rest` and `npm run test:contract:supabase-local` (parity reference, with the new known gaps)
+- `npm run test:e2e:rest-admin` (twice), `npm run test:e2e:rest` (with `docker compose up -d db api`, once the API answers) and `npm run test:e2e:mock`
+- `npm run test:all`, `npm run build` and `npm run check:prod-bundle`
+- The housing_test suites never run in parallel.
+
+### Risks and rollback (P8b)
+
+- **The shared filter builder touches the list.** U47 is a pure move, proven by the unchanged `records-reads` tests. Rollback is a revert of U47 and U48.
+- **The filtered query scans the matched rows of the counted leaves.** The existing indexes on `project_type`, the geo columns, `GIN(extra)` and the trigram name indexes serve the WHERE. U48's 50k timing is the check. If it misses 300 ms, a follow-up migration adds the index (in a new unit), and rollback is its down section.
+- **There is no migration unless the timing misses,** so normally there is nothing to roll back in the database.
+
+### Definition of done (P8b)
+
+- U46–U50 are done and their tests pass.
+- The P8b verification passes.
+- One `ae-simplify` and one `ae-review` ran over the P8b commits. Every P0 and P1 is fixed, and the P2s too.
+- Progress records:
+  - the commit range and test counts
+  - the 50k timing
+  - the server's differences from SQL 15 (`q` wildcard and escaping, invalid values 400), for P9's contract rewrite
+- **Next** is P9.
+
 ## Verification
 
 Run these at the end of P1:
@@ -2937,3 +3177,20 @@ Run these at the end of P1:
       - **For P9 to decide:**
         - `/admin/users` on REST says `NOT_IMPLEMENTED` but still shows the add form with Supabase instructions.
         - The serial dialog's `/housing/…` link text is wrong for other projects.
+  - **`main` merged again (2026-10-07, 6b96150):** 87c7241 brings filtered stat cards (SQL 15) and removes project icons.
+    - The one conflict was `src/backend/rest/index.ts` (ours kept).
+    - The merge's gap: REST returns no `filtered`, so a filtered list shows totals under the "ফিল্টার অনুযায়ী" banner. `public-rest`'s "a search with no match" fails on the extra `role=status`. P8b's U46 closes it first.
+  - **P8b planned (2026-10-07):** the user said "do whatever is good" for the filtered stats. `ae-plan` added the P8b decisions and U46–U50 to port them before P9, while local Supabase still exists. P9's gate gains "P8b done".
+    - **`ae-doc-review` ran on P8b** (coherence, feasibility, security). It fixed:
+      - `union_name` (the list's name)
+      - a leaf module `records/filterParams.ts` for the shared zod pieces, avoiding an import cycle
+      - the contract block in `projectsApiContract.ts` with `PROJECT_KNOWN_GAPS`
+      - a `hasStatsFilters` helper in `src/backend`
+      - the spec relation against the list's total (paged at 50)
+      - the narrowed no-match locator
+      - `collate "C"` distinct semantics
+      - a timeout on the filtered query
+      - the per-leaf visibility and type rule, with its tests
+      - the requirement and gate wording
+      - U47's test file
+      - the index-migration fallback
