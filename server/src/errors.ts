@@ -78,6 +78,7 @@ const SERIAL_KEY = 'housing_beneficiaries_project_serial_key';
  */
 const NAMED_CONSTRAINTS: Record<string, { code: 'CONFLICT' | 'VALIDATION_ERROR'; field: string; message: string }> = {
   housing_projects_pkey: { code: 'CONFLICT', field: 'key', message: 'এই key আগে থেকেই আছে' },
+  housing_projects_key_reserved: { code: 'VALIDATION_ERROR', field: 'key', message: 'এই key সংরক্ষিত — অন্যটি দিন' },
   housing_projects_slug_key: { code: 'CONFLICT', field: 'slug', message: 'এই URL আগে থেকেই আছে' },
   housing_projects_file_prefix_key: { code: 'CONFLICT', field: 'file_prefix', message: 'এই প্রিফিক্স অন্য প্রকল্পে আছে' },
   housing_project_fields_project_key_key: { code: 'CONFLICT', field: 'key', message: 'এই প্রকল্পে একই key এর ফিল্ড আগে থেকেই আছে' },

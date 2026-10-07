@@ -18,6 +18,8 @@ export const RESERVED_SLUGS: readonly string[] = [
 
 const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/
 const KEY_RE = /^[a-z][a-z0-9_]{1,39}$/
+/** যে key প্রকল্পের রুটে আগে থেকেই আছে (/projects/overview, /projects/order) — server/db/migrations/0020_reserved_project_keys.sql এর হুবহু */
+const RESERVED_KEYS: readonly string[] = ['overview', 'order']
 const PREFIX_RE = /^[a-z][a-z0-9]{0,15}$/
 
 /** ইংরেজি নাম → slug: "Self-Reliance Project" → "self-reliance-project" (≤ ৬০) */
@@ -61,6 +63,7 @@ export function slugError(slug: string, projects: readonly Project[], selfKey?: 
 
 export function keyError(key: string, projects: readonly Project[]): string | null {
   if (!KEY_RE.test(key)) return t('key: ইংরেজি ছোট অক্ষর দিয়ে শুরু, তারপর অক্ষর/অঙ্ক/_ (২–৪০ অক্ষর)')
+  if (RESERVED_KEYS.includes(key)) return t('এই key সংরক্ষিত — URL অংশ একটু বদলান')
   if (projects.some((p) => p.key === key)) return t('এই key আগে থেকেই আছে — URL অংশ একটু বদলান')
   return null
 }
@@ -107,6 +110,7 @@ export function friendlyProjectError(err: unknown): string {
   // ইনপুটের নিয়ম (zod) ভাঙলে reason থাকে; সংরক্ষিত key এর মতো ডাটাবেসের নিষেধে থাকে না, তখন সার্ভারের বার্তাই ঠিক
   if (e.code === 'VALIDATION_ERROR' && e.details?.reason !== undefined) {
     if (field === 'slug') return t('শুধু ছোট ইংরেজি অক্ষর, অঙ্ক আর মাঝে হাইফেন (-), যেমন self-reliance')
+    if (field === 'key' && e.details.reason === 'reserved') return t('এই key সংরক্ষিত — URL অংশ একটু বদলান')
     if (field === 'key') return t('key: ইংরেজি ছোট অক্ষর দিয়ে শুরু, তারপর অক্ষর/অঙ্ক/_ (২–৪০ অক্ষর)')
     if (field === 'name_bn' || field === 'name_en') return t('বাংলা ও ইংরেজি দুই নামই দিন (১–১২০ অক্ষর)')
   }

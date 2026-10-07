@@ -8,7 +8,13 @@ import { z } from 'zod';
 // unknown key is refused without being echoed, and none reaches an insert or update.
 
 /** A project's permanent key, as housing_projects_key_format allows (0011_projects_registry.sql). */
-export const projectKey = z.string().regex(/^[a-z][a-z0-9_]{1,39}$/, 'not a project key');
+/** Keys a project route already uses (/projects/overview, /projects/order); 0020_reserved_project_keys.sql refuses them too. */
+export const RESERVED_PROJECT_KEYS: readonly string[] = ['overview', 'order'];
+
+export const projectKey = z
+  .string()
+  .regex(/^[a-z][a-z0-9_]{1,39}$/, 'not a project key')
+  .refine((key) => !RESERVED_PROJECT_KEYS.includes(key), { message: 'এই key সংরক্ষিত — অন্যটি দিন', params: { reason: 'reserved' } });
 
 export const projectKeyParams = z.object({ key: projectKey });
 

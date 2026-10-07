@@ -519,6 +519,7 @@ Object.assign(EN, {
   'উপরের লাল চিহ্নিত ঘরগুলো ঠিক করুন।': 'Please fix the fields marked in red above.',
   'এই URL আগে থেকেই আছে — অন্যটি দিন': 'This URL already exists — choose another',
   'এই key আগে থেকেই আছে — URL অংশ একটু বদলান': 'This key already exists — change the URL part a little',
+  'এই key সংরক্ষিত — URL অংশ একটু বদলান': 'This key is reserved — change the URL part a little',
   'এই কাজের অনুমতি নেই': 'You do not have permission for this',
   'এই প্রিফিক্স অন্য প্রকল্পে আছে — অন্যটি দিন': 'Another project uses this prefix — choose another',
   'একক প্রকল্প': 'Standalone project',

@@ -125,6 +125,18 @@ describe('project guard', () => {
   });
 });
 
+describe('reserved project keys', () => {
+  it.each(['overview', 'order'])('refuses %s, which a project route already uses', async (key) => {
+    await expect(insertProject(owner, { key })).rejects.toMatchObject({ code: '23514', constraint_name: 'housing_projects_key_reserved' });
+  });
+
+  it('allows a key that only starts with a reserved word', async () => {
+    await insertProject(owner, { key: 'overviews' });
+    await insertProject(owner, { key: 'orders' });
+    expect(await owner`select key from public.housing_projects where key in ('overviews', 'orders') order by key`).toEqual([{ key: 'orders' }, { key: 'overviews' }]);
+  });
+});
+
 describe('project delete', () => {
   it('refuses a group with children', async () => {
     await refused(app`delete from public.housing_projects where key = 'housing'`, 'parent_key');

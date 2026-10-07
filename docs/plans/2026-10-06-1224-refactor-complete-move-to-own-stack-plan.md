@@ -3670,7 +3670,7 @@ Run once, after U64:
 - **Tests:** a create with key `overview` or `order` is 400 with `details.field = 'key'` from zod; a direct insert hits the CHECK, and `errors.ts` maps it the same way; the wizard shows the key error; `overviews` and `orders` are allowed.
 - **Done when:** `npx vitest run test/db/project-guards.test.ts test/http/projects-writes.test.ts` (from `server/`) and `npm test` pass.
 - **Depends on:** none
-- **Status:** todo
+- **Status:** done
 
 ### U76. Docs
 - **Goal:** The contract, the admin guide, the architecture notes and the testing README describe the three roles and user management as built.
@@ -3758,7 +3758,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** `ae-work` on P9b, U75 (U65–U71 and U77 done). P10 (the handoff guide and the final `CLAUDE.md` profile, with the mock rule and the migration-comment exception) follows P9b.
+- **Next:** `ae-work` on P9b, U72 (U65–U71, U75 and U77 done). P10 (the handoff guide and the final `CLAUDE.md` profile, with the mock rule and the migration-comment exception) follows P9b.
 - **Uncommitted:** nothing.
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.

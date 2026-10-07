@@ -99,6 +99,18 @@ describe('POST /projects', () => {
     expect(res.body.error.details).toEqual({ field });
   });
 
+  it.each(['overview', 'order'])('refuses the key %s, which a project route already uses', async (key) => {
+    const res = await send('post', '/projects', { ...newProject, project: { ...newProject.project, key } });
+    expect(res.status).toBe(400);
+    expect(res.body.error.details).toEqual({ field: 'project.key', reason: 'reserved' });
+    expect(await owner`select key from public.housing_projects where key = ${key}`).toEqual([]);
+  });
+
+  it.each(['overviews', 'orders'])('accepts the key %s', async (key) => {
+    const res = await send('post', '/projects', { ...newProject, project: { ...newProject.project, key } });
+    expect(res.status).toBe(201);
+  });
+
   it('passes a guard refusal through as 400 with its field, without echoing the slug', async () => {
     const res = await send('post', '/projects', { ...newProject, project: { ...newProject.project, slug: 'admin' } });
     expect(res.status).toBe(400);

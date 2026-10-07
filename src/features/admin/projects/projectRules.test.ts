@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { HousingApiError } from '@/backend'
-import { friendlyProjectError, isStaleEdit } from './projectRules'
+import { friendlyProjectError, isStaleEdit, keyError } from './projectRules'
 
 // friendlyProjectError and isStaleEdit read the field and reason the server names (details.field,
 // details.reason), so a duplicate key gets its own message and only a stale edit says "someone
@@ -53,5 +53,20 @@ describe('isStaleEdit', () => {
     expect(isStaleEdit(err('CONFLICT', 'এই URL আগে থেকেই আছে', { field: 'slug' }))).toBe(false)
     expect(isStaleEdit(err('VALIDATION_ERROR', 'x'))).toBe(false)
     expect(isStaleEdit(new Error('boom'))).toBe(false)
+  })
+})
+
+describe('keyError', () => {
+  it('refuses a key a project route already uses, and allows longer words', () => {
+    expect(keyError('overview', [])).toBe('এই key সংরক্ষিত — URL অংশ একটু বদলান')
+    expect(keyError('order', [])).toBe('এই key সংরক্ষিত — URL অংশ একটু বদলান')
+    expect(keyError('overviews', [])).toBeNull()
+    expect(keyError('orders', [])).toBeNull()
+  })
+
+  it('gives a reserved key refused by the server the same message', () => {
+    expect(friendlyProjectError(err('VALIDATION_ERROR', 'এই key সংরক্ষিত — অন্যটি দিন', { field: 'project.key', reason: 'reserved' }))).toBe(
+      'এই key সংরক্ষিত — URL অংশ একটু বদলান',
+    )
   })
 })

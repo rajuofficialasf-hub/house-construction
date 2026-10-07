@@ -132,6 +132,12 @@ describe('errorHandler with Postgres errors', () => {
     expect(JSON.stringify(res.body)).not.toContain('housing_project_fields');
   });
 
+  it('maps the reserved project-key CHECK to 400 naming key', async () => {
+    const res = await request(appThrowing(pgError({ code: '23514', constraint_name: 'housing_projects_key_reserved' }))).get('/boom');
+    expect(res.status).toBe(400);
+    expect(res.body.error).toEqual({ code: 'VALIDATION_ERROR', message: 'এই key সংরক্ষিত — অন্যটি দিন', details: { field: 'key' } });
+  });
+
   it('keeps any other CHECK the fixed 400 with no field', async () => {
     const res = await request(appThrowing(pgError({ code: '23514', constraint_name: 'housing_project_fields_phone_private' }))).get('/boom');
     expect(res.body).toEqual({ error: { code: 'VALIDATION_ERROR', message: 'ইনপুট সঠিক নয়', details: { reason: 'constraint' } } });
