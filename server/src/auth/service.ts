@@ -1,6 +1,6 @@
 import { withActor } from '../db.js';
 import { hashPassword, needsUpgrade, verifyDummy, verifyPassword } from './password.js';
-import { createSession, deleteExpiredSessions } from './session.js';
+import { createSession, deleteExpiredSessions, principalColumns } from './session.js';
 import type { AdminPrincipal, AuthDeps } from './types.js';
 
 type LoginFailure = 'unknown' | 'bad_password' | 'disabled' | 'changed';
@@ -22,15 +22,15 @@ interface AdminRow extends AdminPrincipal {
 export async function login(deps: AuthDeps, email: string, password: string): Promise<LoginResult> {
   const { sql, now } = deps;
   const [row] = await sql<AdminRow[]>`
-    select id, email, name, role, password_hash, disabled_at is not null as disabled
-    from public.housing_admins where email = ${email.trim().toLowerCase()}`;
+    select ${principalColumns(sql)}, a.password_hash, a.disabled_at is not null as disabled
+    from public.housing_admins a where a.email = ${email.trim().toLowerCase()}`;
   if (!row || row.disabled) {
     await verifyDummy(password);
     return { ok: false, reason: row ? 'disabled' : 'unknown' };
   }
   if (!(await verifyPassword(row.password_hash, password))) return { ok: false, reason: 'bad_password' };
 
-  const admin: AdminPrincipal = { id: row.id, email: row.email, name: row.name, role: row.role };
+  const { password_hash: _hash, disabled: _disabled, ...admin } = row;
   const upgraded = needsUpgrade(row.password_hash) ? await hashPassword(password) : undefined;
   const at = now();
   const session = await withActor(sql, admin, async (tx) => {

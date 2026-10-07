@@ -6,8 +6,8 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../src/app.js';
 import { createLogger } from '../../src/logger.js';
-import { appDb, insertRecord, ownerDb, resetTestData } from '../support/db.js';
-import { loginAdmin, TEST_ORIGIN } from '../support/session.js';
+import { appDb, insertProject, insertRecord, ownerDb, resetTestData } from '../support/db.js';
+import { loginAdmin, TEST_ORIGIN, TEST_PASSWORD } from '../support/session.js';
 import { testPhotoDeps } from '../support/storage.js';
 
 const sql = appDb();
@@ -46,6 +46,48 @@ describe('the role through the session', () => {
     const { cookie } = await loginAdmin(app, owner, { role });
     const me = await request(app).get('/api/v1/auth/me').set('cookie', cookie);
     expect(me.body.data.role).toBe(role);
+  });
+});
+
+describe('the project scope through the session', () => {
+  const me = async (cookie: string) => (await request(app).get('/api/v1/auth/me').set('cookie', cookie)).body.data;
+  const login = (input: Parameters<typeof loginAdmin>[2]) =>
+    request(app).post('/api/v1/auth/login').set('origin', TEST_ORIGIN).send({ email: input?.email, password: TEST_PASSWORD });
+
+  it.each([
+    ['a main admin', { role: 'main_admin' as const }],
+    ['an admin', { role: 'admin' as const }],
+    ['an editor with all projects', { role: 'editor' as const, allProjects: true, projects: ['tin'] }],
+  ])('gives %s every project, with an empty list', async (_label, input) => {
+    const { cookie } = await loginAdmin(app, owner, { email: 'x@example.org', ...input });
+    expect(await me(cookie)).toMatchObject({ allProjects: true, projects: [] });
+    expect((await login({ email: 'x@example.org' })).body.data.user).toMatchObject({ allProjects: true, projects: [] });
+  });
+
+  it("gives an editor with a group the group and its children, and nothing else", async () => {
+    await insertProject(owner, { key: 'water' });
+    const { cookie } = await loginAdmin(app, owner, { email: 'ed@example.org', role: 'editor', projects: ['housing'] });
+    expect(await me(cookie)).toMatchObject({ role: 'editor', allProjects: false, projects: ['housing', 'semi_pucca', 'tin'] });
+    expect((await login({ email: 'ed@example.org' })).body.data.user).toMatchObject({
+      allProjects: false,
+      projects: ['housing', 'semi_pucca', 'tin'],
+    });
+  });
+
+  it('applies a change saved after login on the next request', async () => {
+    const { admin, cookie } = await loginAdmin(app, owner, { email: 'ed@example.org', role: 'editor', projects: ['tin'] });
+    expect(await me(cookie)).toMatchObject({ projects: ['housing', 'tin'] });
+    await owner`delete from public.housing_admin_projects where admin_id = ${admin.id}`;
+    await owner`insert into public.housing_admin_projects (admin_id, project_key) values (${admin.id}, 'semi_pucca')`;
+    expect(await me(cookie)).toMatchObject({ allProjects: false, projects: ['housing', 'semi_pucca'] });
+    await owner`update public.housing_admins set role = 'admin' where id = ${admin.id}`;
+    expect(await me(cookie)).toMatchObject({ role: 'admin', allProjects: true, projects: [] });
+  });
+
+  it("answers 401 to a disabled editor's next request", async () => {
+    const { admin, cookie } = await loginAdmin(app, owner, { email: 'ed@example.org', role: 'editor', projects: ['tin'] });
+    await owner`update public.housing_admins set disabled_at = now() where id = ${admin.id}`;
+    expect((await request(app).get('/api/v1/auth/me').set('cookie', cookie)).status).toBe(401);
   });
 });
 

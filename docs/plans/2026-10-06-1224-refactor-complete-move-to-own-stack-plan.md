@@ -3487,7 +3487,7 @@ Run once, after U64:
   - unit: `canEditProject` for each role and for an editor with "all projects"; `refuseEditor` passes an admin and refuses an editor with 403
 - **Done when:** `npm --prefix server run typecheck` passes, and `npx vitest run test/http/auth.test.ts test/http/main-admin.test.ts src/auth` passes.
 - **Depends on:** U65
-- **Status:** todo
+- **Status:** done
 
 ### U67. The admin CLI knows `editor`
 - **Goal:** The CLI creates and lists editors, and its role option names all three roles.
@@ -3758,7 +3758,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** `ae-work` on P9b, U66 (U65 done). P10 (the handoff guide and the final `CLAUDE.md` profile, with the mock rule and the migration-comment exception) follows P9b.
+- **Next:** `ae-work` on P9b, U67 (U65–U66 done). P10 (the handoff guide and the final `CLAUDE.md` profile, with the mock rule and the migration-comment exception) follows P9b.
 - **Uncommitted:** nothing.
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.

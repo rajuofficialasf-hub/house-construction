@@ -66,7 +66,7 @@ describe('login', () => {
   it('creates a session holding only the token hash, and logs the login as the admin', async () => {
     const admin = await insertAdmin(owner, { passwordHash: argonHash });
     const result = await loggedIn();
-    expect(result.admin).toEqual({ id: admin.id, email: 'admin@example.org', name: 'এডমিন', role: 'admin' });
+    expect(result.admin).toEqual({ id: admin.id, email: 'admin@example.org', name: 'এডমিন', role: 'admin', allProjects: true, projects: [] });
     expect(result.token).toMatch(/^[A-Za-z0-9_-]{43}$/);
     expect(result.expiresAt).toEqual(new Date('2026-10-12T08:00:00Z'));
     expect(await sessions()).toEqual([
@@ -179,7 +179,7 @@ describe('authenticate', () => {
     const admin = await insertAdmin(owner, { passwordHash: argonHash });
     const { token } = await loggedIn();
     clock = new Date(clock.getTime() + 7 * HOUR);
-    expect(await authenticate(deps, sha256(token))).toEqual({ id: admin.id, email: admin.email, name: 'এডমিন', role: 'admin' });
+    expect(await authenticate(deps, sha256(token))).toEqual({ id: admin.id, email: admin.email, name: 'এডমিন', role: 'admin', allProjects: true, projects: [] });
     const [row] = await sessions();
     expect(row?.last_seen_at).toEqual(clock);
     // Seven more hours is 14 h after login but only 7 h idle, so the session still holds.

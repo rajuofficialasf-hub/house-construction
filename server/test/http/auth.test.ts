@@ -72,7 +72,7 @@ describe('POST /api/v1/auth/login', () => {
     expect(res.body).toEqual({
       data: {
         expires_at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/),
-        user: { id: admin.id, email: 'admin@example.org', name: 'এডমিন', role: 'admin' },
+        user: { id: admin.id, email: 'admin@example.org', name: 'এডমিন', role: 'admin', allProjects: true, projects: [] },
       },
     });
     const [cookie] = res.headers['set-cookie'] as unknown as string[];
@@ -181,7 +181,7 @@ describe('GET /api/v1/auth/me', () => {
     const cookie = sessionCookieFrom(await postLogin({ email: admin.email, password: PASSWORD }));
     const res = await request(app).get('/api/v1/auth/me').set('cookie', cookie);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ data: { id: admin.id, email: admin.email, name: null, role: 'admin' } });
+    expect(res.body).toEqual({ data: { id: admin.id, email: admin.email, name: null, role: 'admin', allProjects: true, projects: [] } });
   });
 
   it('answers 401 without a session', async () => {

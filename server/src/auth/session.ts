@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import type { Tx } from '../db.js';
+import type { Sql, Tx } from '../db.js';
 import type { AdminPrincipal, AuthDeps } from './types.js';
 
 // Admin sessions: an opaque random token in the cookie, its SHA-256 in housing_admin_sessions.
@@ -29,6 +29,17 @@ export async function deleteExpiredSessions(tx: Tx, adminId: string, now: Date):
 }
 
 /**
+ * The principal's columns from `public.housing_admins a`, for the session check and the login alike.
+ * An editor without "all projects" gets its scope; everyone else every project and an empty list.
+ */
+export function principalColumns(sql: Sql | Tx) {
+  return sql`a.id, a.email, a.name, a.role,
+    (a.role <> 'editor' or a.all_projects) as "allProjects",
+    case when a.role = 'editor' and not a.all_projects then public.housing_admin_project_keys(a.id)
+         else '{}'::text[] end as projects`;
+}
+
+/**
  * Returns the admin for a live session and marks it used, or null when the session is unknown,
  * past either timeout, or belongs to a disabled admin. One statement checks and slides it.
  */
@@ -42,6 +53,6 @@ export async function authenticate({ sql, now }: AuthDeps, tokenHash: Buffer): P
       and a.disabled_at is null
       and s.last_seen_at > ${new Date(at.getTime() - IDLE_TIMEOUT_MS)}
       and s.expires_at > ${at}
-    returning a.id, a.email, a.name, a.role`;
+    returning ${principalColumns(sql)}`;
   return admin ?? null;
 }
