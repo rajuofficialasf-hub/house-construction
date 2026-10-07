@@ -3844,7 +3844,7 @@ Run once, after the simplify and review pass:
 - **Tests:** none (docs). Every command it names exists (same script check as U79).
 - **Done when:** the script check passes and the file names the three roles, the mock rule and the exception.
 - **Depends on:** U79
-- **Status:** todo
+- **Status:** done
 
 ### U81. Follow the guide from scratch
 - **Goal:** Prove the success criterion: the guide alone gets a developer from a clean checkout state to the full stack running and an admin logged in.
@@ -3921,7 +3921,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** P10: U80 (`CLAUDE.md`), then U81. U78 and U79 are done. P10 is the handoff guide (R19) and the final `CLAUDE.md` profile, including the three roles (`main_admin`, `admin`, `editor`), the mock "doesn't grow" rule and the one-time migration-comment exception.
+- **Next:** P10: U81 (follow the guide from scratch). U78–U80 are done. P10 is the handoff guide (R19) and the final `CLAUDE.md` profile, including the three roles (`main_admin`, `admin`, `editor`), the mock "doesn't grow" rule and the one-time migration-comment exception.
 - **Uncommitted:** nothing.
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
