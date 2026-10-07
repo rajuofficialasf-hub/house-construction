@@ -276,6 +276,28 @@ export function runProjectsApiContract(label: string, makeHarness: () => Promise
         expect(light.fields.trade).toEqual({ type: 'category', distinct: 2 })
       })
 
+      // The list page's cards under its filters count exactly what the list shows (main 87c7241's
+      // filtered stats; docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md, P8b).
+      test('stats with the list\'s filters count what the list shows', async () => {
+        const p = await draft()
+        await h.api.create(record(p, { year: 2024, union_name: 'ক', extra: { amount: 100, family_size: 3, trade: 'দর্জি' } }))
+        await h.api.create(record(p, { year: 2024, extra: { amount: 250, trade: 'মুদি' } }))
+        await h.api.create(record(p, { year: 2025, union_name: 'ক', extra: { amount: 40, trade: 'দর্জি' } }))
+        const cases = [{ year: 2024 }, { fields: { trade: 'দর্জি' } }, { q: 'মুদি' }, { union_name: 'ক', year: 2025 }]
+        for (const filters of cases) {
+          const s = await h.api.stats(p.key, { filters })
+          const listed = (await h.api.list({ project_type: p.key, ...filters, page_size: 100 })).data
+          const nums = (k: string) => listed.map((r) => r.extra[k]).filter((v): v is number => typeof v === 'number')
+          expect(s.filtered, JSON.stringify(filters)).toBe(true)
+          expect(s.total).toBe(listed.length)
+          expect(s.fields.amount).toEqual({ type: 'money', sum: nums('amount').reduce((a, b) => a + b, 0), count: nums('amount').length })
+          expect(s.fields.family_size).toEqual({ type: 'number', sum: nums('family_size').reduce((a, b) => a + b, 0), count: nums('family_size').length })
+          expect(s.fields.trade).toEqual({ type: 'category', distinct: new Set(listed.map((r) => r.extra.trade)).size })
+          expect(s.fields).not.toHaveProperty('phone')
+        }
+        expect(await h.api.stats(p.key)).not.toHaveProperty('filtered')
+      })
+
       test('years and the next serial follow the project\'s records; a visitor gets no next serial for a draft', async () => {
         const p = await draft()
         await h.api.create(record(p, { year: 2024 }))

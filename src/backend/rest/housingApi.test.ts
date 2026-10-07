@@ -153,13 +153,23 @@ describe('createRestHousingApi reads', () => {
     ])
   })
 
-  it('says it did not filter when stats are asked with filters', async () => {
-    const stats = { total: 7, by_union: {} }
-    const fetchMock = stubFetch(() => json(200, { data: stats }))
+  it('sends the list\'s filters to stats under the list\'s names, and returns the server\'s answer', async () => {
+    const filtered = { total: 2, by_union: {}, filtered: true }
+    const fetchMock = stubFetch(() => json(200, { data: filtered }))
     const api = createRestHousingApi(BASE)
-    expect(await api.stats('tin', { filters: { year: 2024 } })).toEqual({ ...stats, filtered: false })
-    expect(await api.stats('tin', { filters: { q: ' ' } })).toEqual(stats)
-    expect(fetchMock.mock.calls.map((c) => String(c[0]).replace(BASE, ''))).toEqual(['/api/v1/projects/tin/stats', '/api/v1/projects/tin/stats'])
+    const filters = { year: 2024, division: 'রংপুর', district: '', union_name: 'ক', q: ' রহিমা ', fields: { trade: 'দর্জি', blank: ' ' } }
+    expect(await api.stats('tin', { light: true, filters })).toEqual(filtered)
+    await api.list({ project_type: 'tin', ...filters })
+    const statsQuery = urlOf(fetchMock, 0).searchParams
+    const listQuery = urlOf(fetchMock, 1).searchParams
+    expect(Object.fromEntries(statsQuery)).toEqual({ light: '1', year: '2024', division: 'রংপুর', union_name: 'ক', q: 'রহিমা', 'f.trade': 'দর্জি' })
+    for (const [name, value] of statsQuery) if (name !== 'light') expect(listQuery.get(name)).toBe(value)
+  })
+
+  it('sends no filter parameters for empty filters', async () => {
+    const fetchMock = stubFetch(() => json(200, { data: { total: 1 } }))
+    await createRestHousingApi(BASE).stats('tin', { filters: { q: '  ', fields: {} } })
+    expect(String(fetchMock.mock.calls[0]![0]).replace(BASE, '')).toBe('/api/v1/projects/tin/stats')
   })
 
   it('builds filter options from the years and the stats keys, sorted in Bangla order', async () => {

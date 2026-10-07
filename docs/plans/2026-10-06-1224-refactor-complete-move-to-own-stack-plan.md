@@ -2769,7 +2769,7 @@ These settle what the P5–P7 research turned up, against the code after P4 and 
     - no filter: `filtered` is absent
 - **Done when:** `npm test` and `npm run test:contract:rest` pass. `npm run test:contract:supabase-local` passes with the new known gaps listed.
 - **Depends on:** U46, U48
-- **Status:** todo
+- **Status:** done
 
 ### U50. Specs: the cards follow the filters
 - **Goal:** Playwright proves the list page's cards follow the filters on the server.
@@ -3217,3 +3217,7 @@ Run these at the end of P1:
 
         All are under 300 ms, so no index or migration is needed.
       - The server suite is at 1093.
+    - **U49:**
+      - REST `stats` sends `statsFilterEntries(filters)`, and `listQuery` takes its filter part from the same helper, so they can't drift. A blank geo value is now trimmed away before sending, which the server did anyway.
+      - The contract block "stats with the list's filters count what the list shows" is in `projectsApiContract.ts`. It runs only on REST and local Supabase; the mock doesn't run the projects contract.
+      - Results: REST 63 plus 1 known gap. Local Supabase 57 plus 9 known gaps (the new block among them, in `PROJECT_KNOWN_GAPS`).

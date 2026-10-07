@@ -101,6 +101,9 @@ const PROJECT_KNOWN_GAPS = [
   // The server answers a visitor's next serial for a draft with null (P3 decisions); the Supabase adapter
   // counts the records the visitor can see, none, and answers 1.
   "years and the next serial follow the project's records; a visitor gets no next serial for a draft",
+  // SQL 15 (filtered stats) isn't loaded: it needs SQL 14, which is past the a8e2154 parity target, so
+  // the adapter falls back to totals with filtered: false (P8b decisions).
+  "stats with the list's filters count what the list shows",
 ]
 
 if (url && anonKey && serviceKey) {

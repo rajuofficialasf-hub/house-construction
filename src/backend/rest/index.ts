@@ -18,7 +18,7 @@ import {
   type ProjectStats,
   type ProjectType,
 } from '../interfaces/types'
-import { hasStatsFilters } from '../statsFilters'
+import { statsFilterEntries } from '../statsFilters'
 import { ENDPOINTS } from './endpoints'
 import { queryOf, restData, restRequest, type RestRequestOptions } from './http'
 import type { AdminUsersApi } from '../interfaces/adminUsersApi'
@@ -38,7 +38,6 @@ function keyOf(projectType: ProjectType | undefined): ProjectType {
 }
 
 // সার্ভার যা নেয়: q ≤ ১০০ অক্ষর, এক কলে ≤ ১০০ সিরিয়াল, সিরিয়াল int4 এর মধ্যে (PROJECTS_API_CONTRACT §৪.৪)
-const MAX_SEARCH = 100
 const SERIALS_PER_CALL = 100
 const INT4_MAX = 2147483647
 
@@ -52,20 +51,13 @@ const clampPageSize = (pageSize?: number) => Math.min(MAX_PAGE_SIZE, Math.max(1,
 function listQuery(params: ListParams): URLSearchParams {
   const query = queryOf({
     serial_no: params.serial_no,
-    year: params.year,
-    division: params.division,
-    district: params.district,
-    upazila: params.upazila,
-    union_name: params.union_name,
-    q: params.q?.trim().slice(0, MAX_SEARCH),
     page: clampPage(params.page),
     page_size: clampPageSize(params.page_size),
     sort: params.sort,
     order: params.order,
   })
-  for (const [key, value] of Object.entries(params.fields ?? {})) {
-    if (typeof value === 'string' && value.trim() !== '') query.set(`f.${key}`, value)
-  }
+  // ফিল্টারের অংশ পরিসংখ্যানের সাথে এক (statsFilters.ts), তাই কার্ড আর তালিকা একই জিনিস গোনে
+  for (const [name, value] of statsFilterEntries(params)) query.set(name, value)
   return query
 }
 
@@ -128,10 +120,11 @@ export function createRestHousingApi(baseUrl: string): HousingApi {
     // ইম্পোর্ট পেইজ নিজেই ২০০ করে পাঠায়।
     bulkInsert: (input) => send('POST', ENDPOINTS.records.bulk(input.project_type), withoutProject(input)),
     bulkUpdateBySerial: (input) => send('PUT', ENDPOINTS.records.bulk(input.project_type), withoutProject(input)),
+    // ফিল্টার থাকলে সার্ভার তালিকার একই শর্তে গোনে আর `filtered: true` দেয় (P8b)
     async stats(projectType, opts = {}) {
-      const stats = await get<ProjectStats>(ENDPOINTS.records.stats(keyOf(projectType), queryOf({ light: opts.light ? '1' : undefined })))
-      // সার্ভার এখনো ফিল্টারে গোনে না: মোট ফেরত, সাথে বলে দেওয়া যে ফিল্টার হয়নি (main এর নিজের ফলব্যাক)
-      return hasStatsFilters(opts.filters) ? { ...stats, filtered: false } : stats
+      const query = queryOf({ light: opts.light ? '1' : undefined })
+      for (const [name, value] of statsFilterEntries(opts.filters)) query.set(name, value)
+      return get<ProjectStats>(ENDPOINTS.records.stats(keyOf(projectType), query))
     },
     years: async (projectType) => get<number[]>(ENDPOINTS.records.years(keyOf(projectType))),
     // সার্ভারে আলাদা রাউট নেই: সাল আর পরিসংখ্যানের কী থেকে (Supabase অ্যাডাপ্টারের মতো)
