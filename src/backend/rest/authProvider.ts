@@ -22,7 +22,11 @@ export function createRestAuthProvider(baseUrl: string): AuthProvider {
   // যাতে পরের প্রশ্ন নতুন অবস্থা জানে, আর আগের /me দেরিতে ফিরলে ক্যাশ না বদলায়।
   let pending: Promise<AuthUser | null> | null = null
 
+  // প্রতিটি emit-এ বাড়ে; অন্য ট্যাবের খবরে শুরু হওয়া /me ফিরে আসার আগে এখানে login/logout হলে তার উত্তর বাতিল
+  let epoch = 0
+
   const emit = (user: AuthUser | null) => {
+    epoch++
     pending = null
     cached = user
     for (const l of listeners) l(user)
@@ -36,7 +40,10 @@ export function createRestAuthProvider(baseUrl: string): AuthProvider {
       // সার্ভারে পৌঁছানো না গেলে অবস্থা অজানাই থাকে; পরের currentUser() আবার জিজ্ঞেস করবে।
       channel?.addEventListener('message', () => {
         pending = null
-        void fetchMe().then(emit, () => {})
+        const started = epoch
+        void fetchMe().then((user) => {
+          if (epoch === started) emit(user)
+        }, () => {})
       })
     }
     return channel

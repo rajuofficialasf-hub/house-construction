@@ -70,7 +70,7 @@ describe('createRestProjectsApi list coalescing', () => {
     const releases: ((r: Response) => void)[] = []
     const fetchMock = vi.fn((_url: string, _init: RequestInit) => new Promise<Response>((resolve) => releases.push(resolve)))
     vi.stubGlobal('fetch', fetchMock)
-    return { fetchMock, release: (n: number, body: unknown) => releases[n]!(json(200, body)) }
+    return { fetchMock, release: (n: number, body: unknown, status = 200) => releases[n]!(json(status, body)) }
   }
 
   it('sends one request for concurrent identical lists and gives each caller its own copy', async () => {
@@ -105,6 +105,23 @@ describe('createRestProjectsApi list coalescing', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
     await api.list().catch(() => {})
     expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not join a list that started before a write that failed', async () => {
+    const { fetchMock, release } = deferredFetch()
+    const api = createRestProjectsApi(BASE)
+    const before = api.list()
+    const update = api.update('demo', { is_published: true })
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    // A failed write may still have changed the server (a timeout after the commit, say).
+    release(1, { error: { code: 'INTERNAL_ERROR', message: 'x' } }, 500)
+    await expect(update).rejects.toMatchObject({ code: 'INTERNAL_ERROR' })
+    const after = api.list()
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
+    release(0, { data: [] })
+    release(2, { data: [PROJECT] })
+    expect(await before).toEqual([])
+    expect(await after).toEqual([PROJECT])
   })
 
   it('does not join a list that started before a write finished', async () => {

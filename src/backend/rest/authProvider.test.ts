@@ -183,4 +183,52 @@ describe('createRestAuthProvider', () => {
     expect(await auth.currentUser()).toEqual(USER)
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
+
+  // Providers from earlier tests still listen on the shared channel and call the stubbed fetch, so
+  // these tests use their own base URL and count only its /me calls.
+  const meCallsTo = (fetchMock: ReturnType<typeof stubFetch>, base: string) =>
+    fetchMock.mock.calls.filter(([url]) => url === `${base}/api/v1/auth/me`).length
+
+  it('does not let a /me that started before a logout bring the user back', async () => {
+    const OWN = 'http://logout.test'
+    let releaseMe!: (r: Response) => void
+    const fetchMock = stubFetch((url) => {
+      if (!url.startsWith(OWN)) return json(401, { error: { code: 'UNAUTHENTICATED', message: 'x' } })
+      if (url.endsWith('/logout')) return new Response(null, { status: 204 })
+      return meCallsTo(fetchMock, OWN) === 1 ? json(200, { data: USER }) : new Promise<Response>((resolve) => (releaseMe = resolve))
+    })
+    const auth = createRestAuthProvider(OWN)
+    const seen: (AuthUser | null)[] = []
+    auth.onAuthChange((u) => seen.push(u))
+    expect(await auth.currentUser()).toEqual(USER)
+    // A message from another tab starts a second /me, which is still open when this tab logs out.
+    new BroadcastChannel('housing-auth').postMessage('changed')
+    await vi.waitFor(() => expect(meCallsTo(fetchMock, OWN)).toBe(2))
+    await auth.logout()
+    releaseMe(json(200, { data: USER }))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(seen).toEqual([null])
+    expect(await auth.currentUser()).toBeNull()
+  })
+
+  it('starts a fresh /me for a message from another tab instead of joining one already open', async () => {
+    const OWN = 'http://fresh.test'
+    const releases: ((r: Response) => void)[] = []
+    const fetchMock = stubFetch((url) =>
+      url.startsWith(OWN) ? new Promise<Response>((resolve) => releases.push(resolve)) : json(401, { error: { code: 'UNAUTHENTICATED', message: 'x' } }),
+    )
+    const auth = createRestAuthProvider(OWN)
+    const seen: (AuthUser | null)[] = []
+    auth.onAuthChange((u) => seen.push(u))
+    const early = auth.currentUser()
+    await vi.waitFor(() => expect(meCallsTo(fetchMock, OWN)).toBe(1))
+    // Another tab logged in after this tab's /me left, so that /me's answer is out of date.
+    new BroadcastChannel('housing-auth').postMessage('changed')
+    await vi.waitFor(() => expect(meCallsTo(fetchMock, OWN)).toBe(2))
+    releases[1]!(json(200, { data: USER }))
+    await vi.waitFor(() => expect(seen).toEqual([USER]))
+    releases[0]!(json(401, { error: { code: 'UNAUTHENTICATED', message: 'লগইন করুন' } }))
+    expect(await early).toBeNull()
+    expect(await auth.currentUser()).toEqual(USER)
+  })
 })
