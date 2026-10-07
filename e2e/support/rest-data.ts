@@ -11,12 +11,16 @@ import { ADMIN_REST_API_URL, E2E_STORAGE_ROOT } from './rest-env'
  * Puts the admin-rest project's database (housing_test, behind the API that playwright.config.ts
  * starts) into the state the mock backend starts in: the mock fixture records and the mock admin,
  * with an empty activity log. On top of that come the dev seed's draft "demo" project, with custom
- * and private fields, for the e2e/admin specs, and a plain admin, who may write but not delete
- * (AE1, docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md). The server/test/support helpers refuse any database that isn't local and named *_test.
+ * and private fields, for the e2e/admin specs, a plain admin, who may write but not delete
+ * (AE1, docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md), and a project user
+ * limited to tin (the plan's P9b decisions). The server/test/support helpers refuse any database that isn't local and named *_test.
  */
 
 /** A plain admin (role admin), only on admin-rest; the mock backend has none. */
 export const PLAIN_ADMIN = { email: 'editor@example.test', name: 'সাধারণ এডমিন', password: 'Editor#12345' }
+
+/** A project user (role editor) assigned the tin project, only on admin-rest; the mock backend has none. */
+export const PROJECT_EDITOR = { email: 'project-editor@example.test', name: 'প্রকল্পের ইউজার', password: 'Project#12345' }
 
 const demoProjectFile = fileURLToPath(new URL('../../server/db/seed/demo-project.sql', import.meta.url))
 
@@ -50,11 +54,13 @@ async function seedPhotoFile(recordId: string, kind: Kind, variant: Variant) {
 // argon2 takes tens of milliseconds, so the admins' hashes are made once per worker.
 let adminHash: Promise<string> | undefined
 let plainHash: Promise<string> | undefined
+let editorHash: Promise<string> | undefined
 
 export async function resetRestData(): Promise<void> {
   owner ??= ownerDb()
   adminHash ??= hashPassword(MOCK_ADMIN.password)
   plainHash ??= hashPassword(PLAIN_ADMIN.password)
+  editorHash ??= hashPassword(PROJECT_EDITOR.password)
   await resetTestData(owner)
   // Same ids, serials and names as the mock seed, so the specs find the same rows. Records that have
   // photos in the mock seed get real files in the API's storage instead of the mock placeholders.
@@ -81,4 +87,5 @@ export async function resetRestData(): Promise<void> {
   await owner`truncate public.housing_activity_log`
   await insertAdmin(owner, { email: MOCK_ADMIN.email, name: MOCK_ADMIN.name, passwordHash: await adminHash, role: 'main_admin' })
   await insertAdmin(owner, { email: PLAIN_ADMIN.email, name: PLAIN_ADMIN.name, passwordHash: await plainHash, role: 'admin' })
+  await insertAdmin(owner, { email: PROJECT_EDITOR.email, name: PROJECT_EDITOR.name, passwordHash: await editorHash, role: 'editor', projects: ['tin'] })
 }

@@ -3656,7 +3656,7 @@ Run once, after U64:
   - a plain admin is kept off `/admin/users`
 - **Done when:** `npx playwright test --project=admin-rest e2e/admin/admin-users.spec.ts` (through `npm run test:e2e:rest-admin -- e2e/admin/admin-users.spec.ts`) passes.
 - **Depends on:** U70, U71, U72
-- **Status:** todo
+- **Status:** done
 
 ### U75. Migration `0020_reserved_project_keys`
 - **Goal:** No project can take a key that a project route already uses.
@@ -3758,7 +3758,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** `ae-work` on P9b, U74 (U65–U73, U75 and U77 done). P10 (the handoff guide and the final `CLAUDE.md` profile, with the mock rule and the migration-comment exception) follows P9b.
+- **Next:** `ae-work` on P9b, U76 (U65–U75 and U77 done). P10 (the handoff guide and the final `CLAUDE.md` profile, with the mock rule and the migration-comment exception) follows P9b.
 - **Uncommitted:** nothing.
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
