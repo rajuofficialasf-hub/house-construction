@@ -886,7 +886,7 @@ Object.assign(EN, {
   '{email} এর তথ্য বদলানো হয়েছে': '{email} updated',
   '{email} যোগ হয়েছে': '{email} added',
   '«{label}» মুছতে পারেন শুধু মূল এডমিন — "(মুছুন)" সরান': 'Only the main admin can clear “{label}” — remove "(মুছুন)"',
-  'আগে Supabase → Authentication → Users → Add user দিয়ে ইমেইল-পাসওয়ার্ডে অ্যাকাউন্ট খুলুন ("Auto Confirm User" চালু রাখুন)।': 'First create an email-password account in Supabase → Authentication → Users → Add user (keep "Auto Confirm User" on).',
+  'আগে সার্ভারে এই কমান্ড চালিয়ে ইমেইল-পাসওয়ার্ডে অ্যাকাউন্ট খুলুন:': 'First create the email-password account by running this command on the server:',
   'আগের মান মুছে ফাঁকা করতে পারেন শুধু মূল এডমিন': 'Only the main admin can clear an existing value',
   'ইউজার': 'Users',
   'ইউজার বদলান': 'Edit user',

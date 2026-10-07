@@ -3056,7 +3056,7 @@ git grep -nIE '(^|[^A-Za-z])RLS([^A-Za-z]|$)|SQL [0-9০-৯]+|পুরনো �
   - A `NOT_IMPLEMENTED` list shows the error notice without crashing.
 - **Done when:** `npm test` and `npm run i18n-check` pass, and `git grep -ni supabase src/features/admin/users src/i18n` finds nothing.
 - **Depends on:** none
-- **Status:** todo
+- **Status:** done
 
 ### U54. Shrink the backend surface
 - **Goal:** The adapter interfaces hold only what the app calls.
@@ -3343,7 +3343,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** P9 `ae-work`: U53 (users page text), then U55, U56, U54, U57, U58, U59, U61, U63, U62, U64; then simplify, review and the full verification.
+- **Next:** P9 `ae-work`: U55 (Supabase test lanes, e2e/live → e2e/public), then U56, U54, U57, U58, U59, U61, U63, U62, U64; then simplify, review and the full verification.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.

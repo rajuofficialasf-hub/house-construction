@@ -40,7 +40,7 @@ function UsersError({ title, error }: { title: string; error: HousingApiError })
 
 /**
  * /admin/users — ইউজার-ব্যবস্থাপনা (পর্ব চ, M-ধাপ ১৯; শুধু মূল এডমিন — RoleGate + ডাটাবেস দুজনেই আটকায়)।
- * অ্যাকাউন্ট আগে Supabase → Authentication → Add user (প্রশ্ন ২৩); এখানে সেই ইমেইলকে প্রকল্প বরাদ্দ, "সব প্রকল্প", চালু/বন্ধ।
+ * অ্যাকাউন্ট আগে সার্ভারের এডমিন CLI দিয়ে খোলা হয় (`npm --prefix server run admin -- create`); এখানে সেই ইমেইলকে প্রকল্প বরাদ্দ, "সব প্রকল্প", চালু/বন্ধ।
  * গ্রুপ বাছলে তার সব উপ-প্রকল্প (পরে যোগ হলেও) পান।
  */
 export function AdminUsersPage() {
@@ -237,7 +237,10 @@ export function AdminUsersPage() {
           </h2>
           {!draft.existing && (
             <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-slate-600">
-              <li>{t('আগে Supabase → Authentication → Users → Add user দিয়ে ইমেইল-পাসওয়ার্ডে অ্যাকাউন্ট খুলুন ("Auto Confirm User" চালু রাখুন)।')}</li>
+              <li>
+                {t('আগে সার্ভারে এই কমান্ড চালিয়ে ইমেইল-পাসওয়ার্ডে অ্যাকাউন্ট খুলুন:')}{' '}
+                <code className="break-all">npm --prefix server run admin -- create --email … --name …</code>
+              </li>
               <li>{t('তারপর সেই ইমেইল এখানে লিখে প্রকল্প বাছুন ও সংরক্ষণ করুন। পাসওয়ার্ড ইউজারকে নিজে জানাবেন।')}</li>
             </ol>
           )}
