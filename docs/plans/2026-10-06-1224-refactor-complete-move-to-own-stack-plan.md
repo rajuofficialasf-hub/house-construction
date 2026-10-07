@@ -3165,7 +3165,7 @@ git grep -nIE '(^|[^A-Za-z])RLS([^A-Za-z]|$)|SQL [0-9০-৯]+|পুরনো �
   - The argon2 login and `needsRehash` tests still pass.
 - **Done when:** `npm --prefix server run typecheck` and the auth test files pass, and `npm --prefix server ls @node-rs/bcrypt` is empty.
 - **Depends on:** none
-- **Status:** todo
+- **Status:** done
 
 ### U59. Remove the `/housing` routes and the old stats functions
 - **Goal:** `/api/v1/housing` no longer exists, and nothing kept depends on it.
@@ -3343,7 +3343,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** P9 `ae-work`: U58 (bcrypt), then U59, U61, U63, U62, U64; then simplify, review and the full verification.
+- **Next:** P9 `ae-work`: U59 (/housing routes and 0018; characterization map first), then U61, U63, U62, U64; then simplify, review and the full verification.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.

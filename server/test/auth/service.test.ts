@@ -17,8 +17,8 @@ vi.mock('../../src/auth/password.js', async (importOriginal) => {
 const app = appDb();
 const owner = ownerDb();
 const PASSWORD = 'correct horse battery staple';
-// Made with `htpasswd -bnBC 4 "" '<PASSWORD>'`, in Supabase's $2a$ form.
-const BCRYPT = '$2a$04$3sT/02Uk5y8iNB43czyld.4GpULJCsGSmTyFBKCMXL4pyEh8/be7K';
+// A valid hash of PASSWORD in another scheme ($2a$, made with `htpasswd -bnBC 4`), which the server never accepts.
+const OTHER_SCHEME = '$2a$04$3sT/02Uk5y8iNB43czyld.4GpULJCsGSmTyFBKCMXL4pyEh8/be7K';
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
 
@@ -127,13 +127,11 @@ describe('login', () => {
     expect(await owner`select password_hash from public.housing_admins`).toEqual([{ password_hash: newHash }]);
   });
 
-  it('replaces an imported bcrypt hash with argon2id at login', async () => {
-    await insertAdmin(owner, { passwordHash: BCRYPT });
-    await loggedIn();
-    const [row] = await owner`select password_hash from public.housing_admins`;
-    expect(row?.password_hash).toMatch(/^\$argon2id\$v=19\$m=19456,t=2,p=1\$/);
-    clock = new Date(clock.getTime() + 1000);
-    expect((await login(deps, 'admin@example.org', PASSWORD)).ok).toBe(true);
+  it('refuses an admin whose hash is in another scheme, like a wrong password, and keeps the hash', async () => {
+    await insertAdmin(owner, { passwordHash: OTHER_SCHEME });
+    expect(await login(deps, 'admin@example.org', PASSWORD)).toEqual({ ok: false, reason: 'bad_password' });
+    expect(await sessions()).toEqual([]);
+    expect(await owner`select password_hash from public.housing_admins`).toEqual([{ password_hash: OTHER_SCHEME }]);
   });
 
   it('leaves an up-to-date hash alone', async () => {

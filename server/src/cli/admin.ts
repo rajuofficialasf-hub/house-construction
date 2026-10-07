@@ -8,7 +8,7 @@
 //   admin set-password --email <email>
 //   admin disable --email <email>
 //   admin enable --email <email>
-//   admin list            (the hash column shows who still has a bcrypt hash imported from Supabase)
+//   admin list            (the hash column shows 'none' for a row that can't log in)
 import { parseArgs } from 'node:util';
 import postgres from 'postgres';
 import { z } from 'zod';
