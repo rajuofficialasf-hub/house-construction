@@ -1,0 +1,38 @@
+{
+  "text": "#1F2937",
+  "muted": "#5F6B7A",
+  "edge": "#4B5563",
+  "font": "Helvetica",
+  "kinds": {
+    "app": {"fill": "#FFFFFF", "stroke": "#2F5F98"},
+    "appfill": {"fill": "#EEF3FA", "stroke": "#2F5F98"},
+    "serverlayer": {"fill": "#C3D9F1", "stroke": "#1B4E82"},
+    "system": {"fill": "#C9DCF0", "stroke": "#1B4E82"},
+    "actor": {"fill": "#EEF3FA", "stroke": "#2F5F98"},
+    "data": {"fill": "#EAF4EC", "stroke": "#3E7C4A"},
+    "ext": {"fill": "#F3F4F6", "stroke": "#6B7280"},
+    "gate": {"fill": "#FDECEC", "stroke": "#B3403D"},
+    "ops": {"fill": "#FFF6E5", "stroke": "#B7791F"},
+    "note": {"fill": "#FFFBEB", "stroke": "#C9A227"},
+    "plain": {"fill": "#FFFFFF", "stroke": "#9CA3AF"}
+  },
+  "bands": {
+    "band": {"header": "#E9EDF2", "body": "#F8F9FB", "stroke": "#B8C0CC"},
+    "lane": {"header": "#E9EDF2", "body": "#FBFCFD", "stroke": "#B8C0CC"},
+    "ext": {"header": "#E5E7EB", "body": "#F9FAFB", "stroke": "#9CA3AF"},
+    "data": {"header": "#DDEEDF", "body": "#F3F9F4", "stroke": "#3E7C4A"},
+    "app": {"header": "#DCE6F3", "body": "#F5F8FC", "stroke": "#2F5F98"},
+    "identity": {"header": "#DCE6F3", "body": "#F7F9FC", "stroke": "#2F5F98"},
+    "academics": {"header": "#DDEEDF", "body": "#F5FAF6", "stroke": "#3E7C4A"},
+    "admissions": {"header": "#E8E0F2", "body": "#F9F7FC", "stroke": "#6D4C9F"},
+    "money": {"header": "#F6DADA", "body": "#FDF6F6", "stroke": "#B3403D"},
+    "hr": {"header": "#FBEBD0", "body": "#FEF9F1", "stroke": "#B7791F"},
+    "assets": {"header": "#D9EEF1", "body": "#F3FAFB", "stroke": "#2E7D8C"},
+    "cms": {"header": "#E5E7EB", "body": "#F9FAFB", "stroke": "#6B7280"},
+    "alumni": {"header": "#F0F2DE", "body": "#FAFAF4", "stroke": "#8C9438"},
+    "residential": {"header": "#E5F2DE", "body": "#F7FAF4", "stroke": "#5A9438"},
+    "attendance": {"header": "#DEF2EB", "body": "#F4FAF8", "stroke": "#389475"},
+    "scholarship": {"header": "#F2DEF2", "body": "#FAF4FA", "stroke": "#943894"},
+    "dawah": {"header": "#F2DEE7", "body": "#FAF4F7", "stroke": "#943863"}
+  }
+}
