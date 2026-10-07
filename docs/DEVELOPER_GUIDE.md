@@ -2,7 +2,7 @@
 
 How to run the project, add a feature end to end, and test it. Read this first; it links out for the details.
 
-The app is a React UI (`src/`) and an Express API with PostgreSQL (`server/`). The UI reaches the API only through the adapters in `src/backend/`. The rules every change follows are in [CLAUDE.md](../CLAUDE.md); the API is described in [api/PROJECTS_API_CONTRACT.md](api/PROJECTS_API_CONTRACT.md).
+The app is a React UI (`src/`) and an Express API with PostgreSQL (`server/`). The UI reaches the API only through the adapters in `src/backend/`. The rules every change follows are in [CLAUDE.md](../CLAUDE.md); the API is described in [api/PROJECTS_API_CONTRACT.md](api/PROJECTS_API_CONTRACT.md), and the architecture and its decisions in [architecture/migration-notes.md](architecture/migration-notes.md).
 
 ## 1. Before you start
 
@@ -28,7 +28,7 @@ This starts three containers. They are reachable only from this machine:
 
 The first start takes a few minutes, because each Node container runs `npm ci` into its own volume. The stack is ready when the `api` log shows `housing API listening` and http://localhost:3001/api/v1/readyz answers. The home page then shows the published projects.
 
-No `.env` file is needed; `compose.yaml` holds the local settings.
+No `.env` file is needed; `compose.yaml` holds the local settings. To run the UI on the in-memory mock backend instead of the API: `VITE_HOUSING_BACKEND=mock docker compose up`.
 
 ### Create your login
 
@@ -80,7 +80,27 @@ npm --prefix server run dev           # API on http://localhost:3001
 npm run dev                           # UI on http://localhost:5173, in another terminal
 ```
 
-From here the CLI runs as `npm --prefix server run admin -- …`. If the `api` container is running, stop it first (`docker compose stop api`), because both want port 3001. `npm run dev:mock` runs the UI with no API on an in-memory mock backend (login: `MOCK_ADMIN` in `src/backend/mock/fixtures.ts`). [README.md](../README.md) lists more commands.
+From here the CLI runs as `npm --prefix server run admin -- …`. If the `api` container is running, stop it first (`docker compose stop api`), because both want port 3001. `npm run dev:mock` runs the UI with no API on an in-memory mock backend (login: `MOCK_ADMIN` in `src/backend/mock/fixtures.ts`). `npm run build` type-checks and builds the production bundle into `dist/`.
+
+### The pages
+
+| Path | What | Login |
+|---|---|---|
+| `/` | Home: a card for every published project, with total projects, beneficiaries and districts | no |
+| `/<group>` (for example `/housing`) | Group landing: its sub-projects' cards | no |
+| `/<project>` or `/<group>/<project>` (for example `/self-reliance`, `/housing/semi-pucca`) | The list: stat cards, map, filters (`?year=&division=&district=&upazila=&union=&f_<field>=&q=&page=`), table or cards | no |
+| `…/<project>/<serial>` | Detail (a modal): a before-and-after slider, or one photo for after-only projects; ←/→ move between records | no |
+| `/admin/login` | Admin login | — |
+| `/admin` | Dashboard | admin |
+| `/admin/projects`, `/admin/projects/new`, `/admin/projects/<key>?tab=general\|fields\|stats\|photos\|display` | Project list, the new-project wizard, settings (fields, stat cards, photos, display, cover, publish) | admin |
+| `/admin/records/<key>`, `…/new`, `…/<serial>/edit` | Records: list, add, edit; CSV export | admin (deletes: main admin) |
+| `/admin/import?project=<key>` | Bulk import (add new, or update by serial) | admin |
+| `/admin/photos?project=<key>` | Bulk photo upload, matched by file name | admin |
+| `/admin/activity` | Activity log | admin |
+| `/admin/users` | Users: change a role, give a project user its projects, disable and enable logins (new logins come from the CLI) | main admin |
+| `/housing/admin/...` | Old links, redirected to `/admin/...` | — |
+
+A draft project's pages are shown only to admins (with a yellow "খসড়া" banner); a visitor gets "not found".
 
 ## 3. Add a feature end to end
 
@@ -125,6 +145,17 @@ Install once: `npm ci`, `npm --prefix server ci`, and the Playwright browser wit
 | Before you push | `npm run test:all` and `npm run build` |
 
 **`npm --prefix server test`, `npm run test:contract:rest` and `npm run test:e2e:rest-admin` all reset the `housing_test` database. Run them one after another, never at the same time.** They don't touch your dev data in `housing`.
+
+### Other checks and tools
+
+```bash
+npm run i18n-check                # Bangla UI text with no English entry in src/i18n/en.ts
+npm run check:prod-bundle         # no mock code and no old-system code in the production build
+npm run field-types-check         # field types: parse, format and CSV
+npm run geo-check                 # geography and unions, the unions chunk and the bundle size
+npm run build-unions -- --check   # is the unions list up to date
+npm run build-map -- --in gadm41_BGD_3.json   # rebuild the upazila map's TopoJSON
+```
 
 ### What CI checks
 

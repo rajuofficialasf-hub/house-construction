@@ -1,88 +1,72 @@
-# আস-সুন্নাহ ফাউন্ডেশন — প্রকল্প-প্ল্যাটফর্ম (ঘর নির্মাণ, স্বাবলম্বী, দক্ষতা ভিত্তিক …)
+# আস-সুন্নাহ ফাউন্ডেশন — প্রকল্প-প্ল্যাটফর্ম
 
-React 19 + TypeScript + Vite 8 + Tailwind CSS 4 + React Router 8। প্রকল্প, তাদের ফিল্ড ও স্ট্যাট কার্ড এডমিন প্যানেল থেকে তৈরি হয় — নতুন প্রকল্পে কোড লাগে না।
-ব্যাকএন্ড নিজস্ব REST সার্ভার (`server/`: Express 5 + PostgreSQL 17); UI তার সাথে কথা বলে শুধু `src/backend/` এর অ্যাডাপ্টার দিয়ে (`VITE_HOUSING_BACKEND`: `rest` ডিফল্ট, `mock` শুধু dev ও টেস্টে)। API চুক্তি: [docs/api/PROJECTS_API_CONTRACT.md](docs/api/PROJECTS_API_CONTRACT.md)।
+ঘর নির্মাণ, স্বাবলম্বী, দক্ষতাভিত্তিক উদ্যোক্তা — প্রতিটি প্রকল্পের উপকারভোগীদের তালিকা দেখানোর পাবলিক সাইট। সাথে আছে রেকর্ড, ছবি আর প্রকল্প সামলানোর এডমিন প্যানেল। নতুন প্রকল্প এডমিন প্যানেল থেকেই খোলা যায়, কোড লাগে না।
 
-নতুন ডেভেলপার হলে আগে পড়ুন [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) (ইংরেজিতে): চালানো, নতুন ফিচার যোগ আর কোন টেস্ট কখন।
+এই পাতা নতুনদের জন্য: অ্যাপ চালানো আর Claude Code দিয়ে নতুন ফিচার যোগ করা। কারিগরি খুঁটিনাটি আছে [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md)-এ (ইংরেজিতে)।
 
-## চালানো
+## যা লাগবে
 
-Docker আর Node 22 (`.nvmrc`) লাগে। এক কমান্ডে সব (ডাটাবেস + মাইগ্রেশন + নমুনা ডেটা + API + UI, ফাইল সেভ করলে নিজে রিলোড হয়):
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) — ইনস্টল করে চালু রাখুন। অ্যাপ চালাতে এটুকুই যথেষ্ট।
+- [git](https://git-scm.com/downloads) — কোড নামাতে।
+- [Claude Code](https://claude.com/claude-code) — ফিচার যোগ করতে।
 
-```bash
-docker compose up                 # UI http://localhost:5173 , API http://localhost:3001/api/v1/readyz
-VITE_HOUSING_BACKEND=mock docker compose up   # UI কে API ছাড়া মক ব্যাকএন্ডে চালাতে
-```
+## ১. অ্যাপ চালান
 
-ছবি NAS ড্রাইভারে `housing-storage` ভলিউমে থাকে (`docker compose down -v` এ মুছে যায়)। প্রথমবার কন্টেইনারে `npm ci` চলে বলে একটু সময় লাগে; package-lock বদলালে আবার চলে। নমুনা ডেটা (২০টি রেকর্ড আর খসড়া "demo" প্রকল্প) বসে শুধু একেবারে নতুন ডাটাবেসে; আবার পেতে `docker compose down -v` করে নতুন করে শুরু করুন।
-
-আলাদা করে হোস্টে চালাতে:
+টার্মিনাল খুলে:
 
 ```bash
-npm install
-cp .env.example .env.local        # ডিফল্ট: REST ব্যাকএন্ড, API http://localhost:3001
-docker compose up -d db           # শুধু PostgreSQL 17, 127.0.0.1:5432 এ; ডাটাবেস housing (ডেভ) ও housing_test (টেস্ট)
-cp server/.env.example server/.env
-npm --prefix server install
-npm --prefix server run db:migrate   # মাইগ্রেশন (server/db/migrations)
-npm --prefix server run db:seed      # ডামি রেকর্ড ও একটি খসড়া "demo" প্রকল্প (শুধু লোকাল ডাটাবেসে চলে)
-npm --prefix server run dev          # API http://localhost:3001 (আলাদা টার্মিনালে)
-npm run dev                          # http://localhost:5173 (API না চললে "সার্ভারে সংযোগ করা যায়নি")
-npm run dev:mock                     # সার্ভার ছাড়া, ইন-মেমরি মক ব্যাকএন্ডে
-npm run build                        # টাইপ-চেক + প্রোডাকশন বিল্ড (dist/)
-npm run lint
-docker compose down -v               # ডাটাবেস ও কন্টেইনারের node_modules মুছে নতুন করে শুরু
+git clone https://github.com/rajuofficialasf-hub/house-construction.git
+cd house-construction
+docker compose up
 ```
 
-**এডমিন খোলা:** `docker compose exec api npm run admin -- create --email <ইমেইল> --name <নাম> [--role main_admin]` (হোস্টে চালালে `npm --prefix server run admin -- …`; পাসওয়ার্ড কমান্ডই জিজ্ঞেস করে)। ভূমিকা বদল `set-role`, তালিকা `list`; বিস্তারিত [docs/ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md) §১ক।
+প্রথমবার কয়েক মিনিট লাগে। লগে `housing API listening` দেখলে ব্রাউজারে খুলুন http://localhost:5173 — নমুনা প্রকল্প আর রেকর্ড দেখা যাবে।
 
-### পরীক্ষা ও টুল
+বন্ধ করতে টার্মিনালে `Ctrl+C` চাপুন। পরের বার শুধু `docker compose up`।
+
+## ২. নিজের লগইন খুলুন
+
+সাইন-আপ পাতা নেই; লগইন খোলা হয় কমান্ড দিয়ে। অ্যাপ চলা অবস্থায় আরেকটা টার্মিনাল খুলে, একই ফোল্ডারে (ইমেইল আর নামের জায়গায় নিজেরটা বসান):
 
 ```bash
-npm test                          # unit + মক ব্যাকএন্ডে চুক্তি-টেস্ট
-npm --prefix server run typecheck && npm --prefix server test   # সার্ভার টেস্ট (housing_test; আগে docker compose up -d db)
-npm run test:contract:rest        # চুক্তি-স্যুট REST অ্যাডাপ্টার দিয়ে Express সার্ভারে (housing_test)
-npm run test:e2e:rest-admin       # Playwright: এডমিন ফ্লো, নিজে চালানো API তে (housing_test)
-npm run test:e2e:rest             # Playwright: পাবলিক ফ্লো লোকাল API তে (আগে docker compose up -d db api)
-npm run test:e2e:mock             # Playwright: এডমিন/লেখার ফ্লো আর পাবলিক ফ্লো, মক ব্যাকএন্ডে
-npm run test:all                  # i18n, unit, প্রোডাকশন বান্ডল যাচাই আর মক Playwright একসাথে
-npm run check:prod-bundle         # প্রোডাকশন বিল্ডে মক কোড বা "supabase" নেই
-npm run i18n-check                # বাংলা UI লেখা বনাম src/i18n/en.ts — অনুপস্থিত অনুবাদ
-npm run field-types-check         # ফিল্ড-টাইপের পার্স/ফরম্যাট/CSV
-npm run geo-check                 # ভূগোল ও ইউনিয়ন, বিল্ডে ইউনিয়নের chunk ও বান্ডলের আকার
-npm run build-unions -- --check   # ইউনিয়নের তালিকা হালনাগাদ কি না
-npm run build-map -- --in gadm41_BGD_3.json   # উপজেলা মানচিত্রের TopoJSON পুনর্নির্মাণ
+docker compose exec api npm run admin -- create --email you@example.org --name "Your Name" --role main_admin
 ```
 
-housing_test ব্যবহার করা তিনটি স্যুট (সার্ভার টেস্ট, `test:contract:rest`, `test:e2e:rest-admin`) একসাথে চালাবেন না; সবাই একই ডাটাবেস রিসেট করে। বিস্তারিত: [docs/testing/README.md](docs/testing/README.md)।
+পাসওয়ার্ড দুবার চাইবে। টাইপ করার সময় কিছু দেখা যায় না, এটাই স্বাভাবিক। আসল কোনো পাসওয়ার্ড দেবেন না, শুধু এই কাজের জন্য আলাদা একটা দিন।
 
-## রুট
+তারপর লগইন করুন: http://localhost:5173/admin/login
 
-| পাথ | কী | লগইন |
-|---|---|---|
-| `/` | হোম: প্রকাশিত সব প্রকল্পের কার্ড, মোট প্রকল্প/উপকারভোগী/জেলা | না |
-| `/<গ্রুপ>` (যেমন `/housing`) | গ্রুপ-ল্যান্ডিং: উপ-প্রকল্পের কার্ড | না |
-| `/<প্রকল্প>` বা `/<গ্রুপ>/<প্রকল্প>` (যেমন `/self-reliance`, `/skill-based-entrepreneur`, `/housing/semi-pucca`, `/housing/tin`) | তালিকা: স্ট্যাট কার্ড, মানচিত্র, ফিল্টার (`?year=&division=&district=&upazila=&union=&f_<ফিল্ড>=&q=&page=`), টেবিল/কার্ড | না |
-| `…/<প্রকল্প>/<সিরিয়াল>` | বিস্তারিত (মডাল): আগে-পরে প্রকল্পে তুলনা-স্লাইডার, শুধু-পরে প্রকল্পে একক ছবি; ←/→ | না |
-| `/admin/login` | এডমিন লগইন | — |
-| `/admin` | ড্যাশবোর্ড | এডমিন |
-| `/admin/projects`, `/admin/projects/new`, `/admin/projects/<key>?tab=general\|fields\|stats\|photos\|display` | প্রকল্পের তালিকা, নতুন প্রকল্প উইজার্ড, সেটিংস (ফিল্ড, স্ট্যাট কার্ড, ছবি, প্রদর্শন, কভার, প্রকাশ) | এডমিন |
-| `/admin/records/<key>`, `…/new`, `…/<সিরিয়াল>/edit` | রেকর্ডের তালিকা, যোগ, এডিট; CSV এক্সপোর্ট | এডমিন (মোছা মূল এডমিন) |
-| `/admin/import?project=<key>` | বাল্ক ইম্পোর্ট (নতুন যোগ / সিরিয়াল ধরে আপডেট) | এডমিন |
-| `/admin/photos?project=<key>` | ছবির বাল্ক আপলোড (ফাইলনাম দিয়ে মেলানো) | এডমিন |
-| `/admin/activity` | একটিভিটি লগ | এডমিন |
-| `/admin/users` | ইউজার-পাতা: ভূমিকা বদল, প্রকল্পের ইউজারকে প্রকল্প দেওয়া, লগইন বন্ধ ও চালু (নতুন লগইন খোলা হয় CLI দিয়ে) | মূল এডমিন |
-| `/housing/admin/...` | পুরনো লিংক → নতুন `/admin/...` এ নিজে থেকে যায় | — |
+## ৩. Claude Code দিয়ে ফিচার যোগ করুন
 
-খসড়া প্রকল্পের পাতা শুধু এডমিন দেখেন (উপরে হলুদ "খসড়া" ব্যানার); সাধারণ দর্শক পান "পাওয়া যায়নি"।
+১. প্রথমবার Claude Code-এ আস-সুন্নাহর প্লাগইন বসান। এর রিপো প্রাইভেট, তাই আগে GitHub-এ `forhad-h/assunnah-engineering` দেখার অনুমতি লাগবে। প্লাগইন ছাড়াও Claude Code চলে, তবে নিচের `/ae-…` কমান্ডগুলো থাকে না।
 
-## নথি
+   ```
+   /plugin marketplace add forhad-h/assunnah-engineering
+   /plugin install assunnah-engineering@assunnah
+   ```
 
-সব নথির সূচি: [docs/README.md](docs/README.md)
+২. প্রজেক্টের ফোল্ডারে `claude` চালান। প্রজেক্টের নিয়ম Claude নিজেই পড়ে নেয় ([CLAUDE.md](CLAUDE.md))।
 
-- [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) — **ডেভেলপার নির্দেশিকা** (ইংরেজিতে): চালানো, নতুন ফিচার যোগ, কোন টেস্ট কখন, CI কী দেখে
-- [docs/ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md) — **এডমিন ব্যবহার নির্দেশিকা**: ভূমিকা, এডমিন খোলা, প্রকল্প, ফিল্ড, ইম্পোর্ট, ছবি, প্রকাশ/অপ্রকাশ
-- [docs/api/PROJECTS_API_CONTRACT.md](docs/api/PROJECTS_API_CONTRACT.md) — REST সার্ভারের চুক্তি
-- [docs/architecture/migration-notes.md](docs/architecture/migration-notes.md) — স্থাপত্যের সিদ্ধান্ত, মাইগ্রেশনের তালিকা, হোস্টিংয়ের শর্ত
-- [docs/testing/README.md](docs/testing/README.md) — কোন টেস্ট কখন, মক ব্যাকএন্ড, CI
-- [docs/history/README.md](docs/history/README.md) — আগের Supabase সংস্করণের নথি ও সরানো জিনিস কোথা থেকে ফেরানো যায়
+৩. কী চান, সহজ ভাষায় বলুন, বাংলা বা ইংরেজিতে। যেমন: "রেকর্ডের তালিকায় মোবাইল নম্বর দিয়ে খোঁজার ব্যবস্থা চাই।"
+
+৪. বড় কাজ এই ক্রমে করুন:
+   - `/ae-brainstorm` — কী বানাবেন, ঠিক করা
+   - `/ae-plan` — কীভাবে বানাবেন, তার পরিকল্পনা
+   - `/ae-work` — বানানো, টেস্ট আর রিভিউ
+
+   ছোট কাজ সরাসরি বললেই হয়; টেস্ট Claude নিজেই চালায়।
+
+৫. শেষে ব্রাউজারে নিজে দেখে নিন ঠিকমতো চলছে কি না। তারপর Claude-কে বলুন কমিট করতে। নিজের ব্রাঞ্চে কাজ করুন, `main`-এ সরাসরি পুশ করবেন না।
+
+## সমস্যা হলে
+
+- **"Cannot connect to the Docker daemon"**: Docker Desktop চালু করুন।
+- **"port is already allocated"**: 5173, 3001 বা 5432 পোর্টে অন্য কিছু চলছে। সেটা বন্ধ করে আবার চালান।
+- **সব মুছে নতুন করে শুরু**: `docker compose down -v`। ডাটাবেস আর আপলোড করা ছবি মুছে যায়; পরের `docker compose up`-এ নমুনা ডেটা আবার বসে, লগইনও আবার খুলতে হয়।
+- আটকে গেলে এরর মেসেজটা Claude-কে দেখিয়ে জিজ্ঞেস করুন।
+
+## আরও পড়ুন
+
+- [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) — কারিগরি নির্দেশিকা (ইংরেজিতে): কাঠামো, পাতার তালিকা, ফিচার যোগের ধাপ, টেস্ট, CI
+- [docs/ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md) — এডমিন প্যানেল ব্যবহারের নির্দেশিকা
+- [docs/README.md](docs/README.md) — সব নথির সূচি
