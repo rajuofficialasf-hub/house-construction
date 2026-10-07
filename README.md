@@ -1,18 +1,18 @@
-# আস-সুন্নাহ ফাউন্ডেশন — প্রকল্প-প্ল্যাটফর্ম
+# As-Sunnah Foundation — Project Platform
 
-ঘর নির্মাণ, স্বাবলম্বী, দক্ষতাভিত্তিক উদ্যোক্তা — প্রতিটি প্রকল্পের উপকারভোগীদের তালিকা দেখানোর পাবলিক সাইট। সাথে আছে রেকর্ড, ছবি আর প্রকল্প সামলানোর এডমিন প্যানেল। নতুন প্রকল্প এডমিন প্যানেল থেকেই খোলা যায়, কোড লাগে না।
+A public site that lists each project's beneficiaries (housing, self-reliance, skill-based entrepreneurs and more), with an admin panel for records, photos and projects. New projects are created from the admin panel, with no code.
 
-এই পাতা নতুনদের জন্য: অ্যাপ চালানো আর Claude Code দিয়ে নতুন ফিচার যোগ করা। কারিগরি খুঁটিনাটি আছে [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md)-এ (ইংরেজিতে)।
+Technical details are in [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md).
 
-## যা লাগবে
+## What you need
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) — ইনস্টল করে চালু রাখুন। অ্যাপ চালাতে এটুকুই যথেষ্ট।
-- [git](https://git-scm.com/downloads) — কোড নামাতে।
-- [Claude Code](https://claude.com/claude-code) — ফিচার যোগ করতে।
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/), installed and running. This is all you need to run the app.
+- [git](https://git-scm.com/downloads), to get the code.
+- [Claude Code](https://claude.com/claude-code), to add features.
 
-## ১. অ্যাপ চালান
+## 1. Run the app
 
-টার্মিনাল খুলে:
+In a terminal:
 
 ```bash
 git clone https://github.com/rajuofficialasf-hub/house-construction.git
@@ -20,53 +20,53 @@ cd house-construction
 docker compose up
 ```
 
-প্রথমবার কয়েক মিনিট লাগে। লগে `housing API listening` দেখলে ব্রাউজারে খুলুন http://localhost:5173 — নমুনা প্রকল্প আর রেকর্ড দেখা যাবে।
+The first start takes a few minutes. When the log shows `housing API listening`, open http://localhost:5173. You'll see sample projects and records.
 
-বন্ধ করতে টার্মিনালে `Ctrl+C` চাপুন। পরের বার শুধু `docker compose up`।
+To stop, press `Ctrl+C` in that terminal. Next time, just run `docker compose up`.
 
-## ২. নিজের লগইন খুলুন
+## 2. Create your login
 
-সাইন-আপ পাতা নেই; লগইন খোলা হয় কমান্ড দিয়ে। অ্যাপ চলা অবস্থায় আরেকটা টার্মিনাল খুলে, একই ফোল্ডারে (ইমেইল আর নামের জায়গায় নিজেরটা বসান):
+There is no sign-up page; logins are created with a command. While the app is running, open a second terminal in the same folder and run this, with your own email and name:
 
 ```bash
 docker compose exec api npm run admin -- create --email you@example.org --name "Your Name" --role main_admin
 ```
 
-পাসওয়ার্ড দুবার চাইবে। টাইপ করার সময় কিছু দেখা যায় না, এটাই স্বাভাবিক। আসল কোনো পাসওয়ার্ড দেবেন না, শুধু এই কাজের জন্য আলাদা একটা দিন।
+It asks for a password twice. Nothing shows while you type; that's normal. Don't use a real password; pick one just for this.
 
-তারপর লগইন করুন: http://localhost:5173/admin/login
+Then log in at http://localhost:5173/admin/login.
 
-## ৩. Claude Code দিয়ে ফিচার যোগ করুন
+## 3. Add features with Claude Code
 
-১. প্রথমবার Claude Code-এ আস-সুন্নাহর প্লাগইন বসান। এর রিপো প্রাইভেট, তাই আগে GitHub-এ `forhad-h/assunnah-engineering` দেখার অনুমতি লাগবে। প্লাগইন ছাড়াও Claude Code চলে, তবে নিচের `/ae-…` কমান্ডগুলো থাকে না।
+1. The first time, install the As-Sunnah plugin in Claude Code. Its repo is private, so you need read access to `forhad-h/assunnah-engineering` on GitHub first. Claude Code works without the plugin, but the `/ae-…` commands below won't be there.
 
    ```
    /plugin marketplace add forhad-h/assunnah-engineering
    /plugin install assunnah-engineering@assunnah
    ```
 
-২. প্রজেক্টের ফোল্ডারে `claude` চালান। প্রজেক্টের নিয়ম Claude নিজেই পড়ে নেয় ([CLAUDE.md](CLAUDE.md))।
+2. Run `claude` in the project folder. Claude reads the project's rules by itself ([CLAUDE.md](CLAUDE.md)).
 
-৩. কী চান, সহজ ভাষায় বলুন, বাংলা বা ইংরেজিতে। যেমন: "রেকর্ডের তালিকায় মোবাইল নম্বর দিয়ে খোঁজার ব্যবস্থা চাই।"
+3. Say what you want in plain words, in English or Bangla. For example: "I want to search the records list by mobile number."
 
-৪. বড় কাজ এই ক্রমে করুন:
-   - `/ae-brainstorm` — কী বানাবেন, ঠিক করা
-   - `/ae-plan` — কীভাবে বানাবেন, তার পরিকল্পনা
-   - `/ae-work` — বানানো, টেস্ট আর রিভিউ
+4. For bigger work, go in this order:
+   - `/ae-brainstorm`: decide what to build
+   - `/ae-plan`: plan how to build it
+   - `/ae-work`: build it, with tests and review
 
-   ছোট কাজ সরাসরি বললেই হয়; টেস্ট Claude নিজেই চালায়।
+   For small changes, just ask. Claude runs the tests itself.
 
-৫. শেষে ব্রাউজারে নিজে দেখে নিন ঠিকমতো চলছে কি না। তারপর Claude-কে বলুন কমিট করতে। নিজের ব্রাঞ্চে কাজ করুন, `main`-এ সরাসরি পুশ করবেন না।
+5. When it's done, check it yourself in the browser. Then ask Claude to commit. Work on your own branch, and never push straight to `main`.
 
-## সমস্যা হলে
+## If something goes wrong
 
-- **"Cannot connect to the Docker daemon"**: Docker Desktop চালু করুন।
-- **"port is already allocated"**: 5173, 3001 বা 5432 পোর্টে অন্য কিছু চলছে। সেটা বন্ধ করে আবার চালান।
-- **সব মুছে নতুন করে শুরু**: `docker compose down -v`। ডাটাবেস আর আপলোড করা ছবি মুছে যায়; পরের `docker compose up`-এ নমুনা ডেটা আবার বসে, লগইনও আবার খুলতে হয়।
-- আটকে গেলে এরর মেসেজটা Claude-কে দেখিয়ে জিজ্ঞেস করুন।
+- **"Cannot connect to the Docker daemon"**: start Docker Desktop.
+- **"port is already allocated"**: something else is using port 5173, 3001 or 5432. Stop it and try again.
+- **Start over from scratch**: `docker compose down -v`. This deletes the database and uploaded photos. The next `docker compose up` loads the sample data again, and you create your login again.
+- If you're stuck, show the error message to Claude and ask.
 
-## আরও পড়ুন
+## More to read
 
-- [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) — কারিগরি নির্দেশিকা (ইংরেজিতে): কাঠামো, পাতার তালিকা, ফিচার যোগের ধাপ, টেস্ট, CI
-- [docs/ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md) — এডমিন প্যানেল ব্যবহারের নির্দেশিকা
-- [docs/README.md](docs/README.md) — সব নথির সূচি
+- [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md): the technical guide (structure, pages, adding a feature step by step, tests, CI)
+- [docs/ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md): how to use the admin panel (in Bangla)
+- [docs/README.md](docs/README.md): index of all docs
