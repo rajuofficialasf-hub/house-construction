@@ -74,7 +74,7 @@ function buildMockBackend(): Backend {
       }
     },
   }
-  // ইউজার-ব্যবস্থাপনা (পর্ব চ) মকে নেই — প্যারিটি a8e2154 এ স্থির, REST অ্যাডাপ্টারের মতোই NOT_IMPLEMENTED
+  // ইউজার-ব্যবস্থাপনা মকে নেই, তাই REST অ্যাডাপ্টারের মতোই NOT_IMPLEMENTED
   const notInMock = async (): Promise<never> => {
     throw new HousingApiError('NOT_IMPLEMENTED', 'মক ব্যাকএন্ডে ইউজার-ব্যবস্থাপনা নেই')
   }

@@ -3803,4 +3803,9 @@ Run these at the end of P1:
       - tests that assert the removal: `src/backend/factory.test.ts` (a `supabase` value falls back to REST), `e2e/mock/admin-users.spec.ts` (no Supabase text), `server/test/http/openapi.test.ts` and `security.test.ts` (`/api/v1/housing` is 404 and gets no CORS)
       - pointers to the history: `README.md`, `docs/README.md` and `docs/architecture/migration-notes.md` (the `docs/history/` link and `git show pre-p9:deploy/nginx/`)
       - Also removed in U64: the activity log's `service_role` label (only Supabase scripts wrote that actor; the server writes null). `CLAUDE.md`'s two stale lines now say the move is done.
+    - **`ae-simplify`** (one pass over 41b74ab..51faef1; reuse, quality and efficiency reviewers) applied 4 changes:
+      - the nine old-route schemas in `server/src/housing/schemas.ts` (and their helpers) go; four constants are no longer exported
+      - their unit tests move onto the live `recordCreateBody`, `recordPatchBody` and `serialBody` in a new `server/src/records/schemas.test.ts` (defaults, trim and NFC, refusals); `housing/schemas.test.ts` keeps the id, serials and activity checks
+      - three stale comments (`factory.ts`, `interfaces/housingApi.ts`, `interfaces/types.ts`)
+      - It skipped 4: the users page's `CONFIG_ERROR` wrapper and `withProjects`'s old-contract fallback (P9b reworks both), shared HTTP test helpers (a pattern older than P9, across about seven files), and the e2e login path `/housing/admin/…` (a working redirect). Efficiency found nothing.
 

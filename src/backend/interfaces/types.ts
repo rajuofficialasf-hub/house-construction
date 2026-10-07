@@ -527,7 +527,7 @@ export interface AuthUser {
   id: string
   email: string
   name: string | null
-  /** housing_admins টেবিল থেকে: main_admin (মোছা ও সেটিংস পারেন), editor (প্রকল্পের ইউজার) বা পুরনো admin */
+  /** housing_admins টেবিল থেকে: main_admin (মোছা ও সেটিংস পারেন), admin (সব প্রকল্পে যোগ, এডিট ও সেটিংস; মোছা নয়) বা editor (প্রকল্পের ইউজার) */
   role: AdminRole
   /** মূল এডমিন বা "সব প্রকল্প" এর ইউজার (সার্ভারের সব এডমিন, এখন) — তখন projects দেখা হয় না */
   allProjects: boolean

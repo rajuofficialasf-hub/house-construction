@@ -46,7 +46,7 @@ export interface HousingApi {
   /** (project_type, serial_no) মিললে আপডেট; না মিললে missing এ (এরর নয়)। এক কলে ≤ ৫০০ সারি */
   bulkUpdateBySerial(input: BulkUpdateInput): Promise<BulkUpdateResult>
   /**
-   * প্রকল্পের পরিসংখ্যান (গ্রুপ দিলে উপ-প্রকল্প মিলিয়ে)। projectType না দিলে 'housing' (পুরনো আচরণ: ঘর নির্মাণের সব)।
+   * প্রকল্পের পরিসংখ্যান (গ্রুপ দিলে উপ-প্রকল্প মিলিয়ে)। projectType না দিলে 'housing' গ্রুপ (ঘর নির্মাণের সব উপ-প্রকল্প মিলিয়ে)।
    * light = true: হোম কার্ডের হালকা সংস্করণ (by_union ও ক্যাটাগরির by_value বাদ)।
    * filters (খালি নয়): তালিকার একই ফিল্টারে গোনা হালকা পরিসংখ্যান, `filtered: true` — কার্ডগুলো ফিল্টার অনুযায়ী বদলায়।
    *   যে ব্যাকএন্ড ফিল্টার করে না (মক), সে মোট ফেরত দেয়, `filtered: false` — পাতা ভাঙে না।

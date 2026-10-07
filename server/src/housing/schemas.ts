@@ -3,22 +3,21 @@ import { projectKey, writeText } from '../projects/schemas.js';
 
 export { writeText };
 
-// The shared record, paging and activity shapes (docs/api/PROJECTS_API_CONTRACT.md §3.4, §4.4.1, §4.5) that the
-// project routes in src/records/ and src/routes/v1/ build on. The OpenAPI document is built from
-// them, so the spec can't describe a shape the server doesn't use.
+// The shared base of the record and activity schemas (docs/api/PROJECTS_API_CONTRACT.md §3.4, §4.4.1, §4.5): the
+// record fields, ids, serials, photo kinds and the activity log's query and body, which src/records/
+// and src/routes/v1/ build on. The OpenAPI document is built from them, so the spec can't describe a
+// shape the server doesn't use.
 
 /** The largest value Postgres int4 holds. Bigger ids or serials would make the query fail with a 500. */
 export const INT4_MAX = 2147483647;
 
-export const PROJECT_TYPES = ['semi_pucca', 'tin'] as const;
-export const SORT_FIELDS = ['serial_no', 'year', 'name', 'created_at'] as const;
+const PROJECT_TYPES = ['semi_pucca', 'tin'] as const;
 export const DEFAULT_PAGE_SIZE = 50;
 // The table's CHECK range for year (db/migrations/0001_housing_schema.sql).
 export const YEAR_MIN = 2000;
 export const YEAR_MAX = 2100;
 export const MAX_PAGE_SIZE = 100;
-export const MAX_SERIALS = 100;
-const MAX_TEXT = 100;
+const MAX_SERIALS = 100;
 
 export const projectType = z.enum(PROJECT_TYPES);
 export type ProjectType = z.infer<typeof projectType>;
@@ -30,41 +29,12 @@ function intParam(min: number, max: number) {
   return digits.transform(Number).pipe(z.number().int().min(min).max(max));
 }
 
-// Trimmed and NFC-normalized, because stored text is NFC and filters compare exactly (docs/api/PROJECTS_API_CONTRACT.md §5.1).
-// A blank value counts as absent, so a form's empty field doesn't filter everything out.
-const textParam = z
-  .string()
-  .trim()
-  .max(MAX_TEXT)
-  .transform((value) => (value === '' ? undefined : value.normalize('NFC')))
-  .optional();
-
-export const listQuery = z.object({
-  project_type: projectType.optional(),
-  serial_no: intParam(1, INT4_MAX).optional(),
-  // The table only holds 2000-2100, so a year outside it is a mistake, not an empty filter.
-  year: intParam(YEAR_MIN, YEAR_MAX).optional(),
-  division: textParam,
-  district: textParam,
-  upazila: textParam,
-  q: textParam,
-  page: intParam(1, INT4_MAX).default(1),
-  page_size: intParam(1, MAX_PAGE_SIZE).default(DEFAULT_PAGE_SIZE),
-  sort: z.enum(SORT_FIELDS).default('serial_no'),
-  order: z.enum(['asc', 'desc']).default('asc'),
-});
-
 export const idParams = z.object({ id: z.uuid() });
 
 // The before and after photo of a record (docs/api/PROJECTS_API_CONTRACT.md §4.4.10).
-export const PHOTO_KINDS = ['prev', 'current'] as const;
+const PHOTO_KINDS = ['prev', 'current'] as const;
 export const photoKind = z.enum(PHOTO_KINDS);
 export type PhotoKind = z.infer<typeof photoKind>;
-
-export const serialParams = z.object({
-  project_type: projectType,
-  serial_no: intParam(1, INT4_MAX),
-});
 
 // "1,2,3": one to 100 whole numbers. Returned deduped and ascending, the order the response uses.
 export const serialsQuery = z.object({
@@ -76,14 +46,8 @@ export const serialsQuery = z.object({
     .transform((nos) => [...new Set(nos)].sort((a, b) => a - b)),
 });
 
-export const projectTypeQuery = z.object({ project_type: projectType.optional() });
-export const nextSerialQuery = z.object({ project_type: projectType });
-
-// Write bodies (docs/api/PROJECTS_API_CONTRACT.md §5.1). Strict objects: an unknown key is a 400, which is what keeps
-// serial_no and project_type out of an update and the photo columns out of every write.
-
 export const MAX_BULK_ROWS = 500;
-export const MAX_DETAILS_BYTES = 8192;
+const MAX_DETAILS_BYTES = 8192;
 export const MAX_SOURCE = 2000;
 const ACTION = /^[a-z_]{1,40}$/;
 /** Actions the server logs itself (activity triggers, login, logout); a client may not post them. */
@@ -119,7 +83,6 @@ export const CLIENT_EVENT_ACTIONS = ['import_run', 'photo_bulk_run', 'records_ex
 /** How deep the activity list may page; past it a filter is the way in, not a long OFFSET scan. */
 export const MAX_ACTIVITY_PAGE = 10_000;
 
-
 export const year = z.number().int().min(YEAR_MIN).max(YEAR_MAX);
 export const serialNo = z.number().int().min(1).max(INT4_MAX);
 // The sheet's original link, kept only as a reference; the UI never renders it as a link.
@@ -142,25 +105,6 @@ export const recordFields = {
   current_photo_source: photoSource,
 };
 
-/** One record without its project type: a bulk row, and the base of createBody. */
-const createRow = z.strictObject({
-  ...recordFields,
-  serial_no: serialNo.optional(),
-  father_or_husband_name: recordFields.father_or_husband_name.default(''),
-  address: recordFields.address.default(''),
-  prev_photo_source: photoSource.default(null),
-  current_photo_source: photoSource.default(null),
-});
-
-export const createBody = createRow.extend({ project_type: projectType });
-
-export const updateBody = z
-  .strictObject(recordFields)
-  .partial()
-  .refine((patch) => Object.keys(patch).length > 0, { message: 'কোনো ফিল্ড দেওয়া হয়নি', params: { reason: 'empty' } });
-
-export const changeSerialBody = z.strictObject({ serial_no: serialNo });
-
 /** With use_given_serial every row needs a serial, each only once; the issue names the row. */
 export function checkGivenSerials(body: { mode: string; rows: { serial_no?: number | undefined }[] }, ctx: z.RefinementCtx): void {
   if (body.mode !== 'use_given_serial') return;
@@ -177,45 +121,6 @@ export function checkGivenSerials(body: { mode: string; rows: { serial_no?: numb
 export function dropSerialsWhenAssigned<T extends { mode: string; rows: { serial_no?: number | undefined }[] }>(body: T): T {
   return body.mode === 'assign_serial' ? { ...body, rows: body.rows.map(({ serial_no: _ignored, ...rest }) => rest) } : body;
 }
-
-export const bulkInsertBody = z
-  .strictObject({
-    project_type: projectType,
-    mode: z.enum(['assign_serial', 'use_given_serial']),
-    // The route answers more than MAX_BULK_ROWS with 413 before this runs; max() is only a backstop.
-    rows: z.array(createRow).min(1).max(MAX_BULK_ROWS),
-  })
-  .superRefine(checkGivenSerials)
-  .transform(dropSerialsWhenAssigned);
-
-// Bulk update leaves absent or null fields unchanged, and also blank required text. The function
-// (0014_record_functions_v2.sql) also leaves '' unchanged in every field.
-function keepIfFilled(max: number) {
-  return writeText(0, max)
-    .transform((value) => value || undefined)
-    .nullish();
-}
-
-const bulkUpdateRow = z.strictObject({
-  serial_no: serialNo,
-  year: year.nullish(),
-  name: keepIfFilled(200),
-  father_or_husband_name: writeText(0, 200).nullish(),
-  division: keepIfFilled(100),
-  district: keepIfFilled(100),
-  upazila: keepIfFilled(100),
-  address: writeText(0, 1000).nullish(),
-  prev_photo_source: z.string().trim().max(MAX_SOURCE).nullish(),
-  current_photo_source: z.string().trim().max(MAX_SOURCE).nullish(),
-});
-
-export const bulkUpdateBody = z
-  .strictObject({ project_type: projectType, rows: z.array(bulkUpdateRow).min(1).max(MAX_BULK_ROWS) })
-  .transform((body) => ({
-    ...body,
-    // Absent and null mean the same to the SQL function; dropping them keeps the jsonb small.
-    rows: body.rows.map((row) => Object.fromEntries(Object.entries(row).filter(([, value]) => value != null)) as typeof row),
-  }));
 
 const actionName = z.string().regex(ACTION, 'action: a-z and _ only, at most 40');
 
