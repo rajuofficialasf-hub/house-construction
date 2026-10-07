@@ -11,6 +11,7 @@ import { errorHandler, notFoundHandler } from './errors.js';
 import { originCheck } from './http/origin.js';
 import { buildOpenApiDocument } from './openapi.js';
 import { activityRouter } from './routes/v1/activity.js';
+import { adminUsersRouter } from './routes/v1/admin-users.js';
 import { projectsAdminRouter } from './routes/v1/projects-admin.js';
 import { authRouter } from './routes/v1/auth.js';
 import { healthRouter } from './routes/v1/health.js';
@@ -162,6 +163,7 @@ export function createApp({
   // also count /projects/:key/records.
   app.use('/api/v1', recordsAdminRouter({ sql, storage, publicApiUrl, receivePhoto, writeRateLimit }));
   app.use('/api/v1', activityRouter({ sql, readRateLimit, writeRateLimit }));
+  app.use('/api/v1', adminUsersRouter({ sql, readRateLimit, writeRateLimit }));
   app.use('/api/v1', recordsReadRouter(sql, readRateLimit));
   app.use('/api/v1', projectsAdminRouter({ sql, storage, publicApiUrl, receivePhoto, readRateLimit, writeRateLimit }));
   app.use('/api/v1/projects', projectsReadRouter(sql, readRateLimit));

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { adminUser, adminUserBody } from './auth/userSchemas.js';
 import {
   activityEntry,
   bulkInsertResult,
@@ -136,7 +137,7 @@ function ok(description: string, data: JsonSchema, meta?: JsonSchema) {
 const ERROR_DESCRIPTIONS = {
   400: 'Invalid parameter or body (VALIDATION_ERROR); details.field names it, and details.row_index the row of a bulk body',
   401: 'No admin session (UNAUTHENTICATED)',
-  403: 'The Origin header is missing or not allowed, or a delete comes from an admin who is not the main admin (FORBIDDEN)',
+  403: 'The Origin header is missing or not allowed, a delete or user change comes from an admin who is not the main admin, or an editor is outside its projects or rights (FORBIDDEN)',
   404: 'No such record, photo or project, or a draft project asked for without an admin session (NOT_FOUND)',
   409: 'The serial, project key, slug, file prefix or field key is already in use, or If-Match no longer matches (CONFLICT); details.field names the field',
   413: 'The body, a photo or the number of rows is too large (PAYLOAD_TOO_LARGE)',
@@ -340,6 +341,15 @@ export function buildOpenApiDocument(): OpenApiDocument {
           },
         }, 'activity'),
       },
+      '/admin/users': {
+        get: admin('Every login, the main admin first, then by creation; never cached. Main admin only', {
+          responses: { 200: ok('The logins', { type: 'array', items: ref('AdminUser') }), ...errors(401, 403, 429, 500) },
+        }, 'admin-users'),
+        put: admin("Save an existing login's role (admin or editor), projects and status; logins are created only with the admin CLI, and the main admin's row can't be changed. Main admin only", {
+          requestBody: body(adminUserBody),
+          responses: { 200: ok('The saved login', ref('AdminUser')), ...errors(400, 401, 403, 404, 429, 500) },
+        }, 'admin-users'),
+      },
       '/projects/{key}/stats': {
         get: {
           summary:
@@ -523,6 +533,7 @@ export function buildOpenApiDocument(): OpenApiDocument {
         ProjectStats: jsonSchema(projectStats, 'output'),
         ProjectOverview: jsonSchema(projectOverview, 'output'),
         ActivityEntry: jsonSchema(activityEntry, 'output'),
+        AdminUser: jsonSchema(adminUser, 'output'),
         BulkInsertResult: jsonSchema(bulkInsertResult, 'output'),
         BulkUpdateResult: jsonSchema(bulkUpdateResult, 'output'),
         Error: jsonSchema(errorBody, 'output'),

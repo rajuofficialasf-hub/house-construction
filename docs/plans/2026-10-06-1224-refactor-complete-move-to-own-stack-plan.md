@@ -3524,7 +3524,7 @@ Run once, after U64:
   - OpenAPI: both paths documented, "Main admin only" with a 403, and in the pinned list
 - **Done when:** `npm --prefix server run typecheck` and `npx vitest run test/http/admin-users.test.ts test/http/p3-admin-auth.test.ts test/http/security.test.ts test/http/openapi.test.ts` pass.
 - **Depends on:** U66
-- **Status:** todo
+- **Status:** done
 
 ### U69. An editor writes records only in its projects
 - **Goal:** Every record write route, the private reads and `POST /activity` refuse an editor outside its projects, and the serial change and `_clear` refuse every editor.
@@ -3758,7 +3758,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** `ae-work` on P9b, U68 (U65–U67 done). P10 (the handoff guide and the final `CLAUDE.md` profile, with the mock rule and the migration-comment exception) follows P9b.
+- **Next:** `ae-work` on P9b, U69 (U65–U68 done). P10 (the handoff guide and the final `CLAUDE.md` profile, with the mock rule and the migration-comment exception) follows P9b.
 - **Uncommitted:** nothing.
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.

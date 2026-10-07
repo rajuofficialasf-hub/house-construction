@@ -1,6 +1,6 @@
 // Who may call the admin routes added with the bulk, photo, serial and activity work and the
-// project and field writes (docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md,
-// "P3 decisions" and "P4 decisions"): one
+// project and field writes, and user management (docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md,
+// "P3 decisions", "P4 decisions" and "P9b decisions"): one
 // table of routes, each checked for the same refusals, so a new route can't skip one.
 import { Writable } from 'node:stream';
 import request from 'supertest';
@@ -67,6 +67,8 @@ const ROUTES: AdminRoute[] = [
   { method: 'put', path: `/api/v1/projects/${P}/cover` },
   { method: 'delete', path: `/api/v1/projects/${P}/cover` },
   { method: 'post', path: `/api/v1/projects/${P}/fields/tribe/rename-value`, body: { from: 'ক', to: 'খ' } },
+  { method: 'get', path: '/api/v1/admin/users' },
+  { method: 'put', path: '/api/v1/admin/users', body: { email: 'nobody@example.org', role: 'admin', all_projects: false, projects: [], is_active: true } },
 ];
 
 let id = '';

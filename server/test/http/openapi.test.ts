@@ -3,7 +3,7 @@ import type { RequestHandler, Router } from 'express';
 import request from 'supertest';
 import { afterAll, describe, expect, it } from 'vitest';
 import { createApp } from '../../src/app.js';
-import { requireMainAdmin, requireMainAdminForCovers, requireMainAdminForPhotos } from '../../src/auth/middleware.js';
+import { requireMainAdmin, requireMainAdminForCovers, requireMainAdminForPhotos, requireMainAdminForUsers } from '../../src/auth/middleware.js';
 import { createLogger } from '../../src/logger.js';
 import { buildOpenApiDocument } from '../../src/openapi.js';
 import { healthRouter } from '../../src/routes/v1/health.js';
@@ -12,6 +12,7 @@ import { photosRouter } from '../../src/routes/v1/photos.js';
 import { projectsAdminRouter } from '../../src/routes/v1/projects-admin.js';
 import { projectsReadRouter } from '../../src/routes/v1/projects.js';
 import { activityRouter } from '../../src/routes/v1/activity.js';
+import { adminUsersRouter } from '../../src/routes/v1/admin-users.js';
 import { recordsAdminRouter } from '../../src/routes/v1/records-admin.js';
 import { recordsReadRouter } from '../../src/routes/v1/records.js';
 import { appDb } from '../support/db.js';
@@ -34,7 +35,7 @@ function routesOf(prefix: string, router: Router): string[] {
   });
 }
 
-const MAIN_ADMIN_GUARDS = new Set<RequestHandler>([requireMainAdmin, requireMainAdminForPhotos, requireMainAdminForCovers]);
+const MAIN_ADMIN_GUARDS = new Set<RequestHandler>([requireMainAdmin, requireMainAdminForPhotos, requireMainAdminForCovers, requireMainAdminForUsers]);
 
 /** `METHOD /path` of each route whose handler chain includes a main-admin guard. */
 function mainAdminRoutesOf(prefix: string, router: Router): string[] {
@@ -77,6 +78,7 @@ describe('GET /api/v1/openapi.json', () => {
       ...routesOf('', recordsAdminRouter({ sql, ...testPhotoDeps(), receivePhoto: () => Promise.reject(new Error('unused')) })),
       ...routesOf('/photos', photosRouter(sql, testPhotoDeps().storage)),
       ...routesOf('', activityRouter({ sql })),
+      ...routesOf('', adminUsersRouter({ sql })),
       ...routesOf('', projectsAdminRouter({ sql, ...testPhotoDeps(), receivePhoto: () => Promise.reject(new Error('unused')) })),
     ];
     expect(documentedRoutes().sort()).toEqual(mounted.sort());
@@ -118,6 +120,7 @@ describe('GET /api/v1/openapi.json', () => {
     const guarded = [
       ...mainAdminRoutesOf('', recordsAdminRouter(deps)),
       ...mainAdminRoutesOf('', projectsAdminRouter(deps)),
+      ...mainAdminRoutesOf('', adminUsersRouter({ sql })),
     ];
     expect(guarded.sort()).toEqual([
       'DELETE /fields/{id}',
@@ -125,6 +128,8 @@ describe('GET /api/v1/openapi.json', () => {
       'DELETE /projects/{key}/cover',
       'DELETE /records/{id}',
       'DELETE /records/{id}/photos/{slot}',
+      'GET /admin/users',
+      'PUT /admin/users',
     ]);
     for (const route of guarded) {
       const [method, path] = route.split(' ') as [string, string];

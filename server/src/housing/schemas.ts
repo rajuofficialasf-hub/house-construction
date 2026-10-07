@@ -173,7 +173,7 @@ export const projectActivityBody = activityBody.extend({
 
 // Responses. Strict objects, so a test that parses a response also proves no extra column leaks.
 
-const timestamp = z.iso.datetime({ offset: true });
+export const timestamp = z.iso.datetime({ offset: true });
 
 export const housingRecord = z.strictObject({
   id: z.uuid(),
