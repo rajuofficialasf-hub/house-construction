@@ -49,6 +49,20 @@ describe('createRestAuthProvider', () => {
     await expect(createRestAuthProvider(BASE).login('a@example.org', 'x')).rejects.toMatchObject({ code: 'RATE_LIMITED' })
   })
 
+  it("keeps an editor's scope as the server sends it", async () => {
+    const editor = { ...USER, role: 'editor', allProjects: false, projects: ['tin'] }
+    stubFetch(() => json(200, { data: editor }))
+    expect(await createRestAuthProvider(BASE).currentUser()).toEqual(editor)
+  })
+
+  it('fails closed on a body without the scope: no "all projects" and no projects', async () => {
+    const { allProjects: _a, projects: _p, ...bare } = USER
+    stubFetch(() => json(200, { data: bare }))
+    expect(await createRestAuthProvider(BASE).currentUser()).toEqual({ ...bare, allProjects: false, projects: [] })
+    stubFetch(() => json(200, { data: { expires_at: '2026-10-12T08:00:00.000Z', user: { ...bare, allProjects: 'yes', role: 'main_admin' } } }))
+    expect(await createRestAuthProvider(BASE).login('admin@example.org', 'pw')).toMatchObject({ allProjects: false, projects: [] })
+  })
+
   it('asks /api/v1/auth/me for the current admin, and treats 401 as logged out', async () => {
     const fetchMock = stubFetch(() => json(200, { data: USER }))
     expect(await createRestAuthProvider(BASE).currentUser()).toEqual(USER)

@@ -10,6 +10,7 @@ import {
   MAX_PAGE_SIZE,
   type ActivityEntry,
   type ActivityListParams,
+  type AdminUserRow,
   type ExtraValues,
   type HousingRecord,
   type ListParams,
@@ -25,10 +26,6 @@ import type { AdminUsersApi } from '../interfaces/adminUsersApi'
 export { ENDPOINTS } from './endpoints'
 export { createRestAuthProvider } from './authProvider'
 export { createRestProjectsApi } from './projectsApi'
-
-function notImplemented(method: string): never {
-  throw new HousingApiError('NOT_IMPLEMENTED', `REST অ্যাডাপ্টার: ${method} এখনো তৈরি হয়নি`)
-}
 
 /** সার্ভারে সব প্রকল্পের রেকর্ড বা পরিসংখ্যান একসাথে পাওয়ার রাউট নেই, আর UI সবসময় প্রকল্প দেয় */
 function keyOf(projectType: ProjectType | undefined): ProjectType {
@@ -165,9 +162,23 @@ export function createRestHousingApi(baseUrl: string): HousingApi {
 }
 
 /** ইউজার-ব্যবস্থাপনা (চুক্তি v১.৫ §৪.৭) — নিজস্ব সার্ভারে পরে */
-export function createRestAdminUsersApi(_baseUrl: string): AdminUsersApi {
+/**
+ * ইউজার-ব্যবস্থাপনা (§৪.৬)। ইমেইল আর "অন্তত একটি প্রকল্প" এখানেই যাচাই হয়, যাতে পাতা সার্ভারে না গিয়েই ঘরের ভুল দেখায়;
+ * সার্ভার দুটোই আবার যাচাই করে। এডমিন বা "সব প্রকল্প" হলে প্রকল্পের তালিকা পাঠানো হয় না।
+ */
+export function createRestAdminUsersApi(baseUrl: string): AdminUsersApi {
   return {
-    list: async () => notImplemented('adminUsers.list'), // GET  ENDPOINTS.adminUsers.list
-    save: async () => notImplemented('adminUsers.save'), // PUT  ENDPOINTS.adminUsers.save
+    list: () => restData<AdminUserRow[]>(baseUrl, ENDPOINTS.adminUsers.list()),
+    async save(input) {
+      const email = input.email.trim().toLowerCase()
+      if (!/^\S+@\S+\.\S+$/.test(email)) throw new HousingApiError('VALIDATION_ERROR', 'সঠিক ইমেইল দিন', { field: 'email' })
+      const allProjects = input.role === 'editor' && input.all_projects
+      const scoped = input.role === 'editor' && !allProjects
+      if (scoped && input.is_active && input.projects.length === 0) {
+        throw new HousingApiError('VALIDATION_ERROR', 'অন্তত একটি প্রকল্প বাছুন, অথবা "সব প্রকল্প" দিন', { field: 'projects' })
+      }
+      const body = { email, role: input.role, all_projects: allProjects, projects: scoped ? input.projects : [], is_active: input.is_active }
+      return restData<AdminUserRow>(baseUrl, ENDPOINTS.adminUsers.save(), { method: 'PUT', body })
+    },
   }
 }

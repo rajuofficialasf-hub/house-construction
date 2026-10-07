@@ -517,9 +517,9 @@ export class HousingApiError extends Error implements ApiError {
 }
 
 /**
- * এডমিনের ভূমিকা: 'main_admin' = মূল/সুপার এডমিন (একজন) — সব, মোছা ও প্রকল্পের সেটিংসসহ;
+ * এডমিনের ভূমিকা: 'main_admin' = মূল এডমিন (একজন) — সব, মোছাসহ; 'admin' = এডমিন — সব প্রকল্পে সব, শুধু মোছা নয়;
  * 'editor' = প্রকল্পের ইউজার — শুধু বরাদ্দ প্রকল্পে যোগ ও এডিট; মোছা, থাকা ছবি বদল, মান ফাঁকা করা, সিরিয়াল বদল আর
- * সেটিংস নয়। সার্ভার এখনো দেয় শুধু 'admin' ও 'main_admin'; ইউজার-ব্যবস্থাপনা (docs/api/PROJECTS_API_CONTRACT.md §৪.৬) এলে 'editor' আসবে।
+ * সেটিংস নয় (docs/api/PROJECTS_API_CONTRACT.md §২, §৪.৬)।
  */
 export type AdminRole = 'admin' | 'main_admin' | 'editor'
 
@@ -529,39 +529,39 @@ export interface AuthUser {
   name: string | null
   /** housing_admins টেবিল থেকে: main_admin (মোছা ও সেটিংস পারেন), admin (সব প্রকল্পে যোগ, এডিট ও সেটিংস; মোছা নয়) বা editor (প্রকল্পের ইউজার) */
   role: AdminRole
-  /** মূল এডমিন বা "সব প্রকল্প" এর ইউজার (সার্ভারের সব এডমিন, এখন) — তখন projects দেখা হয় না */
+  /** মূল এডমিন, এডমিন বা "সব প্রকল্প" এর প্রকল্পের ইউজার — তখন projects খালি */
   allProjects: boolean
-  /** যেসব প্রকল্পে যোগ/এডিট করতে পারেন (গ্রুপ-বরাদ্দে উপ-প্রকল্পসহ) — শুধু UI দেখানো/লুকানোর জন্য; নিষেধ ডাটাবেসে */
+  /** যেসব প্রকল্পে যোগ/এডিট করতে পারেন (গ্রুপ-বরাদ্দে উপ-প্রকল্পসহ) — শুধু UI দেখানো/লুকানোর জন্য; নিষেধ সার্ভারে */
   projects: ProjectKey[]
 }
 
-/** ইউজার-তালিকার একটি সারি (housing_admin_users; পর্ব চ) */
+/** ইউজার-তালিকার একটি সারি (GET /api/v1/admin/users) */
 export interface AdminUserRow {
-  user_id: string
+  id: string
   email: string
+  name: string | null
   role: AdminRole
+  /** মূল এডমিন, এডমিন বা "সব প্রকল্প" এর প্রকল্পের ইউজার — তখন projects খালি */
   all_projects: boolean
   is_active: boolean
-  /** বরাদ্দ প্রকল্প/গ্রুপের key (all_projects হলে খালি) */
+  /** বরাদ্দ প্রকল্প/গ্রুপের key (গ্রুপের উপ-প্রকল্প আলাদা করে নয়) */
   projects: ProjectKey[]
   created_at: string
-  last_sign_in_at: string | null
+  /** শেষ সেশনের শেষ ব্যবহার; সেশন না থাকলে null */
+  last_seen_at: string | null
 }
 
-/** ইউজার যোগ/বদল (housing_admin_user_save) */
+/** লগইনের ভূমিকা, প্রকল্প ও অবস্থা বদল (PUT /api/v1/admin/users); মূল এডমিন বানানো যায় শুধু CLI দিয়ে */
 export interface AdminUserInput {
   email: string
+  role: 'admin' | 'editor'
   all_projects: boolean
   projects: ProjectKey[]
   is_active: boolean
 }
 
-export interface AdminUserSaveResult {
-  user_id: string
-  email: string
-  /** নতুন ইউজার (আগে এডমিন তালিকায় ছিলেন না) */
-  created: boolean
-}
+/** সংরক্ষণের পরের সারি */
+export type AdminUserSaveResult = AdminUserRow
 
 export interface UploadTarget {
   project_type: ProjectType

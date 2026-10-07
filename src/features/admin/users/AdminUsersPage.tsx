@@ -3,13 +3,14 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { Link } from 'react-router'
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import { toBanglaNumber } from '@/lib/banglaNumber'
-import { getAdminUsersApi, HousingApiError, type AdminUserRow, type Project, type ProjectKey } from '@/backend'
+import { getAdminUsersApi, HousingApiError, type AdminRole, type AdminUserInput, type AdminUserRow, type Project, type ProjectKey } from '@/backend'
 import { childrenOf, topLevelProjects, useProjects } from '@/features/projects/registry'
 import { ErrorNotice } from '@/features/housing/components/ErrorNotice'
 import { formatDateTime } from '@/features/housing/utils/activityLabels'
 
 interface Draft {
   email: string
+  role: AdminUserInput['role']
   all_projects: boolean
   projects: ProjectKey[]
   is_active: boolean
@@ -17,7 +18,10 @@ interface Draft {
   existing: boolean
 }
 
-const EMPTY: Draft = { email: '', all_projects: false, projects: [], is_active: true, existing: false }
+const EMPTY: Draft = { email: '', role: 'editor', all_projects: false, projects: [], is_active: true, existing: false }
+
+const ROLE_LABELS: Record<AdminRole, string> = { main_admin: 'মূল এডমিন', admin: 'এডমিন', editor: 'প্রকল্পের ইউজার' }
+const roleLabel = (role: AdminRole) => t(ROLE_LABELS[role])
 
 function StatusBadge({ active }: { active: boolean }) {
   return active ? (
@@ -27,21 +31,10 @@ function StatusBadge({ active }: { active: boolean }) {
   )
 }
 
-/** CONFIG_ERROR হলে ErrorNotice এর সাধারণ ".env.local" ইঙ্গিতের বদলে ত্রুটির নিজের বার্তা দেখায় */
-function UsersError({ title, error }: { title: string; error: HousingApiError }) {
-  if (error.code !== 'CONFIG_ERROR') return <ErrorNotice title={title} error={error} />
-  return (
-    <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
-      <p className="font-semibold">{title}</p>
-      <p className="mt-1">{error.message}</p>
-    </div>
-  )
-}
-
 /**
- * /admin/users — ইউজার-ব্যবস্থাপনা (পর্ব চ, M-ধাপ ১৯; শুধু মূল এডমিন — RoleGate + ডাটাবেস দুজনেই আটকায়)।
- * অ্যাকাউন্ট আগে সার্ভারের এডমিন CLI দিয়ে খোলা হয় (`npm --prefix server run admin -- create`); এখানে সেই ইমেইলকে প্রকল্প বরাদ্দ, "সব প্রকল্প", চালু/বন্ধ।
- * গ্রুপ বাছলে তার সব উপ-প্রকল্প (পরে যোগ হলেও) পান।
+ * /admin/users — ইউজার-ব্যবস্থাপনা (শুধু মূল এডমিন — RoleGate আর সার্ভার দুজনেই আটকায়; docs/api/PROJECTS_API_CONTRACT.md §৪.৬)।
+ * লগইন আগে সার্ভারের এডমিন CLI দিয়ে খোলা হয় (`npm --prefix server run admin -- create`); এখানে সেই লগইনের ভূমিকা
+ * (এডমিন বা প্রকল্পের ইউজার), প্রকল্প বরাদ্দ, "সব প্রকল্প" আর চালু/বন্ধ। গ্রুপ বাছলে তার সব উপ-প্রকল্প (পরে যোগ হলেও) পান।
  */
 export function AdminUsersPage() {
   useDocumentTitle(t('ইউজার'))
@@ -78,7 +71,8 @@ export function AdminUsersPage() {
   }, [])
 
   const edit = (r: AdminUserRow) => {
-    setDraft({ email: r.email, all_projects: r.all_projects, projects: r.projects, is_active: r.is_active, existing: true })
+    const role = r.role === 'admin' ? 'admin' : 'editor'
+    setDraft({ email: r.email, role, all_projects: role === 'editor' && r.all_projects, projects: r.projects, is_active: r.is_active, existing: true })
     setSaveError(null)
     setSaved(null)
     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -98,8 +92,9 @@ export function AdminUsersPage() {
     setSaveError(null)
     setSaved(null)
     try {
-      const r = await getAdminUsersApi().save({ email: draft.email, all_projects: draft.all_projects, projects: draft.projects, is_active: draft.is_active })
-      setSaved(r.created ? t('{email} যোগ হয়েছে', { email: r.email }) : t('{email} এর তথ্য বদলানো হয়েছে', { email: r.email }))
+      const { email, role, all_projects, projects: keys, is_active } = draft
+      const r = await getAdminUsersApi().save({ email, role, all_projects, projects: keys, is_active })
+      setSaved(t('{email} এর তথ্য বদলানো হয়েছে', { email: r.email }))
       setDraft(EMPTY)
       await load()
     } catch (err) {
@@ -110,7 +105,7 @@ export function AdminUsersPage() {
   }
 
   const projectNames = (r: AdminUserRow) =>
-    r.role === 'main_admin' || r.all_projects
+    r.all_projects
       ? t('সব প্রকল্প')
       : r.projects.length
         ? r.projects.map((k) => lt(byKey.get(k), 'name') || k).join(', ')
@@ -147,12 +142,12 @@ export function AdminUsersPage() {
       </p>
       <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">{t('ইউজার')}</h1>
       <p className="mt-2 max-w-3xl text-sm text-slate-600">
-        {t('প্রকল্পের ইউজার নিজের প্রকল্পে রেকর্ড যোগ ও এডিট, ইম্পোর্ট আর নতুন ছবি দিতে পারেন। মোছা, থাকা ছবি বদল, মান ফাঁকা করা, সিরিয়াল বদল, প্রকল্পের সেটিংস আর ইউজার — শুধু মূল এডমিন।')}
+        {t('প্রকল্পের ইউজার নিজের প্রকল্পে রেকর্ড যোগ ও এডিট, ইম্পোর্ট আর নতুন ছবি দিতে পারেন। থাকা ছবি বদল, মান ফাঁকা করা, সিরিয়াল বদল আর প্রকল্পের সেটিংস পারেন এডমিন ও মূল এডমিন। মোছা আর ইউজার সামলানো শুধু মূল এডমিনের কাজ।')}
       </p>
 
       {listError ? (
         <div className="mt-6">
-          <UsersError title={t('ইউজার-তালিকা আনা যায়নি')} error={listError} />
+          <ErrorNotice title={t('ইউজার-তালিকা আনা যায়নি')} error={listError} />
         </div>
       ) : (
         <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -162,17 +157,20 @@ export function AdminUsersPage() {
               <li className="px-4 py-6 text-center text-sm text-slate-500">{t('লোড হচ্ছে…')}</li>
             ) : (
               rows.map((r) => (
-                <li key={r.user_id} className={`px-4 py-3 text-sm ${r.is_active ? '' : 'bg-slate-50 text-slate-500'}`}>
+                <li key={r.id} className={`px-4 py-3 text-sm ${r.is_active ? '' : 'bg-slate-50 text-slate-500'}`}>
                   <div className="flex items-start justify-between gap-3">
-                    <p className="font-medium break-all">{r.email}</p>
+                    <p className="font-medium break-all">
+                      {r.email}
+                      {r.name && <span className="block text-xs font-normal text-slate-500">{r.name}</span>}
+                    </p>
                     <StatusBadge active={r.is_active} />
                   </div>
                   <p className="mt-1 text-slate-600">
-                    {r.role === 'main_admin' ? t('মূল এডমিন') : t('প্রকল্পের ইউজার')} · {projectNames(r)}
+                    {roleLabel(r.role)} · {projectNames(r)}
                   </p>
                   <div className="mt-1 flex items-center justify-between gap-3">
                     <p className="text-xs text-slate-500">
-                      {t('শেষ লগইন')}: {r.last_sign_in_at ? formatDateTime(r.last_sign_in_at) : '—'}
+                      {t('শেষ সক্রিয়')}: {r.last_seen_at ? formatDateTime(r.last_seen_at) : '—'}
                     </p>
                     {r.role !== 'main_admin' && (
                       <button type="button" onClick={() => edit(r)} className="inline-flex min-h-11 items-center px-2 text-sm font-medium text-brand-700 underline-offset-2 hover:underline">
@@ -192,7 +190,7 @@ export function AdminUsersPage() {
                 <th className="px-3 py-2">{t('ভূমিকা')}</th>
                 <th className="px-3 py-2">{t('প্রকল্প')}</th>
                 <th className="px-3 py-2">{t('অবস্থা')}</th>
-                <th className="px-3 py-2">{t('শেষ লগইন')}</th>
+                <th className="px-3 py-2">{t('শেষ সক্রিয়')}</th>
                 <th className="px-3 py-2 pr-4" aria-label={t('কাজ')} />
               </tr>
             </thead>
@@ -205,14 +203,17 @@ export function AdminUsersPage() {
                 </tr>
               ) : (
                 rows.map((r) => (
-                  <tr key={r.user_id} className={r.is_active ? '' : 'bg-slate-50 text-slate-500'}>
-                    <td className="px-3 py-2 pl-4 font-medium break-all">{r.email}</td>
-                    <td className="px-3 py-2 whitespace-nowrap">{r.role === 'main_admin' ? t('মূল এডমিন') : t('প্রকল্পের ইউজার')}</td>
+                  <tr key={r.id} className={r.is_active ? '' : 'bg-slate-50 text-slate-500'}>
+                    <td className="px-3 py-2 pl-4 font-medium break-all">
+                      {r.email}
+                      {r.name && <span className="block text-xs font-normal text-slate-500">{r.name}</span>}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap">{roleLabel(r.role)}</td>
                     <td className="px-3 py-2">{projectNames(r)}</td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       <StatusBadge active={r.is_active} />
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap">{r.last_sign_in_at ? formatDateTime(r.last_sign_in_at) : '—'}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">{r.last_seen_at ? formatDateTime(r.last_seen_at) : '—'}</td>
                     <td className="px-3 py-2 pr-4 text-right">
                       {r.role !== 'main_admin' && (
                         <button type="button" onClick={() => edit(r)} className="text-sm font-medium text-brand-700 underline-offset-2 hover:underline">
@@ -230,36 +231,57 @@ export function AdminUsersPage() {
         </div>
       )}
 
-      {!(listError?.code === 'CONFIG_ERROR') && (
-        <form ref={formRef} onSubmit={(e) => void submit(e)} className="mt-8 max-w-2xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="user-form-title">
-          <h2 id="user-form-title" className="text-lg font-semibold text-slate-900">
-            {draft.existing ? t('ইউজার বদলান') : t('নতুন ইউজার যোগ')}
-          </h2>
-          {!draft.existing && (
-            <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-slate-600">
-              <li>
-                {t('আগে সার্ভারে এই কমান্ড চালিয়ে ইমেইল-পাসওয়ার্ডে অ্যাকাউন্ট খুলুন:')}{' '}
-                <code className="break-all">npm --prefix server run admin -- create --email … --name …</code>
-              </li>
-              <li>{t('তারপর সেই ইমেইল এখানে লিখে প্রকল্প বাছুন ও সংরক্ষণ করুন। পাসওয়ার্ড ইউজারকে নিজে জানাবেন।')}</li>
-            </ol>
-          )}
+      <form ref={formRef} onSubmit={(e) => void submit(e)} className="mt-8 max-w-2xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="user-form-title">
+        <h2 id="user-form-title" className="text-lg font-semibold text-slate-900">
+          {draft.existing ? t('ইউজার বদলান') : t('নতুন ইউজার যোগ')}
+        </h2>
+        {!draft.existing && (
+          <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-slate-600">
+            <li>
+              {t('আগে সার্ভারে এই কমান্ড চালিয়ে ইমেইল-পাসওয়ার্ডে অ্যাকাউন্ট খুলুন:')}{' '}
+              <code className="break-all">npm --prefix server run admin -- create --email … --name …</code>
+            </li>
+            <li>{t('তারপর সেই ইমেইল এখানে লিখে ভূমিকা ও প্রকল্প বাছুন, তারপর সংরক্ষণ করুন। পাসওয়ার্ড ইউজারকে নিজে জানাবেন।')}</li>
+          </ol>
+        )}
 
-          <label htmlFor="user-email" className="mt-4 mb-1 block text-sm font-medium text-slate-700">
-            {t('ইমেইল')}
-          </label>
-          <input
-            id="user-email"
-            type="email"
-            required
-            autoComplete="off"
-            value={draft.email}
-            readOnly={draft.existing}
-            disabled={saving}
-            onChange={(e) => setDraft((d) => ({ ...d, email: e.target.value }))}
-            className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm read-only:bg-slate-100"
-          />
+        <label htmlFor="user-email" className="mt-4 mb-1 block text-sm font-medium text-slate-700">
+          {t('ইমেইল')}
+        </label>
+        <input
+          id="user-email"
+          type="email"
+          required
+          autoComplete="off"
+          value={draft.email}
+          readOnly={draft.existing}
+          disabled={saving}
+          onChange={(e) => setDraft((d) => ({ ...d, email: e.target.value }))}
+          className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm read-only:bg-slate-100"
+        />
 
+        <fieldset className="mt-4">
+          <legend className="text-sm font-medium text-slate-700">{t('ভূমিকা')}</legend>
+          {(['editor', 'admin'] as const).map((role) => (
+            <label key={role} className="mt-1 flex min-h-9 items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name="user-role"
+                value={role}
+                checked={draft.role === role}
+                disabled={saving}
+                onChange={() => setDraft((d) => ({ ...d, role }))}
+                className="h-4 w-4 accent-brand-700"
+              />
+              {roleLabel(role)}
+              <span className="text-xs text-slate-500">
+                {role === 'editor' ? t('— বাছাই করা প্রকল্পে যোগ ও এডিট') : t('— সব প্রকল্পে সব কাজ, শুধু মোছা নয়')}
+              </span>
+            </label>
+          ))}
+        </fieldset>
+
+        {draft.role === 'editor' && (
           <fieldset className="mt-4">
             <legend className="text-sm font-medium text-slate-700">{t('প্রকল্প')}</legend>
             <label className="mt-1 flex min-h-9 items-center gap-2 text-sm font-medium">
@@ -281,53 +303,53 @@ export function AdminUsersPage() {
               ))}
             </div>
           </fieldset>
+        )}
 
-          <label className="mt-4 flex min-h-9 items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={draft.is_active}
-              disabled={saving}
-              onChange={(e) => setDraft((d) => ({ ...d, is_active: e.target.checked }))}
-              className="h-4 w-4 accent-brand-700"
-            />
-            {t('চালু (বন্ধ করলে লগইন থাকলেও কিছু বদলাতে পারবেন না)')}
-          </label>
+        <label className="mt-4 flex min-h-9 items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={draft.is_active}
+            disabled={saving}
+            onChange={(e) => setDraft((d) => ({ ...d, is_active: e.target.checked }))}
+            className="h-4 w-4 accent-brand-700"
+          />
+          {t('চালু (বন্ধ করলে সঙ্গে সঙ্গে লগআউট হয়ে যাবেন, আর লগইন করতে পারবেন না)')}
+        </label>
 
-          {saveError && (
-            <div className="mt-4">
-              <UsersError title={t('সংরক্ষণ হয়নি')} error={saveError} />
-            </div>
-          )}
-          {saved && (
-            <p role="status" className="mt-4 rounded-md bg-green-50 px-3 py-2 text-sm font-medium text-green-800">
-              {saved}
-            </p>
-          )}
-
-          <div className="mt-5 flex flex-wrap gap-3">
-            <button
-              type="submit"
-              disabled={saving}
-              className="inline-flex h-10 items-center rounded-md bg-brand-700 px-5 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50"
-            >
-              {saving ? t('সংরক্ষণ হচ্ছে…') : t('সংরক্ষণ')}
-            </button>
-            {draft.existing && (
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => {
-                  setDraft(EMPTY)
-                  setSaveError(null)
-                }}
-                className="inline-flex h-10 items-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:border-slate-400"
-              >
-                {t('বাতিল — নতুন ইউজার')}
-              </button>
-            )}
+        {saveError && (
+          <div className="mt-4">
+            <ErrorNotice title={t('সংরক্ষণ হয়নি')} error={saveError} />
           </div>
-        </form>
-      )}
+        )}
+        {saved && (
+          <p role="status" className="mt-4 rounded-md bg-green-50 px-3 py-2 text-sm font-medium text-green-800">
+            {saved}
+          </p>
+        )}
+
+        <div className="mt-5 flex flex-wrap gap-3">
+          <button
+            type="submit"
+            disabled={saving}
+            className="inline-flex h-10 items-center rounded-md bg-brand-700 px-5 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50"
+          >
+            {saving ? t('সংরক্ষণ হচ্ছে…') : t('সংরক্ষণ')}
+          </button>
+          {draft.existing && (
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => {
+                setDraft(EMPTY)
+                setSaveError(null)
+              }}
+              className="inline-flex h-10 items-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:border-slate-400"
+            >
+              {t('বাতিল — নতুন ইউজার')}
+            </button>
+          )}
+        </div>
+      </form>
     </section>
   )
 }

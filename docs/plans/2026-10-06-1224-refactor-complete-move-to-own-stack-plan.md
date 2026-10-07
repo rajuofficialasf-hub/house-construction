@@ -3622,7 +3622,7 @@ Run once, after U64:
   - `npm run i18n-check` passes
 - **Done when:** `npx tsc -b`, `npm run lint` and `npm test` pass.
 - **Depends on:** U68
-- **Status:** todo
+- **Status:** done
 
 ### U73. Contract blocks for user management and the editor
 - **Goal:** The contract suite proves the users API and the editor's limits through the real adapters.
@@ -3758,7 +3758,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** `ae-work` on P9b, U72 (U65–U71, U75 and U77 done). P10 (the handoff guide and the final `CLAUDE.md` profile, with the mock rule and the migration-comment exception) follows P9b.
+- **Next:** `ae-work` on P9b, U73 (U65–U72, U75 and U77 done). P10 (the handoff guide and the final `CLAUDE.md` profile, with the mock rule and the migration-comment exception) follows P9b.
 - **Uncommitted:** nothing.
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.

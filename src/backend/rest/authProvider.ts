@@ -60,7 +60,7 @@ export function createRestAuthProvider(baseUrl: string): AuthProvider {
       const current = () => pending === request
       try {
         const res = await restRequest<MeResponse>(baseUrl, ENDPOINTS.auth.me())
-        const user = withProjects(res.data)
+        const user = authUserOf(res.data)
         if (current()) cached = user
         return user
       } catch (err) {
@@ -85,7 +85,7 @@ export function createRestAuthProvider(baseUrl: string): AuthProvider {
       const res = await restRequest<LoginResponse>(baseUrl, ENDPOINTS.auth.login(), {
         body: { email: email.trim(), password },
       })
-      const user = withProjects(res.data.user)
+      const user = authUserOf(res.data.user)
       emit(user)
       announce()
       return user
@@ -116,8 +116,10 @@ export function createRestAuthProvider(baseUrl: string): AuthProvider {
   }
 }
 
-/** সার্ভার পুরনো চুক্তির হলে (all_projects/projects নেই) — আগের নিয়ম: সবাই সব প্রকল্পে (চুক্তি v১.৫) */
-function withProjects(u: AuthUser): AuthUser {
-  const raw = u as AuthUser & { all_projects?: boolean }
-  return { ...u, allProjects: u.role === 'main_admin' || (raw.allProjects ?? raw.all_projects) !== false, projects: Array.isArray(u.projects) ? u.projects : [] }
+/**
+ * সার্ভারের উত্তর থেকে AuthUser, ভুল হলে বন্ধের দিকে: সার্ভার ঠিক true না পাঠালে "সব প্রকল্প" নয়, আর projects না থাকলে খালি।
+ * আসল নিষেধ সার্ভারে; এটি শুধু UI যেন বেশি না দেখায়।
+ */
+function authUserOf(u: AuthUser): AuthUser {
+  return { ...u, allProjects: u.allProjects === true, projects: Array.isArray(u.projects) ? u.projects : [] }
 }

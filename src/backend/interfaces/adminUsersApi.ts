@@ -1,14 +1,14 @@
 import type { AdminUserInput, AdminUserRow, AdminUserSaveResult } from './types'
 
 /**
- * ইউজার-ব্যবস্থাপনা (docs/history/MULTI_PROJECT_PLAN.md, M-ধাপ ১৯; docs/api/PROJECTS_API_CONTRACT.md §৪.৬) — **শুধু মূল এডমিন**।
- * অ্যাকাউন্ট (ইমেইল-পাসওয়ার্ড) এখানে তৈরি হয় না — আগে সার্ভারের এডমিন CLI দিয়ে (`npm --prefix server run admin -- create`);
- * এখানে শুধু সেই অ্যাকাউন্টকে প্রকল্প বরাদ্দ, "সব প্রকল্প", চালু/বন্ধ।
- * সার্ভার এখনো এই API দেয় না, তাই REST ও মক দুটোই NOT_IMPLEMENTED দেয়।
+ * ইউজার-ব্যবস্থাপনা (docs/api/PROJECTS_API_CONTRACT.md §৪.৬) — **শুধু মূল এডমিন**।
+ * লগইন (ইমেইল-পাসওয়ার্ড) এখানে তৈরি হয় না — আগে সার্ভারের এডমিন CLI দিয়ে (`npm --prefix server run admin -- create`);
+ * এখানে সেই লগইনের ভূমিকা (এডমিন বা প্রকল্পের ইউজার), বরাদ্দ প্রকল্প, "সব প্রকল্প" আর চালু/বন্ধ।
+ * মক বাড়ে না (docs/testing/README.md), তাই মকে এটি NOT_IMPLEMENTED দেয়।
  */
 export interface AdminUsersApi {
-  /** সব এডমিন — মূল এডমিন আগে; প্রতিটিতে ভূমিকা, বরাদ্দ প্রকল্প, চালু/বন্ধ, শেষ লগইন */
+  /** সব লগইন — মূল এডমিন আগে, তারপর তৈরির ক্রমে */
   list(): Promise<AdminUserRow[]>
-  /** যোগ বা বদল (ইমেইল দিয়ে); মূল এডমিনকে বদলানো যায় না; অচেনা ইমেইল → NOT_FOUND; লগে `admin_user_update` */
+  /** আগে থেকে থাকা লগইন বদল (ইমেইল দিয়ে); মূল এডমিনকে বদলানো যায় না (FORBIDDEN); অচেনা ইমেইল → NOT_FOUND; লগে `admin_user_update` */
   save(input: AdminUserInput): Promise<AdminUserSaveResult>
 }

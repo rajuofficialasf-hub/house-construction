@@ -50,7 +50,7 @@ export const ENDPOINTS = {
     private: (id: string) => `${API}/records/${enc(id)}/private`, // GET · PUT { data }
   },
   activity: (query?: URLSearchParams) => withQuery(`${API}/activity`, query), // GET (এডমিন) · POST { action, details, project_type }
-  /** ইউজার-ব্যবস্থাপনা (শুধু মূল এডমিন; চুক্তি v১.৫ §৪.৭) — নিজস্ব সার্ভারে নেই (প্যারিটি a8e2154 এ স্থির) */
+  /** ইউজার-ব্যবস্থাপনা (শুধু মূল এডমিন; docs/api/PROJECTS_API_CONTRACT.md §৪.৬) */
   adminUsers: {
     list: () => `${API}/admin/users`, // GET
     save: () => `${API}/admin/users`, // PUT
