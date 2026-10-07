@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, test as vitestTest } from 'vitest'
+import { beforeEach, describe, expect, test as vitestTest } from 'vitest'
 import { BD_GEO } from '../../src/features/geo/data/bdGeo'
 import { HousingApiError, type HousingRecord, type HousingRecordInput, type ProjectType } from '../../src/backend/interfaces/types'
 import type { ContractHarness, ContractOptions } from './harness'
@@ -34,8 +34,8 @@ export async function code(p: Promise<unknown>): Promise<string> {
   }
 }
 
-// ছবি সবসময় WebP হয়ে আসে (utils/photoSpec); Supabase Storage টাইপহীন ফাইল নেয় না। নিজস্ব সার্ভার ছবি ডিকোড করে,
-// তাই আসল একটি ২×২ WebP; অতিরিক্ত অংশ দিলে তা পেছনে জোড়া হয় (বড় ফাইলের টেস্টে)।
+// ছবি সবসময় WebP হয়ে আসে (utils/photoSpec)। সার্ভার ছবি ডিকোড করে, তাই আসল একটি ২×২ WebP;
+// অতিরিক্ত অংশ দিলে তা পেছনে জোড়া হয় (বড় ফাইলের টেস্টে)।
 const TINY_WEBP = Uint8Array.from(atob('UklGRiQAAABXRUJQVlA4IBgAAABQAQCdASoCAAIAAUAmJaQABYwAAP6igAA='), (c) => c.charCodeAt(0))
 export const webp = (...extra: BlobPart[]) => new Blob([TINY_WEBP, ...extra], { type: 'image/webp' })
 
@@ -46,25 +46,14 @@ const sum = (o: Record<string, number>) => Object.values(o).reduce((a, b) => a +
  * নিয়ম: নির্দিষ্ট রেকর্ডের নাম/সংখ্যা ধরে নয়, শুধু সম্পর্ক ধরে যাচাই (পড়ার অংশ লাইভ ডাটাতেও চলে)।
  */
 export function runHousingApiContract(label: string, makeHarness: () => Promise<ContractHarness> | ContractHarness, opts: ContractOptions): void {
-  const gaps = new Set(opts.knownGaps ?? [])
   const serialPhotoPaths = (opts.photoPaths ?? 'serial') === 'serial'
-  const matched = new Set<string>()
-  const test = (name: string, fn: () => Promise<void>) => {
-    if (!gaps.has(name)) return vitestTest(name, fn)
-    matched.add(name)
-    return vitestTest.fails(`[known gap] ${name}`, fn)
-  }
+  const test = (name: string, fn: () => Promise<void>) => vitestTest(name, fn)
   // যে ব্যাকএন্ডে অ-এডমিন অ্যাকাউন্টই নেই, সেখানে এই আচরণ প্রযোজ্য নয় (ContractOptions.nonAdminAccounts)
   const nonAdminTest = (name: string, fn: () => Promise<void>) =>
     opts.nonAdminAccounts === false ? vitestTest.skip(`${name} (no non-admin accounts on this backend)`, fn) : test(name, fn)
   // A run against real data sends no write request at all, not even one that should be refused (ContractOptions.writeProbes)
   const writeProbeTest = (name: string, fn: () => Promise<void>) =>
     opts.writeProbes === false ? vitestTest.skip(`${name} (no write requests against real data)`, fn) : test(name, fn)
-  if (gaps.size) {
-    afterAll(() => {
-      expect([...gaps].filter((g) => !matched.has(g)), 'knownGaps entries that match no test').toEqual([])
-    })
-  }
   // seeded ব্যাকএন্ডে ডাটা না থাকলে এই টেস্টগুলো ব্যর্থ হয়; নইলে (যেমন লাইভ) নিঃশব্দে বাদ যায়
   const hasData = (found: unknown): boolean => {
     if (!found) expect(opts.seeded ?? false, 'this backend is expected to hold records').toBe(false)
@@ -268,7 +257,7 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
         await h.auth.logout()
         expect(await h.auth.currentUser()).toBeNull()
         off()
-        // Supabase announces the current (logged-out) state on subscribe; that first null is allowed, not required
+        // An adapter may announce the current (logged-out) state on subscribe; that first null is allowed, not required
         expect(seen[0] === null ? seen.slice(1) : seen).toEqual([h.admin!.email, null])
       })
 
@@ -310,8 +299,8 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
         for (const b of bads) expect(await code(h.api.create(input(b))), JSON.stringify(b)).toBe('VALIDATION_ERROR')
       })
 
-      test('create rejects an unknown project type as a validation error', async () => {
-        expect(await code(h.api.create(input({ project_type: 'villa' as ProjectType })))).toBe('VALIDATION_ERROR')
+      test('create rejects an unknown project type', async () => {
+        expect(await code(h.api.create(input({ project_type: 'villa' as ProjectType })))).toBe(opts.unknownProjectCode ?? 'VALIDATION_ERROR')
       })
 
       test('create rejects an over-long name, an empty division and serial 0', async () => {
@@ -497,7 +486,7 @@ export function runHousingApiContract(label: string, makeHarness: () => Promise<
         const moved = await h.api.changeSerial(rec.id, rec.serial_no + 20)
         await h.api.delete(rec.id)
         const log = (await h.api.listActivity({ record_id: rec.id })).data
-        // Which extra entries a serial change adds for its photos is backend-specific (Supabase logs the serial and the
+        // Which extra entries a serial change adds for its photos is backend-specific (the mock logs the serial and the
         // photo move separately), so pin only the ends and the presence of each write kind.
         const actions = log.map((e) => e.action)
         expect(actions[0]).toBe('delete')

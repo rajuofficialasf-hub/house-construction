@@ -90,13 +90,10 @@ if (!enabled) {
     seeded: true,
     nonAdminAccounts: false,
     photoPaths: 'opaque',
-    knownGaps: [
-      // The project key is in the path (POST /projects/:key/records), so an unknown project is a missing
-      // resource: 404 NOT_FOUND, the same answer as a hidden draft. The server's records-writes tests pin it.
-      // (docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md, "P2 decisions")
-      'create rejects an unknown project type as a validation error',
-    ],
+    // The project key is in the path, so an unknown project is a missing resource, like a hidden draft
+    // (docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md, "P2 decisions").
+    unknownProjectCode: 'NOT_FOUND',
   })
 
-  runProjectsApiContract('REST backend (express + housing_test)', makeRest, { writes: true, nonAdminAccounts: false })
+  runProjectsApiContract('REST backend (express + housing_test)', makeRest)
 }

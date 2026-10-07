@@ -1,8 +1,8 @@
-import { afterAll, beforeEach, describe, expect, test as vitestTest } from 'vitest'
+import { beforeEach, describe, expect, test as vitestTest } from 'vitest'
 import { BD_GEO } from '../../src/features/geo/data/bdGeo'
 import type { HousingRecordInput, Project, ProjectFieldInput, ProjectInput } from '../../src/backend/interfaces/types'
 import { code, webp } from './housingApiContract'
-import type { ContractHarness, ContractOptions } from './harness'
+import type { ContractHarness } from './harness'
 
 // The ProjectsApi part of the backend contract, plus the HousingApi behaviour that needs a project with
 // custom and private fields (union_name, extra, f.<key> filters, private values, field stats, photo mode).
@@ -25,19 +25,8 @@ const FIELDS: ProjectFieldInput[] = [
   { key: 'phone', label_bn: 'ফোন', type: 'phone', visibility: 'admin' },
 ]
 
-export function runProjectsApiContract(label: string, makeHarness: () => Promise<ContractHarness> | ContractHarness, opts: ContractOptions): void {
-  const gaps = new Set(opts.knownGaps ?? [])
-  const matched = new Set<string>()
-  const test = (name: string, fn: () => Promise<void>) => {
-    if (!gaps.has(name)) return vitestTest(name, fn)
-    matched.add(name)
-    return vitestTest.fails(`[known gap] ${name}`, fn)
-  }
-  if (gaps.size) {
-    afterAll(() => {
-      expect([...gaps].filter((g) => !matched.has(g)), 'knownGaps entries that match no test').toEqual([])
-    })
-  }
+export function runProjectsApiContract(label: string, makeHarness: () => Promise<ContractHarness> | ContractHarness): void {
+  const test = (name: string, fn: () => Promise<void>) => vitestTest(name, fn)
 
   describe(`${label}: projects contract`, () => {
     let h: ContractHarness

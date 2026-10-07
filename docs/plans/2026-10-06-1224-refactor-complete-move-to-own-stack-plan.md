@@ -3093,7 +3093,7 @@ git grep -nIE '(^|[^A-Za-z])RLS([^A-Za-z]|$)|SQL [0-9০-৯]+|পুরনো �
   - `E2E_REST_API_URL=http://localhost:3001 E2E_ADMIN_REST=1 npx playwright test --list` (plus `E2E_EDGE_URL=http://localhost:8080` until U57) shows `mock`, `public-mock`, `public-rest`, `admin-rest` and `edge-rest`, with the same spec counts as before, minus `write-guard`.
 - **Done when:** `npm test` passes, and the `--list` output matches. The full suites run in the P9 verification.
 - **Depends on:** none
-- **Status:** todo
+- **Status:** done
 
 ### U56. Remove the Supabase adapter, package and scripts, and rename the mock
 - **Goal:** The app can't run on Supabase, and the bundle check proves none of it ships.
@@ -3343,7 +3343,7 @@ Run these at the end of P1:
 ## Progress
 - **Branch:** `dev-forhad`
 - **Updated:** 2026-10-07
-- **Next:** P9 `ae-work`: U55 (Supabase test lanes, e2e/live → e2e/public), then U56, U54, U57, U58, U59, U61, U63, U62, U64; then simplify, review and the full verification.
+- **Next:** P9 `ae-work`: U56 (Supabase adapter, package and scripts; mock rename), then U54, U57, U58, U59, U61, U63, U62, U64; then simplify, review and the full verification.
 - **Uncommitted:** none
 - **Notes:**
   - Only P1 is planned in units. After P1, run `ae-plan` on this file to add P2's units.
