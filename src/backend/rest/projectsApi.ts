@@ -8,15 +8,37 @@ import { ENDPOINTS } from './endpoints'
 import { queryOf, restData, restRequest, type RestRequestOptions } from './http'
 
 export function createRestProjectsApi(baseUrl: string): ProjectsApi {
-  const call = <T>(path: string, opts?: RestRequestOptions) => restData<T>(baseUrl, path, opts)
-  const none = async (path: string, opts: RestRequestOptions) => {
-    await restRequest<void>(baseUrl, path, opts)
+  // একই সময়ে একই list() অনেক জায়গা থেকে আসে (হেডার, পাতা, ফর্ম); তারা একটিই অনুরোধ ভাগ করে।
+  // উত্তর এলেই ভাগ শেষ, কোনো ক্যাশ নয়; তাই updated_at (If-Match) সবসময় সার্ভারের সর্বশেষ।
+  // প্রতিটি লেখা চলমান ভাগও বাদ দেয়, যাতে লেখার পরের list() লেখার আগের উত্তরে না জোড়ে।
+  const inFlight = new Map<string, Promise<Project[]>>()
+  const sharedList = async (path: string) => {
+    let request = inFlight.get(path)
+    if (!request) {
+      const own = restData<Project[]>(baseUrl, path).finally(() => {
+        if (inFlight.get(path) === own) inFlight.delete(path)
+      })
+      inFlight.set(path, own)
+      request = own
+    }
+    // প্রত্যেকে নিজের কপি পায়: একজন বদলালে অন্যের ডেটা বদলায় না
+    return structuredClone(await request)
   }
+  const write = async <T>(request: Promise<T>) => {
+    try {
+      return await request
+    } finally {
+      inFlight.clear()
+    }
+  }
+  const call = <T>(path: string, opts?: RestRequestOptions) =>
+    opts?.method ? write(restData<T>(baseUrl, path, opts)) : restData<T>(baseUrl, path, opts)
+  const none = (path: string, opts: RestRequestOptions) => write(restRequest<void>(baseUrl, path, opts)).then(() => {})
   const drafts = (includeDrafts?: boolean) => (includeDrafts ? '1' : undefined)
 
   return {
     backendMode: async () => 'full',
-    list: (opts = {}) => call<Project[]>(ENDPOINTS.projects.list(queryOf({ drafts: drafts(opts.includeDrafts), include: 'fields' }))),
+    list: (opts = {}) => sharedList(ENDPOINTS.projects.list(queryOf({ drafts: drafts(opts.includeDrafts), include: 'fields' }))),
     get: (key) => call<Project>(ENDPOINTS.projects.byKey(key)),
     overview: (opts = {}) => call<ProjectOverview>(ENDPOINTS.projects.overview(queryOf({ drafts: drafts(opts.includeDrafts) }))),
 

@@ -143,4 +143,44 @@ describe('createRestAuthProvider', () => {
     await createRestAuthProvider(BASE).login('admin@example.org', 'pw')
     expect(await seen).toEqual(USER)
   })
+
+  it('sends one /me for concurrent asks, and asks again after a logout', async () => {
+    const fetchMock = stubFetch((url) => (url.endsWith('/logout') ? new Response(null, { status: 204 }) : json(200, { data: USER })))
+    const auth = createRestAuthProvider(BASE)
+    const [a, b, c] = await Promise.all([auth.currentUser(), auth.isAdmin(), auth.currentUser()])
+    expect([a, b, c]).toEqual([USER, true, USER])
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    await auth.logout()
+    expect(await auth.currentUser()).toBeNull()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('shares a failed /me with its concurrent askers, then asks again', async () => {
+    let down = true
+    const fetchMock = stubFetch(() => (down ? json(500, { error: { code: 'INTERNAL_ERROR', message: 'x' } }) : json(200, { data: USER })))
+    const auth = createRestAuthProvider(BASE)
+    const results = await Promise.allSettled([auth.currentUser(), auth.currentUser()])
+    expect(results.map((r) => r.status)).toEqual(['rejected', 'rejected'])
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    down = false
+    expect(await auth.currentUser()).toEqual(USER)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not let a /me that started before a login overwrite the logged-in user', async () => {
+    let releaseMe!: (r: Response) => void
+    const fetchMock = stubFetch((url) =>
+      url.endsWith('/login')
+        ? json(200, { data: { expires_at: '2026-10-12T08:00:00.000Z', user: USER } })
+        : new Promise<Response>((resolve) => (releaseMe = resolve)),
+    )
+    const auth = createRestAuthProvider(BASE)
+    const early = auth.currentUser()
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+    await auth.login('admin@example.org', 'pw')
+    releaseMe(json(401, { error: { code: 'UNAUTHENTICATED', message: 'লগইন করুন' } }))
+    expect(await early).toBeNull()
+    expect(await auth.currentUser()).toEqual(USER)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
 })

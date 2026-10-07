@@ -18,8 +18,12 @@ interface MeResponse {
 export function createRestAuthProvider(baseUrl: string): AuthProvider {
   const listeners = new Set<(user: AuthUser | null) => void>()
   let cached: AuthUser | null | undefined // undefined = এখনো জানা নেই
+  // একসাথে আসা currentUser()/isAdmin() একটিই /me পাঠায়। login, logout বা অন্য ট্যাবের খবরে এটি বাদ যায়,
+  // যাতে পরের প্রশ্ন নতুন অবস্থা জানে, আর আগের /me দেরিতে ফিরলে ক্যাশ না বদলায়।
+  let pending: Promise<AuthUser | null> | null = null
 
   const emit = (user: AuthUser | null) => {
+    pending = null
     cached = user
     for (const l of listeners) l(user)
   }
@@ -30,7 +34,10 @@ export function createRestAuthProvider(baseUrl: string): AuthProvider {
     if (channel === undefined) {
       channel = typeof BroadcastChannel === 'function' ? new BroadcastChannel('housing-auth') : null
       // সার্ভারে পৌঁছানো না গেলে অবস্থা অজানাই থাকে; পরের currentUser() আবার জিজ্ঞেস করবে।
-      channel?.addEventListener('message', () => void fetchMe().then(emit, () => {}))
+      channel?.addEventListener('message', () => {
+        pending = null
+        void fetchMe().then(emit, () => {})
+      })
     }
     return channel
   }
@@ -40,19 +47,28 @@ export function createRestAuthProvider(baseUrl: string): AuthProvider {
    * শুধু 401 মানে লগআউট (null, ক্যাশ হয়)। নেটওয়ার্ক বা 5xx এ লগইন অবস্থা অজানা: কিছু ক্যাশ না করে
    * এরর উপরে যায়, যাতে সার্ভার সাময়িক বন্ধ থাকলে এডমিনকে লগইন পেইজে পাঠানো না হয়।
    */
-  async function fetchMe(): Promise<AuthUser | null> {
-    try {
-      const res = await restRequest<MeResponse>(baseUrl, ENDPOINTS.auth.me())
-      cached = withProjects(res.data)
-      return cached
-    } catch (err) {
-      if (err instanceof HousingApiError && err.code === 'UNAUTHENTICATED') {
-        cached = null
-        return null
+  function fetchMe(): Promise<AuthUser | null> {
+    if (pending) return pending
+    const request: Promise<AuthUser | null> = (async () => {
+      const current = () => pending === request
+      try {
+        const res = await restRequest<MeResponse>(baseUrl, ENDPOINTS.auth.me())
+        const user = withProjects(res.data)
+        if (current()) cached = user
+        return user
+      } catch (err) {
+        if (err instanceof HousingApiError && err.code === 'UNAUTHENTICATED') {
+          if (current()) cached = null
+          return null
+        }
+        if (current()) cached = undefined
+        throw err
+      } finally {
+        if (current()) pending = null
       }
-      cached = undefined
-      throw err
-    }
+    })()
+    pending = request
+    return request
   }
 
   return {

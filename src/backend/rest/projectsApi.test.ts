@@ -65,6 +65,65 @@ describe('createRestProjectsApi reads', () => {
   })
 })
 
+describe('createRestProjectsApi list coalescing', () => {
+  function deferredFetch() {
+    const releases: ((r: Response) => void)[] = []
+    const fetchMock = vi.fn((_url: string, _init: RequestInit) => new Promise<Response>((resolve) => releases.push(resolve)))
+    vi.stubGlobal('fetch', fetchMock)
+    return { fetchMock, release: (n: number, body: unknown) => releases[n]!(json(200, body)) }
+  }
+
+  it('sends one request for concurrent identical lists and gives each caller its own copy', async () => {
+    const { fetchMock, release } = deferredFetch()
+    const api = createRestProjectsApi(BASE)
+    const a = api.list({ includeDrafts: true })
+    const b = api.list({ includeDrafts: true })
+    const visitor = api.list()
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    release(0, { data: [{ key: 'demo', fields: [{ key: 'amount' }] }] })
+    release(1, { data: [PROJECT] })
+    const [first, second] = await Promise.all([a, b])
+    expect(first).toEqual(second)
+    expect(first).not.toBe(second)
+    expect(first[0]!.fields).not.toBe(second[0]!.fields)
+    expect(await visitor).toEqual([PROJECT])
+  })
+
+  it('keeps no cache: a list after the first one settles asks the server again', async () => {
+    const fetchMock = stubFetch(() => json(200, { data: [PROJECT] }))
+    const api = createRestProjectsApi(BASE)
+    await api.list()
+    await api.list()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('shares a failure with every concurrent caller, then asks again', async () => {
+    const fetchMock = stubFetch(() => json(500, { error: { code: 'INTERNAL_ERROR', message: 'x' } }))
+    const api = createRestProjectsApi(BASE)
+    const results = await Promise.allSettled([api.list(), api.list()])
+    expect(results.map((r) => r.status)).toEqual(['rejected', 'rejected'])
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    await api.list().catch(() => {})
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not join a list that started before a write finished', async () => {
+    const { fetchMock, release } = deferredFetch()
+    const api = createRestProjectsApi(BASE)
+    const before = api.list()
+    const update = api.update('demo', { is_published: true })
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    release(1, { data: PROJECT })
+    await update
+    const after = api.list()
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
+    release(0, { data: [] })
+    release(2, { data: [PROJECT] })
+    expect(await before).toEqual([])
+    expect(await after).toEqual([PROJECT])
+  })
+})
+
 describe('createRestProjectsApi project writes', () => {
   it('creates a project with its fields in one body', async () => {
     const fetchMock = stubFetch(() => json(201, { data: PROJECT }))
