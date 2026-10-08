@@ -1,5 +1,6 @@
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 import { expect, test } from '../support/backend'
+import { api } from '../support/api'
 import { loginAs, MOCK_ADMIN } from '../support/auth'
 import { PLAIN_ADMIN, PROJECT_EDITOR } from '../support/rest-data'
 import { ADMIN_REST_API_URL } from '../support/rest-env'
@@ -7,21 +8,11 @@ import { DEMO, createDraftProject, expectNotFound, inFreshContext, publish, toas
 
 // The danger zone on /admin/projects/:key (ProjectSettingsPage.tsx, DeleteProjectDialog.tsx): the main
 // admin deletes an empty, unpublished project after typing its name; everyone else gets no button and
-// a 403 from the server (docs/plans/2026-10-08-1105-feat-project-delete-plan.md).
+// a 403 from the server (U3, docs/plans/2026-10-08-1105-feat-project-delete-plan.md).
 
 const deleteButton = (page: Page) => page.getByRole('button', { name: 'প্রকল্প মুছুন' })
 const deleteDialog = (page: Page, name: string) => page.getByRole('dialog', { name: `«${name}» মুছে ফেলবেন?` })
-
-/** Calls the API from inside the page, with the signed-in session's cookie and the page's Origin. */
-function api(page: Page, path: string, method: 'GET' | 'DELETE' = 'GET') {
-  return page.evaluate(
-    async ({ url, method }) => {
-      const res = await fetch(url, { method, credentials: 'include' })
-      return { status: res.status, body: res.status === 204 ? null : ((await res.json()) as { error?: { code: string; message: string } }) }
-    },
-    { url: `${ADMIN_REST_API_URL}/api/v1${path}`, method },
-  )
-}
+const confirmButton = (dialog: Locator) => dialog.getByRole('button', { name: 'মুছুন', exact: true })
 
 /** Opens the dialog and types the name, so only the confirm click is left. */
 async function openAndConfirmName(page: Page, name: string) {
@@ -37,7 +28,7 @@ test('the main admin deletes an empty draft after typing its exact name; the pro
 
   await deleteButton(page).click()
   const dialog = deleteDialog(page, 'দর্জি অনুদান')
-  const confirm = dialog.getByRole('button', { name: 'মুছুন', exact: true })
+  const confirm = confirmButton(dialog)
   await expect(confirm).toBeDisabled()
   const input = dialog.getByLabel('নিশ্চিত করতে প্রকল্পের নাম লিখুন: দর্জি অনুদান')
   await input.fill('দর্জি')
@@ -102,7 +93,8 @@ test('a refusal the page could not foresee is shown inside the dialog, which sta
 
   // The database's own refusal for a project that had records once (migration 0015), which the page
   // can't see in advance. The real guard is proved in server/test/http/projects-writes.test.ts; here
-  // the route answers as the server would, so the test needs no records to create and remove.
+  // the route answers as the server would, so the test needs no records to create and remove
+  // (R5, docs/plans/2026-10-08-1105-feat-project-delete-plan.md).
   const refusal = '«ছাগল বিতরণ» প্রকল্পে আগে রেকর্ড ছিল — মোছা যাবে না; দরকার হলে অপ্রকাশিত করুন'
   await page.route(`${ADMIN_REST_API_URL}/api/v1/projects/${key}`, (route) => {
     if (route.request().method() !== 'DELETE') return route.continue()
@@ -115,7 +107,7 @@ test('a refusal the page could not foresee is shown inside the dialog, which sta
   })
 
   const dialog = await openAndConfirmName(page, 'ছাগল বিতরণ')
-  await dialog.getByRole('button', { name: 'মুছুন', exact: true }).click()
+  await confirmButton(dialog).click()
   await expect(dialog.getByRole('alert')).toHaveText(refusal)
   await expect(dialog).toBeVisible()
   await expect(page).toHaveURL(new RegExp(`/admin/projects/${key}$`))
@@ -151,7 +143,7 @@ test('while the delete request is in flight the dialog is locked, then the admin
   })
 
   const dialog = await openAndConfirmName(page, 'হাঁস অনুদান')
-  await dialog.getByRole('button', { name: 'মুছুন', exact: true }).click()
+  await confirmButton(dialog).click()
   await expect(dialog.getByRole('button', { name: 'অপেক্ষা করুন…' })).toBeDisabled()
   await expect(dialog.getByRole('button', { name: 'বাতিল' })).toBeDisabled()
   await page.keyboard.press('Escape')

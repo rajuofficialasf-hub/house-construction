@@ -1,8 +1,8 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from '../support/backend'
+import { api } from '../support/api'
 import { loginAs, MOCK_ADMIN } from '../support/auth'
 import { PLAIN_ADMIN } from '../support/rest-data'
-import { ADMIN_REST_API_URL } from '../support/rest-env'
 import { inFreshContext } from '../support/projects'
 
 // AE1 (docs/plans/2026-10-06-1224-refactor-complete-move-to-own-stack-plan.md): only the main admin may delete. A plain admin gets no delete controls, and a direct request is
@@ -11,17 +11,6 @@ import { inFreshContext } from '../support/projects'
 
 const NAME = 'মোঃ হাবিবুল্লাহ' // demo serial 6 (demo-project.sql)
 const RECORDS = '/admin/records/demo'
-
-/** Calls the API from inside the page, with the admin session's cookie. */
-function api(page: Page, path: string, method: 'GET' | 'DELETE' = 'GET') {
-  return page.evaluate(
-    async ({ url, method }) => {
-      const res = await fetch(url, { method, credentials: 'include' })
-      return { status: res.status, body: res.status === 204 ? null : ((await res.json()) as { data?: unknown; error?: { code: string; message: string } }) }
-    },
-    { url: `${ADMIN_REST_API_URL}/api/v1${path}`, method },
-  )
-}
 
 /** The demo record's id, read through the admin's own session. */
 async function recordId(page: Page): Promise<string> {
