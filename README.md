@@ -73,7 +73,20 @@ On a new database, make yourself `main_admin`. If someone already is, use `--rol
 ## If something goes wrong
 
 - **"Cannot connect to the Docker daemon"**: start Docker Desktop.
-- **"port is already allocated"**: something else is using port 5173, 3001, 5432 or 8333. Stop it and try again.
+- **"port is already allocated"** or **"ports are not available … bind: An attempt was made to access a socket in a way forbidden"**: something else is using port 5173, 3001, 5432 or 8333. Often it's a PostgreSQL installed on your computer, which uses 5432. Either stop it, or move the app to a free port: create a file named `.env` in the project folder with one line per port you move, then run `docker compose up` again:
+
+  ```
+  DB_PORT=5433
+  ```
+
+  The other ports move the same way: `WEB_PORT`, `API_PORT` and `S3_PORT`. Git ignores `.env`, so it stays on your computer. If you move `WEB_PORT`, open the app on that port instead of 5173. If you move `DB_PORT` and also run the server outside Docker, use the same port in `server/.env`.
+- **`set: Illegal option -` in the `web` or `api` log (Windows)**: git saved the shell scripts with Windows line endings. The repo's `.gitattributes` prevents this on a new clone. In a clone made before that, run these commands in Git Bash in the project folder, then `docker compose down -v` and `docker compose up`:
+
+  ```bash
+  git pull
+  rm scripts/*.sh server/db/docker-init/*.sh
+  git checkout -- scripts server/db
+  ```
 - **Start over from scratch**: `docker compose down -v`. This deletes the database and uploaded photos. The next `docker compose up` loads the sample data again, and you create your login again.
 - If you're stuck, show the error message to Claude and ask.
 

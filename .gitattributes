@@ -1,0 +1,3 @@
+# Files run inside Linux containers must keep LF endings, even on a Windows checkout with core.autocrlf.
+*.sh text eol=lf
+*.sql text eol=lf
