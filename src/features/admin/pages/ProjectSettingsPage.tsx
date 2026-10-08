@@ -1,14 +1,16 @@
 import { lt, pick, t } from '@/i18n'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { getHousingApi, getProjectsApi, HousingApiError, type Project, type ProjectPatch, type ProjectStats } from '@/backend'
 import { useToast } from '@/components/useToast'
 import { ACCENTS, projectPath, refreshProjects } from '@/features/projects/registry'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { formatBanglaNumber } from '@/lib/banglaNumber'
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
-import { friendlyProjectError, isStaleEdit, photoNameExample, prefixError, slugError } from '../projects/projectRules'
+import { isMainAdmin, useAdminUser } from '../adminUser'
+import { deleteBlocker, friendlyProjectError, isStaleEdit, photoNameExample, prefixError, slugError } from '../projects/projectRules'
 import { publishChecklist } from '../projects/publishChecklist'
+import { DeleteProjectDialog } from '../projects/DeleteProjectDialog'
 import { UnpublishDialog } from '../projects/UnpublishDialog'
 import { CoverUpload } from '../projects/CoverUpload'
 import { FieldsTab } from '../projects/tabs/FieldsTab'
@@ -55,6 +57,10 @@ export function ProjectSettingsPage() {
   const [conflict, setConflict] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
   const [confirmUnpublish, setConfirmUnpublish] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const navigate = useNavigate()
+  const mainAdmin = isMainAdmin(useAdminUser())
 
   const fetchAll = useCallback(async () => {
     const list = await getProjectsApi().list({ includeDrafts: true })
@@ -112,6 +118,7 @@ export function ProjectSettingsPage() {
   const groups = all.filter((p) => p.is_group && p.key !== project.key)
   const records = stats?.total ?? 0
   const check = publishChecklist({ ...project, ...form }, all, stats)
+  const blocker = deleteBlocker(project, all, records)
 
   const errors = {
     name_bn: !form.name_bn.trim() ? t('বাংলা নাম দিন') : len(form.name_bn, 120),
@@ -170,6 +177,26 @@ export function ProjectSettingsPage() {
     const publishedChildren = all.some((c) => c.parent_key === project.key && c.is_published)
     if (records > 0 || publishedChildren) setConfirmUnpublish(true)
     else void setPublished(false)
+  }
+
+  const openDelete = () => {
+    setDeleteError(null)
+    setConfirmDelete(true)
+  }
+  /** মোছার পর তালিকায় ফেরা, এই পাতা নতুন করে আনার আগে — প্রকল্পটি তখন আর নেই, পাতাটি "পাওয়া যায়নি" দেখাত */
+  const removeProject = async () => {
+    setBusy(true)
+    setDeleteError(null)
+    try {
+      await getProjectsApi().delete(project.key)
+      await refreshProjects({ includeDrafts: true })
+      toast.success(t('«{name}» মুছে ফেলা হয়েছে', { name: lt(project, 'name') }))
+      navigate('/admin/projects')
+    } catch (err) {
+      setDeleteError(friendlyProjectError(err))
+    } finally {
+      setBusy(false)
+    }
   }
 
   const TAB_LABELS: Record<Tab, string> = { general: t('সাধারণ'), fields: t('ফিল্ড'), stats: t('পরিসংখ্যান'), photos: t('ছবি'), display: t('প্রদর্শন') }
@@ -377,6 +404,25 @@ export function ProjectSettingsPage() {
             </div>
 
             <CoverUpload project={project} blocked={dirty} onChanged={changed} />
+
+            {mainAdmin && (
+              <div className="rounded-2xl border border-red-200 bg-white p-5 shadow-sm sm:p-6">
+                <h2 className="text-base font-semibold text-red-800">{t('বিপজ্জনক অংশ')}</h2>
+                <p className="mt-1 text-sm text-slate-600">{t('শুধু খালি, অপ্রকাশিত প্রকল্প মোছা যায়। মুছলে আর ফেরানো যায় না।')}</p>
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    className={`${secondaryButton} border-red-300 text-red-700 hover:border-red-500 hover:text-red-800`}
+                    disabled={busy || dirty || blocker !== null}
+                    title={dirty ? t('আগে পরিবর্তন সংরক্ষণ করুন') : (blocker ?? undefined)}
+                    onClick={openDelete}
+                  >
+                    {t('প্রকল্প মুছুন')}
+                  </button>
+                  {blocker && <p className="text-sm text-red-700">{blocker}</p>}
+                </div>
+              </div>
+            )}
           </>
         )}
 
@@ -450,6 +496,9 @@ export function ProjectSettingsPage() {
 
       {confirmUnpublish && (
         <UnpublishDialog project={project} projects={all} records={records} busy={busy} onCancel={() => setConfirmUnpublish(false)} onConfirm={() => void setPublished(false)} />
+      )}
+      {confirmDelete && (
+        <DeleteProjectDialog project={project} busy={busy} error={deleteError} onCancel={() => setConfirmDelete(false)} onConfirm={() => void removeProject()} />
       )}
     </section>
   )

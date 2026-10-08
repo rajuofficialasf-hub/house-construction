@@ -99,7 +99,7 @@ The server has had `DELETE /api/v1/projects/:key` (main admin only) since the re
 - **Depends on:** U1
 - **Size:** M
 - **Risk area:** auth
-- **Status:** todo
+- **Status:** done
 
 ### U3. End-to-end specs for the delete flow
 - **Goal:** The delete flow, its guards and its role limits are proved on the real server and stay proved.
@@ -151,8 +151,8 @@ npm run test:e2e:rest-admin   # e2e/admin/**, including project-delete.spec.ts
 
 ## Progress
 - **Branch:** `dev-raju` (the user's own branch, chosen in chat on 2026-10-08, instead of a `feat/` branch)
-- **Updated:** 2026-10-08 11:50
-- **Next:** U2, create `src/features/admin/projects/DeleteProjectDialog.tsx` from `UnpublishDialog.tsx`, then wire the danger zone into `ProjectSettingsPage.tsx`
+- **Updated:** 2026-10-08 12:05
+- **Next:** checkpoint C1 (test, simplify, review of U1–U2), then U3 `e2e/admin/project-delete.spec.ts`
 - **Reviewed through:** none
 - **Uncommitted:** none
 - **Notes:** the session has no task tool, so units are tracked in this section only. The host has no `node_modules`; Vitest, oxlint and `tsc -b` run inside the compose `web` container (`docker compose exec -T web npx …`), which bind-mounts the source. `scripts/` is not mounted there, so `node scripts/i18n-check.mjs` runs on the host (built-in modules only). The dialog title `«{name}» মুছে ফেলবেন?` already had an English entry from the field delete.
