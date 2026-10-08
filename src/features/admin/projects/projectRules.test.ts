@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { HousingApiError } from '@/backend'
-import { friendlyProjectError, isStaleEdit, keyError } from './projectRules'
+import type { Project } from '@/backend'
+import { FALLBACK_PROJECTS } from '@/backend/fallbackProjects'
+import { deleteBlocker, friendlyProjectError, isStaleEdit, keyError } from './projectRules'
 
 // friendlyProjectError and isStaleEdit read the field and reason the server names (details.field,
 // details.reason), so a duplicate key gets its own message and only a stale edit says "someone
@@ -68,5 +70,42 @@ describe('keyError', () => {
     expect(friendlyProjectError(err('VALIDATION_ERROR', 'এই key সংরক্ষিত — অন্যটি দিন', { field: 'project.key', reason: 'reserved' }))).toBe(
       'এই key সংরক্ষিত — URL অংশ একটু বদলান',
     )
+  })
+})
+
+// The delete button's reason text repeats the database guard's own words for records and sub-projects
+// (server/db/migrations/0015_project_guards.sql), so the page and a server refusal read the same
+// (R4, docs/plans/2026-10-08-1105-feat-project-delete-plan.md).
+describe('deleteBlocker', () => {
+  const group = FALLBACK_PROJECTS[0]!
+  const child = FALLBACK_PROJECTS[1]!
+  const draft = { ...child, key: 'empty_draft', slug: 'empty-draft', parent_key: null, name_bn: 'খালি খসড়া', is_published: false } as Project
+
+  it('allows an unpublished project with no records', () => {
+    expect(deleteBlocker(draft, [draft], 0)).toBeNull()
+  })
+
+  it('refuses a group that still has sub-projects, even with no records', () => {
+    const draftGroup = { ...group, is_published: false } as Project
+    expect(deleteBlocker(draftGroup, [draftGroup, child], 0)).toBe('«ঘর নির্মাণ প্রকল্প» গ্রুপে উপ-প্রকল্প আছে — আগে সেগুলো সরান')
+  })
+
+  it('allows an unpublished group with no sub-projects', () => {
+    const emptyGroup = { ...group, is_published: false } as Project
+    expect(deleteBlocker(emptyGroup, [emptyGroup, draft], 0)).toBeNull()
+  })
+
+  it('refuses a project with records', () => {
+    expect(deleteBlocker(draft, [draft], 3)).toBe('«খালি খসড়া» প্রকল্পে রেকর্ড আছে — মোছা যাবে না; দরকার হলে অপ্রকাশিত করুন')
+  })
+
+  it('refuses a published project with no records, with the page\'s own wording', () => {
+    const published = { ...draft, is_published: true } as Project
+    expect(deleteBlocker(published, [published], 0)).toBe('প্রকাশিত প্রকল্প মোছা যায় না — আগে অপ্রকাশ করুন')
+  })
+
+  it('names the records before the published state when both apply', () => {
+    const published = { ...draft, is_published: true } as Project
+    expect(deleteBlocker(published, [published], 2)).toBe('«খালি খসড়া» প্রকল্পে রেকর্ড আছে — মোছা যাবে না; দরকার হলে অপ্রকাশিত করুন')
   })
 })

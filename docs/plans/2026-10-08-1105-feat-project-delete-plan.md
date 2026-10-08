@@ -84,7 +84,7 @@ The server has had `DELETE /api/v1/projects/:key` (main admin only) since the re
 - **Depends on:** none
 - **Size:** S
 - **Risk area:** none
-- **Status:** todo
+- **Status:** done
 
 ### U2. Danger zone and delete dialog on the settings page
 - **Goal:** The main admin can delete an empty draft project from its settings page after typing its name, and is told in advance when a project can't be deleted.
@@ -151,8 +151,8 @@ npm run test:e2e:rest-admin   # e2e/admin/**, including project-delete.spec.ts
 
 ## Progress
 - **Branch:** `dev-raju` (the user's own branch, chosen in chat on 2026-10-08, instead of a `feat/` branch)
-- **Updated:** 2026-10-08 11:40
-- **Next:** U1, add `deleteBlocker` and its Vitest cases to `src/features/admin/projects/projectRules.ts` and `projectRules.test.ts`
+- **Updated:** 2026-10-08 11:50
+- **Next:** U2, create `src/features/admin/projects/DeleteProjectDialog.tsx` from `UnpublishDialog.tsx`, then wire the danger zone into `ProjectSettingsPage.tsx`
 - **Reviewed through:** none
 - **Uncommitted:** none
-- **Notes:** the session has no task tool, so units are tracked in this section only.
+- **Notes:** the session has no task tool, so units are tracked in this section only. The host has no `node_modules`; Vitest, oxlint and `tsc -b` run inside the compose `web` container (`docker compose exec -T web npx …`), which bind-mounts the source. `scripts/` is not mounted there, so `node scripts/i18n-check.mjs` runs on the host (built-in modules only). The dialog title `«{name}» মুছে ফেলবেন?` already had an English entry from the field delete.

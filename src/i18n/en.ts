@@ -914,4 +914,12 @@ Object.assign(EN, {
   'সংরক্ষণ হয়নি': 'Not saved',
   'সব প্রকল্প (পরে নতুন প্রকল্প হলে সেটিও)': 'All projects (including ones added later)',
   'পরিসংখ্যান: বাছাই করা ফিল্টার অনুযায়ী': 'Statistics: for the selected filters',
+  '«{name}» গ্রুপে উপ-প্রকল্প আছে — আগে সেগুলো সরান': 'Group «{name}» has sub-projects — remove them first',
+  '«{name}» প্রকল্পে রেকর্ড আছে — মোছা যাবে না; দরকার হলে অপ্রকাশিত করুন': 'Project «{name}» has records — it cannot be deleted; unpublish it if needed',
+  'প্রকাশিত প্রকল্প মোছা যায় না — আগে অপ্রকাশ করুন': 'A published project cannot be deleted — unpublish it first',
+  'বিপজ্জনক অংশ': 'Danger zone',
+  'শুধু খালি, অপ্রকাশিত প্রকল্প মোছা যায়। মুছলে আর ফেরানো যায় না।': 'Only an empty, unpublished project can be deleted. This cannot be undone.',
+  'প্রকল্প মুছুন': 'Delete project',
+  'প্রকল্পটি, এর ফিল্ডগুলো আর কভার ছবি মুছে যাবে। এটি ফেরানো যায় না।': 'The project, its fields and its cover image will be removed. This cannot be undone.',
+  '«{name}» মুছে ফেলা হয়েছে': '«{name}» was deleted',
 })

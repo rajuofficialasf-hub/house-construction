@@ -120,3 +120,19 @@ export function friendlyProjectError(err: unknown): string {
 
 /** "১২টি রেকর্ড" ধরনের লেখা */
 export const nRecords = (n: number) => t('{n}টি রেকর্ড', { n: toBanglaNumber(n) })
+
+/**
+ * Why a project can't be deleted right now, in the admin's words, or null when it can. The first two
+ * reasons repeat the database guard's own text (server/db/migrations/0015_project_guards.sql), so the
+ * disabled button and a server refusal read the same; the guard stays the authority and also refuses
+ * a project that had records once, which the UI can't see. A published project is refused here only,
+ * so that a live public page can't vanish in one step.
+ * (R4, docs/plans/2026-10-08-1105-feat-project-delete-plan.md)
+ */
+export function deleteBlocker(project: Project, projects: readonly Project[], records: number): string | null {
+  const name = project.name_bn
+  if (project.is_group && projects.some((p) => p.parent_key === project.key)) return t('«{name}» গ্রুপে উপ-প্রকল্প আছে — আগে সেগুলো সরান', { name })
+  if (records > 0) return t('«{name}» প্রকল্পে রেকর্ড আছে — মোছা যাবে না; দরকার হলে অপ্রকাশিত করুন', { name })
+  if (project.is_published) return t('প্রকাশিত প্রকল্প মোছা যায় না — আগে অপ্রকাশ করুন')
+  return null
+}
