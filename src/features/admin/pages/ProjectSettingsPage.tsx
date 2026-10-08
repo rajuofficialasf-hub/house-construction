@@ -415,11 +415,23 @@ export function ProjectSettingsPage() {
                     className={`${secondaryButton} border-red-300 text-red-700 hover:border-red-500 hover:text-red-800`}
                     disabled={busy || dirty || blocker !== null}
                     title={dirty ? t('আগে পরিবর্তন সংরক্ষণ করুন') : (blocker ?? undefined)}
+                    aria-describedby={dirty || blocker ? 'delete-project-hint' : undefined}
                     onClick={openDelete}
                   >
                     {t('প্রকল্প মুছুন')}
                   </button>
-                  {blocker && <p className="text-sm text-red-700">{blocker}</p>}
+                  {/* A disabled button takes no focus and its title is never read out, so the reason is visible text linked to it. */}
+                  {dirty ? (
+                    <p id="delete-project-hint" className="text-sm text-amber-800">
+                      {t('আগে পরিবর্তন সংরক্ষণ করুন')}
+                    </p>
+                  ) : (
+                    blocker && (
+                      <p id="delete-project-hint" className="text-sm text-red-700">
+                        {blocker}
+                      </p>
+                    )
+                  )}
                 </div>
               </div>
             )}
