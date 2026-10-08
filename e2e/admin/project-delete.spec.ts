@@ -1,0 +1,163 @@
+import type { Page } from '@playwright/test'
+import { expect, test } from '../support/backend'
+import { loginAs, MOCK_ADMIN } from '../support/auth'
+import { PLAIN_ADMIN, PROJECT_EDITOR } from '../support/rest-data'
+import { ADMIN_REST_API_URL } from '../support/rest-env'
+import { DEMO, createDraftProject, expectNotFound, inFreshContext, publish, toast } from '../support/projects'
+
+// The danger zone on /admin/projects/:key (ProjectSettingsPage.tsx, DeleteProjectDialog.tsx): the main
+// admin deletes an empty, unpublished project after typing its name; everyone else gets no button and
+// a 403 from the server (docs/plans/2026-10-08-1105-feat-project-delete-plan.md).
+
+const deleteButton = (page: Page) => page.getByRole('button', { name: 'প্রকল্প মুছুন' })
+const deleteDialog = (page: Page, name: string) => page.getByRole('dialog', { name: `«${name}» মুছে ফেলবেন?` })
+
+/** Calls the API from inside the page, with the signed-in session's cookie and the page's Origin. */
+function api(page: Page, path: string, method: 'GET' | 'DELETE' = 'GET') {
+  return page.evaluate(
+    async ({ url, method }) => {
+      const res = await fetch(url, { method, credentials: 'include' })
+      return { status: res.status, body: res.status === 204 ? null : ((await res.json()) as { error?: { code: string; message: string } }) }
+    },
+    { url: `${ADMIN_REST_API_URL}/api/v1${path}`, method },
+  )
+}
+
+/** Opens the dialog and types the name, so only the confirm click is left. */
+async function openAndConfirmName(page: Page, name: string) {
+  await deleteButton(page).click()
+  const dialog = deleteDialog(page, name)
+  await dialog.getByLabel(`নিশ্চিত করতে প্রকল্পের নাম লিখুন: ${name}`).fill(name)
+  return dialog
+}
+
+test('the main admin deletes an empty draft after typing its exact name; the project is gone for everyone', async ({ page, browser, baseURL }) => {
+  await loginAs(page, MOCK_ADMIN, '/admin')
+  await createDraftProject(page, 'দর্জি অনুদান', 'Tailoring Grant')
+
+  await deleteButton(page).click()
+  const dialog = deleteDialog(page, 'দর্জি অনুদান')
+  const confirm = dialog.getByRole('button', { name: 'মুছুন', exact: true })
+  await expect(confirm).toBeDisabled()
+  const input = dialog.getByLabel('নিশ্চিত করতে প্রকল্পের নাম লিখুন: দর্জি অনুদান')
+  await input.fill('দর্জি')
+  await expect(confirm).toBeDisabled()
+  await input.fill('দর্জি অনুদান')
+  await expect(confirm).toBeEnabled()
+  await confirm.click()
+
+  await expect(page).toHaveURL(/\/admin\/projects$/)
+  await expect(toast(page, '«দর্জি অনুদান» মুছে ফেলা হয়েছে')).toBeVisible()
+  await expect(page.getByRole('link', { name: 'দর্জি অনুদান' })).toHaveCount(0)
+  await inFreshContext(browser, baseURL, (visitor) => expectNotFound(visitor, '/tailoring-grant'))
+})
+
+test('a project with records and a group with sub-projects keep a disabled button that says why', async ({ page }) => {
+  await loginAs(page, MOCK_ADMIN, DEMO.settings)
+  await expect(deleteButton(page)).toBeDisabled()
+  await expect(page.getByText('«ডেমো প্রকল্প» প্রকল্পে রেকর্ড আছে — মোছা যাবে না; দরকার হলে অপ্রকাশিত করুন')).toBeVisible()
+
+  await page.goto('/admin/projects/housing')
+  await expect(page.getByRole('heading', { level: 1, name: 'ঘর নির্মাণ প্রকল্প' })).toBeVisible()
+  await expect(deleteButton(page)).toBeDisabled()
+  await expect(page.getByText('«ঘর নির্মাণ প্রকল্প» গ্রুপে উপ-প্রকল্প আছে — আগে সেগুলো সরান')).toBeVisible()
+})
+
+test('a published project must be unpublished before it can be deleted', async ({ page }) => {
+  await loginAs(page, MOCK_ADMIN, '/admin')
+  await createDraftProject(page, 'সেলাই অনুদান', 'Sewing Grant')
+  await expect(deleteButton(page)).toBeEnabled()
+
+  await publish(page)
+  await expect(deleteButton(page)).toBeDisabled()
+  await expect(page.getByText('প্রকাশিত প্রকল্প মোছা যায় না — আগে অপ্রকাশ করুন')).toBeVisible()
+
+  // No records and no sub-projects: unpublishing needs no confirmation.
+  await page.getByRole('button', { name: 'অপ্রকাশ করুন', exact: true }).click()
+  await expect(toast(page, 'অপ্রকাশ করা হয়েছে')).toBeVisible()
+  await expect(deleteButton(page)).toBeEnabled()
+})
+
+test('a plain admin and a project user get no delete button, and their direct delete is refused by the role check', async ({ page, browser, baseURL }) => {
+  await loginAs(page, PLAIN_ADMIN, DEMO.settings)
+  await expect(page.getByRole('heading', { level: 1, name: DEMO.name })).toBeVisible()
+  await expect(deleteButton(page)).toHaveCount(0)
+  const refused = await api(page, '/projects/demo', 'DELETE')
+  expect(refused.status).toBe(403)
+  // requireMainAdmin's message, not the origin check's.
+  expect(refused.body?.error?.message).toBe('শুধু মূল এডমিন মুছতে পারেন')
+  expect((await api(page, '/projects/demo')).status).toBe(200)
+
+  await inFreshContext(browser, baseURL, async (editor) => {
+    await loginAs(editor, PROJECT_EDITOR, '/admin/projects/tin')
+    await expect(editor.getByRole('heading', { level: 1, name: 'এই অংশ শুধু মূল এডমিনের' })).toBeVisible()
+    await expect(deleteButton(editor)).toHaveCount(0)
+    expect((await api(editor, '/projects/tin', 'DELETE')).status).toBe(403)
+  })
+})
+
+test('a refusal the page could not foresee is shown inside the dialog, which stays open', async ({ page, baseURL }) => {
+  await loginAs(page, MOCK_ADMIN, '/admin')
+  const key = await createDraftProject(page, 'ছাগল বিতরণ', 'Goat Distribution')
+
+  // The database's own refusal for a project that had records once (migration 0015), which the page
+  // can't see in advance. The real guard is proved in server/test/http/projects-writes.test.ts; here
+  // the route answers as the server would, so the test needs no records to create and remove.
+  const refusal = '«ছাগল বিতরণ» প্রকল্পে আগে রেকর্ড ছিল — মোছা যাবে না; দরকার হলে অপ্রকাশিত করুন'
+  await page.route(`${ADMIN_REST_API_URL}/api/v1/projects/${key}`, (route) => {
+    if (route.request().method() !== 'DELETE') return route.continue()
+    return route.fulfill({
+      status: 400,
+      contentType: 'application/json',
+      headers: { 'access-control-allow-origin': baseURL ?? '', 'access-control-allow-credentials': 'true' },
+      body: JSON.stringify({ error: { code: 'VALIDATION_ERROR', message: refusal } }),
+    })
+  })
+
+  const dialog = await openAndConfirmName(page, 'ছাগল বিতরণ')
+  await dialog.getByRole('button', { name: 'মুছুন', exact: true }).click()
+  await expect(dialog.getByRole('alert')).toHaveText(refusal)
+  await expect(dialog).toBeVisible()
+  await expect(page).toHaveURL(new RegExp(`/admin/projects/${key}$`))
+  expect((await api(page, `/projects/${key}`)).status).toBe(200)
+})
+
+test('unsaved changes on the General tab block the delete button until they are saved', async ({ page }) => {
+  await loginAs(page, MOCK_ADMIN, '/admin')
+  await createDraftProject(page, 'রিকশা অনুদান', 'Rickshaw Grant')
+  await expect(deleteButton(page)).toBeEnabled()
+
+  await page.getByLabel('ছোট বর্ণনা (বাংলা)').fill('পরীক্ষার জন্য বদলানো বর্ণনা')
+  await expect(deleteButton(page)).toBeDisabled()
+  await expect(page.getByText('আগে পরিবর্তন সংরক্ষণ করুন')).toBeVisible()
+
+  await page.getByRole('button', { name: 'সংরক্ষণ করুন', exact: true }).click()
+  await expect(toast(page, 'সংরক্ষিত')).toBeVisible()
+  await expect(deleteButton(page)).toBeEnabled()
+})
+
+test('while the delete request is in flight the dialog is locked, then the admin lands on the list', async ({ page }) => {
+  await loginAs(page, MOCK_ADMIN, '/admin')
+  const key = await createDraftProject(page, 'হাঁস অনুদান', 'Duck Grant')
+
+  let release = () => {}
+  const held = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  await page.route(`${ADMIN_REST_API_URL}/api/v1/projects/${key}`, async (route) => {
+    if (route.request().method() !== 'DELETE') return route.continue()
+    await held
+    return route.continue()
+  })
+
+  const dialog = await openAndConfirmName(page, 'হাঁস অনুদান')
+  await dialog.getByRole('button', { name: 'মুছুন', exact: true }).click()
+  await expect(dialog.getByRole('button', { name: 'অপেক্ষা করুন…' })).toBeDisabled()
+  await expect(dialog.getByRole('button', { name: 'বাতিল' })).toBeDisabled()
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeVisible()
+
+  release()
+  await expect(page).toHaveURL(/\/admin\/projects$/)
+  await expect(toast(page, '«হাঁস অনুদান» মুছে ফেলা হয়েছে')).toBeVisible()
+})

@@ -119,7 +119,7 @@ The server has had `DELETE /api/v1/projects/:key` (main admin only) since the re
 - **Depends on:** U2
 - **Size:** M
 - **Risk area:** none
-- **Status:** todo
+- **Status:** done
 
 ## Checkpoints
 - **Mode:** all at once, split at U2 (one by one 0, grouped 4, all at once 9)
@@ -152,11 +152,12 @@ npm run test:e2e:rest-admin   # e2e/admin/**, including project-delete.spec.ts
 
 ## Progress
 - **Branch:** `dev-raju` (the user's own branch, chosen in chat on 2026-10-08, instead of a `feat/` branch)
-- **Updated:** 2026-10-08 12:35
-- **Next:** U3, write `e2e/admin/project-delete.spec.ts` (seven cases listed in the unit) and the `createDraftProject` helper
+- **Updated:** 2026-10-08 12:55
+- **Next:** checkpoint C2 (full test run, simplify and review of U3), then finish: status done, remove this section
 - **Reviewed through:** C1 at 19667b8 (simplify: nothing to change; review: one P2 fixed, the disabled button's reason is now linked with aria-describedby; two P2s became U3 cases 2, 4 and 7)
 - **Uncommitted:** none
 - **Notes:** the session has no task tool, so units are tracked in this section only.
   - Review C1 left as P3, not fixed: a failed stats call makes `records` 0 and enables the button (the database still refuses, R5); the shared `ConfirmDialog` re-focuses Cancel whenever `busy` changes and doesn't restore focus on close (outside this plan's files); two Vitest cases that would pin the group check harder (group above records+published; a group whose list holds another group's child).
   - On this Windows host `scripts/e2e-rest-admin.mjs` fails because Node's `spawnSync('npm')` finds no `.cmd`; run its three steps by hand: `DATABASE_MIGRATION_URL=<owner test url> npm --prefix server run db:migrate`, `rm -rf .storage/e2e`, then `E2E_ADMIN_REST=1 npx playwright test --project=admin-rest …`. The compose database is on port 5433 here, so `TEST_DATABASE_URL` and `TEST_DATABASE_MIGRATION_URL` must say 5433. The Playwright CDN times out here, so `PW_CHANNEL=chrome` (commit aba850e) runs the specs in the installed Google Chrome.
-  - `ae-compound` candidates: the Windows spawn problem in the e2e scripts, and the PW_CHANNEL workaround. The host has no `node_modules`; Vitest, oxlint and `tsc -b` run inside the compose `web` container (`docker compose exec -T web npx …`), which bind-mounts the source. `scripts/` is not mounted there, so `node scripts/i18n-check.mjs` runs on the host (built-in modules only). The dialog title `«{name}» মুছে ফেলবেন?` already had an English entry from the field delete.
+  - `ae-compound` candidates: the Windows spawn problem in the e2e scripts, and the PW_CHANNEL workaround.
+  - U3 case 5 (R5) answers the `DELETE` from `page.route` with the guard's real 400 body instead of adding a record in a second session: the real guard is proved in `server/test/http/projects-writes.test.ts`, and a cross-origin fulfilled response needs the two `access-control-allow-*` headers or the browser reports a network error. The host has no `node_modules`; Vitest, oxlint and `tsc -b` run inside the compose `web` container (`docker compose exec -T web npx …`), which bind-mounts the source. `scripts/` is not mounted there, so `node scripts/i18n-check.mjs` runs on the host (built-in modules only). The dialog title `«{name}» মুছে ফেলবেন?` already had an English entry from the field delete.

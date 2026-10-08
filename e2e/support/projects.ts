@@ -35,6 +35,23 @@ export async function addStatCard(page: Page, kind: 'গণনা' | 'যোগ�
   await expect(toast(page, 'সংরক্ষিত')).toBeVisible()
 }
 
+/**
+ * Creates a single draft project from the "অনুদান/উপকরণ ধরন" template in the wizard, as a signed-in
+ * admin, and returns its key once the settings page has opened. The slug, and so the key, come from
+ * the English name the way the wizard derives them ("Tailoring Grant" → tailoring_grant).
+ */
+export async function createDraftProject(page: Page, nameBn: string, nameEn: string): Promise<string> {
+  await page.goto('/admin/projects/new')
+  await page.getByRole('radio', { name: /^অনুদান\/উপকরণ ধরন/ }).check()
+  await page.getByRole('radio', { name: /^একক প্রকল্প/ }).check()
+  await page.getByLabel('বাংলা নাম').fill(nameBn)
+  await page.getByLabel('ইংরেজি নাম').fill(nameEn)
+  await page.getByRole('button', { name: 'খসড়া হিসেবে তৈরি করুন' }).click()
+  await expect(page).toHaveURL(/\/admin\/projects\/[a-z0-9_]+$/)
+  await expect(page.getByRole('heading', { level: 1, name: nameBn })).toBeVisible()
+  return new URL(page.url()).pathname.split('/').pop()!
+}
+
 /** On a draft project's settings page whose checklist has nothing blocking: publishes it. */
 export async function publish(page: Page) {
   await page.getByRole('button', { name: 'প্রকাশ করুন', exact: true }).click()
