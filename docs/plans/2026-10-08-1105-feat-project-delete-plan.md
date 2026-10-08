@@ -103,16 +103,17 @@ The server has had `DELETE /api/v1/projects/:key` (main admin only) since the re
 
 ### U3. End-to-end specs for the delete flow
 - **Goal:** The delete flow, its guards and its role limits are proved on the real server and stay proved.
-- **Requirements:** R1, R2, R3, R4, R5, R6, R8
+- **Requirements:** R1, R2, R3, R4, R5, R6, R7, R8
 - **Files:** `e2e/admin/project-delete.spec.ts` (new), `e2e/support/projects.ts` (a `createDraftProject(page, nameBn, nameEn)` helper lifted from `e2e/admin/project-wizard.spec.ts` lines 9–18, returning the new key from the URL)
 - **Approach:** Import `{ expect, test }` from `../support/backend` and `loginAs`, `MOCK_ADMIN`, `PLAIN_ADMIN`, `inFreshContext` from the support files, as `e2e/admin/project-settings.spec.ts` and `e2e/admin/delete-roles.spec.ts` do. Dialog selectors: `page.getByRole('dialog', { name: '«X» মুছে ফেলবেন?' })`, `dialog.getByLabel('নিশ্চিত করতে প্রকল্পের নাম লিখুন: X')`, `dialog.getByRole('button', { name: 'মুছুন' })`. Toasts via the `toast(page, msg)` helper.
 - **Tests:**
   1. main admin creates a draft project, opens its settings, the "মুছুন" button in the dialog is disabled until the exact name is typed (a wrong name keeps it disabled), then deletes: URL becomes `/admin/projects`, toast `«X» মুছে ফেলা হয়েছে`, the project name is absent from the list, and `expectNotFound` on its public path.
-  2. on `/admin/projects/demo` (6 records) the "প্রকল্প মুছুন" button is disabled and the records message is visible.
+  2. on `/admin/projects/demo` (6 records) the "প্রকল্প মুছুন" button is disabled and the records message is visible; on `/admin/projects/housing` (the seed's group with two sub-projects) the button is disabled and the group message is visible.
   3. a fresh draft project is published with the `publish` helper; its delete button is disabled with the published message; after unpublishing (type the name in the unpublish dialog) the button is enabled.
-  4. the plain admin opens a draft project's settings and sees no "প্রকল্প মুছুন" button; a direct `DELETE /api/v1/projects/<key>` from that session (the `api()` pattern in `delete-roles.spec.ts`) gets 403 with `শুধু মূল এডমিন মুছতে পারেন` (`TS-13`).
+  4. the plain admin opens a draft project's settings and sees no "প্রকল্প মুছুন" button; a direct `DELETE /api/v1/projects/<key>` from that session (the `api()` pattern in `delete-roles.spec.ts`) gets 403 with `শুধু মূল এডমিন মুছতে পারেন` (`TS-13`). The project user (`PROJECT_EDITOR`) opening the same URL gets the `RoleGate` notice "এই অংশ শুধু মূল এডমিনের" instead of the page, and its direct `DELETE` also gets 403.
   5. R5: the main admin opens a fresh draft's dialog, then in a second context (`inFreshContext`, main admin) adds one record to that project through the records page or API; back in the first tab the typed-name delete is refused by the database, the dialog stays open and shows the server's `প্রকল্পে রেকর্ড আছে` message.
-  6. R8: on a fresh draft's General tab, changing the Bangla name without saving disables "প্রকল্প মুছুন" with the title `আগে পরিবর্তন সংরক্ষণ করুন`; saving re-enables it.
+  6. R8: on a fresh draft's General tab, changing the Bangla name without saving disables "প্রকল্প মুছুন" and shows `আগে পরিবর্তন সংরক্ষণ করুন` beside it; saving re-enables it.
+  7. R7: with `page.route` holding the `DELETE /api/v1/projects/<key>` response, pressing "মুছুন" disables both dialog buttons and Esc leaves the dialog open; releasing the response leads to `/admin/projects` (added at checkpoint C1 on the testing reviewer's finding).
   No fixed sleeps (`TS-31`); every wait is a web-first assertion.
 - **Done when:** `npm run test:e2e:rest-admin` is green with the new spec, and the existing `project-settings.spec.ts` and `delete-roles.spec.ts` still pass.
 - **Depends on:** U2
@@ -151,8 +152,11 @@ npm run test:e2e:rest-admin   # e2e/admin/**, including project-delete.spec.ts
 
 ## Progress
 - **Branch:** `dev-raju` (the user's own branch, chosen in chat on 2026-10-08, instead of a `feat/` branch)
-- **Updated:** 2026-10-08 12:05
-- **Next:** checkpoint C1 (test, simplify, review of U1–U2), then U3 `e2e/admin/project-delete.spec.ts`
-- **Reviewed through:** none
+- **Updated:** 2026-10-08 12:35
+- **Next:** U3, write `e2e/admin/project-delete.spec.ts` (seven cases listed in the unit) and the `createDraftProject` helper
+- **Reviewed through:** C1 at 19667b8 (simplify: nothing to change; review: one P2 fixed, the disabled button's reason is now linked with aria-describedby; two P2s became U3 cases 2, 4 and 7)
 - **Uncommitted:** none
-- **Notes:** the session has no task tool, so units are tracked in this section only. The host has no `node_modules`; Vitest, oxlint and `tsc -b` run inside the compose `web` container (`docker compose exec -T web npx …`), which bind-mounts the source. `scripts/` is not mounted there, so `node scripts/i18n-check.mjs` runs on the host (built-in modules only). The dialog title `«{name}» মুছে ফেলবেন?` already had an English entry from the field delete.
+- **Notes:** the session has no task tool, so units are tracked in this section only.
+  - Review C1 left as P3, not fixed: a failed stats call makes `records` 0 and enables the button (the database still refuses, R5); the shared `ConfirmDialog` re-focuses Cancel whenever `busy` changes and doesn't restore focus on close (outside this plan's files); two Vitest cases that would pin the group check harder (group above records+published; a group whose list holds another group's child).
+  - On this Windows host `scripts/e2e-rest-admin.mjs` fails because Node's `spawnSync('npm')` finds no `.cmd`; run its three steps by hand: `DATABASE_MIGRATION_URL=<owner test url> npm --prefix server run db:migrate`, `rm -rf .storage/e2e`, then `E2E_ADMIN_REST=1 npx playwright test --project=admin-rest …`. The compose database is on port 5433 here, so `TEST_DATABASE_URL` and `TEST_DATABASE_MIGRATION_URL` must say 5433. The Playwright CDN times out here, so `PW_CHANNEL=chrome` (commit aba850e) runs the specs in the installed Google Chrome.
+  - `ae-compound` candidates: the Windows spawn problem in the e2e scripts, and the PW_CHANNEL workaround. The host has no `node_modules`; Vitest, oxlint and `tsc -b` run inside the compose `web` container (`docker compose exec -T web npx …`), which bind-mounts the source. `scripts/` is not mounted there, so `node scripts/i18n-check.mjs` runs on the host (built-in modules only). The dialog title `«{name}» মুছে ফেলবেন?` already had an English entry from the field delete.
