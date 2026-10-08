@@ -25,7 +25,9 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   reporter: [['list']],
-  use: { trace: 'retain-on-failure' },
+  // PW_CHANNEL=chrome runs the specs in the machine's installed Google Chrome instead of the downloaded
+  // Chromium, for machines where the Playwright CDN is unreachable. Unset, nothing changes.
+  use: { trace: 'retain-on-failure', ...(process.env.PW_CHANNEL ? { channel: process.env.PW_CHANNEL } : {}) },
   projects: [
     {
       name: 'mock',
