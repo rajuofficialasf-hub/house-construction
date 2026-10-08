@@ -4,7 +4,7 @@ import { api } from '../support/api'
 import { loginAs, MOCK_ADMIN } from '../support/auth'
 import { PLAIN_ADMIN, PROJECT_EDITOR } from '../support/rest-data'
 import { ADMIN_REST_API_URL } from '../support/rest-env'
-import { DEMO, createDraftProject, expectNotFound, inFreshContext, publish, toast } from '../support/projects'
+import { DEMO, createDraftProject, inFreshContext, publish, toast } from '../support/projects'
 
 // The danger zone on /admin/projects/:key (ProjectSettingsPage.tsx, DeleteProjectDialog.tsx): the main
 // admin deletes an empty, unpublished project after typing its name; everyone else gets no button and
@@ -22,12 +22,14 @@ async function openAndConfirmName(page: Page, name: string) {
   return dialog
 }
 
-test('the main admin deletes an empty draft after typing its exact name; the project is gone for everyone', async ({ page, browser, baseURL }) => {
+test('the main admin deletes an empty draft after typing its exact name; the project is gone', async ({ page }) => {
   await loginAs(page, MOCK_ADMIN, '/admin')
-  await createDraftProject(page, 'দর্জি অনুদান', 'Tailoring Grant')
+  const key = await createDraftProject(page, 'দর্জি অনুদান', 'Tailoring Grant')
+  await expect(page.getByRole('heading', { name: 'বিপজ্জনক অংশ' })).toBeVisible()
 
   await deleteButton(page).click()
   const dialog = deleteDialog(page, 'দর্জি অনুদান')
+  await expect(dialog).toContainText('প্রকল্পটি, এর ফিল্ডগুলো আর কভার ছবি মুছে যাবে। এটি ফেরানো যায় না।')
   const confirm = confirmButton(dialog)
   await expect(confirm).toBeDisabled()
   const input = dialog.getByLabel('নিশ্চিত করতে প্রকল্পের নাম লিখুন: দর্জি অনুদান')
@@ -39,8 +41,10 @@ test('the main admin deletes an empty draft after typing its exact name; the pro
 
   await expect(page).toHaveURL(/\/admin\/projects$/)
   await expect(toast(page, '«দর্জি অনুদান» মুছে ফেলা হয়েছে')).toBeVisible()
+  // The list has rendered once another project's link is there; only then does "no link" mean anything.
+  await expect(page.getByRole('link', { name: DEMO.name })).toBeVisible()
   await expect(page.getByRole('link', { name: 'দর্জি অনুদান' })).toHaveCount(0)
-  await inFreshContext(browser, baseURL, (visitor) => expectNotFound(visitor, '/tailoring-grant'))
+  expect((await api(page, `/projects/${key}`)).status).toBe(404)
 })
 
 test('a project with records and a group with sub-projects keep a disabled button that says why', async ({ page }) => {
@@ -87,28 +91,29 @@ test('a plain admin and a project user get no delete button, and their direct de
   })
 })
 
-test('a refusal the page could not foresee is shown inside the dialog, which stays open', async ({ page, baseURL }) => {
+test('a refusal the page could not foresee is shown inside the dialog, which stays open', async ({ page, browser, baseURL }) => {
   await loginAs(page, MOCK_ADMIN, '/admin')
   const key = await createDraftProject(page, 'ছাগল বিতরণ', 'Goat Distribution')
+  const dialog = await openAndConfirmName(page, 'ছাগল বিতরণ')
 
-  // The database's own refusal for a project that had records once (migration 0015), which the page
-  // can't see in advance. The real guard is proved in server/test/http/projects-writes.test.ts; here
-  // the route answers as the server would, so the test needs no records to create and remove
+  // Meanwhile another main-admin session adds a record, so this page's "no records" is stale and the
+  // database guard (migration 0015), not the page, refuses the delete
   // (R5, docs/plans/2026-10-08-1105-feat-project-delete-plan.md).
-  const refusal = '«ছাগল বিতরণ» প্রকল্পে আগে রেকর্ড ছিল — মোছা যাবে না; দরকার হলে অপ্রকাশিত করুন'
-  await page.route(`${ADMIN_REST_API_URL}/api/v1/projects/${key}`, (route) => {
-    if (route.request().method() !== 'DELETE') return route.continue()
-    return route.fulfill({
-      status: 400,
-      contentType: 'application/json',
-      headers: { 'access-control-allow-origin': baseURL ?? '', 'access-control-allow-credentials': 'true' },
-      body: JSON.stringify({ error: { code: 'VALIDATION_ERROR', message: refusal } }),
+  await inFreshContext(browser, baseURL, async (other) => {
+    await loginAs(other, MOCK_ADMIN, '/admin')
+    const created = await api(other, `/projects/${key}/records`, 'POST', {
+      year: 2025,
+      name: 'পরীক্ষার উপকারভোগী',
+      division: 'ময়মনসিংহ',
+      district: 'শেরপুর',
+      upazila: 'নালিতাবাড়ী',
+      extra: { category: 'ছাগল', amount: 5000 },
     })
+    expect(created.status).toBe(201)
   })
 
-  const dialog = await openAndConfirmName(page, 'ছাগল বিতরণ')
   await confirmButton(dialog).click()
-  await expect(dialog.getByRole('alert')).toHaveText(refusal)
+  await expect(dialog.getByRole('alert')).toHaveText('«ছাগল বিতরণ» প্রকল্পে রেকর্ড আছে — মোছা যাবে না; দরকার হলে অপ্রকাশিত করুন')
   await expect(dialog).toBeVisible()
   await expect(page).toHaveURL(new RegExp(`/admin/projects/${key}$`))
   expect((await api(page, `/projects/${key}`)).status).toBe(200)
